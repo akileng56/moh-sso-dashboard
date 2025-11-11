@@ -101,5 +101,3 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	// 3. Write the successful (empty) response
 	c.Status(http.StatusNoContent) // Gin's way to return 204 No Content
 }
-
-// NOTE: The writeJSONResponse helper is no longer needed because c.JSON handles it.

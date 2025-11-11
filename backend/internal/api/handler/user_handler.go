@@ -10,20 +10,8 @@ import (
 	"github.com/moh-sso-dashboard/internal/service"
 )
 
-// UserResponse is a "safe" version of the User model for JSON responses.
-// Notice it omits the HashedPassword.
-type UserResponse struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
-	IsActive bool   `json:"is_active"`
-}
-
-// toUserResponse is a helper function to convert the internal model
-// to the external-facing response DTO.
-func toUserResponse(user *models.User) UserResponse {
-	return UserResponse{
+func toUserResponse(user *models.User) models.UserResponse {
+	return models.UserResponse{
 		ID:       user.ID,
 		Username: user.Username,
 		Email:    user.Email,
@@ -97,7 +85,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 	}
 
 	// 2. Convert the *slice* of models to a *slice* of response DTOs
-	responses := make([]UserResponse, len(users))
+	responses := make([]models.UserResponse, len(users))
 	for i, user := range users {
 		responses[i] = toUserResponse(&user) // Convert each user
 	}

@@ -1,0 +1,119 @@
+version: "3.9"
+
+services:
+  # -----------------------------
+  # Keycloak Authentication Server
+  # -----------------------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.5
+    container_name: keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: keycloak-db
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_PROXY: "edge"
+    volumes:
+      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+    ports:
+      - "8081:8080"
+    depends_on:
+      - keycloak-db
+    networks:
+      - sso_network
+
+  # -----------------------------
+  # Keycloak Database (PostgreSQL)
+  # -----------------------------
+  keycloak-db:
+    image: postgres:15
+    container_name: keycloak-db
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
+    networks:
+      - sso_network
+
+  # -----------------------------
+  # Go Backend Service
+  # -----------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sso-backend
+    environment:
+      - PORT=8080
+      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_REALM=moh-realm
+      - KEYCLOAK_CLIENT_ID=dashboard
+      - KEYCLOAK_CLIENT_SECRET=changeme
+      - DB_HOST=backend-db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=sso_dashboard
+    depends_on:
+      - keycloak
+      - backend-db
+    ports:
+      - "8080:8080"
+    networks:
+      - sso_network
+
+  # -----------------------------
+  # Backend Database
+  # -----------------------------
+  backend-db:
+    image: postgres:15
+    container_name: backend-db
+    environment:
+      POSTGRES_DB: sso_dashboard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - backend_data:/var/lib/postgresql/data
+    networks:
+      - sso_network
+
+  # -----------------------------
+  # React Frontend
+  # -----------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sso-frontend
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080
+      - REACT_APP_KEYCLOAK_URL=http://localhost:8081
+      - REACT_APP_KEYCLOAK_REALM=moh-realm
+      - REACT_APP_KEYCLOAK_CLIENT_ID=dashboard
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+      - keycloak
+    networks:
+      - sso_network
+
+# -----------------------------
+# Persistent Volumes
+# -----------------------------
+volumes:
+  keycloak_data:
+  backend_data:
+
+# -----------------------------
+# Network
+# -----------------------------
+networks:
+  sso_network:
+    driver: bridge

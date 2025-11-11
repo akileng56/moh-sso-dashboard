@@ -25,3 +25,13 @@ type User struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
+
+// UserResponse is a "safe" version of the User model for JSON responses.
+// Notice it omits the HashedPassword.
+type UserResponse struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	FullName string `json:"full_name"`
+	IsActive bool   `json:"is_active"`
+}
