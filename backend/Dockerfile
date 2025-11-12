@@ -7,5 +7,7 @@ RUN go build -o sso-server ./cmd/server
 FROM alpine:3.19
 WORKDIR /app
 COPY --from=builder /app/sso-server .
+COPY app.env . 
 EXPOSE 9000
 CMD ["./sso-server"]
+
