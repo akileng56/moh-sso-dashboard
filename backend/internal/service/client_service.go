@@ -8,8 +8,8 @@ import (
 // CreateClientRequest is the DTO for creating a new client.
 // It contains only the fields a user is allowed to provide.
 type CreateClientRequest struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
 	RedirectURIs []string `json:"redirect_uris"`
 	// Add other fields from AppRegistry that a user can set
 }
@@ -29,18 +29,17 @@ func NewClientService(repo repository.ClientRepository) *ClientService {
 func (s *ClientService) CreateClient(req CreateClientRequest) (*models.AppRegistry, error) {
 	// Transform DTO (CreateClientRequest) into a Model (AppRegistry)
 	newApp := &models.AppRegistry{
-		Name:         req.Name,
-		Description:  req.Description,
+		Name:        req.Name,
+		Description: req.Description,
 		// TODO: Generate a ClientID, ClientSecret, etc.
 		// Example:
 		// ClientID:     generateMyClientID(),
 		// ClientSecret: generateMyClientSecret(),
 	}
 
-	// Call the repository to save the new app
 	err := s.repo.CreateClient(newApp)
 	if err != nil {
-		return nil, err // Pass the database error up
+		return nil, err
 	}
 
 	return newApp, nil
@@ -60,4 +59,3 @@ func (s *ClientService) ListClients() ([]models.AppRegistry, error) {
 func (s *ClientService) DeleteClient(id string) error {
 	return s.repo.DeleteClient(id)
 }
-

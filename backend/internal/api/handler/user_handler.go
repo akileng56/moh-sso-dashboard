@@ -2,9 +2,9 @@ package handler
 
 import (
 	"log"
-	"net/http" // Still needed for HTTP status codes
+	"net/http"
 
-	"github.com/gin-gonic/gin" // Import the Gin framework
+	"github.com/gin-gonic/gin"
 
 	models "github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
@@ -18,28 +18,20 @@ func toUserResponse(user *models.User) models.UserResponse {
 	}
 }
 
-// UserHandler holds the user service.
 type UserHandler struct {
-	service *service.UserService // Use a pointer
+	service *service.UserService
 }
 
-// NewUserHandler creates a new handler with its service dependency.
 func NewUserHandler(s *service.UserService) *UserHandler {
 	return &UserHandler{service: s}
 }
 
-// CreateUser is the Gin handler for POST /users.
 func (h *UserHandler) CreateUser(c *gin.Context) {
-	// 1. Decode the JSON request
 	var req service.CreateUserRequest
-	
-	// Gin's ShouldBindJSON handles decoding and error checking
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-
-	// 2. Call the service
 	newUser, err := h.service.CreateUser(req)
 	if err != nil {
 		log.Printf("ERROR: Failed to create user: %v", err)
@@ -47,69 +39,47 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// 3. Convert to the safe response DTO and write the response
 	response := toUserResponse(newUser)
 	c.JSON(http.StatusCreated, response)
 }
-
-// GetUser is the Gin handler for GET /users/:id.
 func (h *UserHandler) GetUser(c *gin.Context) {
-	// 1. Get the "id" from the URL path
-	id := c.Param("id") // Use c.Param to extract the path variable
+	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// 2. Call the service
 	user, err := h.service.GetUser(id)
 	if err != nil {
 		log.Printf("ERROR: Failed to get user ID %s: %v", id, err)
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
-
-	// 3. Convert to the safe response DTO and write the response
 	response := toUserResponse(user)
 	c.JSON(http.StatusOK, response)
 }
-
-// ListUsers is the Gin handler for GET /users.
 func (h *UserHandler) ListUsers(c *gin.Context) {
-	// 1. Call the service
 	users, err := h.service.ListUsers()
 	if err != nil {
 		log.Printf("ERROR: Failed to list users: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list users"})
 		return
 	}
-
-	// 2. Convert the *slice* of models to a *slice* of response DTOs
 	responses := make([]models.UserResponse, len(users))
 	for i, user := range users {
-		responses[i] = toUserResponse(&user) // Convert each user
+		responses[i] = toUserResponse(&user)
 	}
-
-	// 3. Write the successful response
 	c.JSON(http.StatusOK, responses)
 }
-
-// DeleteUser is the Gin handler for DELETE /users/:id.
 func (h *UserHandler) DeleteUser(c *gin.Context) {
-	// 1. Get the "id" from the URL path
 	id := c.Param("id")
 	if id == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-
-	// 2. Call the service
 	if err := h.service.DeleteUser(id); err != nil {
 		log.Printf("ERROR: Failed to delete user ID %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
-
-	// 3. Write the successful (empty) response
-	c.Status(http.StatusNoContent) // 204 No Content
+	c.Status(http.StatusNoContent)
 }

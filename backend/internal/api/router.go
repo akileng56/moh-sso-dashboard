@@ -5,7 +5,6 @@ import (
 	"github.com/moh-sso-dashboard/internal/api/handler"
 )
 
-// SetupRouter initializes and configures the Gin router with all handlers.
 func SetupRouter(
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
@@ -21,7 +20,6 @@ func SetupRouter(
 		// --- Client Management Routes ---
 		clients := api.Group("/clients")
 		{
-			// FIX: Renamed CreateClientHandler to CreateClient to match the Gin method signature
 			clients.POST("/", clientHandler.CreateClient)
 			clients.GET("/", clientHandler.ListClients)
 			clients.GET("/:id", clientHandler.GetClient)
@@ -31,7 +29,6 @@ func SetupRouter(
 		// --- User Management Routes ---
 		users := api.Group("/users")
 		{
-			// All user methods already match the standardized pattern
 			users.POST("/", userHandler.CreateUser)
 			users.GET("/", userHandler.ListUsers)
 			users.GET("/:id", userHandler.GetUser)

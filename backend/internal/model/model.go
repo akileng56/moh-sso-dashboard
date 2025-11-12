@@ -5,29 +5,25 @@ import (
 )
 
 type AppRegistry struct {
-	ID          string    `gorm:"primaryKey"`
-	ClientID    string    // Keycloak client ID
+	ID          string `gorm:"primaryKey"`
 	Name        string
 	Description string
 	URL         string
-	OwnerID     string    // Keycloak user ID of app owner
-	Status      string    // e.g. "active", "pending", "disabled"
+	OwnerID     string
+	Status      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 }
 
-
 type User struct {
-	ID        string    `gorm:"primaryKey"`
-	Username  string
-	Email     string
-	KeycloakID string   // maps to the real Keycloak user ID
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID         string `gorm:"primaryKey"`
+	Username   string
+	Email      string
+	KeycloakID string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
 }
 
-// UserResponse is a "safe" version of the User model for JSON responses.
-// Notice it omits the HashedPassword.
 type UserResponse struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
