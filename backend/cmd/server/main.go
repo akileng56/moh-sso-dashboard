@@ -12,6 +12,7 @@ import (
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/service"
 
+	_ "github.com/lib/pq"
 	"github.com/rs/zerolog"
 )
 
@@ -27,18 +28,20 @@ func main() {
 
 	conn, err := sql.Open(cfg.DbDriver, cfg.DbSource())
 	if err != nil {
-		appLogger.Fatal("Cannot open database connection")
+		appLogger.Fatal("Cannot open database connection: %v", err)
 	}
-	defer conn.Close() 
+	if conn == nil {
+		appLogger.Fatal("Database connection is nil — check your configuration.")
+	}
+	defer conn.Close()
 
-	err = conn.Ping()
-	if err != nil {
-		appLogger.Fatal("Cannot connect to database")
+	if err := conn.Ping(); err != nil {
+		appLogger.Fatal("Cannot connect to database: %v", err)
 	}
 
 	appLogger.Info("Successfully connected to database")
 
-	clientRepo := clientRepo.NewClientRepository(conn) 
+	clientRepo := clientRepo.NewClientRepository(conn)
 	userRepo := userRepo.NewUserRepository(conn)
 
 	// Services
@@ -51,10 +54,10 @@ func main() {
 
 	r := router.SetupRouter(clientHandler, userHandler)
 
-	appLogger.Info("Server listening on port :%s", cfg.DbPort) 
-	
+	appLogger.Info("Server listening on port :%s", cfg.ServerPort)
+
 	// Run the Gin server
-	if err := r.Run(":" + cfg.DbPort); err != nil {
+	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		appLogger.Fatal("Gin server failed to run")
 	}
 }
