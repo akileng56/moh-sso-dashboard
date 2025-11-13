@@ -14,6 +14,8 @@ func SetupRouter(
 	// Use the standard CORS setup if needed for cross-origin requests
 	// r.Use(cors.New(cors.Config{...}))
 
+	// add rate limiting and throttle
+
 	// Define the base API group
 	api := r.Group("/api/v1")
 	{

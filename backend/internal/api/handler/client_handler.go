@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/gin-gonic/gin" // Import the Gin framework
+	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/service"
 )
 

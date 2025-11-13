@@ -6,7 +6,7 @@ import (
 
 	models "github.com/moh-sso-dashboard/internal/model"
 	repository "github.com/moh-sso-dashboard/internal/repository/user"
-	"golang.org/x/crypto/bcrypt" // Import for password hashing
+	"golang.org/x/crypto/bcrypt"
 )
 
 // CreateUserRequest is the DTO for creating a new user.
