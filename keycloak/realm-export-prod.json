@@ -1,0 +1,101 @@
+{
+  "id": "moh-realm",
+  "realm": "moh-realm",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+
+  "clients": [
+    {
+      "id": "dashboard",
+      "clientId": "dashboard",
+      "name": "MOH SSO Dashboard",
+      "description": "Frontend dashboard client for MOH applications",
+      "rootUrl": "https://localhost:3000",
+      "adminUrl": "https://localhost:3000",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://localhost:3000/*",
+        "http://localhost:8443/*",
+        "https://localhost:8443/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "https://localhost:3000",
+        "http://localhost:8443",
+        "https://localhost:8443"
+      ],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "1800",
+        "refresh.token.lifespan": "3600",
+        "use.refresh.tokens": "true",
+        "refresh.token.max.reuse": "0"
+      }
+    }
+  ],
+
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access"
+      },
+      {
+        "name": "user",
+        "description": "Standard user role"
+      }
+    ]
+  },
+
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "System",
+      "lastName": "Admin",
+      "email": "admin@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Admin@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "User@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    }
+  ],
+
+  "defaultRoles": ["user"]
+}
