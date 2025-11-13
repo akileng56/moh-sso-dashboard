@@ -100,7 +100,7 @@ services:
       - REACT_APP_KEYCLOAK_REALM=moh-realm
       - REACT_APP_KEYCLOAK_CLIENT_ID=dashboard
     ports:
-      - "5173:5173"
+      - "3000:3000"
     depends_on:
       - backend
       - keycloak

@@ -1,0 +1,14 @@
+#app_menu_it {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem;
+  text-decoration: none;
+  color: var(--cds-text-01);
+  transition: background-color 0.2s ease;
+}
+
+#app_menu_it:hover {
+  background-color: var(--cds-hover-ui);
+  border-radius: 0.25rem;
+}
