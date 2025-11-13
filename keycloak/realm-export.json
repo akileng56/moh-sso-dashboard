@@ -22,19 +22,19 @@
       "baseUrl": "/",
       "redirectUris": [
         "http://localhost:3000/*",
-        "http://localhost:8081/*"
+        "https://localhost:8443/*"
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "http://localhost:8081"
+        "https://localhost:8443"
       ],
       "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "CHANGE_ME_TO_A_SECURE_SECRET",
+      "publicClient": true,
+      "bearerOnly": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
       "attributes": {
         "pkce.code.challenge.method": "S256",
         "access.token.lifespan": "1800",
