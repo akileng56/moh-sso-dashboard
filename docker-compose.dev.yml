@@ -7,21 +7,26 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.5
     container_name: keycloak
-    command: start-dev --import-realm
+    command:
+      - start-dev
+      - --https-key-store-file=/opt/keycloak/certs/keycloak.p12
+      - --https-key-store-password=changeit
+      - --import-realm
     environment:
       KC_DB: postgres
       KC_DB_URL_HOST: keycloak-db
       KC_DB_URL_DATABASE: keycloak
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
-      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT_HTTPS: "true"
       KC_PROXY: "edge"
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+      - ./certs:/opt/keycloak/certs
     ports:
-      - "8081:8080"
+      - "8443:8443"
     depends_on:
       - keycloak-db
     networks:
@@ -52,10 +57,10 @@ services:
     container_name: sso-backend
     environment:
       - PORT=9000
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_URL=https://keycloak:8443
       - KEYCLOAK_REALM=moh-realm
       - KEYCLOAK_CLIENT_ID=dashboard
-      - KEYCLOAK_CLIENT_SECRET=changeme
+      - KEYCLOAK_CLIENT_SECRET=CHANGE_ME_TO_A_SECURE_SECRET
       - DB_HOST=backend-db
       - DB_USER=postgres
       - DB_PASSWORD=postgres
@@ -95,10 +100,10 @@ services:
       dockerfile: Dockerfile.dev
     container_name: sso-frontend
     environment:
-      - REACT_APP_API_URL=http://backend:9000
-      - REACT_APP_KEYCLOAK_URL=http://keycloak:8080
-      - REACT_APP_KEYCLOAK_REALM=moh-realm
-      - REACT_APP_KEYCLOAK_CLIENT_ID=dashboard
+      - VITE_API_URL=http://localhost:9000
+      - VITE_KEYCLOAK_URL=https://localhost:8443
+      - VITE_KEYCLOAK_REALM=moh-realm
+      - VITE_KEYCLOAK_CLIENT_ID=dashboard
     ports:
       - "3000:3000"
     depends_on:

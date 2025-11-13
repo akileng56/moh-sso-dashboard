@@ -13,6 +13,7 @@
     "@carbon/icons-react": "^11.70.0",
     "@carbon/react": "^1.95.0",
     "@carbon/styles": "^1.94.0",
+    "keycloak-js": "^26.2.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

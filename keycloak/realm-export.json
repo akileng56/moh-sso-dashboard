@@ -2,25 +2,49 @@
   "id": "moh-realm",
   "realm": "moh-realm",
   "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+
   "clients": [
     {
       "id": "dashboard",
       "clientId": "dashboard",
       "name": "MOH SSO Dashboard",
+      "description": "Frontend dashboard client for MOH applications",
       "rootUrl": "http://localhost:3000",
       "adminUrl": "http://localhost:3000",
       "baseUrl": "/",
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["+"],
-      "publicClient": false,
-      "secret": "changeme",
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "http://localhost:8081/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:8081"
+      ],
       "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "CHANGE_ME_TO_A_SECURE_SECRET",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
-      "serviceAccountsEnabled": true
+      "serviceAccountsEnabled": true,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "access.token.lifespan": "1800",
+        "refresh.token.lifespan": "3600",
+        "use.refresh.tokens": "true",
+        "refresh.token.max.reuse": "0"
+      }
     }
   ],
+
   "roles": {
     "realm": [
       {
@@ -33,6 +57,7 @@
       }
     ]
   },
+
   "users": [
     {
       "username": "admin",
@@ -66,5 +91,7 @@
       ],
       "realmRoles": ["user"]
     }
-  ]
+  ],
+
+  "defaultRoles": ["user"]
 }
