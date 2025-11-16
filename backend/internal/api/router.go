@@ -1,24 +1,33 @@
 package router
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 )
 
 func SetupRouter(
+	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
 ) *gin.Engine {
 	r := gin.Default()
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:3000"}
+	config.AllowCredentials = true
+	config.AddAllowHeaders("Authorization")
 
-	// Use the standard CORS setup if needed for cross-origin requests
-	// r.Use(cors.New(cors.Config{...}))
-
-	// add rate limiting and throttle
-
+	r.Use(cors.New(config))
 	// Define the base API group
 	api := r.Group("/api/v1")
 	{
+
+		// ---- auth management ------
+		auth := api.Group("/auth")
+		{
+			auth.GET("/callback", authHandler.HandleAuthCallback)
+		}
+
 		// --- Client Management Routes ---
 		clients := api.Group("/clients")
 		{

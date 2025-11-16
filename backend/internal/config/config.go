@@ -24,11 +24,12 @@ type Config struct {
 
 	ServerPort string `mapstructure:"SERVER_PORT"`
 
-	KeycloakBaseUrl  string `mapstructure:"KEYCLOAK_BASE_URL"`
-	KeycloakRealm    string `mapstructure:"KEYCLOAK_REALM"`
-	KeycloakClientId string `mapstructure:"KEYCLOAK_CLIENT_ID"`
-	KeycloakSecret   string `mapstructure:"KEYCLOAK_SECRET"`
-	KeycloakToken    string `mapstructure:"KEYCLOAK_TOKEN"`
+	KeycloakBaseUrl      string `mapstructure:"KEYCLOAK_BASE_URL"`
+	KeycloakRealm        string `mapstructure:"KEYCLOAK_REALM"`
+	KeycloakClientID     string `mapstructure:"KEYCLOAK_CLIENT_ID"`
+	KeycloakClientSecret string `mapstructure:"KEYCLOAK_SECRET"`
+	KeycloakToken        string `mapstructure:"KEYCLOAK_TOKEN"`
+	KeycloakRedirectUri  string `mapstructure:"KEYCLOAK_REDIRECT_URI"`
 
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`

@@ -10,10 +10,19 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
   children,
 }) => {
   const [authenticated, setAuthenticated] = useState(false);
+  const redirectUri = import.meta.env.VITE_KEYCLOAK_REDIRECT_URI;
+
+  if (!redirectUri) {
+    console.error(
+      "VITE_KEYCLOAK_REDIRECT_URI is not set. Cannot initiate login."
+    );
+    return;
+  }
 
   useEffect(() => {
     keycloak
       .init({
+        redirectUri: redirectUri,
         onLoad: "login-required",
         checkLoginIframe: false,
       })

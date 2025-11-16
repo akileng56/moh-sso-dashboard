@@ -1,0 +1,27 @@
+[ req ]
+default_bits        = 2048
+distinguished_name  = req_distinguished_name
+req_extensions      = req_ext
+x509_extensions     = v3_ca
+prompt              = no
+
+[ req_distinguished_name ]
+C  = UG
+ST = Kampala
+L  = Kampala
+O  = MOH
+OU = ICT
+CN = keycloak
+
+[ req_ext ]
+subjectAltName = @alt_names
+
+[ v3_ca ]
+subjectAltName = @alt_names
+
+[ alt_names ]
+DNS.1 = keycloak
+DNS.2 = keycloak.local
+DNS.3 = localhost
+IP.1  = 127.0.0.1
+IP.2  = 172.25.0.4

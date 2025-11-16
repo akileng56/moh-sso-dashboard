@@ -55,7 +55,6 @@ services:
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=moh-realm
       - KEYCLOAK_CLIENT_ID=dashboard
-      - KEYCLOAK_CLIENT_SECRET=changeme
       - DB_HOST=backend-db
       - DB_USER=postgres
       - DB_PASSWORD=postgres
