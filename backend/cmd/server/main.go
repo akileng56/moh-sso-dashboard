@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"log"
 
-	_ "github.com/lib/pq" // Database driver import
+	_ "github.com/lib/pq"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	config "github.com/moh-sso-dashboard/internal/config"
@@ -18,7 +18,6 @@ import (
 )
 
 func main() {
-	// --- Configuration and Logger Setup ---
 	cfg, err := config.LoadConfig(".")
 	if err != nil {
 		log.Fatalf("cannot load config: %v", err)
@@ -73,11 +72,9 @@ func main() {
 	// --- Router and Server Start ---
 	r := router.SetupRouter(authHandler, clientHandler, userHandler)
 
-	// 🚨 FIX: Change log message to reflect HTTPS
 	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
 
-	// 🚨 FIX: Use r.RunTLS to enable HTTPS on the Gin router
-	if err := r.RunTLS(":"+cfg.ServerPort, cfg.TlsCert, cfg.TlsKey); err != nil {
+	if err := r.Run(":" + cfg.ServerPort); err != nil {
 		appLogger.Fatal("Gin server failed to run with TLS: %v", err)
 	}
 }

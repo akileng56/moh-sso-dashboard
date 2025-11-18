@@ -1,8 +1,10 @@
 # Use Go 1.25 Alpine as base
 FROM golang:1.25-alpine
 
-# Install necessary tools
-RUN apk add --no-cache git bash
+# Install necessary tools and CA utilities.
+# The 'ca-certificates' package is required for the Go application to trust the
+# mounted Keycloak certificate over HTTPS connections.
+RUN apk add --no-cache git bash ca-certificates
 
 # Set working directory
 WORKDIR /app

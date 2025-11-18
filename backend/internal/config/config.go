@@ -9,10 +9,11 @@ import (
 )
 
 type Config struct {
-	Environment string `mapstructure:"ENVIRONMENT"`
-	EnableTls   bool   `mapstructure:"ENABLE_TLS"`
-	TlsCert     string `mapstructure:"TLS_CERT"`
-	TlsKey      string `mapstructure:"TLS_KEY"`
+	Environment        string `mapstructure:"ENVIRONMENT"`
+	EnableTls          bool   `mapstructure:"ENABLE_TLS"`
+	TlsCert            string `mapstructure:"TLS_CERT"`
+	TlsKey             string `mapstructure:"TLS_KEY"`
+	KeycloakCACertPath string `mapstructure:"TLS_KEYCLOAK_CA_CERT_PATH"`
 
 	DbDriver    string `mapstructure:"DB_DRIVER"`
 	DbHost      string `mapstructure:"DB_HOST"`

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -24,9 +23,7 @@ func NewAuthHandler(authService service.AuthService) *AuthHandler {
 
 // HandleAuthCallback is the endpoint that receives the Authorization Code from Keycloak
 func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
-	code := c.Query("state")
-
-	fmt.Println("state------>", code)
+	code := c.Query("code")
 	if code == "" {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing authorization code"})
 		return
@@ -45,9 +42,8 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		int(tokens.RefreshExpiresIn), // maxAge (Gin uses seconds)
 		"/",                          // path
 		"localhost",                  // domain (use the hostname your frontend is served from)
-		true,                         // secure (true for HTTPS/localhost)
+		false,                        // secure (true for HTTPS/localhost)
 		true,                         // httpOnly
-		// Note: SameSite is set manually via the Cookie object if Gin's default is insufficient
 	)
 
 	// Gin's SetCookie doesn't expose the SameSite option easily.
@@ -61,10 +57,10 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		Expires:  time.Now().Add(time.Duration(tokens.RefreshExpiresIn) * time.Second),
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   true,
+		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	})
 
 	// 4. Redirect the user back to the main dashboard/frontend URL
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/")
+	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
 }

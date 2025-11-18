@@ -25,6 +25,8 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
         redirectUri: redirectUri,
         onLoad: "login-required",
         checkLoginIframe: false,
+        responseMode: "query",
+        pkceMethod: false,
       })
       .then((auth) => {
         setAuthenticated(auth);

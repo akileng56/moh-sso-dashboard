@@ -2,13 +2,13 @@ package keycloak
 
 import (
 	"bytes"
-	"crypto/tls" // 🚨 ADDED: For TLS configuration
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"strings" // 🚨 ADDED: For string manipulation (protocol check)
+	"strings"
 )
 
 // Client represents the Keycloak API client
@@ -32,17 +32,12 @@ type TokenResponse struct {
 
 // NewClient creates a new Keycloak client
 func NewClient(baseURL, realm, clientID, secret string) *Client {
-	// 🚨 FIX 1: Ensure the BaseURL has a protocol scheme and no trailing slash.
 	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-		// Assume HTTPS since Keycloak is usually run with TLS/self-signed certs
 		baseURL = "https://" + baseURL
 	}
 	baseURL = strings.TrimSuffix(baseURL, "/")
-
-	// 🚨 FIX 2: Configure HTTP Client to skip TLS verification for development.
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			// WARNING: ONLY for development/internal networks with self-signed certificates!
 			InsecureSkipVerify: true,
 		},
 	}
@@ -53,7 +48,7 @@ func NewClient(baseURL, realm, clientID, secret string) *Client {
 		Realm:      realm,
 		ClientID:   clientID,
 		Secret:     secret,
-		httpClient: httpClient, // Use the configured client
+		httpClient: httpClient,
 	}
 }
 
@@ -65,7 +60,7 @@ func (c *Client) Authenticate() error {
 	form.Add("client_secret", c.Secret)
 
 	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", c.BaseURL, c.Realm)
-	res, err := c.httpClient.PostForm(url, form) // 🚨 Use c.httpClient
+	res, err := c.httpClient.PostForm(url, form)
 	if err != nil {
 		return err
 	}
@@ -97,7 +92,6 @@ func (c *Client) ExchangeCodeForToken(code, redirectURI string) (*TokenResponse,
 	form.Add("code", code)
 	form.Add("redirect_uri", redirectURI)
 
-	// 🚨 Use c.httpClient.PostForm for consistent client usage
 	res, err := c.httpClient.PostForm(tokenURL, form)
 	if err != nil {
 		return nil, fmt.Errorf("token exchange failed: %w", err)

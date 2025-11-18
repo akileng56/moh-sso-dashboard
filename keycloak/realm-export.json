@@ -17,32 +17,39 @@
       "clientId": "dashboard",
       "name": "MOH SSO Dashboard",
       "description": "Frontend dashboard client for MOH applications",
+
       "rootUrl": "http://localhost:3000",
       "adminUrl": "http://localhost:3000",
       "baseUrl": "/",
+
       "redirectUris": [
-        "https://localhost:9000/api/v1/auth/callback",
-        "http://localhost:3000/*",
-        "https://localhost:3000/*"
+        "http://localhost:9000/api/v1/auth/callback",
+        "http://localhost:3000/*"
       ],
+
       "webOrigins": [
         "http://localhost:3000",
-        "https://localhost:8443"
+        "http://localhost:9000"
       ],
+
       "protocol": "openid-connect",
       "publicClient": false,
-      "secret" : "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
+      "secret": "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
+
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
+
       "attributes": {
-        "pkce.code.challenge.method": "S256",
         "access.token.lifespan": "1800",
         "refresh.token.lifespan": "3600",
         "use.refresh.tokens": "true",
-        "refresh.token.max.reuse": "0"
+        "refresh.token.max.reuse": "0",
+
+        "pkce.code.challenge.method": "",
+        "oauth2.device.authorization.grant.enabled": "false"
       }
     }
   ],
@@ -68,6 +75,7 @@
       "firstName": "System",
       "lastName": "Admin",
       "email": "admin@moh.go.ug",
+
       "credentials": [
         {
           "type": "password",
@@ -75,6 +83,7 @@
           "temporary": false
         }
       ],
+
       "realmRoles": ["admin"]
     },
     {
@@ -84,6 +93,7 @@
       "firstName": "Test",
       "lastName": "User",
       "email": "user@moh.go.ug",
+
       "credentials": [
         {
           "type": "password",
@@ -91,6 +101,7 @@
           "temporary": false
         }
       ],
+
       "realmRoles": ["user"]
     }
   ],
