@@ -78,7 +78,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
 	// Redirect to frontend
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/")
+	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
 }
 
 func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {

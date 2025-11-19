@@ -24,13 +24,10 @@
 
       "redirectUris": [
         "http://localhost:9000/api/v1/auth/callback",
-        "http://localhost:3000/*"
+        "http://localhost:3000/dashboard"
       ],
 
-      "webOrigins": [
-        "http://localhost:3000",
-        "http://localhost:9000"
-      ],
+      "webOrigins": ["http://localhost:3000", "http://localhost:9000"],
 
       "protocol": "openid-connect",
       "publicClient": false,

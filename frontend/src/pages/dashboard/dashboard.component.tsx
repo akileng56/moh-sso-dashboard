@@ -9,6 +9,8 @@ interface UserProfile {
   [key: string]: any;
 }
 
+const API_BASE = "http://localhost:9000/api/v1/auth";
+
 const Dashboard: React.FC = () => {
   const { authenticated, accessToken, logout } = useAuth();
   const [data, setData] = useState<UserProfile | null>(null);
@@ -24,12 +26,13 @@ const Dashboard: React.FC = () => {
     const controller = new AbortController();
 
     const fetchUser = async () => {
-      try {
-        setLoading(true);
-        setFetchError(null);
+      setLoading(true);
+      setFetchError(null);
 
-        const res = await fetch("http://localhost:9000/api/v1/auth/me", {
+      try {
+        const res = await fetch(`${API_BASE}/me`, {
           method: "GET",
+          credentials: "include",
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -41,15 +44,13 @@ const Dashboard: React.FC = () => {
           return;
         }
 
-        if (!res.ok) {
-          throw new Error(`Unexpected server response: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
         const json = await res.json();
         setData(json);
       } catch (err: any) {
         if (err.name !== "AbortError") {
-          console.error("Failed to fetch user data:", err);
+          console.error(err);
           setFetchError("Failed to load profile data.");
         }
       } finally {
@@ -59,7 +60,6 @@ const Dashboard: React.FC = () => {
 
     fetchUser();
 
-    // Cleanup to avoid memory leaks if component unmounts
     return () => controller.abort();
   }, [authenticated, accessToken, logout]);
 
@@ -70,17 +70,13 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <DashboardHeader />
-
       <h3 className="mt-4">Secure Profile Data</h3>
 
       {loading && <p>Loading user profile...</p>}
-
       {!loading && fetchError && <p style={{ color: "red" }}>{fetchError}</p>}
-
       {!loading && !fetchError && data && (
         <pre>{JSON.stringify(data, null, 2)}</pre>
       )}
-
       {!loading && !fetchError && !data && <p>No profile data available.</p>}
     </div>
   );

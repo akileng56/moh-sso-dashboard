@@ -68,7 +68,7 @@ func (c *Client) Authenticate() error {
 	form.Add("client_id", c.ClientID)
 	form.Add("client_secret", c.Secret)
 
-	url := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", c.BaseURL, c.Realm)
+	url := fmt.Sprintf("http://keycloak:8080/realms/%s/protocol/openid-connect/token", c.Realm)
 	res, err := c.httpClient.PostForm(url, form)
 	if err != nil {
 		return err
@@ -92,7 +92,7 @@ func (c *Client) Authenticate() error {
 
 // ExchangeCodeForToken exchanges the authorization code for an access token
 func (c *Client) ExchangeCodeForToken(code, redirectURI string) (*TokenResponse, error) {
-	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", c.BaseURL, c.Realm)
+	tokenURL := fmt.Sprintf("http://keycloak:8080/realms/%s/protocol/openid-connect/token", c.Realm)
 
 	form := url.Values{}
 	form.Add("grant_type", "authorization_code")
@@ -123,7 +123,7 @@ func (c *Client) ExchangeCodeForToken(code, redirectURI string) (*TokenResponse,
 
 // Get access token
 func (c *Client) AccessToken(refreshToken string) (*TokenResponse, error) {
-	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", c.BaseURL, c.Realm)
+	tokenURL := fmt.Sprintf("http://keycloak:8080/realms/%s/protocol/openid-connect/token", c.Realm)
 
 	form := url.Values{}
 	form.Set("grant_type", "refresh_token")

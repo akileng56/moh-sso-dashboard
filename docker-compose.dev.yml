@@ -12,6 +12,7 @@ services:
       - --import-realm
     environment:
       KC_DB: postgres
+      KC_HOSTNAME: http://localhost:8081
       KC_DB_URL_HOST: keycloak-db
       KC_DB_URL_DATABASE: keycloak
       KC_DB_USERNAME: keycloak

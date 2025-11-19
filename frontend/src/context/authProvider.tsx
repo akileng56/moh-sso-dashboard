@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { AuthContext } from "./authContext";
 
-const REFRESH_URL = "http://localhost:9000/api/v1/auth/refresh";
+const API_BASE = "http://localhost:9000/api/v1/auth";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -10,37 +10,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Try to get a new access token using the HttpOnly cookie
   const tryRefresh = useCallback(async () => {
     try {
-      const res = await fetch(REFRESH_URL, { method: "POST" });
+      const res = await fetch(`${API_BASE}/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
 
-      if (res.ok) {
-        const data = await res.json();
-        setAccessToken(data.access_token);
-        return true;
-      }
+      if (!res.ok) return false;
 
-      return false;
-    } catch {
+      const data = await res.json();
+      setAccessToken(data.access_token);
+      return true;
+    } catch (error) {
       return false;
     }
   }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     setAccessToken(null);
-    window.location.href = "/api/v1/auth/logout";
-  };
+    window.location.href = `${API_BASE}/logout`;
+  }, []);
 
-  // On initial load — check if backend can refresh token
+  // Initial startup refresh
   useEffect(() => {
     (async () => {
-      const ok = await tryRefresh();
-      if (!ok) {
-        window.location.href = "http://localhost:9000/api/v1/auth/login";
+      const refreshed = await tryRefresh();
+      if (!refreshed) {
+        window.location.href = `${API_BASE}/login`;
       }
       setLoading(false);
     })();
+  }, [tryRefresh]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      tryRefresh();
+    }, 240000); // 4 min
+    return () => clearInterval(interval);
   }, [tryRefresh]);
 
   const ctx = useMemo(
@@ -49,7 +56,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       accessToken,
       logout,
     }),
-    [accessToken]
+    [accessToken, logout]
   );
 
   if (loading) return <p>Authenticating...</p>;
