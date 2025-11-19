@@ -26,6 +26,10 @@ func SetupRouter(
 		auth := api.Group("/auth")
 		{
 			auth.GET("/callback", authHandler.HandleAuthCallback)
+			auth.POST("/refresh", authHandler.HandleAuthRefreshToken)
+			auth.GET("/login", authHandler.HandleAuthLogin)
+			auth.GET("/me", authHandler.HandleAuthGetMe)
+			auth.POST("/logout")
 		}
 
 		// --- Client Management Routes ---

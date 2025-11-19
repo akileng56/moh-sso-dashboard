@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // Client represents the Keycloak API client
@@ -23,11 +26,17 @@ type Client struct {
 
 type TokenResponse struct {
 	AccessToken      string `json:"access_token"`
-	ExpiresIn        int    `json:"expires_in"`
+	ExpiresIn        int64  `json:"expires_in"`
 	RefreshToken     string `json:"refresh_token"`
-	RefreshExpiresIn int    `json:"refresh_expires_in"`
+	RefreshExpiresIn int64  `json:"refresh_expires_in"`
 	TokenType        string `json:"token_type"`
 	IDToken          string `json:"id_token"`
+}
+
+type AuthUser struct {
+	Subject string `json:"sub"`
+	Email   string `json:"email"`
+	Name    string `json:"name"`
 }
 
 // NewClient creates a new Keycloak client
@@ -110,6 +119,57 @@ func (c *Client) ExchangeCodeForToken(code, redirectURI string) (*TokenResponse,
 	}
 
 	return &tokenRes, nil
+}
+
+// Get access token
+func (c *Client) AccessToken(refreshToken string) (*TokenResponse, error) {
+	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", c.BaseURL, c.Realm)
+
+	form := url.Values{}
+	form.Set("grant_type", "refresh_token")
+	form.Set("refresh_token", refreshToken)
+	form.Set("client_id", c.ClientID)
+	form.Set("client_secret", c.Secret)
+
+	res, err := c.httpClient.PostForm(tokenURL, form)
+	if err != nil {
+		return nil, fmt.Errorf("gettting access  failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	bodyBytes, _ := io.ReadAll(res.Body)
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gettting access  failed [%d]: %s", res.StatusCode, string(bodyBytes))
+	}
+
+	var tokenRes TokenResponse
+	if err := json.Unmarshal(bodyBytes, &tokenRes); err != nil {
+		return nil, fmt.Errorf("failed to decode access token response: %w", err)
+	}
+
+	return &tokenRes, nil
+}
+
+// get User profile / Info
+func (c *Client) Me(accessToken string) (*AuthUser, error) {
+
+	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("token parse error: %w", err)
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid token claims")
+	}
+
+	return &AuthUser{
+		Subject: claims["sub"].(string),
+		Email:   claims["email"].(string),
+		Name:    claims["name"].(string),
+	}, nil
+
 }
 
 // doRequest performs an authenticated HTTP request to Keycloak

@@ -67,7 +67,7 @@ func main() {
 	// --- Handler Layer Initialization ---
 	clientHandler := handler.NewClientHandler(clientService)
 	userHandler := handler.NewUserHandler(userService)
-	authHandler := handler.NewAuthHandler(authService)
+	authHandler := handler.NewAuthHandler(authService, cfg)
 
 	// --- Router and Server Start ---
 	r := router.SetupRouter(authHandler, clientHandler, userHandler)
