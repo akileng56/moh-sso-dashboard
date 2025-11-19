@@ -5,6 +5,7 @@ go 1.25.4
 require (
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.11.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/lib/pq v1.10.9
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1
