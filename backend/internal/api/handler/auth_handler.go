@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -134,33 +133,32 @@ func (h *AuthHandler) setSecureRefreshTokenCookie(c *gin.Context, token string, 
 }
 
 func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: false,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	})
+	refreshToken, _ := c.Cookie("refresh_token")
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Path:     "/",
-		Expires:  time.Unix(0, 0),
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   false,
-		SameSite: http.SameSiteLaxMode,
-	})
+	if refreshToken != "" {
+		if err := h.authService.LogOut(refreshToken); err != nil {
+			log.Printf("Keycloak logout failed: %v", err)
+		}
+	}
 
-	logoutURL := fmt.Sprintf(
-		"http://keycloak:8080/protocol/openid-connect/logout?redirect_uri=%s",
+	// 3. Clear cookies
+	clearCookie := func(name string, httpOnly bool) {
+		http.SetCookie(c.Writer, &http.Cookie{
+			Name:     name,
+			Value:    "",
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+			MaxAge:   -1,
+			HttpOnly: httpOnly,
+			Secure:   false,
+			SameSite: http.SameSiteLaxMode,
+		})
+	}
 
-		url.QueryEscape("http://localhost:3000/"),
-	)
+	clearCookie("access_token", false)
+	clearCookie("refresh_token", true)
 
-	c.Redirect(http.StatusTemporaryRedirect, logoutURL)
+	redirectURL := url.QueryEscape("http://localhost:3000/dashboard")
+
+	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }

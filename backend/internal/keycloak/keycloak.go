@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -149,6 +150,49 @@ func (c *Client) AccessToken(refreshToken string) (*TokenResponse, error) {
 	}
 
 	return &tokenRes, nil
+}
+
+func (c *Client) LogOut(refreshToken string) error {
+	if refreshToken == "" {
+		return fmt.Errorf("missing refresh token for logout")
+	}
+
+	logoutURL := fmt.Sprintf(
+		"http://keycloak:8080/realms/%s/protocol/openid-connect/logout",
+		c.Realm,
+	)
+
+	// Prepare form data
+	form := url.Values{}
+	form.Set("client_id", c.ClientID)
+	form.Set("client_secret", c.Secret)
+	form.Set("refresh_token", refreshToken)
+
+	// Ensure httpClient exists
+	httpClient := c.httpClient
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 10 * time.Second}
+	}
+
+	// Send logout request
+	res, err := httpClient.PostForm(logoutURL, form)
+	if err != nil {
+		return fmt.Errorf("logout request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	body, _ := io.ReadAll(res.Body)
+
+	// Keycloak returns 204 No Content on successful logout
+	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
+		return fmt.Errorf(
+			"logout failed: status=%d response=%s",
+			res.StatusCode,
+			string(body),
+		)
+	}
+
+	return nil
 }
 
 // get User profile / Info

@@ -11,6 +11,7 @@ type AuthService interface {
 	ProcessAuthCode(code string) (*keycloak.TokenResponse, error)
 	GetAccessToken(refreshToken string) (*keycloak.TokenResponse, error)
 	GetMe(accessToken string) (*keycloak.AuthUser, error)
+	LogOut(efreshToken string) error
 }
 
 // authService implementation
@@ -49,4 +50,13 @@ func (s *authService) GetMe(accessToken string) (*keycloak.AuthUser, error) {
 		return nil, fmt.Errorf("failed to get user profile")
 	}
 	return userProfile, nil
+}
+
+func (s *authService) LogOut(refreshToken string) error {
+	err := s.authRepo.Logout(refreshToken)
+	if err != nil {
+		return fmt.Errorf("failed to logout user ")
+	}
+	return nil
+
 }
