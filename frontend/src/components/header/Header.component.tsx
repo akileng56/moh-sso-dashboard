@@ -7,14 +7,15 @@ import {
   HeaderGlobalAction,
   SkipToContent,
 } from "@carbon/react";
-import { Notification, UserAvatarFilled, Logout } from "@carbon/icons-react";
-import keycloak from "../../config/keycloak";
+import { UserAvatarFilled, Logout } from "@carbon/icons-react";
 
 import AppMenuAction from "../appmenu/AppMenu.component";
 
+const API_BASE = "http://localhost:9000/api/v1/auth";
+
 const DashboardHeader: React.FC = () => {
   const handleLogout = () => {
-    keycloak.logout({ redirectUri: window.location.origin });
+    window.location.href = `${API_BASE}/logout`;
   };
   return (
     <Header aria-label="App Name">
@@ -25,9 +26,6 @@ const DashboardHeader: React.FC = () => {
 
       <HeaderGlobalBar>
         <AppMenuAction />
-        <HeaderGlobalAction aria-label="Notifications" tooltipAlignment="end">
-          <Notification size={20} />
-        </HeaderGlobalAction>
         <HeaderGlobalAction aria-label="User Avatar" tooltipAlignment="end">
           <UserAvatarFilled size={20} />
         </HeaderGlobalAction>

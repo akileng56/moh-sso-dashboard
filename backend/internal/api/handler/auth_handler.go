@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -130,4 +131,36 @@ func (h *AuthHandler) setSecureRefreshTokenCookie(c *gin.Context, token string, 
 		Secure:   false,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: false,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "refresh_token",
+		Value:    "",
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	logoutURL := fmt.Sprintf(
+		"http://keycloak:8080/protocol/openid-connect/logout?redirect_uri=%s",
+
+		url.QueryEscape("http://localhost:3000/"),
+	)
+
+	c.Redirect(http.StatusTemporaryRedirect, logoutURL)
 }
