@@ -1,26 +1,37 @@
-# Project variables
+# ============================================================
+#                 📦 Project Variables
+# ============================================================
 APP_NAME = moh-sso-dashboard
 BIN_DIR = bin
 MAIN_FILE = ./cmd/server/main.go
 GO_FILES = $(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
-# Docker variables (optional)
-DOCKER_COMPOSE = docker-compose.yml
+# ============================================================
+#                 🔧 Configuration
+# ============================================================
+DOCKER_CONTAINER_NAME := backend-db
+DB_NAME               := sso_dashboard
+DB_URL                := postgresql://postgres:postgres@localhost:5432/$(DB_NAME)?sslmode=disable
+MIGRATE_PATH          := internal/db/migrations
+DOCKER_COMPOSE        := docker-compose.yml
 
-# Go commands
-GO = go
-GOTEST = $(GO) test
-GOTIDY = $(GO) mod tidy
-GOINSTALL = $(GO) install
-GOBUILD = $(GO) build
-GORUN = $(GO) run
-GOFMT = gofmt
-GOLINT = golangci-lint run
+# ============================================================
+#                 🔨 Go Commands
+# ============================================================
+GO       = go
+GOTEST   = $(GO) test
+GOTIDY   = $(GO) mod tidy
+GOINSTALL= $(GO) install
+GOBUILD  = $(GO) build
+GORUN    = $(GO) run
+GOFMT    = gofmt
+GOLINT   = golangci-lint run
 
-# Default target
 .DEFAULT_GOAL := help
 
-## —— 🛠️ General Commands ———————————————————————————————————————————————
+# ============================================================
+#        🛠️ General Utility Commands
+# ============================================================
 
 help: ## Show available commands
 	@echo ""
@@ -44,7 +55,16 @@ test: ## Run all tests
 	@echo "Running tests..."
 	@$(GOTEST) ./... -v
 
-## —— 🚀 Build & Run ———————————————————————————————————————————————
+deps: ## Install go dependencies
+	@echo "📦 Installing dependencies..."
+	$(GO) mod download
+
+verify: fmt lint test ## Run code checks before commit
+	@echo "✅ All checks passed!"
+
+# ============================================================
+#        🚀 Build & Run
+# ============================================================
 
 build: ## Build the Go binary
 	@echo "Building $(APP_NAME)..."
@@ -60,7 +80,28 @@ clean: ## Remove binaries and temp files
 	@echo "🧹 Cleaning up..."
 	@rm -rf $(BIN_DIR)
 
-## —— 🧩 Docker Commands (Optional) ————————————————————————————————————
+# ============================================================
+#        🐳 Docker Commands
+# ============================================================
+
+postgres: ## Run Postgres container
+	docker run --name $(DOCKER_CONTAINER_NAME) \
+		-p 5432:5432 \
+		-e POSTGRES_USER=sitoowa \
+		-e POSTGRES_PASSWORD=sitoowa123 \
+		-d postgres:14.4-alpine
+
+createdb: ## Create database inside container
+	docker exec -it $(DOCKER_CONTAINER_NAME) \
+		createdb --username=sitoowa --owner=sitoowa $(DB_NAME)
+
+backupdb: ## Backup the database to backup.sql
+	docker exec -it $(DOCKER_CONTAINER_NAME) \
+		pg_dump $(DB_NAME) > backup.sql
+
+restoredb: ## Restore database from backup.sql
+	docker exec -i $(DOCKER_CONTAINER_NAME) \
+		psql $(DB_NAME) < backup.sql
 
 docker-up: ## Start docker-compose services
 	@echo "🟢 Starting Docker containers..."
@@ -75,13 +116,30 @@ docker-logs: ## View logs from docker containers
 
 docker-restart: docker-down docker-up ## Restart docker services
 
-## —— 🧰 Utility ———————————————————————————————————————————————
+# ============================================================
+#        🗄️ Database Migrations
+# ============================================================
 
-deps: ## Install go dependencies
-	@echo "📦 Installing dependencies..."
-	$(GO) mod download
+create_migration: ## Create a new migration file: make create_migration name=initial_schema
+	migrate create -ext sql -dir "$(MIGRATE_PATH)" -seq $(name)
 
-verify: fmt lint test ## Run code checks before commit
-	@echo "✅ All checks passed!"
+migrateup: ## Apply all up migrations
+	migrate --path "$(MIGRATE_PATH)" --database "$(DB_URL)" --verbose up
 
-.PHONY: help tidy fmt lint test build run clean docker-up docker-down docker-logs docker-restart deps verify
+migrateup1: ## Apply one up migration
+	migrate --path "$(MIGRATE_PATH)" --database "$(DB_URL)" --verbose up 1
+
+migratedown: ## Rollback all migrations
+	migrate --path "$(MIGRATE_PATH)" --database "$(DB_URL)" --verbose down
+
+migratedown1: ## Rollback one migration
+	migrate --path "$(MIGRATE_PATH)" --database "$(DB_URL)" --verbose down 1
+
+# ============================================================
+# Make everything phony
+# ============================================================
+.PHONY: help tidy fmt lint test build run clean \
+        postgres createdb backupdb restoredb \
+        docker-up docker-down docker-logs docker-restart \
+        create_migration migrateup migrateup1 migratedown migratedown1 \
+        deps verify

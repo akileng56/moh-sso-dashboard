@@ -1,61 +1,95 @@
 package service
 
 import (
+	"errors"
+
+	"github.com/google/uuid"
 	models "github.com/moh-sso-dashboard/internal/model"
 	repository "github.com/moh-sso-dashboard/internal/repository/client"
+	"github.com/moh-sso-dashboard/internal/utils"
 )
 
-// CreateClientRequest is the DTO for creating a new client.
-// It contains only the fields a user is allowed to provide.
 type CreateClientRequest struct {
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	RedirectURIs []string `json:"redirect_uris"`
-	// Add other fields from AppRegistry that a user can set
+	// Basic Info
+	Name        string `json:"name" validate:"required"`
+	Description string `json:"description,omitempty"`
+
+	// OAuth / OIDC Information
+	ClientID     string   `json:"client_id" validate:"required"`
+	ClientSecret string   `json:"client_secret,omitempty"` // only for confidential clients
+	RedirectURIs []string `json:"redirect_uris" validate:"required,dive,uri"`
+	WebOrigins   []string `json:"web_origins,omitempty"`
+
+	// Flow Controls
+	StandardFlowEnabled    bool `json:"standard_flow_enabled"`    // Authorization Code
+	ImplicitFlowEnabled    bool `json:"implicit_flow_enabled"`    // Implicit
+	DirectAccessGrants     bool `json:"direct_access_grants"`     // Resource Owner Password
+	ServiceAccountsEnabled bool `json:"service_accounts_enabled"` // For backend-to-backend
+
+	// Access & Security
+	PublicClient bool `json:"public_client"` // true = no secret required
+
+	// Optional Settings
+	RootURL   string `json:"root_url,omitempty"`
+	BaseURL   string `json:"base_url,omitempty"`
+	AdminURL  string `json:"admin_url,omitempty"`
+	Enabled   bool   `json:"enabled"`            // enable/disable client
+	Protocol  string `json:"protocol,omitempty"` // default "openid-connect"`
+	LoginURI  string `json:"login_uri,omitempty"`
+	LogoutURI string `json:"logout_uri,omitempty"`
+
+	// Roles
+	DefaultClientScopes  []string `json:"default_client_scopes,omitempty"`
+	OptionalClientScopes []string `json:"optional_client_scopes,omitempty"`
+
+	// Metadata
+	Tags []string `json:"tags,omitempty"`
 }
 
-// ClientService handles business logic for clients.
 type ClientService struct {
 	repo repository.ClientRepository
 }
 
-// NewClientService creates a new ClientService.
 func NewClientService(repo repository.ClientRepository) *ClientService {
 	return &ClientService{repo: repo}
 }
 
-// CreateClient validates the request, transforms it into a model,
-// and asks the repository to save it.
-func (s *ClientService) CreateClient(req CreateClientRequest) (*models.AppRegistry, error) {
-	// Transform DTO (CreateClientRequest) into a Model (AppRegistry)
-	newApp := &models.AppRegistry{
-		Name:        req.Name,
-		Description: req.Description,
-		// TODO: Generate a ClientID, ClientSecret, etc.
-		// Example:
-		// ClientID:     generateMyClientID(),
-		// ClientSecret: generateMyClientSecret(),
+func (s *ClientService) CreateClient(req CreateClientRequest) (*models.Client, error) {
+	if req.Name == "" {
+		return nil, errors.New("client name is required")
 	}
 
-	err := s.repo.CreateClient(newApp)
-	if err != nil {
+	clientID := req.ClientID
+	if clientID == "" {
+		clientID = utils.GenerateClientID()
+	}
+
+	newClient := &models.Client{
+		ID:           uuid.New().String(),
+		ClientID:     clientID,
+		Name:         req.Name,
+		Description:  req.Description,
+		BaseURL:      req.BaseURL,
+		Icon:         "",
+		PublicClient: req.PublicClient,
+		Enabled:      true, // always true on creation
+	}
+
+	if err := s.repo.CreateClient(newClient); err != nil {
 		return nil, err
 	}
 
-	return newApp, nil
+	return newClient, nil
 }
 
-// GetClient retrieves a client by its ID.
-func (s *ClientService) GetClient(id string) (*models.AppRegistry, error) {
+func (s *ClientService) GetClient(id string) (*models.Client, error) {
 	return s.repo.GetClientByID(id)
 }
 
-// ListClients retrieves all clients.
-func (s *ClientService) ListClients() ([]models.AppRegistry, error) {
+func (s *ClientService) ListClients() ([]models.Client, error) {
 	return s.repo.ListClients()
 }
 
-// DeleteClient deletes a client by its ID.
-func (s *ClientService) DeleteClient(id string) error {
+func (s *ClientService) DeleteClient(id uuid.UUID) error {
 	return s.repo.DeleteClient(id)
 }

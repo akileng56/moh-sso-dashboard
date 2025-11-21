@@ -5,20 +5,56 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 )
 
-// --- Realm Management ---
+// -------------------------------------------------------------------
+// DTOs
+// -------------------------------------------------------------------
 
-// EnsureRealmExists checks if a realm exists, and creates it if missing.
+type ClientInfo struct {
+	ID           string   `json:"id"`
+	ClientID     string   `json:"clientId"`
+	Name         string   `json:"name,omitempty"`
+	Description  string   `json:"description,omitempty"`
+	BaseURL      string   `json:"baseUrl,omitempty"`
+	RootURL      string   `json:"rootUrl,omitempty"`
+	RedirectURIs []string `json:"redirectUris,omitempty"`
+	WebOrigins   []string `json:"webOrigins,omitempty"`
+	PublicClient bool     `json:"publicClient"`
+	Enabled      bool     `json:"enabled"`
+	Protocol     string   `json:"protocol"`
+}
+
+type CreateClientParams struct {
+	ClientID               string   `json:"clientId"`
+	Name                   string   `json:"name,omitempty"`
+	Description            string   `json:"description,omitempty"`
+	BaseURL                string   `json:"baseUrl,omitempty"`
+	RootURL                string   `json:"rootUrl,omitempty"`
+	RedirectURIs           []string `json:"redirectUris,omitempty"`
+	WebOrigins             []string `json:"webOrigins,omitempty"`
+	PublicClient           bool     `json:"publicClient"`
+	Secret                 string   `json:"secret,omitempty"`
+	Protocol               string   `json:"protocol"`
+	StandardFlowEnabled    bool     `json:"standardFlowEnabled"`
+	ImplicitFlowEnabled    bool     `json:"implicitFlowEnabled"`
+	DirectAccessGrants     bool     `json:"directAccessGrantsEnabled"`
+	ServiceAccountsEnabled bool     `json:"serviceAccountsEnabled"`
+	Enabled                bool     `json:"enabled"`
+}
+
+// -------------------------------------------------------------------
+// Realm Management
+// -------------------------------------------------------------------
+
 func (c *Client) EnsureRealmExists(realmName string) error {
 	res, err := c.Get(fmt.Sprintf("admin/realms/%s", realmName))
 	if err == nil && res.StatusCode == http.StatusOK {
-		// realm already exists
 		res.Body.Close()
 		return nil
 	}
 
-	// create realm if not found
 	if res != nil {
 		res.Body.Close()
 	}
@@ -40,29 +76,20 @@ func (c *Client) EnsureRealmExists(realmName string) error {
 	return nil
 }
 
-// --- Client Management ---
+// -------------------------------------------------------------------
+// Client Management
+// -------------------------------------------------------------------
 
-type ClientInfo struct {
-	ID       string `json:"id"`
-	ClientID string `json:"clientId"`
-	Name     string `json:"name,omitempty"`
-	BaseURL  string `json:"baseUrl,omitempty"`
-}
-
-// CreateClient creates a new Keycloak client (application)
-func (c *Client) CreateClient(name, redirectUri, baseUrl string) error {
-	payload := map[string]any{
-		"clientId":            name,
-		"name":                name,
-		"enabled":             true,
-		"publicClient":        true,
-		"redirectUris":        []string{redirectUri},
-		"baseUrl":             baseUrl,
-		"protocol":            "openid-connect",
-		"standardFlowEnabled": true,
+// CreateClient with full configuration support
+func (c *Client) CreateClient(opts CreateClientParams) error {
+	if opts.Protocol == "" {
+		opts.Protocol = "openid-connect"
+	}
+	if opts.Enabled == false {
+		opts.Enabled = true
 	}
 
-	res, err := c.Post(fmt.Sprintf("admin/realms/%s/clients", c.Realm), payload)
+	res, err := c.Post(fmt.Sprintf("admin/realms/%s/clients", c.Realm), opts)
 	if err != nil {
 		return err
 	}
@@ -72,10 +99,60 @@ func (c *Client) CreateClient(name, redirectUri, baseUrl string) error {
 		body, _ := io.ReadAll(res.Body)
 		return fmt.Errorf("failed to create client: %s", string(body))
 	}
+
 	return nil
 }
 
-// ListClients retrieves all clients from the realm
+// GetClientByClientID using Keycloak's search API
+func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
+	query := url.Values{}
+	query.Set("clientId", clientID)
+
+	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients?%s", c.Realm, query.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("failed checking clientId '%s': %s", clientID, string(body))
+	}
+
+	var clients []ClientInfo
+	if err := json.NewDecoder(res.Body).Decode(&clients); err != nil {
+		return nil, err
+	}
+
+	if len(clients) == 0 {
+		return nil, nil // not found
+	}
+
+	return &clients[0], nil
+}
+
+// GetClientByID retrieves the actual client object
+func (c *Client) GetClientByID(id string) (*ClientInfo, error) {
+	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients/%s", c.Realm, id))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("failed to get client: %s", string(body))
+	}
+
+	var cli ClientInfo
+	if err := json.NewDecoder(res.Body).Decode(&cli); err != nil {
+		return nil, err
+	}
+
+	return &cli, nil
+}
+
+// List all clients in the realm
 func (c *Client) ListClients() ([]ClientInfo, error) {
 	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients", c.Realm))
 	if err != nil {
@@ -92,10 +169,10 @@ func (c *Client) ListClients() ([]ClientInfo, error) {
 	if err := json.NewDecoder(res.Body).Decode(&clients); err != nil {
 		return nil, err
 	}
+
 	return clients, nil
 }
 
-// DeleteClient removes a Keycloak client by ID
 func (c *Client) DeleteClient(id string) error {
 	res, err := c.Delete(fmt.Sprintf("admin/realms/%s/clients/%s", c.Realm, id))
 	if err != nil {
@@ -107,10 +184,13 @@ func (c *Client) DeleteClient(id string) error {
 		body, _ := io.ReadAll(res.Body)
 		return fmt.Errorf("failed to delete client: %s", string(body))
 	}
+
 	return nil
 }
 
-// --- User Management ---
+// -------------------------------------------------------------------
+// User Management
+// -------------------------------------------------------------------
 
 type UserInfo struct {
 	ID       string `json:"id"`
@@ -118,7 +198,6 @@ type UserInfo struct {
 	Enabled  bool   `json:"enabled"`
 }
 
-// CreateUser creates a new user with password credentials
 func (c *Client) CreateUser(username, password, role string) error {
 	payload := map[string]any{
 		"username": username,
@@ -145,7 +224,6 @@ func (c *Client) CreateUser(username, password, role string) error {
 	return nil
 }
 
-// ListUsers retrieves all users in the realm
 func (c *Client) ListUsers() ([]UserInfo, error) {
 	res, err := c.Get(fmt.Sprintf("admin/realms/%s/users", c.Realm))
 	if err != nil {
@@ -162,5 +240,6 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 	if err := json.NewDecoder(res.Body).Decode(&users); err != nil {
 		return nil, err
 	}
+
 	return users, nil
 }

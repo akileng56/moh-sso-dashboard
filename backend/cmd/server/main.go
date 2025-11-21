@@ -14,6 +14,10 @@ import (
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/service"
+
+	redis "github.com/moh-sso-dashboard/internal/cache"
+	store "github.com/moh-sso-dashboard/internal/db/sqlc"
+
 	"github.com/rs/zerolog"
 )
 
@@ -54,15 +58,21 @@ func main() {
 	}
 	appLogger.Info("Successfully authenticated Keycloak service account.")
 
+	// store
+	store := store.NewStore(conn)
+
+	// redis
+	rdb := redis.NewRedisClient(cfg.RedisHost, cfg.RedisPort, cfg.RedisPassword)
+
 	// --- Repository Layer Initialization ---
 	authRepo := authRepo.NewAuthRepository(keycloakClient, cfg)
-	clientRepo := clientRepo.NewClientRepository(conn)
+	clientRepo := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
 	userRepo := userRepo.NewUserRepository(conn)
 
 	// --- Service Layer Initialization ---
 	clientService := service.NewClientService(clientRepo)
 	userService := service.NewUserService(userRepo)
-	authService := service.NewAuthService(authRepo)
+	authService := service.NewAuthService(authRepo, rdb)
 
 	// --- Handler Layer Initialization ---
 	clientHandler := handler.NewClientHandler(clientService)

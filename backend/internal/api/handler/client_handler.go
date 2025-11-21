@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/service"
 )
 
@@ -65,10 +66,18 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Client ID is required"})
 		return
 	}
-	if err := h.service.DeleteClient(id); err != nil {
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UUID format"})
+		return
+	}
+
+	if err := h.service.DeleteClient(uid); err != nil {
 		log.Printf("ERROR: Failed to delete client ID %s: %v", id, err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete client"})
 		return
 	}
+
 	c.Status(http.StatusNoContent)
 }

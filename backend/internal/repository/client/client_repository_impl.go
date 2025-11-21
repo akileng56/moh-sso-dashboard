@@ -1,51 +1,174 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 
+	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/internal/config"
+	db "github.com/moh-sso-dashboard/internal/db/sqlc"
+	"github.com/moh-sso-dashboard/internal/keycloak"
+	logger "github.com/moh-sso-dashboard/internal/log"
 	models "github.com/moh-sso-dashboard/internal/model"
 )
 
-// dbClientRepository is a concrete implementation of the ClientRepository interface.
-// It holds a reference to a database connection.
-type dbClientRepository struct {
-	DB *sql.DB // Example: using a standard sql.DB connection
+type sqlcClientRepository struct {
+	keycloakClient *keycloak.Client
+	config         config.Config
+	db             db.Store
+	logger         *logger.Logger
 }
 
-// NewClientRepository is a "constructor" function that creates a new
-// instance of our repository implementation and returns it *as the interface type*.
-func NewClientRepository(db *sql.DB) ClientRepository {
-	return &dbClientRepository{
-		DB: db,
+func NewClientRepository(keycloak *keycloak.Client, config config.Config, db db.Store, logger logger.Logger) ClientRepository {
+	return &sqlcClientRepository{
+		keycloakClient: keycloak,
+		config:         config,
+		db:             db,
+		logger:         &logger,
 	}
 }
 
-// CreateClient implements the ClientRepository interface.
-func (r *dbClientRepository) CreateClient(app *models.AppRegistry) error {
+func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
+	ctx := context.Background()
 
+	existingKCClient, _ := r.keycloakClient.GetClientByClientID(client.ClientID)
+	if existingKCClient != nil {
+		return errors.New("client already exists in keycloak")
+	}
+
+	err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
+		ClientID:     client.ClientID,
+		Name:         client.Name,
+		Description:  client.Description,
+		BaseURL:      client.BaseURL,
+		PublicClient: client.PublicClient,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create in keycloak: %w", err)
+	}
+
+	return r.db.CreateClient(ctx, db.CreateClientParams{
+		ClientID: client.ClientID,
+		Name:     client.Name,
+		Description: sql.NullString{
+			String: client.Description,
+			Valid:  client.Description != "",
+		},
+		BaseUrl: sql.NullString{
+			String: client.BaseURL,
+			Valid:  client.BaseURL != "",
+		},
+		Icon: sql.NullString{
+			String: client.Icon,
+			Valid:  client.Icon != "",
+		},
+		PublicClient: sql.NullBool{
+			Bool:  client.PublicClient,
+			Valid: client.PublicClient != false,
+		},
+		Enabled: sql.NullBool{
+			Bool:  client.Enabled,
+			Valid: client.Enabled != false,
+		},
+	})
+}
+
+// GetClientByID retrieves a client by its ID.
+func (r *sqlcClientRepository) GetClientByID(id string) (*models.Client, error) {
+	ctx := context.Background()
+
+	uid, err := uuid.Parse(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	row, err := r.db.GetClientByID(ctx, uid)
+	if err != nil {
+		return nil, err
+	}
+
+	return &models.Client{
+		ID:           row.ID.String(),
+		ClientID:     row.ClientID,
+		Name:         row.Name,
+		Description:  row.Description.String,
+		BaseURL:      row.BaseUrl.String,
+		Icon:         row.Icon.String,
+		PublicClient: row.PublicClient.Bool,
+		Enabled:      row.Enabled.Bool,
+	}, nil
+}
+
+// ListClients retrieves all client entries.
+func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
+	ctx := context.Background()
+
+	kcClients, err := r.keycloakClient.ListClients()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch keycloak clients: %w", err)
+	}
+
+	dbClients, err := r.db.ListClients(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Index DB by ClientID for easy merge
+	dbMap := map[string]db.Client{}
+	for _, c := range dbClients {
+		dbMap[c.ClientID] = c
+	}
+
+	// 3. Merge KC + DB (KC is primary)
+	var result []models.Client
+	for _, kc := range kcClients {
+		// If exists in DB, merge metadata
+		if entry, ok := dbMap[kc.ClientID]; ok {
+			result = append(result, models.Client{
+				ID:           entry.ID.String(),
+				ClientID:     kc.ClientID,
+				Name:         kc.Name,
+				Description:  kc.Description,
+				BaseURL:      kc.BaseURL,
+				Icon:         "",
+				PublicClient: kc.PublicClient,
+				Enabled:      kc.Enabled,
+			})
+		} else {
+			// KC-only record
+			result = append(result, models.Client{
+				ID:           "",
+				ClientID:     kc.ClientID,
+				Name:         kc.Name,
+				Description:  kc.Description,
+				BaseURL:      kc.BaseURL,
+				Icon:         "",
+				PublicClient: kc.PublicClient,
+				Enabled:      kc.Enabled,
+			})
+		}
+	}
+
+	return result, nil
+}
+
+func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 	return nil
 }
 
-// GetClientByID implements the ClientRepository interface.
-func (r *dbClientRepository) GetClientByID(id string) (*models.AppRegistry, error) {
+func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
+	ctx := context.Background()
 
-	return nil, nil
-}
+	dbClient, err := r.db.GetClientByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("client not found: %w", err)
+	}
 
-// ListClients implements the ClientRepository interface.
-func (r *dbClientRepository) ListClients() ([]models.AppRegistry, error) {
+	if err := r.keycloakClient.DeleteClient(dbClient.ClientID); err != nil {
+		return fmt.Errorf("failed deleting keycloak client: %w", err)
+	}
 
-	return nil, nil
-}
-
-// UpdateClient implements the ClientRepository interface.
-func (r *dbClientRepository) UpdateClient(app *models.AppRegistry) error {
-
-	return nil
-}
-
-// DeleteClient implements the ClientRepository interface.
-func (r *dbClientRepository) DeleteClient(id string) error {
-
-	return nil
+	return r.db.DeleteClient(ctx, id)
 }

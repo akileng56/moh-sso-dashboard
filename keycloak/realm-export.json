@@ -40,6 +40,8 @@
       "serviceAccountsEnabled": true,
 
       "attributes": {
+        "icon": "settings",
+        "baseUrl": "http://localhost:3000",
         "access.token.lifespan": "1800",
         "refresh.token.lifespan": "3600",
         "use.refresh.tokens": "true",
@@ -58,6 +60,10 @@
         "description": "Administrator role with full access"
       },
       {
+        "name": "manager",
+        "description": "Can manage some apps"
+      },
+      {
         "name": "user",
         "description": "Standard user role"
       }
@@ -72,7 +78,6 @@
       "firstName": "System",
       "lastName": "Admin",
       "email": "admin@moh.go.ug",
-
       "credentials": [
         {
           "type": "password",
@@ -80,25 +85,91 @@
           "temporary": false
         }
       ],
-
       "realmRoles": ["admin"]
     },
+
     {
-      "username": "testuser",
+      "username": "clientadmin",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Test",
-      "lastName": "User",
-      "email": "user@moh.go.ug",
-
+      "firstName": "Client",
+      "lastName": "Administrator",
+      "email": "client.admin@moh.go.ug",
       "credentials": [
         {
           "type": "password",
-          "value": "User@123",
+          "value": "ClientAdmin@123",
           "temporary": false
         }
       ],
+      "realmRoles": ["manager"]
+    },
 
+    {
+      "username": "reportuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Reports",
+      "lastName": "User",
+      "email": "report.user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ReportUser@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+
+    {
+      "username": "hmisuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "HMIS",
+      "lastName": "User",
+      "email": "hmis.user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "HmisUser@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+
+    {
+      "username": "obulamuuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Obulamu",
+      "lastName": "User",
+      "email": "obulamu.user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ObulamuUser@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"]
+    },
+
+    {
+      "username": "prisonesruser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Prisons",
+      "lastName": "User",
+      "email": "prisons.user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "PrisonsUser@123",
+          "temporary": false
+        }
+      ],
       "realmRoles": ["user"]
     }
   ],

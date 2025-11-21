@@ -78,13 +78,32 @@ var createClientCmd = &cobra.Command{
 	Short: "Create a new client in Keycloak",
 	Run: func(cmd *cobra.Command, args []string) {
 		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
+
 		if err := kc.Authenticate(); err != nil {
 			log.Fatalf("❌ Auth failed: %v", err)
 		}
-		err := kc.CreateClient(clientName, redirectUri, clientBaseURL)
-		if err != nil {
+
+		params := keycloak.CreateClientParams{
+			ClientID:               clientName,
+			Name:                   clientName,
+			Description:            "Created via CLI",
+			BaseURL:                clientBaseURL,
+			RootURL:                clientBaseURL,
+			RedirectURIs:           []string{redirectUri},
+			WebOrigins:             []string{clientBaseURL},
+			PublicClient:           true,
+			Protocol:               "openid-connect",
+			StandardFlowEnabled:    true,
+			ImplicitFlowEnabled:    false,
+			DirectAccessGrants:     false,
+			ServiceAccountsEnabled: false,
+			Enabled:                true,
+		}
+
+		if err := kc.CreateClient(params); err != nil {
 			log.Fatalf("❌ Error creating client: %v", err)
 		}
+
 		fmt.Printf("✅ Client '%s' created successfully\n", clientName)
 	},
 }
