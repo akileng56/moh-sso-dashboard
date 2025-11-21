@@ -45,6 +45,12 @@ services:
     networks:
       - sso_network
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
   # -----------------------------
   # Go Backend Service (Dev)
   # -----------------------------

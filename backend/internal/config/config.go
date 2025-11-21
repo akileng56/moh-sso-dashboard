@@ -32,6 +32,10 @@ type Config struct {
 	KeycloakToken        string `mapstructure:"KEYCLOAK_TOKEN"`
 	KeycloakRedirectUri  string `mapstructure:"KEYCLOAK_REDIRECT_URI"`
 
+	RedisHost     string `mapstructure:"REDIS_HOST"`
+	RedisPort     string `mapstructure:"REDIS_PORT"`
+	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
+
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`
