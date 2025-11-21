@@ -5,6 +5,8 @@ import { useAuth } from "../../context/useAuth";
 
 import { Document, Calendar, Email, Menu } from "@carbon/icons-react";
 
+const API_BASE = "http://localhost:9000/api/v1/clients";
+
 const ICON_MAP: Record<string, React.ElementType> = {
   mail: Email,
   calendar: Calendar,
@@ -19,13 +21,35 @@ const AppGridContent: React.FC = () => {
   useEffect(() => {
     if (!accessToken) return;
 
-    fetch("http://localhost:9000/api/v1/clients", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setClients(data));
+    const controller = new AbortController();
+
+    const fetchClients = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          console.error("Failed to fetch clients");
+          return;
+        }
+
+        const data = await res.json();
+        setClients(data);
+      } catch (error: any) {
+        console.error("Error fetching clients:", error);
+      }
+    };
+
+    fetchClients();
+
+    return () => controller.abort();
   }, [accessToken]);
 
   return (

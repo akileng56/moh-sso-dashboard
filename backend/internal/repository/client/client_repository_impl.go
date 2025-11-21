@@ -21,12 +21,24 @@ type sqlcClientRepository struct {
 	logger         *logger.Logger
 }
 
-func NewClientRepository(keycloak *keycloak.Client, config config.Config, db db.Store, logger logger.Logger) ClientRepository {
+func NewClientRepository(
+	keycloakClient *keycloak.Client,
+	config config.Config,
+	db db.Store,
+	log logger.Logger,
+) ClientRepository {
+
+	// Authenticate Keycloak admin client
+	if err := keycloakClient.Authenticate(); err != nil {
+		fmt.Errorf("Failed to authenticate Keycloak admin client: %v", err)
+		panic(fmt.Sprintf("Keycloak authentication failed: %v", err))
+	}
+
 	return &sqlcClientRepository{
-		keycloakClient: keycloak,
+		keycloakClient: keycloakClient,
 		config:         config,
 		db:             db,
-		logger:         &logger,
+		logger:         &log,
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	config "github.com/moh-sso-dashboard/internal/config"
 	kcClientPkg "github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
+	db "github.com/moh-sso-dashboard/internal/migrate"
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
@@ -46,6 +47,10 @@ func main() {
 	}
 	appLogger.Info("Successfully connected to database")
 
+	if err := db.MigrateDB(conn, "file://internal/db/migrations"); err != nil {
+		appLogger.Fatal("Cannot migrate db: %v", err)
+	}
+
 	keycloakClient := kcClientPkg.NewClient(
 		cfg.KeycloakBaseUrl,
 		cfg.KeycloakRealm,
@@ -78,6 +83,7 @@ func main() {
 	clientHandler := handler.NewClientHandler(clientService)
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authService, cfg)
+	// heallthHandler := handler.NewHealthHandler()
 
 	// --- Router and Server Start ---
 	r := router.SetupRouter(authHandler, clientHandler, userHandler)

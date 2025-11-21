@@ -24,6 +24,7 @@ func SetupRouter(
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// r.GET("/health", healthHandler.HandleHealth)
 	api := r.Group("/api/v1")
 	{
 		// ---- auth ----

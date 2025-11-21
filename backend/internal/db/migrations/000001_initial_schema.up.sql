@@ -61,7 +61,7 @@ CREATE TABLE client (
 -- ============================================================
 CREATE TABLE client_secrets (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id   UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id   UUID NOT NULL REFERENCES client(id) ON DELETE CASCADE,
     secret_hash TEXT NOT NULL,
     created_at  TIMESTAMP DEFAULT NOW(),
     expires_at  TIMESTAMP
@@ -72,7 +72,7 @@ CREATE TABLE client_secrets (
 -- ============================================================
 CREATE TABLE user_client_access (
     user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id UUID NOT NULL REFERENCES client(id) ON DELETE CASCADE,
     granted_at TIMESTAMP DEFAULT NOW(),
     PRIMARY KEY (user_id, client_id)
 );

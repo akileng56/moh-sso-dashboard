@@ -10,35 +10,31 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
-
   "clients": [
     {
       "id": "dashboard",
       "clientId": "dashboard",
       "name": "MOH SSO Dashboard",
       "description": "Frontend dashboard client for MOH applications",
-
       "rootUrl": "http://localhost:3000",
       "adminUrl": "http://localhost:3000",
       "baseUrl": "/",
-
       "redirectUris": [
         "http://localhost:9000/api/v1/auth/callback",
         "http://localhost:3000/dashboard"
       ],
-
-      "webOrigins": ["http://localhost:3000", "http://localhost:9000"],
-
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:9000"
+      ],
       "protocol": "openid-connect",
       "publicClient": false,
       "secret": "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
-
       "bearerOnly": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-
       "attributes": {
         "icon": "settings",
         "baseUrl": "http://localhost:3000",
@@ -46,13 +42,11 @@
         "refresh.token.lifespan": "3600",
         "use.refresh.tokens": "true",
         "refresh.token.max.reuse": "0",
-
         "pkce.code.challenge.method": "",
         "oauth2.device.authorization.grant.enabled": "false"
       }
     }
   ],
-
   "roles": {
     "realm": [
       {
@@ -61,7 +55,7 @@
       },
       {
         "name": "manager",
-        "description": "Can manage some apps"
+        "description": "Can manage some applications"
       },
       {
         "name": "user",
@@ -69,8 +63,21 @@
       }
     ]
   },
-
   "users": [
+    {
+      "username": "service-account-dashboard",
+      "enabled": true,
+      "serviceAccountClientId": "dashboard",
+      "clientRoles": {
+        "realm-management": [
+          "view-clients",
+          "manage-clients",
+          "view-users",
+          "manage-users",
+          "view-realm"
+        ]
+      }
+    },
     {
       "username": "admin",
       "enabled": true,
@@ -87,7 +94,6 @@
       ],
       "realmRoles": ["admin"]
     },
-
     {
       "username": "clientadmin",
       "enabled": true,
@@ -104,7 +110,6 @@
       ],
       "realmRoles": ["manager"]
     },
-
     {
       "username": "reportuser",
       "enabled": true,
@@ -121,7 +126,6 @@
       ],
       "realmRoles": ["user"]
     },
-
     {
       "username": "hmisuser",
       "enabled": true,
@@ -138,7 +142,6 @@
       ],
       "realmRoles": ["user"]
     },
-
     {
       "username": "obulamuuser",
       "enabled": true,
@@ -155,7 +158,6 @@
       ],
       "realmRoles": ["user"]
     },
-
     {
       "username": "prisonesruser",
       "enabled": true,
@@ -173,6 +175,19 @@
       "realmRoles": ["user"]
     }
   ],
-
-  "defaultRoles": ["user"]
+  "defaultRoles": ["user"],
+  "clientScopeMappings": {
+    "dashboard": [
+      {
+        "client": "realm-management",
+        "roles": [
+          "view-clients",
+          "manage-clients",
+          "view-users",
+          "manage-users",
+          "view-realm"
+        ]
+      }
+    ]
+  }
 }
