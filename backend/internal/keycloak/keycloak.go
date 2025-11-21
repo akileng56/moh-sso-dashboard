@@ -2,7 +2,6 @@ package keycloak
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,16 +41,14 @@ type AuthUser struct {
 
 // NewClient creates a new Keycloak client
 func NewClient(baseURL, realm, clientID, secret string) *Client {
+	// Normalize URL — ensure it has a scheme
 	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
-		baseURL = "https://" + baseURL
+		baseURL = "http://" + baseURL
 	}
+
 	baseURL = strings.TrimSuffix(baseURL, "/")
-	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-	}
-	httpClient := &http.Client{Transport: tr}
+
+	httpClient := &http.Client{}
 
 	return &Client{
 		BaseURL:    baseURL,

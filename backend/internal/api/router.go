@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/api/handler"
@@ -12,17 +14,19 @@ func SetupRouter(
 	userHandler *handler.UserHandler,
 ) *gin.Engine {
 	r := gin.Default()
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:3000"}
-	config.AllowCredentials = true
-	config.AddAllowHeaders("Authorization")
 
-	r.Use(cors.New(config))
-	// Define the base API group
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	api := r.Group("/api/v1")
 	{
-
-		// ---- auth management ------
+		// ---- auth ----
 		auth := api.Group("/auth")
 		{
 			auth.GET("/callback", authHandler.HandleAuthCallback)
@@ -32,7 +36,7 @@ func SetupRouter(
 			auth.GET("/logout", authHandler.HandleAuthLogout)
 		}
 
-		// --- Client Management Routes ---
+		// --- Clients ---
 		clients := api.Group("/clients")
 		{
 			clients.POST("/", clientHandler.CreateClient)
@@ -41,7 +45,7 @@ func SetupRouter(
 			clients.DELETE("/:id", clientHandler.DeleteClient)
 		}
 
-		// --- User Management Routes ---
+		// --- Users ---
 		users := api.Group("/users")
 		{
 			users.POST("/", userHandler.CreateUser)

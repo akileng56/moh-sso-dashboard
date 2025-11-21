@@ -82,14 +82,15 @@ func (c *Client) EnsureRealmExists(realmName string) error {
 
 // CreateClient with full configuration support
 func (c *Client) CreateClient(opts CreateClientParams) error {
+	c.BaseURL = "http://keycloak:8080"
 	if opts.Protocol == "" {
 		opts.Protocol = "openid-connect"
 	}
-	if opts.Enabled == false {
+	if !opts.Enabled {
 		opts.Enabled = true
 	}
 
-	res, err := c.Post(fmt.Sprintf("admin/realms/%s/clients", c.Realm), opts)
+	res, err := c.Post("clients", opts)
 	if err != nil {
 		return err
 	}
@@ -105,10 +106,11 @@ func (c *Client) CreateClient(opts CreateClientParams) error {
 
 // GetClientByClientID using Keycloak's search API
 func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
+	c.BaseURL = "http://keycloak:8080"
 	query := url.Values{}
 	query.Set("clientId", clientID)
 
-	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients?%s", c.Realm, query.Encode()))
+	res, err := c.Get("clients?" + query.Encode())
 	if err != nil {
 		return nil, err
 	}
@@ -125,7 +127,7 @@ func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
 	}
 
 	if len(clients) == 0 {
-		return nil, nil // not found
+		return nil, nil
 	}
 
 	return &clients[0], nil
@@ -133,7 +135,8 @@ func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
 
 // GetClientByID retrieves the actual client object
 func (c *Client) GetClientByID(id string) (*ClientInfo, error) {
-	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients/%s", c.Realm, id))
+	c.BaseURL = "http://keycloak:8080"
+	res, err := c.Get("clients/" + id)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +157,8 @@ func (c *Client) GetClientByID(id string) (*ClientInfo, error) {
 
 // List all clients in the realm
 func (c *Client) ListClients() ([]ClientInfo, error) {
-	res, err := c.Get(fmt.Sprintf("admin/realms/%s/clients", c.Realm))
+	c.BaseURL = "http://keycloak:8080"
+	res, err := c.Get("clients")
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +178,8 @@ func (c *Client) ListClients() ([]ClientInfo, error) {
 }
 
 func (c *Client) DeleteClient(id string) error {
-	res, err := c.Delete(fmt.Sprintf("admin/realms/%s/clients/%s", c.Realm, id))
+	c.BaseURL = "http://keycloak:8080"
+	res, err := c.Delete("clients/" + id)
 	if err != nil {
 		return err
 	}
