@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 )
@@ -15,9 +16,10 @@ func SetupRouter(
 	userHandler *handler.UserHandler,
 ) *gin.Engine {
 
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Logger())
+	r.Use(gin.Recovery())
 
-	// CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -27,12 +29,8 @@ func SetupRouter(
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Base API prefix
 	api := r.Group("/api/v1")
 
-	// -----------------------------
-	//  PUBLIC ROUTES (NO AUTH)
-	// -----------------------------
 	auth := api.Group("/auth")
 	{
 		auth.GET("/login", authHandler.HandleAuthLogin)
@@ -41,33 +39,30 @@ func SetupRouter(
 		auth.GET("/logout", authHandler.HandleAuthLogout)
 	}
 
-	// -----------------------------
-	//  PROTECTED ROUTES (NEED TOKEN)
-	// -----------------------------
 	protected := api.Group("")
-	protected.Use(middleware.ExtractTokenClaims())
-	protected.Use(middleware.RequireAuth())
-
-	// Authenticated user info
-	protected.GET("/auth/me", authHandler.HandleAuthGetMe)
-
-	// ---- Clients ----
-	clients := protected.Group("/clients")
 	{
-		clients.POST("/", clientHandler.CreateClient)
-		clients.GET("/", clientHandler.ListClients)
-		clients.GET("/:id", clientHandler.GetClient)
-		clients.DELETE("/:id", clientHandler.DeleteClient)
+		protected.Use(middleware.ExtractTokenClaims())
+		protected.Use(middleware.RequireAuth())
+		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
+		clients := protected.Group("/clients")
+		{
+			clients.GET("/", clientHandler.ListClients)
+			clients.GET("/:id", clientHandler.GetClient)
+			clients.POST("/", clientHandler.CreateClient)
+			clients.DELETE("/:id", clientHandler.DeleteClient)
+		}
+		users := protected.Group("/users")
+		{
+			users.GET("/", userHandler.ListUsers)
+			users.GET("/:id", userHandler.GetUser)
+			users.POST("/", userHandler.CreateUser)
+			users.DELETE("/:id", userHandler.DeleteUser)
+		}
 	}
 
-	// ---- Users ----
-	users := protected.Group("/users")
-	{
-		users.POST("/", userHandler.CreateUser)
-		users.GET("/", userHandler.ListUsers)
-		users.GET("/:id", userHandler.GetUser)
-		users.DELETE("/:id", userHandler.DeleteUser)
-	}
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 
 	return r
 }
