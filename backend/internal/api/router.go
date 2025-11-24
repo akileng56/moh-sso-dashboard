@@ -6,6 +6,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	"github.com/moh-sso-dashboard/internal/middleware"
 )
 
 func SetupRouter(
@@ -13,8 +14,10 @@ func SetupRouter(
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
 ) *gin.Engine {
+
 	r := gin.Default()
 
+	// CORS
 	r.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -24,36 +27,46 @@ func SetupRouter(
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// r.GET("/health", healthHandler.HandleHealth)
+	// Base API prefix
 	api := r.Group("/api/v1")
+
+	// -----------------------------
+	//  PUBLIC ROUTES (NO AUTH)
+	// -----------------------------
+	auth := api.Group("/auth")
 	{
-		// ---- auth ----
-		auth := api.Group("/auth")
-		{
-			auth.GET("/callback", authHandler.HandleAuthCallback)
-			auth.POST("/refresh", authHandler.HandleAuthRefreshToken)
-			auth.GET("/login", authHandler.HandleAuthLogin)
-			auth.GET("/me", authHandler.HandleAuthGetMe)
-			auth.GET("/logout", authHandler.HandleAuthLogout)
-		}
+		auth.GET("/login", authHandler.HandleAuthLogin)
+		auth.GET("/callback", authHandler.HandleAuthCallback)
+		auth.POST("/refresh", authHandler.HandleAuthRefreshToken)
+		auth.GET("/logout", authHandler.HandleAuthLogout)
+	}
 
-		// --- Clients ---
-		clients := api.Group("/clients")
-		{
-			clients.POST("/", clientHandler.CreateClient)
-			clients.GET("/", clientHandler.ListClients)
-			clients.GET("/:id", clientHandler.GetClient)
-			clients.DELETE("/:id", clientHandler.DeleteClient)
-		}
+	// -----------------------------
+	//  PROTECTED ROUTES (NEED TOKEN)
+	// -----------------------------
+	protected := api.Group("")
+	protected.Use(middleware.ExtractTokenClaims())
+	protected.Use(middleware.RequireAuth())
 
-		// --- Users ---
-		users := api.Group("/users")
-		{
-			users.POST("/", userHandler.CreateUser)
-			users.GET("/", userHandler.ListUsers)
-			users.GET("/:id", userHandler.GetUser)
-			users.DELETE("/:id", userHandler.DeleteUser)
-		}
+	// Authenticated user info
+	protected.GET("/auth/me", authHandler.HandleAuthGetMe)
+
+	// ---- Clients ----
+	clients := protected.Group("/clients")
+	{
+		clients.POST("/", clientHandler.CreateClient)
+		clients.GET("/", clientHandler.ListClients)
+		clients.GET("/:id", clientHandler.GetClient)
+		clients.DELETE("/:id", clientHandler.DeleteClient)
+	}
+
+	// ---- Users ----
+	users := protected.Group("/users")
+	{
+		users.POST("/", userHandler.CreateUser)
+		users.GET("/", userHandler.ListUsers)
+		users.GET("/:id", userHandler.GetUser)
+		users.DELETE("/:id", userHandler.DeleteUser)
 	}
 
 	return r

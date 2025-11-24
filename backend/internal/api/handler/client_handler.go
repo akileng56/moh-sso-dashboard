@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 )
 
@@ -57,7 +58,33 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list clients"})
 		return
 	}
-	c.JSON(http.StatusOK, apps)
+
+	clientRoles := c.MustGet("client_roles").(map[string][]string)
+	isAdmin := c.GetBool("is_admin")
+
+	filtered := []model.Client{}
+
+	for _, client := range apps {
+
+		// Admin can see all
+		if isAdmin {
+			filtered = append(filtered, client)
+			continue
+		}
+
+		clientID := client.ClientID
+		expectedRole := clientID + "_access"
+
+		// Check if user has this role
+		roles := clientRoles[clientID]
+		for _, role := range roles {
+			if role == expectedRole {
+				filtered = append(filtered, client)
+			}
+		}
+	}
+
+	c.JSON(http.StatusOK, filtered)
 }
 
 func (h *ClientHandler) DeleteClient(c *gin.Context) {

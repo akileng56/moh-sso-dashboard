@@ -10,6 +10,7 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
+
   "clients": [
     {
       "id": "dashboard",
@@ -45,8 +46,81 @@
         "pkce.code.challenge.method": "",
         "oauth2.device.authorization.grant.enabled": "false"
       }
+    },
+
+    {
+      "id": "moh-reports",
+      "clientId": "moh-reports",
+      "name": "MOH Reports Portal",
+      "description": "Analytics and reporting dashboard",
+      "rootUrl": "http://localhost:4001",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4001/*"],
+      "webOrigins": ["http://localhost:4001"],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "attributes": {
+        "icon": "document",
+        "baseUrl": "http://localhost:4001"
+      }
+    },
+
+    {
+      "id": "hmis-web",
+      "clientId": "hmis-web",
+      "name": "HMIS Web Portal",
+      "description": "Health Management Information System Web",
+      "rootUrl": "http://localhost:4002",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4002/*"],
+      "webOrigins": ["http://localhost:4002"],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "attributes": {
+        "icon": "calendar",
+        "baseUrl": "http://localhost:4002"
+      }
+    },
+
+    {
+      "id": "obulamu-web",
+      "clientId": "obulamu-web",
+      "name": "ObulamuCare Web Portal",
+      "description": "Community support platform",
+      "rootUrl": "http://localhost:4003",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4003/*"],
+      "webOrigins": ["http://localhost:4003"],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "attributes": {
+        "icon": "email",
+        "baseUrl": "http://localhost:4003"
+      }
+    },
+
+    {
+      "id": "prisons-emr",
+      "clientId": "prisons-emr",
+      "name": "Prisons EMR",
+      "description": "Electronic Medical Records for Prisons",
+      "rootUrl": "http://localhost:4004",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4004/*"],
+      "webOrigins": ["http://localhost:4004"],
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "attributes": {
+        "icon": "user",
+        "baseUrl": "http://localhost:4004"
+      }
     }
   ],
+
   "roles": {
     "realm": [
       {
@@ -61,8 +135,26 @@
         "name": "user",
         "description": "Standard user role"
       }
-    ]
+    ],
+    "client": {
+      "dashboard": [
+        { "name": "dashboard_access", "description": "Access MOH Dashboard" }
+      ],
+      "moh-reports": [
+        { "name": "reports_access", "description": "Access MOH Reports Portal" }
+      ],
+      "hmis-web": [
+        { "name": "hmis_access", "description": "Access HMIS Web Portal" }
+      ],
+      "obulamu-web": [
+        { "name": "obulamu_access", "description": "Access ObulamuCare Web Portal" }
+      ],
+      "prisons-emr": [
+        { "name": "prisons_access", "description": "Access Prisons EMR" }
+      ]
+    }
   },
+
   "users": [
     {
       "username": "service-account-dashboard",
@@ -78,6 +170,7 @@
         ]
       }
     },
+
     {
       "username": "admin",
       "enabled": true,
@@ -92,8 +185,16 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"]
+      "realmRoles": ["admin"],
+      "clientRoles": {
+        "dashboard": ["dashboard_access"],
+        "moh-reports": ["reports_access"],
+        "hmis-web": ["hmis_access"],
+        "obulamu-web": ["obulamu_access"],
+        "prisons-emr": ["prisons_access"]
+      }
     },
+
     {
       "username": "clientadmin",
       "enabled": true,
@@ -108,8 +209,13 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["manager"]
+      "realmRoles": ["manager"],
+      "clientRoles": {
+        "dashboard": ["dashboard_access"],
+        "moh-reports": ["reports_access"]
+      }
     },
+
     {
       "username": "reportuser",
       "enabled": true,
@@ -124,8 +230,12 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "moh-reports": ["reports_access"]
+      }
     },
+
     {
       "username": "hmisuser",
       "enabled": true,
@@ -140,8 +250,12 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "hmis-web": ["hmis_access"]
+      }
     },
+
     {
       "username": "obulamuuser",
       "enabled": true,
@@ -156,10 +270,14 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "obulamu-web": ["obulamu_access"]
+      }
     },
+
     {
-      "username": "prisonesruser",
+      "username": "prisonsuser",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Prisons",
@@ -172,11 +290,15 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["user"]
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "prisons-emr": ["prisons_access"]
+      }
     }
   ],
+
   "defaultRoles": ["user"],
-  "clientScopeMappings": {
+    "clientScopeMappings": {
     "dashboard": [
       {
         "client": "realm-management",
