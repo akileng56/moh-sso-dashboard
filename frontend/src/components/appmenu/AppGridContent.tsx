@@ -3,15 +3,24 @@ import { Grid, Column } from "@carbon/react";
 import AppTile from "./AppMenuItem.component";
 import { useAuth } from "../../context/useAuth";
 
-import { Document, Calendar, Email, Menu } from "@carbon/icons-react";
+import {
+  Document,
+  Calendar,
+  Email,
+  Menu,
+  User,
+  App,
+} from "@carbon/icons-react";
 
 const API_BASE = "http://localhost:9000/api/v1/clients";
 
 const ICON_MAP: Record<string, React.ElementType> = {
-  mail: Email,
+  email: Email,
   calendar: Calendar,
-  docs: Document,
+  document: Document,
   settings: Menu,
+  user: User,
+  applications: App,
 };
 
 const AppGridContent: React.FC = () => {
@@ -53,12 +62,24 @@ const AppGridContent: React.FC = () => {
   }, [accessToken]);
 
   return (
-    <Grid style={{ width: "260px", padding: "1rem", background: "white" }}>
+    <Grid
+      narrow
+      style={{
+        width: "auto",
+        padding: "1rem",
+        background: "white",
+        display: "flex",
+        flexWrap: "wrap",
+        flexDirection: "row",
+        justifyContent: "flex-start",
+        gap: "1rem",
+      }}
+    >
       {clients.map((client) => {
-        const Icon = ICON_MAP[client.icon] || Menu;
+        const Icon = ICON_MAP[client.attributes.icon] || Menu;
 
         return (
-          <Column key={client.id} sm={4} md={4} lg={4}>
+          <Column key={client.id} sm={2} md={2} lg={3}>
             <AppTile
               icon={Icon}
               name={client.name}
