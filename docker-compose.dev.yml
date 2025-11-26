@@ -1,9 +1,6 @@
 version: "3.9"
 
 services:
-  # -----------------------------
-  # Keycloak Authentication Server (SSL Configured)
-  # -----------------------------
   keycloak:
     image: quay.io/keycloak/keycloak:26.0.5
     container_name: keycloak
@@ -26,13 +23,16 @@ services:
     ports:
       - "8081:8080"
     depends_on:
-      - keycloak-db
+      keycloak-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
     networks:
       - sso_network
 
-  # -----------------------------
-  # Keycloak Database (PostgreSQL)
-  # -----------------------------
   keycloak-db:
     image: postgres:15
     container_name: keycloak-db
@@ -40,6 +40,11 @@ services:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
       POSTGRES_PASSWORD: keycloak
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     volumes:
       - keycloak_data:/var/lib/postgresql/data
     networks:
@@ -52,9 +57,23 @@ services:
     ports:
       - "6379:6379"
 
-  # -----------------------------
-  # Go Backend Service (Dev)
-  # -----------------------------
+  backend-db:
+    image: postgres:15
+    container_name: backend-db
+    environment:
+      POSTGRES_DB: sso_dashboard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - backend_data:/var/lib/postgresql/data
+    networks:
+      - sso_network
+
   backend:
     build:
       context: ./backend
@@ -62,7 +81,7 @@ services:
     container_name: sso-backend
     environment:
       - PORT=9000
-      - KEYCLOAK_URL=http://localhost:8081
+      - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=moh-realm
       - KEYCLOAK_CLIENT_ID=dashboard
       - KEYCLOAK_REDIRECT_URI=http://localhost:9000/api/v1/auth/callback
@@ -72,8 +91,10 @@ services:
       - DB_PASSWORD=postgres
       - DB_NAME=sso_dashboard
     depends_on:
-      - keycloak
-      - backend-db
+      keycloak:
+        condition: service_healthy
+      backend-db:
+        condition: service_healthy
     ports:
       - "9000:9000"
     networks:
@@ -82,24 +103,6 @@ services:
       - ./backend:/app
     command: sh -c "go run ./cmd/server"
 
-  # -----------------------------
-  # Backend Database (Dev)
-  # -----------------------------
-  backend-db:
-    image: postgres:15
-    container_name: backend-db
-    environment:
-      POSTGRES_DB: sso_dashboard
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    volumes:
-      - backend_data:/var/lib/postgresql/data
-    networks:
-      - sso_network
-
-  # -----------------------------
-  # React Frontend (Dev)
-  # -----------------------------
   frontend:
     build:
       context: ./frontend
@@ -113,24 +116,20 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
-      - keycloak
+      backend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
     networks:
       - sso_network
     volumes:
       - ./frontend:/app
       - /app/node_modules
 
-# -----------------------------
-# Persistent Volumes
-# -----------------------------
 volumes:
   keycloak_data:
   backend_data:
 
-# -----------------------------
-# Network
-# -----------------------------
 networks:
   sso_network:
     driver: bridge
