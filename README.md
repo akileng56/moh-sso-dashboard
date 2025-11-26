@@ -1,4 +1,4 @@
-# MOH SSO Dashboard -- Detailed Documentation
+# MOH SSO Dashboard
 
 ## 1. Introduction
 
