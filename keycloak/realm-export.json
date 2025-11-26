@@ -37,7 +37,6 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "attributes": {
-        "icon": "settings",
         "baseUrl": "http://localhost:3000",
         "access.token.lifespan": "1800",
         "refresh.token.lifespan": "3600",
