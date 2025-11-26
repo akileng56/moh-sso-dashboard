@@ -73,8 +73,8 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 			Valid:  client.BaseURL != "",
 		},
 		Icon: sql.NullString{
-			String: client.Icon,
-			Valid:  client.Icon != "",
+			String: client.Attributes["icon"],
+			Valid:  client.Attributes["icon"] != "",
 		},
 		PublicClient: sql.NullBool{
 			Bool:  client.PublicClient,
@@ -107,7 +107,6 @@ func (r *sqlcClientRepository) GetClientByID(id string) (*models.Client, error) 
 		Name:         row.Name,
 		Description:  row.Description.String,
 		BaseURL:      row.BaseUrl.String,
-		Icon:         row.Icon.String,
 		PublicClient: row.PublicClient.Bool,
 		Enabled:      row.Enabled.Bool,
 	}, nil
@@ -136,6 +135,12 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	// 3. Merge KC + DB (KC is primary)
 	var result []models.Client
 	for _, kc := range kcClients {
+		// Prepare the attributes map with just the "icon" key
+		attributes := map[string]string{}
+		if icon, ok := kc.Attributes["icon"]; ok {
+			attributes["icon"] = icon
+		}
+
 		// If exists in DB, merge metadata
 		if entry, ok := dbMap[kc.ClientID]; ok {
 			result = append(result, models.Client{
@@ -144,9 +149,9 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 				Name:         kc.Name,
 				Description:  kc.Description,
 				BaseURL:      kc.BaseURL,
-				Icon:         "",
 				PublicClient: kc.PublicClient,
 				Enabled:      kc.Enabled,
+				Attributes:   attributes,
 			})
 		} else {
 			// KC-only record
@@ -156,9 +161,9 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 				Name:         kc.Name,
 				Description:  kc.Description,
 				BaseURL:      kc.BaseURL,
-				Icon:         "",
 				PublicClient: kc.PublicClient,
 				Enabled:      kc.Enabled,
+				Attributes:   attributes,
 			})
 		}
 	}

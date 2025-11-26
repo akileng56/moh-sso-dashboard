@@ -66,6 +66,10 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 
 	for _, client := range apps {
 
+		if client.Attributes == nil || client.Attributes["icon"] == "" {
+			continue
+		}
+
 		// Admin can see all
 		if isAdmin {
 			filtered = append(filtered, client)

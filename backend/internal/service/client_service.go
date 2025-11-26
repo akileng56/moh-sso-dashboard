@@ -70,7 +70,6 @@ func (s *ClientService) CreateClient(req CreateClientRequest) (*models.Client, e
 		Name:         req.Name,
 		Description:  req.Description,
 		BaseURL:      req.BaseURL,
-		Icon:         "",
 		PublicClient: req.PublicClient,
 		Enabled:      true, // always true on creation
 	}
