@@ -141,7 +141,7 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		}
 	}
 
-	// 3. Clear cookies
+	// Clear cookies
 	clearCookie := func(name string, httpOnly bool) {
 		http.SetCookie(c.Writer, &http.Cookie{
 			Name:     name,
@@ -158,7 +158,9 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	clearCookie("access_token", false)
 	clearCookie("refresh_token", true)
 
-	redirectURL := url.QueryEscape("http://localhost:3000/dashboard")
+	// IMPORTANT: do NOT escape the full URL
+	redirectURL := "http://localhost:3000/dashboard"
 
+	// 307 temporary redirect
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
