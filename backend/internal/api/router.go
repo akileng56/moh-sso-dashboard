@@ -41,8 +41,8 @@ func SetupRouter(
 
 	protected := api.Group("")
 	{
-		protected.Use(middleware.ExtractTokenClaims())
 		protected.Use(middleware.RequireAuth())
+		protected.Use(middleware.ExtractTokenClaims())
 		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
 		clients := protected.Group("/clients")
 		{

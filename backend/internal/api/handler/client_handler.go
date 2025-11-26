@@ -70,21 +70,30 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 			continue
 		}
 
-		// Admin can see all
 		if isAdmin {
 			filtered = append(filtered, client)
 			continue
 		}
 
 		clientID := client.ClientID
+
+		roles, ok := clientRoles[clientID]
+		if !ok || len(roles) == 0 {
+			continue
+		}
+
 		expectedRole := clientID + "_access"
 
-		// Check if user has this role
-		roles := clientRoles[clientID]
-		for _, role := range roles {
-			if role == expectedRole {
-				filtered = append(filtered, client)
+		hasAccess := false
+		for _, r := range roles {
+			if r == expectedRole {
+				hasAccess = true
+				break
 			}
+		}
+
+		if hasAccess {
+			filtered = append(filtered, client)
 		}
 	}
 

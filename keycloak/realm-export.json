@@ -37,6 +37,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "attributes": {
+        "icon": "applications",
         "baseUrl": "http://localhost:3000",
         "access.token.lifespan": "1800",
         "refresh.token.lifespan": "3600",
@@ -122,34 +123,25 @@
 
   "roles": {
     "realm": [
-      {
-        "name": "admin",
-        "description": "Administrator role with full access"
-      },
-      {
-        "name": "manager",
-        "description": "Can manage some applications"
-      },
-      {
-        "name": "user",
-        "description": "Standard user role"
-      }
+      { "name": "admin", "description": "Administrator role with full access" },
+      { "name": "manager", "description": "Can manage some applications" },
+      { "name": "user", "description": "Standard user role" }
     ],
     "client": {
       "dashboard": [
         { "name": "dashboard_access", "description": "Access MOH Dashboard" }
       ],
       "moh-reports": [
-        { "name": "reports_access", "description": "Access MOH Reports Portal" }
+        { "name": "moh-reports_access", "description": "Access MOH Reports Portal" }
       ],
       "hmis-web": [
-        { "name": "hmis_access", "description": "Access HMIS Web Portal" }
+        { "name": "hmis-web_access", "description": "Access HMIS Web Portal" }
       ],
       "obulamu-web": [
-        { "name": "obulamu_access", "description": "Access ObulamuCare Web Portal" }
+        { "name": "obulamu-web_access", "description": "Access ObulamuCare Web Portal" }
       ],
       "prisons-emr": [
-        { "name": "prisons_access", "description": "Access Prisons EMR" }
+        { "name": "prisons-emr_access", "description": "Access Prisons EMR" }
       ]
     }
   },
@@ -178,19 +170,15 @@
       "lastName": "Admin",
       "email": "admin@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "Admin@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "Admin@123", "temporary": false }
       ],
       "realmRoles": ["admin"],
       "clientRoles": {
         "dashboard": ["dashboard_access"],
-        "moh-reports": ["reports_access"],
-        "hmis-web": ["hmis_access"],
-        "obulamu-web": ["obulamu_access"],
-        "prisons-emr": ["prisons_access"]
+        "moh-reports": ["moh-reports_access"],
+        "hmis-web": ["hmis-web_access"],
+        "obulamu-web": ["obulamu-web_access"],
+        "prisons-emr": ["prisons-emr_access"]
       }
     },
 
@@ -202,16 +190,12 @@
       "lastName": "Administrator",
       "email": "client.admin@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "ClientAdmin@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "ClientAdmin@123", "temporary": false }
       ],
       "realmRoles": ["manager"],
       "clientRoles": {
         "dashboard": ["dashboard_access"],
-        "moh-reports": ["reports_access"]
+        "moh-reports": ["moh-reports_access"]
       }
     },
 
@@ -223,15 +207,11 @@
       "lastName": "User",
       "email": "report.user@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "ReportUser@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "ReportUser@123", "temporary": false }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "moh-reports": ["reports_access"]
+        "moh-reports": ["moh-reports_access"]
       }
     },
 
@@ -243,15 +223,11 @@
       "lastName": "User",
       "email": "hmis.user@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "HmisUser@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "HmisUser@123", "temporary": false }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "hmis-web": ["hmis_access"]
+        "hmis-web": ["hmis-web_access"]
       }
     },
 
@@ -263,15 +239,11 @@
       "lastName": "User",
       "email": "obulamu.user@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "ObulamuUser@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "ObulamuUser@123", "temporary": false }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "obulamu-web": ["obulamu_access"]
+        "obulamu-web": ["obulamu-web_access"]
       }
     },
 
@@ -283,21 +255,18 @@
       "lastName": "User",
       "email": "prisons.user@moh.go.ug",
       "credentials": [
-        {
-          "type": "password",
-          "value": "PrisonsUser@123",
-          "temporary": false
-        }
+        { "type": "password", "value": "PrisonsUser@123", "temporary": false }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "prisons-emr": ["prisons_access"]
+        "prisons-emr": ["prisons-emr_access"]
       }
     }
   ],
 
   "defaultRoles": ["user"],
-    "clientScopeMappings": {
+
+  "clientScopeMappings": {
     "dashboard": [
       {
         "client": "realm-management",
