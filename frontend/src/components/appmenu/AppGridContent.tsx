@@ -53,15 +53,12 @@ const AppGridContent: React.FC = () => {
   }, [accessToken]);
 
   return (
-    <Grid
-      narrow
-      style={{ width: "260px", padding: "1rem", background: "white" }}
-    >
+    <Grid style={{ width: "260px", padding: "1rem", background: "white" }}>
       {clients.map((client) => {
         const Icon = ICON_MAP[client.icon] || Menu;
 
         return (
-          <Column key={client.id} sm={2} md={2} lg={4}>
+          <Column key={client.id} sm={4} md={4} lg={4}>
             <AppTile
               icon={Icon}
               name={client.name}

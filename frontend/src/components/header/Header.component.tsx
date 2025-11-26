@@ -25,7 +25,6 @@ const DashboardHeader: React.FC = () => {
       </HeaderName>
 
       <HeaderGlobalBar>
-        <AppMenuAction />
         <HeaderGlobalAction aria-label="User Avatar" tooltipAlignment="end">
           <UserAvatarFilled size={20} />
         </HeaderGlobalAction>
@@ -36,6 +35,7 @@ const DashboardHeader: React.FC = () => {
         >
           <Logout size={20} />
         </HeaderGlobalAction>
+        <AppMenuAction />
       </HeaderGlobalBar>
     </Header>
   );
