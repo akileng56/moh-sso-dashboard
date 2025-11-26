@@ -70,14 +70,6 @@ const Dashboard: React.FC = () => {
   return (
     <div>
       <DashboardHeader />
-      <h3 className="mt-4">Secure Profile Data</h3>
-
-      {loading && <p>Loading user profile...</p>}
-      {!loading && fetchError && <p style={{ color: "red" }}>{fetchError}</p>}
-      {!loading && !fetchError && data && (
-        <pre>{JSON.stringify(data, null, 2)}</pre>
-      )}
-      {!loading && !fetchError && !data && <p>No profile data available.</p>}
     </div>
   );
 };
