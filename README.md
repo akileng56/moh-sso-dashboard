@@ -230,13 +230,6 @@ true - redirectUris: "http://localhost:3000/*" - webOrigins: "*"
 
 ------------------------------------------------------------------------
 
-## 11. Authors
-
-Developed by **Jabar Jeremy**\
-Lead Engineer -- MOH Digital Health Infrastructure
-
-------------------------------------------------------------------------
-
-## 12. License
+## 11. License
 
 MIT License
