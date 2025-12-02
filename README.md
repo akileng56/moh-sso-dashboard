@@ -172,7 +172,7 @@ Optional auto-reload:
 
 ### Start everything:
 
-    docker-compose up -d
+    sudo docker compose -f docker-compose.dev.yml up -d --build 
 
 Includes: - Keycloak - PostgreSQL - Backend - Frontend
 
