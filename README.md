@@ -1,232 +1,266 @@
 # MOH SSO Dashboard
 
+A centralized **Single Sign-On (SSO)** platform for Ministry of Health (MOH) applications.  
+Built with **Keycloak**, **Go (Gin)**, **React**, and **Carbon Design System**.
+
+---
+
+## Table of Contents
+
+- [1. Introduction](#1-introduction)  
+- [2. System Architecture Overview](#2-system-architecture-overview)  
+  - [2.1 Frontend](#21-frontend-react--carbon)  
+  - [2.2 Backend](#22-backend-go--gin)  
+  - [2.3 Keycloak](#23-keycloak-identity-provider)  
+- [3. Features](#3-features)  
+- [4. API Reference](#4-api-reference)  
+- [5. Development Setup](#5-development-setup)  
+- [6. Docker Deployment](#6-docker-deployment)  
+- [7. Environment Variables](#7-environment-variables)  
+- [8. Database Schema Overview](#8-database-schema-overview)  
+- [9. Keycloak Realm Requirements](#9-keycloak-realm-requirements)  
+- [10. Future Enhancements](#10-future-enhancements)  
+- [11. License](#11-license)
+
+---
+
 ## 1. Introduction
 
-The **MOH SSO Dashboard** is a centralized authentication,
-authorization, and client management system built for Ministry of Health
-(MOH) applications.\
-It integrates all internal systems under a unified Single Sign-On (SSO)
-platform powered by **Keycloak**, enabling users to access multiple apps
-through one login.
+The **MOH SSO Dashboard** unifies internal Ministry of Health systems under a centralized authentication and authorization platform.  
+Users can access multiple applications using a single login through **Keycloak**.
 
-This documentation provides a **fully detailed and production-ready**
-overview of the project.
+This repository contains the full implementation of the frontend, backend, and deployment configuration.
 
-------------------------------------------------------------------------
+---
 
 ## 2. System Architecture Overview
 
-The system is composed of three major parts:
+The system consists of three major components:
 
-### **2.1 Frontend (React + Carbon)**
+### 2.1 Frontend (React + Carbon)
 
--   React 19 with TypeScript
--   Carbon Design System UI components
--   Uses AuthContext for token refresh & state management
--   Displays applications as tiles based on user role
--   Fetches user details from backend using JWT
+- React 19 + TypeScript  
+- Carbon Design System  
+- AuthContext for token management  
+- Dynamic application tiles based on user role  
+- Fetches user profile using JWT from backend  
 
-### **2.2 Backend (Go + Gin)**
+---
 
-The backend provides: - Auth endpoints (`/auth/me`, `/auth/logout`) -
-Client management (`/clients`) - User management (`/users`) -
-SQLC-generated DB queries - Keycloak Admin API integrations
+### 2.2 Backend (Go + Gin)
 
-Uses: - Gin Web Framework - PostgreSQL - SQLC for strict type-safe
-database access - Zerolog for logging
+Core responsibilities:
+- Authentication (`/auth/me`, `/auth/logout`)  
+- Client management (`/clients`)  
+- User management (`/users`)  
+- SQLC for type-safe database queries  
+- Keycloak Admin API integration  
 
-### **2.3 Keycloak (Identity Provider)**
+Technologies:
+- Gin Framework  
+- PostgreSQL  
+- SQLC  
+- Zerolog  
 
-Handles: - Authentication (OIDC) - User roles - Service accounts - Realm
-configuration - Token issuance & validation
+---
 
-------------------------------------------------------------------------
+### 2.3 Keycloak (Identity Provider)
 
-## 3. Features in Detail
+Handles:
+- Authentication (OIDC)  
+- User roles  
+- Service accounts  
+- Client configurations  
+- Token generation & validation  
 
-### **3.1 Authentication & Authorization**
+---
 
--   Full login via Keycloak Authorization Code Flow
--   Backend extracts and validates tokens using middleware
--   Defines two main roles: `admin` and `user`
--   Admin can manage system users & clients
--   Users only view applications they are assigned to
+## 3. Features
 
-------------------------------------------------------------------------
+### 3.1 Authentication & Authorization
+- Authorization Code Flow via Keycloak  
+- Token validation middleware  
+- Two main roles: `admin`, `user`  
+- Admins manage clients and users  
+- Users only see assigned applications  
 
-### **3.2 Client Management**
+### 3.2 Client Management
+Admins can:
+- Create/update/delete clients  
+- Sync with Keycloak + local DB  
+- Configure name, icon, base URL, visibility  
+- Handle public/private client modes  
 
-The dashboard allows administrators to manage applications connected
-through SSO.
+Client Model:
+```
+ID
+ClientID
+Name
+Description
+BaseURL
+Icon
+PublicClient
+Enabled
+Attributes
+```
 
-Features include: - Create client in Keycloak + local DB sync - Update
-client information and roles - Delete client (with safety checks) -
-Assign icon, baseURL, and visibility - Frontend displays apps
-dynamically
+### 3.3 User Management
+Admins can:
+- Create users (Keycloak + DB)  
+- Assign roles  
+- Enable/disable accounts  
+- Edit profile data  
+- Delete accounts  
 
-Client model contains:
+---
 
-    ID
-    ClientID
-    Name
-    Description
-    BaseURL
-    Icon
-    PublicClient
-    Enabled
-    Attributes (extensible)
+## 4. API Reference
 
-------------------------------------------------------------------------
+### Authentication API
+```
+GET  /api/v1/auth/me       -> Get authenticated user profile
+POST /api/v1/auth/logout   -> Logout
+```
 
-### **3.3 User Management**
+### Client API
+```
+GET    /api/v1/clients       -> List all clients
+POST   /api/v1/clients       -> Create client
+PUT    /api/v1/clients/:id   -> Update client
+DELETE /api/v1/clients/:id   -> Delete client
+```
 
-Admins can: - Create Keycloak + local DB users - Assign user roles
-(`admin`, `user`) - Enable/disable users - Delete or update user profile
-data
+### User API
+```
+POST   /api/v1/users       -> Create user
+GET    /api/v1/users       -> List users
+GET    /api/v1/users/:id   -> Get user
+DELETE /api/v1/users/:id   -> Delete user
+```
 
-------------------------------------------------------------------------
-
-## 4. API Reference (Backend)
-
-### **4.1 Authentication API**
-
-#### `GET /api/v1/auth/me`
-
-Returns user profile from Keycloak token.
-
-#### `POST /api/v1/auth/logout`
-
-Logs the user out of Keycloak.
-
-------------------------------------------------------------------------
-
-### **4.2 Client API**
-
-#### `GET /api/v1/clients`
-
-List all clients visible to the active user.
-
-#### `POST /api/v1/clients`
-
-Create a new client.
-
-#### `PUT /api/v1/clients/:id`
-
-Update an existing client.
-
-#### `DELETE /api/v1/clients/:id`
-
-Remove a client from system.
-
-------------------------------------------------------------------------
-
-### **4.3 User API**
-
-#### `POST /api/v1/users`
-
-Create user in Keycloak & database.
-
-#### `GET /api/v1/users`
-
-List all users.
-
-#### `GET /api/v1/users/:id`
-
-Fetch user by ID.
-
-#### `DELETE /api/v1/users/:id`
-
-Delete user from system.
-
-------------------------------------------------------------------------
+---
 
 ## 5. Development Setup
 
-### **5.1 Clone Repository**
+### Step 1 — Clone Repository
+```bash
+git clone https://github.com/moh-sso-dashboard.git
+cd sso-dashboard
+```
 
-    git clone https://github.com/moh-sso-dashboard.git
-    cd sso-dashboard
-
-### **5.2 Backend Setup**
-
+### Step 2 — Backend Setup
 Install dependencies:
+```bash
+go mod tidy
+```
 
-    go mod tidy
+Run server:
+```bash
+go run ./cmd/server
+```
 
-Run:
+### Step 3 — Frontend Setup
+```bash
+npm install
+npm run dev
+```
 
-    go run ./cmd/server
-
-
-### **5.3 Frontend Setup**
-
-    npm install
-    npm run dev
-
-------------------------------------------------------------------------
+---
 
 ## 6. Docker Deployment
 
-### Start everything:
+### Step 1 — Start Development Stack
+```bash
+sudo docker compose -f docker-compose.dev.yml up -d --build
+```
 
-    sudo docker compose -f docker-compose.dev.yml up -d --build 
+Starts:
+- Keycloak  
+- PostgreSQL  
+- Backend  
+- Frontend  
 
-Includes: - Keycloak - PostgreSQL - Backend - Frontend
+### Step 2 — Production Build
+```bash
+docker build -t moh-sso-backend ./backend
+docker build -t moh-sso-frontend ./frontend
+```
 
-### Production build:
-
-    docker build -t moh-sso-backend ./backend
-    docker build -t moh-sso-frontend ./frontend
-
-------------------------------------------------------------------------
+---
 
 ## 7. Environment Variables
 
 ### Backend `.env`
-
-    DB_SOURCE=postgresql://postgres:postgres@db:5432/sso?sslmode=disable
-    KEYCLOAK_BASE_URL=http://keycloak:8080
-    KEYCLOAK_REALM=moh-realm
-    KEYCLOAK_CLIENT_ID=dashboard
-    KEYCLOAK_CLIENT_SECRET=changeme
-    SERVER_PORT=9000
+```env
+DB_SOURCE=postgresql://postgres:postgres@db:5432/sso?sslmode=disable
+KEYCLOAK_BASE_URL=http://keycloak:8080
+KEYCLOAK_REALM=moh-realm
+KEYCLOAK_CLIENT_ID=dashboard
+KEYCLOAK_CLIENT_SECRET=changeme
+SERVER_PORT=9000
+```
 
 ### Frontend `.env`
+```env
+VITE_API_BASE=http://localhost:9000/api/v1
+VITE_KEYCLOAK_URL=http://localhost:8081
+VITE_KEYCLOAK_REALM=moh-realm
+VITE_KEYCLOAK_CLIENT_ID=dashboard
+```
 
-    VITE_API_BASE=http://localhost:9000/api/v1
-    VITE_KEYCLOAK_URL=http://localhost:8081
-    VITE_KEYCLOAK_REALM=moh-realm
-    VITE_KEYCLOAK_CLIENT_ID=dashboard
-
-------------------------------------------------------------------------
+---
 
 ## 8. Database Schema Overview
 
-Tables include: - `user` - `client` - `client_roles` - `activity_logs` -
-`audit_trails`
+Main tables:
+- `user`  
+- `client`  
+- `client_roles`  
+- `activity_logs`  
+- `audit_trails`  
 
-SQLC code is generated into `internal/db/sqlc`.
+SQLC output directory:
+```
+internal/db/sqlc
+```
 
-------------------------------------------------------------------------
+---
 
 ## 9. Keycloak Realm Requirements
 
-Your realm must include: - Realm: **moh-realm** - Roles: - admin -
-user - Dashboard Client: - clientId: dashboard - serviceAccountsEnabled:
-true - redirectUris: "http://localhost:3000/*" - webOrigins: "*"
+Your realm must include:
 
-------------------------------------------------------------------------
+### Realm
+```
+moh-realm
+```
+
+### Roles
+```
+admin
+user
+```
+
+### Dashboard Client
+```
+clientId: dashboard
+serviceAccountsEnabled: true
+redirectUris: ["http://localhost:3000/*"]
+webOrigins: ["*"]
+```
+
+---
 
 ## 10. Future Enhancements
+- Multi-tenant support  
+- Analytics dashboard  
+- Audit log UI  
+- Invite-based onboarding  
+- Role-based UI customization  
 
--   Multi-tenant support
--   App analytics dashboard
--   Audit log UI
--   Invite-based user onboarding
--   Role-based menu customization
-
-------------------------------------------------------------------------
+---
 
 ## 11. License
-
+```
 MIT License
+```
