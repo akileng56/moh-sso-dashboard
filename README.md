@@ -157,9 +157,6 @@ Run:
 
     go run ./cmd/server
 
-Optional auto-reload:
-
-    air
 
 ### **5.3 Frontend Setup**
 
