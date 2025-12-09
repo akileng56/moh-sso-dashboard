@@ -81,17 +81,18 @@ func main() {
 	userService := service.NewUserService(userRepo)
 	authService := service.NewAuthService(authRepo, rdb)
 	metricsService := service.NewMetricsService(metrics)
+	auditSvc := service.NewAuditService(store)
 
 	// --- Handler Layer Initialization ---
-	clientHandler := handler.NewClientHandler(clientService)
-	userHandler := handler.NewUserHandler(userService)
-	authHandler := handler.NewAuthHandler(authService, cfg)
+	clientHandler := handler.NewClientHandler(clientService, auditSvc)
+	userHandler := handler.NewUserHandler(userService, auditSvc)
+	authHandler := handler.NewAuthHandler(authService, auditSvc, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 
 	// heallthHandler := handler.NewHealthHandler()
 
 	// --- Router and Server Start ---
-	r := router.SetupRouter(authHandler, clientHandler, userHandler, metricsHandler)
+	r := router.SetupRouter(authHandler, clientHandler, userHandler, metricsHandler, auditSvc)
 
 	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
 

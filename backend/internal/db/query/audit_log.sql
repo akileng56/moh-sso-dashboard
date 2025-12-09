@@ -1,3 +1,11 @@
+-- name: CreateAuditLog :exec
+INSERT INTO audit_logs (
+    user_id, action, metadata
+) VALUES (
+    $1, $2, $3
+);
+
+
 -- name: CountFailedLogins :one
 SELECT COUNT(*)
 FROM audit_logs

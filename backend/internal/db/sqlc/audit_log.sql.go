@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
 
 const activeUsersPerClientThisWeek = `-- name: ActiveUsersPerClientThisWeek :many
@@ -267,6 +268,25 @@ func (q *Queries) CountPasswordResetsInRange(ctx context.Context, arg CountPassw
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const createAuditLog = `-- name: CreateAuditLog :exec
+INSERT INTO audit_logs (
+    user_id, action, metadata
+) VALUES (
+    $1, $2, $3
+)
+`
+
+type CreateAuditLogParams struct {
+	UserID   uuid.NullUUID         `json:"user_id"`
+	Action   string                `json:"action"`
+	Metadata pqtype.NullRawMessage `json:"metadata"`
+}
+
+func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error {
+	_, err := q.db.ExecContext(ctx, createAuditLog, arg.UserID, arg.Action, arg.Metadata)
+	return err
 }
 
 const failedLoginsByUserInRange = `-- name: FailedLoginsByUserInRange :many

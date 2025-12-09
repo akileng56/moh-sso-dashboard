@@ -8,13 +8,16 @@ import (
 
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/middleware"
+
+	service "github.com/moh-sso-dashboard/internal/service"
 )
 
 func SetupRouter(
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
-	metricsHandler *handler.MetricsHandler, // <-- ADD THIS
+	metricsHandler *handler.MetricsHandler,
+	auditSvc *service.AuditService,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -31,6 +34,7 @@ func SetupRouter(
 	}))
 
 	api := r.Group("/api/v1")
+	api.Use(middleware.AuditMiddleware(auditSvc))
 
 	// ----------------------
 	// Public Auth Endpoints

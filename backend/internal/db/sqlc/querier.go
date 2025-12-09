@@ -32,6 +32,7 @@ type Querier interface {
 	CountNewUsersToday(ctx context.Context) (int64, error)
 	CountPasswordResetsInRange(ctx context.Context, arg CountPasswordResetsInRangeParams) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	CreateClient(ctx context.Context, arg CreateClientParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
