@@ -66,3 +66,19 @@ func RequireAuth() gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+func RequireAdmin() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// ExtractTokenClaims MUST have run before this middleware
+		isAdmin, exists := c.Get("is_admin")
+
+		if !exists || isAdmin != true {
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+				"error": "admin access required",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}

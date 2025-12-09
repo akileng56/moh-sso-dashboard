@@ -6,22 +6,73 @@ package db
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 type Querier interface {
+	ActiveUsersPerClientThisWeek(ctx context.Context) ([]ActiveUsersPerClientThisWeekRow, error)
+	ActiveUsersPerClientToday(ctx context.Context) ([]ActiveUsersPerClientTodayRow, error)
+	ActiveUsersThisWeek(ctx context.Context) (int64, error)
+	ActiveUsersToday(ctx context.Context) (int64, error)
+	ApproximateActiveSessions(ctx context.Context) (int64, error)
+	ClientUsageForUserInRange(ctx context.Context, arg ClientUsageForUserInRangeParams) ([]ClientUsageForUserInRangeRow, error)
+	CountActiveUsers(ctx context.Context) (int64, error)
+	CountActiveUsersInRange(ctx context.Context, arg CountActiveUsersInRangeParams) (int64, error)
+	CountClients(ctx context.Context) (int64, error)
+	CountDisabledClients(ctx context.Context) (int64, error)
+	CountDisabledUsers(ctx context.Context) (int64, error)
+	CountEnabledClients(ctx context.Context) (int64, error)
+	CountFailedLogins(ctx context.Context) (int64, error)
+	CountFailedLoginsInRange(ctx context.Context, arg CountFailedLoginsInRangeParams) (int64, error)
+	CountNewClientsThisWeek(ctx context.Context) (int64, error)
+	CountNewClientsToday(ctx context.Context) (int64, error)
+	CountNewUsersThisWeek(ctx context.Context) (int64, error)
+	CountNewUsersToday(ctx context.Context) (int64, error)
+	CountPasswordResetsInRange(ctx context.Context, arg CountPasswordResetsInRangeParams) (int64, error)
+	CountUsers(ctx context.Context) (int64, error)
 	CreateClient(ctx context.Context, arg CreateClientParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	FailedLoginsByUserInRange(ctx context.Context, arg FailedLoginsByUserInRangeParams) ([]FailedLoginsByUserInRangeRow, error)
+	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
+	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GetUsersByRole(ctx context.Context, role string) ([]User, error)
+	InactiveUsersSince(ctx context.Context) ([]User, error)
+	LastLoginForAllUsers(ctx context.Context) ([]LastLoginForAllUsersRow, error)
+	LastLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	ListClients(ctx context.Context) ([]Client, error)
+	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
+	ListEnabledClients(ctx context.Context) ([]Client, error)
 	ListUsers(ctx context.Context) ([]User, error)
+	ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) ([]User, error)
+	LoginCountForClientInRange(ctx context.Context, arg LoginCountForClientInRangeParams) (int64, error)
+	LoginCountPerUserInRange(ctx context.Context, arg LoginCountPerUserInRangeParams) ([]LoginCountPerUserInRangeRow, error)
+	LoginSuccessFailureInRange(ctx context.Context, arg LoginSuccessFailureInRangeParams) (LoginSuccessFailureInRangeRow, error)
+	LoginTrend(ctx context.Context) ([]LoginTrendRow, error)
+	LoginTrendByDay(ctx context.Context, arg LoginTrendByDayParams) ([]LoginTrendByDayRow, error)
+	MostAccessedClients(ctx context.Context, arg MostAccessedClientsParams) ([]MostAccessedClientsRow, error)
+	MostActiveClients(ctx context.Context) ([]MostActiveClientsRow, error)
+	NeverLoggedInUsers(ctx context.Context) ([]User, error)
+	NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]Client, error)
+	NewUsersInRange(ctx context.Context, arg NewUsersInRangeParams) ([]User, error)
+	NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([]NewUsersTrendRow, error)
+	RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]Client, error)
+	RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error)
+	SearchClients(ctx context.Context, query sql.NullString) ([]Client, error)
+	SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error)
+	SuspiciousLoginsInRange(ctx context.Context, arg SuspiciousLoginsInRangeParams) ([]SuspiciousLoginsInRangeRow, error)
+	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
+	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
+	UserAgentStatsInRange(ctx context.Context, arg UserAgentStatsInRangeParams) ([]UserAgentStatsInRangeRow, error)
 }
 
 var _ Querier = (*Queries)(nil)

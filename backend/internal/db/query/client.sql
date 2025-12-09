@@ -15,7 +15,6 @@ SELECT *
 FROM client
 WHERE client_id = $1;
 
-
 -- name: ListClients :many
 SELECT *
 FROM client
@@ -27,32 +26,38 @@ FROM client
 WHERE enabled = true
 ORDER BY name ASC;
 
-
 -- name: SearchClients :many
 SELECT *
 FROM client
 WHERE 
     (
-        name ILIKE '%' || $1 || '%' OR
-        client_id ILIKE '%' || $1 || '%' OR
-        description ILIKE '%' || $1 || '%'
+        name ILIKE '%' || sqlc.arg(query) || '%'
+        OR client_id ILIKE '%' || sqlc.arg(query) || '%'
+        OR description ILIKE '%' || sqlc.arg(query) || '%'
     )
 ORDER BY name ASC;
-
 
 -- name: ListClientsPaged :many
 SELECT *
 FROM client
 ORDER BY name ASC
-LIMIT $1 OFFSET $2;
+LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
 -- name: RecentlyCreatedClients :many
-SELECT *
+SELECT
+    id,
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled,
+    created_at,
+    updated_at
 FROM client
 ORDER BY created_at DESC
-LIMIT $1;
-
-
+LIMIT sqlc.arg(row_limit);
 
 -- name: UpdateClient :exec
 UPDATE client
@@ -67,28 +72,39 @@ SET
     updated_at = NOW()
 WHERE id = $1;
 
-
 -- name: DeleteClient :exec
 DELETE FROM client
 WHERE id = $1;
 
-
 -- name: CountClients :one
-SELECT COUNT(*) FROM client;
+SELECT COUNT(*) 
+FROM client;
 
 -- name: NewClientsInRange :many
-SELECT *
+SELECT
+    id,
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled,
+    created_at,
+    updated_at
 FROM client
-WHERE created_at BETWEEN $1 AND $2
+WHERE created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 ORDER BY created_at DESC;
 
-
 -- name: CountEnabledClients :one
-SELECT COUNT(*) FROM client WHERE enabled = true;
+SELECT COUNT(*)
+FROM client
+WHERE enabled = true;
 
 -- name: CountDisabledClients :one
-SELECT COUNT(*) FROM client WHERE enabled = false;
-
+SELECT COUNT(*)
+FROM client
+WHERE enabled = false;
 
 -- name: CountNewClientsToday :one
 SELECT COUNT(*)

@@ -8,9 +8,61 @@ package db
 import (
 	"context"
 	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
 )
+
+const countDisabledUsers = `-- name: CountDisabledUsers :one
+SELECT COUNT(*)
+FROM users
+WHERE enabled = false
+`
+
+func (q *Queries) CountDisabledUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDisabledUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countNewUsersThisWeek = `-- name: CountNewUsersThisWeek :one
+SELECT COUNT(*)
+FROM users
+WHERE created_at >= DATE_TRUNC('week', CURRENT_DATE)
+`
+
+func (q *Queries) CountNewUsersThisWeek(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countNewUsersThisWeek)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countNewUsersToday = `-- name: CountNewUsersToday :one
+SELECT COUNT(*)
+FROM users
+WHERE DATE(created_at) = CURRENT_DATE
+`
+
+func (q *Queries) CountNewUsersToday(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countNewUsersToday)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countUsers = `-- name: CountUsers :one
+SELECT COUNT(*)
+FROM users
+`
+
+func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUsers)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
@@ -54,7 +106,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
 FROM users
 WHERE id = $1
 `
@@ -72,12 +124,13 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
 FROM users
 WHERE username = $1
 `
@@ -95,12 +148,54 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.Role,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.LastLoginAt,
 	)
 	return i, err
 }
 
+const getUsersByRole = `-- name: GetUsersByRole :many
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+FROM users
+WHERE role = $1
+ORDER BY created_at DESC
+`
+
+func (q *Queries) GetUsersByRole(ctx context.Context, role string) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersByRole, role)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Enabled,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
 FROM users
 ORDER BY created_at DESC
 `
@@ -124,6 +219,286 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.Role,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listUsersPaged = `-- name: ListUsersPaged :many
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+FROM users
+ORDER BY created_at DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListUsersPagedParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+func (q *Queries) ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsersPaged, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Enabled,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const neverLoggedInUsers = `-- name: NeverLoggedInUsers :many
+SELECT
+    u.id,
+    u.username,
+    u.first_name,
+    u.last_name,
+    u.email,
+    u.enabled,
+    u.role,
+    u.created_at,
+    u.updated_at,
+    u.last_login_at
+FROM users u
+WHERE NOT EXISTS (
+    SELECT 1 FROM audit_logs a
+    WHERE a.user_id = u.id
+      AND a.action = 'login'
+      AND COALESCE((a.metadata->>'success')::boolean, false) = true
+)
+`
+
+func (q *Queries) NeverLoggedInUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, neverLoggedInUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Enabled,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const newUsersInRange = `-- name: NewUsersInRange :many
+SELECT
+    id,
+    username,
+    first_name,
+    last_name,
+    email,
+    enabled,
+    role,
+    created_at,
+    updated_at,
+    last_login_at
+FROM users
+WHERE created_at BETWEEN $1 AND $2
+ORDER BY created_at DESC
+`
+
+type NewUsersInRangeParams struct {
+	StartTime sql.NullTime `json:"start_time"`
+	EndTime   sql.NullTime `json:"end_time"`
+}
+
+func (q *Queries) NewUsersInRange(ctx context.Context, arg NewUsersInRangeParams) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, newUsersInRange, arg.StartTime, arg.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Enabled,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLoginAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const newUsersTrend = `-- name: NewUsersTrend :many
+SELECT
+  DATE(created_at) AS day,
+  COUNT(*) AS new_users
+FROM users
+WHERE created_at BETWEEN $1 AND $2
+GROUP BY day
+ORDER BY day
+`
+
+type NewUsersTrendParams struct {
+	StartTime sql.NullTime `json:"start_time"`
+	EndTime   sql.NullTime `json:"end_time"`
+}
+
+type NewUsersTrendRow struct {
+	Day      time.Time `json:"day"`
+	NewUsers int64     `json:"new_users"`
+}
+
+func (q *Queries) NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([]NewUsersTrendRow, error) {
+	rows, err := q.db.QueryContext(ctx, newUsersTrend, arg.StartTime, arg.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []NewUsersTrendRow{}
+	for rows.Next() {
+		var i NewUsersTrendRow
+		if err := rows.Scan(&i.Day, &i.NewUsers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const roleDistribution = `-- name: RoleDistribution :many
+SELECT role, COUNT(*) AS count
+FROM users
+GROUP BY role
+`
+
+type RoleDistributionRow struct {
+	Role  string `json:"role"`
+	Count int64  `json:"count"`
+}
+
+func (q *Queries) RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error) {
+	rows, err := q.db.QueryContext(ctx, roleDistribution)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []RoleDistributionRow{}
+	for rows.Next() {
+		var i RoleDistributionRow
+		if err := rows.Scan(&i.Role, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchUsers = `-- name: SearchUsers :many
+SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+FROM users
+WHERE 
+    username ILIKE '%' || $1 || '%' OR
+    email ILIKE '%' || $1 || '%' OR
+    first_name ILIKE '%' || $1 || '%' OR
+    last_name ILIKE '%' || $1 || '%'
+ORDER BY created_at DESC
+`
+
+func (q *Queries) SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, searchUsers, dollar_1)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []User{}
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Username,
+			&i.FirstName,
+			&i.LastName,
+			&i.Email,
+			&i.Enabled,
+			&i.Role,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.LastLoginAt,
 		); err != nil {
 			return nil, err
 		}
@@ -140,11 +515,13 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 
 const updateUser = `-- name: UpdateUser :exec
 UPDATE users
-SET first_name = $2,
+SET 
+    first_name = $2,
     last_name = $3,
     email = $4,
     enabled = $5,
-    role = $6
+    role = $6,
+    updated_at = NOW()
 WHERE id = $1
 `
 
@@ -166,5 +543,16 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 		arg.Enabled,
 		arg.Role,
 	)
+	return err
+}
+
+const updateUserLastLogin = `-- name: UpdateUserLastLogin :exec
+UPDATE users
+SET last_login_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, updateUserLastLogin, id)
 	return err
 }

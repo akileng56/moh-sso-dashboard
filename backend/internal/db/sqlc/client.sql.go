@@ -12,6 +12,70 @@ import (
 	"github.com/google/uuid"
 )
 
+const countClients = `-- name: CountClients :one
+SELECT COUNT(*) 
+FROM client
+`
+
+func (q *Queries) CountClients(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countClients)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countDisabledClients = `-- name: CountDisabledClients :one
+SELECT COUNT(*)
+FROM client
+WHERE enabled = false
+`
+
+func (q *Queries) CountDisabledClients(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countDisabledClients)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countEnabledClients = `-- name: CountEnabledClients :one
+SELECT COUNT(*)
+FROM client
+WHERE enabled = true
+`
+
+func (q *Queries) CountEnabledClients(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEnabledClients)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countNewClientsThisWeek = `-- name: CountNewClientsThisWeek :one
+SELECT COUNT(*)
+FROM client
+WHERE created_at >= DATE_TRUNC('week', CURRENT_DATE)
+`
+
+func (q *Queries) CountNewClientsThisWeek(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countNewClientsThisWeek)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countNewClientsToday = `-- name: CountNewClientsToday :one
+SELECT COUNT(*)
+FROM client
+WHERE DATE(created_at) = CURRENT_DATE
+`
+
+func (q *Queries) CountNewClientsToday(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countNewClientsToday)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createClient = `-- name: CreateClient :exec
 INSERT INTO client (
     id, client_id, name, description, base_url, icon, public_client, enabled
@@ -53,6 +117,30 @@ WHERE id = $1
 func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteClient, id)
 	return err
+}
+
+const getClientByClientID = `-- name: GetClientByClientID :one
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+FROM client
+WHERE client_id = $1
+`
+
+func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Client, error) {
+	row := q.db.QueryRowContext(ctx, getClientByClientID, clientID)
+	var i Client
+	err := row.Scan(
+		&i.ID,
+		&i.ClientID,
+		&i.Name,
+		&i.Description,
+		&i.BaseUrl,
+		&i.Icon,
+		&i.PublicClient,
+		&i.Enabled,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }
 
 const getClientByID = `-- name: GetClientByID :one
@@ -119,6 +207,246 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 	return items, nil
 }
 
+const listClientsPaged = `-- name: ListClientsPaged :many
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+FROM client
+ORDER BY name ASC
+LIMIT $2 OFFSET $1
+`
+
+type ListClientsPagedParams struct {
+	PageOffset int32 `json:"page_offset"`
+	PageLimit  int32 `json:"page_limit"`
+}
+
+func (q *Queries) ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listClientsPaged, arg.PageOffset, arg.PageLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.Name,
+			&i.Description,
+			&i.BaseUrl,
+			&i.Icon,
+			&i.PublicClient,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listEnabledClients = `-- name: ListEnabledClients :many
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+FROM client
+WHERE enabled = true
+ORDER BY name ASC
+`
+
+func (q *Queries) ListEnabledClients(ctx context.Context) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, listEnabledClients)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.Name,
+			&i.Description,
+			&i.BaseUrl,
+			&i.Icon,
+			&i.PublicClient,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const newClientsInRange = `-- name: NewClientsInRange :many
+SELECT
+    id,
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled,
+    created_at,
+    updated_at
+FROM client
+WHERE created_at BETWEEN $1 AND $2
+ORDER BY created_at DESC
+`
+
+type NewClientsInRangeParams struct {
+	StartTime sql.NullTime `json:"start_time"`
+	EndTime   sql.NullTime `json:"end_time"`
+}
+
+func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, newClientsInRange, arg.StartTime, arg.EndTime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.Name,
+			&i.Description,
+			&i.BaseUrl,
+			&i.Icon,
+			&i.PublicClient,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const recentlyCreatedClients = `-- name: RecentlyCreatedClients :many
+SELECT
+    id,
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled,
+    created_at,
+    updated_at
+FROM client
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, recentlyCreatedClients, rowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.Name,
+			&i.Description,
+			&i.BaseUrl,
+			&i.Icon,
+			&i.PublicClient,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const searchClients = `-- name: SearchClients :many
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+FROM client
+WHERE 
+    (
+        name ILIKE '%' || $1 || '%'
+        OR client_id ILIKE '%' || $1 || '%'
+        OR description ILIKE '%' || $1 || '%'
+    )
+ORDER BY name ASC
+`
+
+func (q *Queries) SearchClients(ctx context.Context, query sql.NullString) ([]Client, error) {
+	rows, err := q.db.QueryContext(ctx, searchClients, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Client{}
+	for rows.Next() {
+		var i Client
+		if err := rows.Scan(
+			&i.ID,
+			&i.ClientID,
+			&i.Name,
+			&i.Description,
+			&i.BaseUrl,
+			&i.Icon,
+			&i.PublicClient,
+			&i.Enabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateClient = `-- name: UpdateClient :exec
 UPDATE client
 SET
@@ -128,7 +456,8 @@ SET
     base_url = $5,
     icon = $6,
     public_client = $7,
-    enabled = $8
+    enabled = $8,
+    updated_at = NOW()
 WHERE id = $1
 `
 

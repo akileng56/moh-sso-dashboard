@@ -65,15 +65,16 @@ type Session struct {
 }
 
 type User struct {
-	ID        uuid.UUID      `json:"id"`
-	Username  string         `json:"username"`
-	FirstName sql.NullString `json:"first_name"`
-	LastName  sql.NullString `json:"last_name"`
-	Email     string         `json:"email"`
-	Enabled   sql.NullBool   `json:"enabled"`
-	Role      string         `json:"role"`
-	CreatedAt sql.NullTime   `json:"created_at"`
-	UpdatedAt sql.NullTime   `json:"updated_at"`
+	ID          uuid.UUID      `json:"id"`
+	Username    string         `json:"username"`
+	FirstName   sql.NullString `json:"first_name"`
+	LastName    sql.NullString `json:"last_name"`
+	Email       string         `json:"email"`
+	Enabled     sql.NullBool   `json:"enabled"`
+	Role        string         `json:"role"`
+	CreatedAt   sql.NullTime   `json:"created_at"`
+	UpdatedAt   sql.NullTime   `json:"updated_at"`
+	LastLoginAt sql.NullTime   `json:"last_login_at"`
 }
 
 type UserClientAccess struct {

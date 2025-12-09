@@ -11,6 +11,7 @@ FROM audit_logs
 WHERE action = 'login'
   AND created_at >= NOW() - INTERVAL '30 days';
 
+
 -- name: MostActiveClients :many
 SELECT 
   metadata->>'client_id' AS client_id,
@@ -37,28 +38,24 @@ SELECT COUNT(DISTINCT user_id)
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND created_at BETWEEN $1 AND $2;
--- $1 = from, $2 = to
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
 
 
 -- name: LoginSuccessFailureInRange :one
 SELECT
-  COUNT(*) FILTER (
-    WHERE (metadata->>'success')::boolean = true
-  )  AS success_count,
-  COUNT(*) FILTER (
-    WHERE (metadata->>'success')::boolean = false
-  )  AS failure_count
+  COUNT(*) FILTER (WHERE (metadata->>'success')::boolean = true) AS success_count,
+  COUNT(*) FILTER (WHERE (metadata->>'success')::boolean = false) AS failure_count
 FROM audit_logs
 WHERE action = 'login'
-  AND created_at BETWEEN $1 AND $2;
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
+
 
 -- name: FailedLoginsByUserInRange :many
 SELECT user_id, COUNT(*) AS failure_count
 FROM audit_logs
 WHERE action = 'login'
   AND COALESCE((metadata->>'success')::boolean, false) = false
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY user_id;
 
 
@@ -69,6 +66,7 @@ WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
   AND created_at >= NOW() - INTERVAL '15 minutes';
 
+
 -- name: LoginTrendByDay :many
 SELECT
   DATE(created_at) AS day,
@@ -76,15 +74,16 @@ SELECT
   COUNT(*) FILTER (WHERE (metadata->>'success')::boolean = false) AS failure_count
 FROM audit_logs
 WHERE action = 'login'
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY day
 ORDER BY day;
+
 
 -- name: TotalLoginsInRange :one
 SELECT COUNT(*)
 FROM audit_logs
 WHERE action = 'login'
-  AND created_at BETWEEN $1 AND $2;
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
 
 
 -- name: TopTenantsByLogins :many
@@ -94,10 +93,10 @@ SELECT
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY tenant_id
 ORDER BY login_count DESC
-LIMIT $3;
+LIMIT sqlc.arg(row_limit);
 
 
 -- name: CountFailedLoginsInRange :one
@@ -105,13 +104,14 @@ SELECT COUNT(*)
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = false
-  AND created_at BETWEEN $1 AND $2;
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
+
 
 -- name: CountPasswordResetsInRange :one
 SELECT COUNT(*)
 FROM audit_logs
 WHERE action = 'password_reset'
-  AND created_at BETWEEN $1 AND $2;
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
 
 
 -- name: SuspiciousLoginsInRange :many
@@ -125,10 +125,9 @@ SELECT
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
   AND metadata->>'country' IS NOT NULL
-  AND metadata->>'country' <> $3;
--- $3 = 'UG' or whatever you consider home/default
+  AND metadata->>'country' <> sqlc.arg(home_country)::text;
 
 
 -- name: MostAccessedClients :many
@@ -138,18 +137,19 @@ SELECT
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY client_id
 ORDER BY login_count DESC
-LIMIT $3;
+LIMIT sqlc.arg(row_limit);
+
 
 -- name: LoginCountForClientInRange :one
 SELECT COUNT(*)
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND metadata->>'client_id' = $1
-  AND created_at BETWEEN $2 AND $3;
+  AND metadata->>'client_id' = sqlc.arg(client_id)::text
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time);
 
 
 -- name: ClientUsageForUserInRange :many
@@ -159,26 +159,26 @@ SELECT
 FROM audit_logs
 WHERE action = 'login'
   AND COALESCE((metadata->>'success')::boolean, false) = true
-  AND user_id = $1
-  AND created_at BETWEEN $2 AND $3
+  AND user_id = sqlc.arg(user_id)::uuid
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY client_id;
 
 
 -- name: FirstLoginForUser :one
 SELECT created_at
 FROM audit_logs
-WHERE user_id = $1
+WHERE user_id = sqlc.arg(user_id)::uuid
   AND action = 'login'
 ORDER BY created_at ASC
 LIMIT 1;
 
 
 -- name: LastLoginForUser :one
-SELECT created_at
+SELECT created_at AS last_login_at
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND user_id = $1
+  AND user_id = sqlc.arg(user_id)::uuid
 ORDER BY created_at DESC
 LIMIT 1;
 
@@ -201,7 +201,7 @@ SELECT
 FROM audit_logs
 WHERE action = 'login'
   AND (metadata->>'success')::boolean = true
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY user_id;
 
 
@@ -265,6 +265,6 @@ SELECT
   COUNT(*) AS count
 FROM audit_logs
 WHERE action = 'login'
-  AND created_at BETWEEN $1 AND $2
+  AND created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
 GROUP BY user_agent
 ORDER BY count DESC;

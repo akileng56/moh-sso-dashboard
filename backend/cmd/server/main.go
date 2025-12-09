@@ -13,6 +13,7 @@ import (
 	db "github.com/moh-sso-dashboard/internal/migrate"
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
+	metricsRepo "github.com/moh-sso-dashboard/internal/repository/metrics"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/service"
 
@@ -73,20 +74,24 @@ func main() {
 	authRepo := authRepo.NewAuthRepository(keycloakClient, cfg)
 	clientRepo := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
 	userRepo := userRepo.NewUserRepository(conn)
+	metrics := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 
 	// --- Service Layer Initialization ---
 	clientService := service.NewClientService(clientRepo)
 	userService := service.NewUserService(userRepo)
 	authService := service.NewAuthService(authRepo, rdb)
+	metricsService := service.NewMetricsService(metrics)
 
 	// --- Handler Layer Initialization ---
 	clientHandler := handler.NewClientHandler(clientService)
 	userHandler := handler.NewUserHandler(userService)
 	authHandler := handler.NewAuthHandler(authService, cfg)
+	metricsHandler := handler.NewMetricsHandler(metricsService)
+
 	// heallthHandler := handler.NewHealthHandler()
 
 	// --- Router and Server Start ---
-	r := router.SetupRouter(authHandler, clientHandler, userHandler)
+	r := router.SetupRouter(authHandler, clientHandler, userHandler, metricsHandler)
 
 	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
 
