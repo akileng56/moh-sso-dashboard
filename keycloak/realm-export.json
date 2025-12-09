@@ -103,10 +103,10 @@
     },
 
     {
-      "id": "prisons-emr",
-      "clientId": "prisons-emr",
-      "name": "Prisons EMR",
-      "description": "Electronic Medical Records for Prisons",
+      "id": "ndwh-dashboard",
+      "clientId": "ndwh-dashboard",
+      "name": "NDWH Dashboard",
+      "description": "NDWH",
       "rootUrl": "http://localhost:4004",
       "baseUrl": "/",
       "redirectUris": ["http://localhost:4004/*"],
@@ -140,8 +140,8 @@
       "obulamu-web": [
         { "name": "obulamu-web_access", "description": "Access ObulamuCare Web Portal" }
       ],
-      "prisons-emr": [
-        { "name": "prisons-emr_access", "description": "Access Prisons EMR" }
+      "ndwh-dashboard": [
+        { "name": "ndwh-dashboard_access", "description": "Access ndwh EMR" }
       ]
     }
   },
@@ -178,7 +178,7 @@
         "moh-reports": ["moh-reports_access"],
         "hmis-web": ["hmis-web_access"],
         "obulamu-web": ["obulamu-web_access"],
-        "prisons-emr": ["prisons-emr_access"]
+        "ndwh-dashboard": ["ndwh-dashboard_access"]
       }
     },
 
@@ -248,18 +248,18 @@
     },
 
     {
-      "username": "prisonsuser",
+      "username": "ndwhuser",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Prisons",
+      "firstName": "ndwh",
       "lastName": "User",
-      "email": "prisons.user@moh.go.ug",
+      "email": "ndwh.user@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "PrisonsUser@123", "temporary": false }
+        { "type": "password", "value": "ndwhUser@123", "temporary": false }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "prisons-emr": ["prisons-emr_access"]
+        "ndwh-dashboard": ["ndwh-dashboard_access"]
       }
     }
   ],
