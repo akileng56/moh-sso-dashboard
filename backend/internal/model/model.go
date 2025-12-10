@@ -81,12 +81,16 @@ type ProtocolMapper struct {
 }
 
 type User struct {
-	ID         string `gorm:"primaryKey"`
-	Username   string
-	Email      string
-	KeycloakID string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	ID          string
+	Username    string
+	FirstName   string
+	LastName    string
+	Email       string
+	Enabled     bool
+	Role        string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	LastLoginAt time.Time
 }
 
 type UserResponse struct {

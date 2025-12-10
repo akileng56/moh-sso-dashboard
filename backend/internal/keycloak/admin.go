@@ -6,6 +6,10 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
+	"time"
+
+	"github.com/moh-sso-dashboard/internal/model"
 )
 
 // -------------------------------------------------------------------
@@ -233,19 +237,30 @@ func (c *Client) DeleteClient(id string) error {
 // -------------------------------------------------------------------
 
 type UserInfo struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Enabled  bool   `json:"enabled"`
+	ID          string    `json:"id"`
+	Username    string    `json:"username"`
+	FirstName   string    `json:"firstName"`
+	LastName    string    `json:"lastName"`
+	Email       string    `json:"email"`
+	Enabled     bool      `json:"enabled"`
+	Role        string    `json:"role"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
+	LastLoginAt time.Time `json:"lastLoginAt"`
 }
 
-func (c *Client) CreateUser(username, password, role string) error {
+func (c *Client) CreateUser(user *model.User) (string, error) {
 	payload := map[string]any{
-		"username": username,
-		"enabled":  true,
+		"username":      user.Username,
+		"email":         user.Email,
+		"firstName":     user.FirstName,
+		"lastName":      user.LastName,
+		"enabled":       user.Enabled,
+		"emailVerified": true,
 		"credentials": []map[string]any{
 			{
 				"type":      "password",
-				"value":     password,
+				"value":     "",
 				"temporary": false,
 			},
 		},
@@ -253,15 +268,28 @@ func (c *Client) CreateUser(username, password, role string) error {
 
 	res, err := c.Post(fmt.Sprintf("admin/realms/%s/users", c.Realm), payload)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("failed to create user: %s", string(body))
+		return "", fmt.Errorf("failed to create user: %s", string(body))
 	}
-	return nil
+
+	location := res.Header.Get("Location")
+	if location == "" {
+		return "", fmt.Errorf("no Location header returned by Keycloak")
+	}
+
+	parts := strings.Split(strings.TrimSpace(location), "/")
+	kcID := parts[len(parts)-1]
+
+	if kcID == "" {
+		return "", fmt.Errorf("failed to parse Keycloak user ID from Location header")
+	}
+
+	return kcID, nil
 }
 
 func (c *Client) ListUsers() ([]UserInfo, error) {
@@ -282,4 +310,62 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 	}
 
 	return users, nil
+}
+
+// -------------------------------------------------------------------
+// Update User in Keycloak
+// -------------------------------------------------------------------
+func (c *Client) UpdateUser(user *model.User) error {
+	if user.ID == "" {
+		return fmt.Errorf("missing Keycloak user ID")
+	}
+
+	payload := map[string]any{
+		"username":  user.Username,
+		"email":     user.Email,
+		"firstName": user.FirstName,
+		"lastName":  user.LastName,
+		"enabled":   user.Enabled,
+	}
+
+	res, err := c.Put(
+		fmt.Sprintf("admin/realms/%s/users/%s", c.Realm, user.ID),
+		payload,
+	)
+	if err != nil {
+		return fmt.Errorf("keycloak update request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("failed to update user in keycloak: %s", string(body))
+	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------
+// Delete User in Keycloak
+// -------------------------------------------------------------------
+func (c *Client) DeleteUser(userID string) error {
+	if userID == "" {
+		return fmt.Errorf("invalid user ID")
+	}
+
+	res, err := c.Delete(
+		fmt.Sprintf("admin/realms/%s/users/%s", c.Realm, userID),
+	)
+	if err != nil {
+		return fmt.Errorf("keycloak delete request failed: %w", err)
+	}
+	defer res.Body.Close()
+
+	// Keycloak returns 204 No Content on success
+	if res.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("failed to delete user in keycloak: %s", string(body))
+	}
+
+	return nil
 }

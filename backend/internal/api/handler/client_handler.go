@@ -13,11 +13,11 @@ import (
 
 type ClientHandler struct {
 	service      *service.ClientService
-	auditService *service.AuditService // <-- ADDED
+	auditService *service.AuditService
 }
 
-func NewClientHandler(s *service.ClientService, audit *service.AuditService) *ClientHandler { // <-- UPDATED
-	return &ClientHandler{service: s, auditService: audit} // <-- UPDATED
+func NewClientHandler(s *service.ClientService, audit *service.AuditService) *ClientHandler {
+	return &ClientHandler{service: s, auditService: audit}
 }
 
 func (h *ClientHandler) CreateClient(c *gin.Context) {

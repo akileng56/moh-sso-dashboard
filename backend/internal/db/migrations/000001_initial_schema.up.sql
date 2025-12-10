@@ -1,15 +1,15 @@
 -- ============================================================
---  Initial Schema for moh-sso-dashboard
+--  Initial Schema for moh-sso-dashboard (Keycloak as Source of Truth)
 -- ============================================================
 
--- Enable UUID extension (required for UUID PKs)
+-- Enable UUID extension (already fine)
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- ============================================================
---  USERS
+--  USERS (ID = Keycloak user_id)
 -- ============================================================
 CREATE TABLE users (
-    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id          UUID PRIMARY KEY,              -- <-- CHANGED: NO DEFAULT
     username    VARCHAR(100) UNIQUE NOT NULL,
     first_name  VARCHAR(100),
     last_name   VARCHAR(100),
@@ -17,7 +17,7 @@ CREATE TABLE users (
     enabled     BOOLEAN DEFAULT TRUE,
     role        VARCHAR(50) NOT NULL,
     created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at      TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW(),
     last_login_at TIMESTAMP DEFAULT NOW()
 );
 

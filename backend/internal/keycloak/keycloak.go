@@ -41,7 +41,6 @@ type AuthUser struct {
 
 // NewClient creates a new Keycloak client
 func NewClient(baseURL, realm, clientID, secret string) *Client {
-	// Normalize URL — ensure it has a scheme
 	if !strings.HasPrefix(baseURL, "http://") && !strings.HasPrefix(baseURL, "https://") {
 		baseURL = "http://" + baseURL
 	}

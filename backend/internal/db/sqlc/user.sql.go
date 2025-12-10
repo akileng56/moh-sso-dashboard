@@ -515,18 +515,19 @@ func (q *Queries) SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]U
 
 const updateUser = `-- name: UpdateUser :exec
 UPDATE users
-SET 
-    first_name = $2,
-    last_name = $3,
-    email = $4,
-    enabled = $5,
-    role = $6,
+SET username = $2,
+    first_name = $3,
+    last_name = $4,
+    email = $5,
+    enabled = $6,
+    role = $7,
     updated_at = NOW()
 WHERE id = $1
 `
 
 type UpdateUserParams struct {
 	ID        uuid.UUID      `json:"id"`
+	Username  string         `json:"username"`
 	FirstName sql.NullString `json:"first_name"`
 	LastName  sql.NullString `json:"last_name"`
 	Email     string         `json:"email"`
@@ -537,6 +538,7 @@ type UpdateUserParams struct {
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	_, err := q.db.ExecContext(ctx, updateUser,
 		arg.ID,
+		arg.Username,
 		arg.FirstName,
 		arg.LastName,
 		arg.Email,

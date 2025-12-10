@@ -44,14 +44,15 @@ LIMIT $1 OFFSET $2;
 
 -- name: UpdateUser :exec
 UPDATE users
-SET 
-    first_name = $2,
-    last_name = $3,
-    email = $4,
-    enabled = $5,
-    role = $6,
+SET username = $2,
+    first_name = $3,
+    last_name = $4,
+    email = $5,
+    enabled = $6,
+    role = $7,
     updated_at = NOW()
 WHERE id = $1;
+
 
 -- name: UpdateUserLastLogin :exec
 UPDATE users

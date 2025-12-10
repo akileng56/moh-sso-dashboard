@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	models "github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -101,7 +102,10 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-	user, err := h.service.GetUser(id)
+
+	userID, _ := uuid.Parse(id)
+
+	user, err := h.service.GetUser(userID)
 	if err != nil {
 		log.Printf("ERROR: Failed to get user ID %s: %v", id, err)
 
