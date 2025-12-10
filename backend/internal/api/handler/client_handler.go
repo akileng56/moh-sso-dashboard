@@ -25,7 +25,6 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		// AUDIT: failed create <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -45,7 +44,6 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to create client: %v", err)
 
-		// AUDIT: failed create <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -62,7 +60,6 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 		return
 	}
 
-	// AUDIT: successful create <-- ADDED
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
@@ -81,7 +78,6 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		// AUDIT: failed get <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -101,7 +97,6 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to get client ID %s: %v", id, err)
 
-		// AUDIT: client not found <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -117,7 +112,6 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 		return
 	}
 
-	// AUDIT: success <-- ADDED
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
@@ -134,7 +128,6 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 
 func (h *ClientHandler) ListClients(c *gin.Context) {
 
-	// AUDIT: listing clients <-- ADDED
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
@@ -197,7 +190,6 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		// AUDIT: failed delete <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -216,7 +208,6 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
 
-		// AUDIT: failed delete <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -236,7 +227,6 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	if err := h.service.DeleteClient(uid); err != nil {
 		log.Printf("ERROR: Failed to delete client ID %s: %v", id, err)
 
-		// AUDIT: failed delete <-- ADDED
 		h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
@@ -253,7 +243,6 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 		return
 	}
 
-	// AUDIT: delete success <-- ADDED
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
