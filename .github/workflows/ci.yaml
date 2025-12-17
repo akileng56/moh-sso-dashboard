@@ -91,7 +91,7 @@ jobs:
         run: |
           docker run --rm \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend:latest \
-            ./server --help
+            ./sso-server --help
 
       - name: Smoke test frontend image
         run: |
