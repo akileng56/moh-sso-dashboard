@@ -34,17 +34,17 @@ func (s *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 		return nil, errors.New("password must be at least 8 characters")
 	}
 
-	// Hash password
+	// Hash password (but then throw it away)
 	_, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	newID := uuid.NewString()
-
 	newUser := &models.User{
-		ID:        newID,
+		ID:        "",
 		Username:  req.Username,
+		FirstName: req.FullName,
+		LastName:  "",
 		Email:     req.Email,
 		Enabled:   true,
 		Role:      "user",

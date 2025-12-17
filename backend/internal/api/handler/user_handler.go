@@ -124,7 +124,6 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	// AUDIT: success <-- ADDED
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),

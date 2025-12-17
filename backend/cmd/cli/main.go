@@ -141,7 +141,7 @@ var createUserCmd = &cobra.Command{
 		if err := kc.Authenticate(); err != nil {
 			log.Fatalf("❌ Auth failed: %v", err)
 		}
-		if err := kc.CreateUser(username, password, role); err != nil {
+		if err := kc.CreateUser( user model.User); err != nil {
 			log.Fatalf("❌ Failed to create user: %v", err)
 		}
 		fmt.Printf("✅ User '%s' created successfully\n", username)

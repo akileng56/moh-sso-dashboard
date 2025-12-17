@@ -73,7 +73,7 @@ func main() {
 	// --- Repository Layer Initialization ---
 	authRepo := authRepo.NewAuthRepository(keycloakClient, cfg)
 	clientRepo := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
-	userRepo := userRepo.NewUserRepository(conn)
+	userRepo := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
 	metrics := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 
 	// --- Service Layer Initialization ---
