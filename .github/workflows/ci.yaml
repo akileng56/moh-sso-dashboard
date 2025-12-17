@@ -44,14 +44,27 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # -------------------------------
-      # Image tags & metadata
+      # Backend image metadata
       # -------------------------------
-      - name: Extract image metadata
-        id: meta
+      - name: Extract backend image metadata
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
           images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+
+      # -------------------------------
+      # Frontend image metadata
+      # -------------------------------
+      - name: Extract frontend image metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend
           tags: |
             type=sha,format=short
@@ -68,8 +81,8 @@ jobs:
           file: backend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
 
       # -------------------------------
       # Frontend image
@@ -81,8 +94,8 @@ jobs:
           file: frontend/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
 
       # -------------------------------
       # Smoke tests
@@ -91,7 +104,7 @@ jobs:
         run: |
           docker run --rm \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend:latest \
-            ./sso-server --help
+            --help
 
       - name: Smoke test frontend image
         run: |
