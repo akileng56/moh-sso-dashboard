@@ -13,6 +13,7 @@ const API_BASE = "http://localhost:9000/api/v1/auth";
 
 const Dashboard: React.FC = () => {
   const { authenticated, accessToken, logout } = useAuth();
+
   const [data, setData] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -44,15 +45,17 @@ const Dashboard: React.FC = () => {
           return;
         }
 
-        if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-        const json = await res.json();
-        setData(json);
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          console.error(err);
-          setFetchError("Failed to load profile data.");
+        if (!res.ok) {
+          throw new Error(`Server returned ${res.status}`);
         }
+
+        const json: UserProfile = await res.json();
+        setData(json);
+      } catch (err: unknown) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+
+        console.error(err);
+        setFetchError("Failed to load profile data.");
       } finally {
         setLoading(false);
       }
@@ -63,8 +66,22 @@ const Dashboard: React.FC = () => {
     return () => controller.abort();
   }, [authenticated, accessToken, logout]);
 
+  // ---------- Render States ----------
+
   if (!authenticated) {
     return <h2>Please log in to view the dashboard.</h2>;
+  }
+
+  if (loading) {
+    return <h2>Loading dashboard…</h2>;
+  }
+
+  if (fetchError) {
+    return <h2>{fetchError}</h2>;
+  }
+
+  if (!data) {
+    return <h2>No profile data available.</h2>;
   }
 
   return (
