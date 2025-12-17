@@ -24,10 +24,7 @@
         "http://localhost:9000/api/v1/auth/callback",
         "http://localhost:3000/dashboard"
       ],
-      "webOrigins": [
-        "http://localhost:3000",
-        "http://localhost:9000"
-      ],
+      "webOrigins": ["http://localhost:3000", "http://localhost:9000"],
       "protocol": "openid-connect",
       "publicClient": false,
       "secret": "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
@@ -118,6 +115,27 @@
         "icon": "user",
         "baseUrl": "http://localhost:4004"
       }
+    },
+    {
+      "id": "survellience-dashboard",
+      "clientId": "survellience-dashboard",
+      "name": "Survillience Dashboard",
+      "description": "Survillience Dashboard",
+      "rootUrl": "http://localhost:4004",
+      "baseUrl": "/",
+      "redirectUris": ["http://localhost:4004/*"],
+      "webOrigins": ["http://localhost:4004"],
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "U$FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zXe+yTig=",
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "icon": "user",
+        "baseUrl": "http://localhost:4004"
+      }
     }
   ],
 
@@ -132,16 +150,28 @@
         { "name": "dashboard_access", "description": "Access MOH Dashboard" }
       ],
       "moh-reports": [
-        { "name": "moh-reports_access", "description": "Access MOH Reports Portal" }
+        {
+          "name": "moh-reports_access",
+          "description": "Access MOH Reports Portal"
+        }
       ],
       "hmis-web": [
         { "name": "hmis-web_access", "description": "Access HMIS Web Portal" }
       ],
       "obulamu-web": [
-        { "name": "obulamu-web_access", "description": "Access ObulamuCare Web Portal" }
+        {
+          "name": "obulamu-web_access",
+          "description": "Access ObulamuCare Web Portal"
+        }
       ],
       "ndwh-dashboard": [
         { "name": "ndwh-dashboard_access", "description": "Access ndwh EMR" }
+      ],
+      "survellience-dashboard": [
+        {
+          "name": "survellience-dashboard_access",
+          "description": "Access survillence  dashboard"
+        }
       ]
     }
   },
@@ -178,7 +208,8 @@
         "moh-reports": ["moh-reports_access"],
         "hmis-web": ["hmis-web_access"],
         "obulamu-web": ["obulamu-web_access"],
-        "ndwh-dashboard": ["ndwh-dashboard_access"]
+        "ndwh-dashboard": ["ndwh-dashboard_access"],
+        "survellience-dashboard": ["survellience-dashboard_access"]
       }
     },
 
@@ -260,6 +291,25 @@
       "realmRoles": ["user"],
       "clientRoles": {
         "ndwh-dashboard": ["ndwh-dashboard_access"]
+      }
+    },
+    {
+      "username": "survellienceuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "survellienceuser",
+      "lastName": "User",
+      "email": "survillence.user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "survellienceUser@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"],
+      "clientRoles": {
+        "survellience-dashboard": ["survellience-dashboard_access"]
       }
     }
   ],
