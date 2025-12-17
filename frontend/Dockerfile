@@ -5,9 +5,9 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-# Install dependencies separately for better caching
+# Install ALL deps (including dev deps)
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy all source code
 COPY . .
@@ -26,7 +26,6 @@ RUN rm -rf /usr/share/nginx/html/*
 # Copy build output
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Copy a custom Nginx config (optional, for SPA routing)
 # COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
