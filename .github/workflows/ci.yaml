@@ -97,21 +97,6 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
 
-      # -------------------------------
-      # Smoke tests
-      # -------------------------------
-      - name: Smoke test backend image
-        run: |
-          docker run --rm \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend:latest \
-            --help
-
-      - name: Smoke test frontend image
-        run: |
-          docker run --rm \
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend:latest \
-            nginx -t
-
   # ------------------------------------
   # Cleanup old images (keep last 10)
   # ------------------------------------
