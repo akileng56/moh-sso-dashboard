@@ -29,10 +29,6 @@ func main() {
 		log.Fatalf("cannot load config: %v", err)
 	}
 
-	if err := cfg.Validate(); err != nil {
-		log.Fatal(err)
-	}
-
 	appLogger := logger.NewLogger()
 	appLogger.SetLevel(zerolog.InfoLevel)
 	appLogger.Info("Starting server in environment: %s", cfg.Environment)

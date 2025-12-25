@@ -126,14 +126,24 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
 
-      - name: Configure kubeconfig
+      - name: Configure kubeconfig (Dev)
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_DEV }}" > ~/.kube/config
+          echo "${{ secrets.KUBECONFIG_DEV }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster access
+        run: |
+          kubectl config current-context
+          kubectl get nodes
 
       - name: Deploy via Helm (Dev)
         run: |
@@ -144,7 +154,9 @@ jobs:
             --set backend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
             --set backend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
             --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend \
-            --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }}
+            --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
+            --wait \
+            --timeout 5m
 
   # =====================================
   # DEPLOY TO PROD (TAG + APPROVAL)
@@ -164,14 +176,24 @@ jobs:
 
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
+        with:
+          version: v1.29.0
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
+        with:
+          version: v3.15.0
 
-      - name: Configure kubeconfig
+      - name: Configure kubeconfig (Prod)
         run: |
           mkdir -p ~/.kube
-          echo "${{ secrets.KUBECONFIG_PROD }}" > ~/.kube/config
+          echo "${{ secrets.KUBECONFIG_PROD }}" | base64 --decode > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Verify cluster access
+        run: |
+          kubectl config current-context
+          kubectl get nodes
 
       - name: Deploy via Helm (Prod)
         run: |
@@ -182,4 +204,6 @@ jobs:
             --set backend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
             --set backend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
             --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend \
-            --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }}
+            --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
+            --wait \
+            --timeout 10m

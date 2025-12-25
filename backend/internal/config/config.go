@@ -50,7 +50,7 @@ func LoadConfig(path string) (Config, error) {
 	viper.SetDefault("DB_DRIVER", "postgres")
 	viper.SetDefault("DB_ENABLE_SSL", false)
 	viper.SetDefault("ACCESS_TOKEN_DURATION", "15m")
-	viper.SetDefault("REFRESH_TOKEN_DURATION", "168h") // 7 days
+	viper.SetDefault("REFRESH_TOKEN_DURATION", "168h")
 
 	if path != "" {
 		viper.SetConfigName("app")
