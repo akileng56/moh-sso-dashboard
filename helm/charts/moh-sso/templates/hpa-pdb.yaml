@@ -1,13 +1,13 @@
-{{- if and .Values.api.enabled .Values.api.pdb.enabled }}
+{{- if and .Values.backend.enabled .Values.backend.pdb.enabled }}
 apiVersion: policy/v1
 kind: PodDisruptionBudget
 metadata:
-  name: {{ .Release.Name }}-api-pdb
+  name: {{ .Release.Name }}-backend-pdb
 spec:
-  minAvailable: {{ .Values.api.pdb.minAvailable }}
+  minAvailable: {{ .Values.backend.pdb.minAvailable }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}-api
+      app: {{ .Release.Name }}-backend
 ---
 {{- end }}
 
@@ -24,7 +24,7 @@ spec:
 ---
 {{- end }}
 
-{{- if and .Values.api.enabled .Values.api.hpa.enabled }}
+{{- if and .Values.backend.enabled .Values.backend.hpa.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -34,15 +34,15 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ .Release.Name }}-api
-  minReplicas: {{ .Values.api.hpa.minReplicas }}
-  maxReplicas: {{ .Values.api.hpa.maxReplicas }}
+  minReplicas: {{ .Values.backend.hpa.minReplicas }}
+  maxReplicas: {{ .Values.backend.hpa.maxReplicas }}
   metrics:
     - type: Resource
       resource:
         name: cpu
         target:
           type: Utilization
-          averageUtilization: {{ .Values.api.hpa.targetCPUUtilizationPercentage }}
+          averageUtilization: {{ .Values.backend.hpa.targetCPUUtilizationPercentage }}
 ---
 {{- end }}
 

@@ -20,7 +20,7 @@ ingress:
 # -------------------------------
 # Backend API
 # -------------------------------
-api:
+backend:
   enabled: true
   image:
     repository: moh-sso/sso-api
