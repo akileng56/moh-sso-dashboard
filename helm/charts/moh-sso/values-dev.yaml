@@ -1,5 +1,5 @@
 # ===============================
-# Development / Staging values
+# Development values (CI-safe)
 # ===============================
 
 global:
@@ -9,10 +9,6 @@ ingress:
   enabled: true
   className: nginx
   host: sso-dev.moh.go.ug
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
   tls:
     enabled: true
     secretName: sso-dev-tls
@@ -20,11 +16,12 @@ ingress:
 # -------------------------------
 # Backend API
 # -------------------------------
-backend:
+backends:
   enabled: true
+
   image:
-    repository: moh-sso/sso-api
-    tag: dev
+    repository: "" # injected by CI
+    tag: "" # injected by CI
     pullPolicy: IfNotPresent
 
   replicas: 1
@@ -56,9 +53,10 @@ backend:
 # -------------------------------
 frontend:
   enabled: true
+
   image:
-    repository: moh-sso/sso-frontend
-    tag: dev
+    repository: "" # injected by CI
+    tag: "" # injected by CI
     pullPolicy: IfNotPresent
 
   replicas: 1
@@ -82,10 +80,6 @@ frontend:
 # -------------------------------
 postgresApp:
   enabled: true
-  image:
-    repository: postgres
-    tag: 16-alpine
-
   auth:
     db: sso
     user: sso_user
@@ -94,17 +88,12 @@ postgresApp:
   persistence:
     enabled: true
     size: 5Gi
-    accessModes: ["ReadWriteOnce"]
 
 # -------------------------------
-# Keycloak + DB
+# Keycloak
 # -------------------------------
 postgresKeycloak:
   enabled: true
-  image:
-    repository: postgres
-    tag: 16-alpine
-
   auth:
     db: keycloak
     user: keycloak_user
@@ -113,14 +102,9 @@ postgresKeycloak:
   persistence:
     enabled: true
     size: 5Gi
-    accessModes: ["ReadWriteOnce"]
 
 keycloak:
   enabled: true
-  image:
-    repository: quay.io/keycloak/keycloak
-    tag: 26.0.6
-
   replicas: 1
 
   admin:
@@ -128,9 +112,4 @@ keycloak:
     password: dev-keycloak-admin
 
   config:
-    KC_DB: postgres
-    KC_HTTP_ENABLED: "true"
-    KC_PROXY: edge
-    KC_HOSTNAME_STRICT: "false"
-    KC_HOSTNAME_STRICT_HTTPS: "false"
     KC_LOG_LEVEL: DEBUG

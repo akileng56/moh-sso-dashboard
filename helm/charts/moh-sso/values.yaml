@@ -1,0 +1,165 @@
+# ==================================================
+# Base Helm values (DO NOT hardcode env specifics)
+# ==================================================
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# --------------------------------------------------
+# Ingress (overridden per environment)
+# --------------------------------------------------
+ingress:
+  enabled: false
+  className: nginx
+  host: ""
+  annotations: {}
+  tls:
+    enabled: false
+    secretName: ""
+
+# --------------------------------------------------
+# Backend (Go API)
+# --------------------------------------------------
+backend:
+  enabled: true
+
+  replicas: 1
+
+  image:
+    repository: "" # injected by CI
+    tag: "" # injected by CI
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 9000
+
+  env:
+    PORT: "9000"
+    ALLOWED_ORIGINS: ""
+
+  probes:
+    readinessPath: /ready
+    livenessPath: /health
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 8
+    targetCPUUtilizationPercentage: 70
+
+  pdb:
+    enabled: false
+    minAvailable: 1
+
+# --------------------------------------------------
+# Frontend (React + Nginx)
+# --------------------------------------------------
+frontend:
+  enabled: true
+
+  replicas: 1
+
+  image:
+    repository: "" # injected by CI
+    tag: "" # injected by CI
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 80
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  hpa:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 6
+    targetCPUUtilizationPercentage: 70
+
+  pdb:
+    enabled: false
+    minAvailable: 1
+
+# --------------------------------------------------
+# Application Database (Postgres)
+# --------------------------------------------------
+postgresApp:
+  enabled: true
+
+  image:
+    repository: postgres
+    tag: 16-alpine
+
+  auth:
+    db: sso
+    user: sso_user
+    password: "" # overridden per environment
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+
+# --------------------------------------------------
+# Keycloak Database (Postgres)
+# --------------------------------------------------
+postgresKeycloak:
+  enabled: true
+
+  image:
+    repository: postgres
+    tag: 16-alpine
+
+  auth:
+    db: keycloak
+    user: keycloak_user
+    password: "" # overridden per environment
+
+  persistence:
+    enabled: true
+    size: 10Gi
+    accessModes:
+      - ReadWriteOnce
+
+# --------------------------------------------------
+# Keycloak
+# --------------------------------------------------
+keycloak:
+  enabled: true
+
+  replicas: 1
+
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: 26.0.6
+    pullPolicy: IfNotPresent
+
+  service:
+    port: 8080
+
+  admin:
+    username: admin
+    password: "" # overridden per environment
+
+  config:
+    KC_DB: postgres
+    KC_HTTP_ENABLED: "true"
+    KC_PROXY: edge
+    KC_HOSTNAME_STRICT: "false"
+    KC_HOSTNAME_STRICT_HTTPS: "false"
+    KC_LOG_LEVEL: INFO

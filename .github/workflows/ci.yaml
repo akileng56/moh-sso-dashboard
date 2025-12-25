@@ -141,8 +141,8 @@ jobs:
             -n sso-dev \
             --create-namespace \
             -f charts/moh-sso/values-dev.yaml \
-            --set api.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
-            --set api.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
+            --set backend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
+            --set backend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
             --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend \
             --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }}
 
@@ -179,7 +179,7 @@ jobs:
             -n sso-prod \
             --create-namespace \
             -f charts/moh-sso/values-prod.yaml \
-            --set api.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
-            --set api.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
+            --set backend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-backend \
+            --set backend.image.tag=${{ needs.docker-build-push.outputs.image_tag }} \
             --set frontend.image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_REPO }}-frontend \
             --set frontend.image.tag=${{ needs.docker-build-push.outputs.image_tag }}

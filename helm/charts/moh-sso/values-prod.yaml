@@ -1,5 +1,5 @@
 # ===============================
-# Production values
+# Production values (CI-safe)
 # ===============================
 
 global:
@@ -9,10 +9,6 @@ ingress:
   enabled: true
   className: nginx
   host: sso.moh.go.ug
-  annotations:
-    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "180"
   tls:
     enabled: true
     secretName: sso-prod-tls
@@ -22,9 +18,10 @@ ingress:
 # -------------------------------
 backend:
   enabled: true
+
   image:
-    repository: moh-sso/sso-api
-    tag: prod # overridden by CI/CD
+    repository: "" # injected by CI
+    tag: "" # injected by CI
     pullPolicy: IfNotPresent
 
   replicas: 3
@@ -60,9 +57,10 @@ backend:
 # -------------------------------
 frontend:
   enabled: true
+
   image:
-    repository: moh-sso/sso-frontend
-    tag: prod # overridden by CI/CD
+    repository: "" # injected by CI
+    tag: "" # injected by CI
     pullPolicy: IfNotPresent
 
   replicas: 3
@@ -90,10 +88,6 @@ frontend:
 # -------------------------------
 postgresApp:
   enabled: true
-  image:
-    repository: postgres
-    tag: 16-alpine
-
   auth:
     db: sso
     user: sso_user
@@ -102,17 +96,12 @@ postgresApp:
   persistence:
     enabled: true
     size: 50Gi
-    accessModes: ["ReadWriteOnce"]
 
 # -------------------------------
-# Keycloak + DB
+# Keycloak
 # -------------------------------
 postgresKeycloak:
   enabled: true
-  image:
-    repository: postgres
-    tag: 16-alpine
-
   auth:
     db: keycloak
     user: keycloak_user
@@ -121,14 +110,9 @@ postgresKeycloak:
   persistence:
     enabled: true
     size: 50Gi
-    accessModes: ["ReadWriteOnce"]
 
 keycloak:
   enabled: true
-  image:
-    repository: quay.io/keycloak/keycloak
-    tag: 26.0.6
-
   replicas: 2
 
   admin:
@@ -136,9 +120,4 @@ keycloak:
     password: prod-keycloak-admin-rotate
 
   config:
-    KC_DB: postgres
-    KC_HTTP_ENABLED: "true"
-    KC_PROXY: edge
-    KC_HOSTNAME_STRICT: "true"
-    KC_HOSTNAME_STRICT_HTTPS: "true"
     KC_LOG_LEVEL: INFO
