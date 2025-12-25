@@ -1,0 +1,6 @@
+apiVersion: v2
+name: moh-sso
+description: MOH SSO Dashboard stack (API, Frontend, Keycloak, Postgres)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

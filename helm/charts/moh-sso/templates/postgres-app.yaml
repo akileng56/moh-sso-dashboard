@@ -1,0 +1,75 @@
+{{- if .Values.postgresApp.enabled }}
+{{- if .Values.postgresApp.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-postgres-app-pvc
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.postgresApp.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.postgresApp.persistence.size | quote }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-postgres-app
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-postgres-app
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-postgres-app
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-postgres-app
+        {{- include "moh-sso.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgresApp.image.repository }}:{{ .Values.postgresApp.image.tag }}
+          ports:
+            - containerPort: {{ .Values.postgresApp.service.port }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-app-db
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-postgres-app-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgres-app
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-postgres-app
+  ports:
+    - name: postgres
+      port: {{ .Values.postgresApp.service.port }}
+      targetPort: {{ .Values.postgresApp.service.port }}
+  type: ClusterIP
+{{- end }}

@@ -1,0 +1,23 @@
+{{- if .Values.api.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-api-config
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+data:
+  PORT: {{ .Values.api.env.PORT | quote }}
+  KEYCLOAK_BASE_URL: {{ printf "http://%s-keycloak:%d" .Release.Name (.Values.keycloak.service.port | int) | quote }}
+  ALLOWED_ORIGINS: {{ .Values.api.env.ALLOWED_ORIGINS | quote }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-api-secret
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+type: Opaque
+stringData:
+  JWT_SECRET: {{ .Values.api.secrets.JWT_SECRET | quote }}
+  DB_DSN: {{ printf "postgres://%s:%s@%s-postgres-app:%d/%s?sslmode=disable" .Values.postgresApp.auth.user .Values.postgresApp.auth.password .Release.Name (.Values.postgresApp.service.port | int) .Values.postgresApp.auth.db | quote }}
+{{- end }}

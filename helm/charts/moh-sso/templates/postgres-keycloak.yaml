@@ -1,0 +1,79 @@
+{{- if .Values.postgresKeycloak.enabled }}
+{{- if .Values.postgresKeycloak.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Release.Name }}-postgres-keycloak-pvc
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    {{- toYaml .Values.postgresKeycloak.persistence.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.postgresKeycloak.persistence.size | quote }}
+---
+{{- end }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-postgres-keycloak
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-postgres-keycloak
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-postgres-keycloak
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-postgres-keycloak
+        {{- include "moh-sso.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: postgres
+          image: {{ .Values.postgresKeycloak.image.repository }}:{{ .Values.postgresKeycloak.image.tag }}
+          ports:
+            - containerPort: {{ .Values.postgresKeycloak.service.port }}
+          env:
+            - name: POSTGRES_DB
+              value: {{ .Values.postgresKeycloak.auth.db | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.postgresKeycloak.auth.user | quote }}
+            - name: POSTGRES_PASSWORD
+              value: {{ .Values.postgresKeycloak.auth.password | quote }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U {{ .Values.postgresKeycloak.auth.user }} -d {{ .Values.postgresKeycloak.auth.db }}"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh","-c","pg_isready -U {{ .Values.postgresKeycloak.auth.user }} -d {{ .Values.postgresKeycloak.auth.db }}"]
+            initialDelaySeconds: 20
+            periodSeconds: 15
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ .Release.Name }}-postgres-keycloak-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-postgres-keycloak
+  labels:
+    {{- include "moh-sso.labels" . | nindent 4 }}
+spec:
+  selector:
+    app: {{ .Release.Name }}-postgres-keycloak
+  ports:
+    - name: postgres
+      port: {{ .Values.postgresKeycloak.service.port }}
+      targetPort: {{ .Values.postgresKeycloak.service.port }}
+  type: ClusterIP
+{{- end }}
