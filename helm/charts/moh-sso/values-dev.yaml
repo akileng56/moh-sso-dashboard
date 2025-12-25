@@ -1,0 +1,136 @@
+# ===============================
+# Development / Staging values
+# ===============================
+
+global:
+  namespace: sso-dev
+
+ingress:
+  enabled: true
+  className: nginx
+  host: sso-dev.moh.go.ug
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
+  tls:
+    enabled: true
+    secretName: sso-dev-tls
+
+# -------------------------------
+# Backend API
+# -------------------------------
+api:
+  enabled: true
+  image:
+    repository: moh-sso/sso-api
+    tag: dev
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  env:
+    PORT: "9000"
+    ALLOWED_ORIGINS: "https://sso-dev.moh.go.ug"
+
+  secrets:
+    JWT_SECRET: dev-change-me
+    DB_DSN: "" # auto-generated in template
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 300m
+      memory: 512Mi
+
+  hpa:
+    enabled: false
+
+  pdb:
+    enabled: false
+
+# -------------------------------
+# Frontend
+# -------------------------------
+frontend:
+  enabled: true
+  image:
+    repository: moh-sso/sso-frontend
+    tag: dev
+    pullPolicy: IfNotPresent
+
+  replicas: 1
+
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 150m
+      memory: 256Mi
+
+  hpa:
+    enabled: false
+
+  pdb:
+    enabled: false
+
+# -------------------------------
+# Application Postgres
+# -------------------------------
+postgresApp:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+
+  auth:
+    db: sso
+    user: sso_user
+    password: dev_app_db_password
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    accessModes: ["ReadWriteOnce"]
+
+# -------------------------------
+# Keycloak + DB
+# -------------------------------
+postgresKeycloak:
+  enabled: true
+  image:
+    repository: postgres
+    tag: 16-alpine
+
+  auth:
+    db: keycloak
+    user: keycloak_user
+    password: dev_keycloak_db_password
+
+  persistence:
+    enabled: true
+    size: 5Gi
+    accessModes: ["ReadWriteOnce"]
+
+keycloak:
+  enabled: true
+  image:
+    repository: quay.io/keycloak/keycloak
+    tag: 26.0.6
+
+  replicas: 1
+
+  admin:
+    username: admin
+    password: dev-keycloak-admin
+
+  config:
+    KC_DB: postgres
+    KC_HTTP_ENABLED: "true"
+    KC_PROXY: edge
+    KC_HOSTNAME_STRICT: "false"
+    KC_HOSTNAME_STRICT_HTTPS: "false"
+    KC_LOG_LEVEL: DEBUG
