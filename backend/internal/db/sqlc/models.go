@@ -6,11 +6,57 @@ package db
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 )
+
+type ImportJobStatus string
+
+const (
+	ImportJobStatusPreviewed ImportJobStatus = "previewed"
+	ImportJobStatusRunning   ImportJobStatus = "running"
+	ImportJobStatusCompleted ImportJobStatus = "completed"
+	ImportJobStatusFailed    ImportJobStatus = "failed"
+)
+
+func (e *ImportJobStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ImportJobStatus(s)
+	case string:
+		*e = ImportJobStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ImportJobStatus: %T", src)
+	}
+	return nil
+}
+
+type NullImportJobStatus struct {
+	ImportJobStatus ImportJobStatus `json:"import_job_status"`
+	Valid           bool            `json:"valid"` // Valid is true if ImportJobStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullImportJobStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ImportJobStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ImportJobStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullImportJobStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ImportJobStatus), nil
+}
 
 type AuditLog struct {
 	ID        int64                 `json:"id"`
@@ -39,6 +85,35 @@ type ClientSecret struct {
 	SecretHash string       `json:"secret_hash"`
 	CreatedAt  sql.NullTime `json:"created_at"`
 	ExpiresAt  sql.NullTime `json:"expires_at"`
+}
+
+type ImportJob struct {
+	ID           uuid.UUID       `json:"id"`
+	Filename     string          `json:"filename"`
+	Status       ImportJobStatus `json:"status"`
+	TotalRows    int32           `json:"total_rows"`
+	ValidRows    int32           `json:"valid_rows"`
+	SuccessCount int32           `json:"success_count"`
+	FailureCount int32           `json:"failure_count"`
+	CreatedBy    string          `json:"created_by"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
+type ImportJobItem struct {
+	ID        uuid.UUID      `json:"id"`
+	JobID     uuid.UUID      `json:"job_id"`
+	RowNumber int32          `json:"row_number"`
+	Username  sql.NullString `json:"username"`
+	Email     sql.NullString `json:"email"`
+	FirstName sql.NullString `json:"first_name"`
+	LastName  sql.NullString `json:"last_name"`
+	Role      sql.NullString `json:"role"`
+	Enabled   sql.NullBool   `json:"enabled"`
+	ClientIds sql.NullString `json:"client_ids"`
+	Status    string         `json:"status"`
+	ErrorMsg  sql.NullString `json:"error_msg"`
+	CreatedAt time.Time      `json:"created_at"`
 }
 
 type RevokedToken struct {

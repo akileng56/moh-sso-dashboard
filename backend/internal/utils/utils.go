@@ -3,6 +3,10 @@ package utils
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -58,4 +62,68 @@ func Encode(v interface{}) []byte {
 	}
 	b, _ := json.Marshal(v)
 	return b
+}
+
+func ProjectRoot() string {
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Current working directory: %s", wd)
+
+	for {
+		if _, err := os.Stat(filepath.Join(wd, "app.env")); err == nil {
+			return wd
+		}
+
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			log.Fatal("app.env not found in any parent directory")
+		}
+		wd = parent
+	}
+}
+
+func NormalizeHeader(s string) string {
+	return strings.ToLower(strings.TrimSpace(s))
+}
+
+func SplitClientIDs(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		v := strings.TrimSpace(p)
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func ParseBoolDefaultTrue(s string) (bool, error) {
+	s = strings.TrimSpace(strings.ToLower(s))
+	if s == "" {
+		return true, nil
+	}
+	switch s {
+	case "true", "1", "yes", "y":
+		return true, nil
+	case "false", "0", "no", "n":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid enabled value: %q", s)
+	}
+}
+
+func EscapeCSV(s string) string {
+	s = strings.ReplaceAll(s, `"`, `""`)
+	if strings.ContainsAny(s, ",\n\r") {
+		return `"` + s + `"`
+	}
+	return s
 }

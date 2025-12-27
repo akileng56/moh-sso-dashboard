@@ -82,17 +82,19 @@ func main() {
 	authService := service.NewAuthService(authRepo, rdb)
 	metricsService := service.NewMetricsService(metrics)
 	auditSvc := service.NewAuditService(store)
+	importService := service.NewImportService(store, keycloakClient)
 
 	// --- Handler Layer Initialization ---
 	clientHandler := handler.NewClientHandler(clientService, auditSvc)
 	userHandler := handler.NewUserHandler(userService, auditSvc)
 	authHandler := handler.NewAuthHandler(authService, auditSvc, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
+	importHandler := handler.NewImportHandler(importService, cfg)
 
 	// heallthHandler := handler.NewHealthHandler()
 
 	// --- Router and Server Start ---
-	r := router.SetupRouter(authHandler, clientHandler, userHandler, metricsHandler, auditSvc)
+	r := router.SetupRouter(importHandler, authHandler, clientHandler, userHandler, metricsHandler, auditSvc)
 
 	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
 

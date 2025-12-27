@@ -1,6 +1,8 @@
 package keycloak
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -249,6 +251,32 @@ type UserInfo struct {
 	LastLoginAt time.Time `json:"lastLoginAt"`
 }
 
+type CreateUserRequest struct {
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	FirstName     string `json:"firstName,omitempty"`
+	LastName      string `json:"lastName,omitempty"`
+	Enabled       bool   `json:"enabled"`
+	EmailVerified bool   `json:"emailVerified"`
+	Credentials   []struct {
+		Type      string `json:"type"`
+		Value     string `json:"value"`
+		Temporary bool   `json:"temporary"`
+	} `json:"credentials,omitempty"`
+}
+
+type UserRep struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type RoleRep struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 func (c *Client) CreateUser(user *model.User) (string, error) {
 	payload := map[string]any{
 		"username":      user.Username,
@@ -290,6 +318,33 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 	}
 
 	return kcID, nil
+}
+
+func (c *Client) FindUsers(ctx context.Context, q string, exact bool) ([]UserRep, error) {
+	u := fmt.Sprintf("%s/admin/realms/%s/users", c.BaseURL, c.Realm)
+
+	v := url.Values{}
+	if q != "" {
+		v.Set("search", q)
+	}
+	if exact {
+		v.Set("exact", "true")
+	}
+	u = u + "?" + v.Encode()
+
+	res, err := c.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != 200 {
+		b, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("keycloak find users failed: status=%d body=%s", res.StatusCode, string(b))
+	}
+
+	var out []UserRep
+	return out, json.NewDecoder(res.Body).Decode(&out)
 }
 
 func (c *Client) ListUsers() ([]UserInfo, error) {
@@ -367,5 +422,48 @@ func (c *Client) DeleteUser(userID string) error {
 		return fmt.Errorf("failed to delete user in keycloak: %s", string(body))
 	}
 
+	return nil
+}
+
+// realm
+func (c *Client) GetRealmRoleByName(ctx context.Context, roleName string) (*RoleRep, error) {
+
+	res, err := c.Get(fmt.Sprintf("%s/admin/realms/%s/roles/%s", c.BaseURL, c.Realm, url.PathEscape(roleName)))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("keycloak get role failed: status=%d body=%s", res.StatusCode, string(b))
+	}
+
+	var out RoleRep
+	if err := json.NewDecoder(res.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+func (c *Client) AddRealmRoleToUser(ctx context.Context, userID string, role RoleRep) error {
+
+	payload := []RoleRep{role}
+	bs, _ := json.Marshal(payload)
+
+	bytesData := bytes.NewReader(bs)
+
+	u := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/realm", c.BaseURL, c.Realm, userID)
+
+	res, err := c.Post(u, bytesData)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("keycloak add role failed: status=%d body=%s", res.StatusCode, string(b))
+	}
 	return nil
 }

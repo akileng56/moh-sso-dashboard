@@ -34,6 +34,7 @@ type Querier interface {
 	CountUsers(ctx context.Context) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	CreateClient(ctx context.Context, arg CreateClientParams) error
+	CreateImportJob(ctx context.Context, arg CreateImportJobParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
@@ -41,15 +42,19 @@ type Querier interface {
 	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
+	GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUsersByRole(ctx context.Context, role string) ([]User, error)
 	InactiveUsersSince(ctx context.Context) ([]User, error)
+	InsertImportJobItem(ctx context.Context, arg InsertImportJobItemParams) error
 	LastLoginForAllUsers(ctx context.Context) ([]LastLoginForAllUsersRow, error)
 	LastLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
 	ListEnabledClients(ctx context.Context) ([]Client, error)
+	ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
+	ListImportJobItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) ([]User, error)
 	LoginCountForClientInRange(ctx context.Context, arg LoginCountForClientInRangeParams) (int64, error)
@@ -71,6 +76,9 @@ type Querier interface {
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
+	UpdateImportJobCounts(ctx context.Context, arg UpdateImportJobCountsParams) error
+	UpdateImportJobItemStatus(ctx context.Context, arg UpdateImportJobItemStatusParams) error
+	UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
 	UserAgentStatsInRange(ctx context.Context, arg UserAgentStatsInRangeParams) ([]UserAgentStatsInRangeRow, error)

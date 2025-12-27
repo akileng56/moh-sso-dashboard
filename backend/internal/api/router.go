@@ -13,6 +13,7 @@ import (
 )
 
 func SetupRouter(
+	importHandler *handler.ImportHandler,
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
@@ -85,6 +86,11 @@ func SetupRouter(
 			admin.GET("/users/:id", userHandler.GetUser)
 			admin.POST("/users", userHandler.CreateUser)
 			admin.DELETE("/users/:id", userHandler.DeleteUser)
+			admin.POST("/users/import/preview", importHandler.Preview)
+			admin.POST("/users/import/execute", importHandler.Execute)
+			admin.GET("/users/import/:jobId", importHandler.GetJob)
+			admin.GET("/users/import/:jobId/errors.csv", importHandler.DownloadErrorsCSV)
+			admin.GET("/users/import/template.csv", importHandler.DownloadTemplateCSV)
 
 			// =====================
 			// METRICS SECTION

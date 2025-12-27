@@ -100,3 +100,52 @@ type UserResponse struct {
 	FullName string `json:"full_name"`
 	IsActive bool   `json:"is_active"`
 }
+
+type ImportUserRow struct {
+	RowNumber int      `json:"rowNumber"`
+	Username  string   `json:"username"`
+	Email     string   `json:"email"`
+	FirstName string   `json:"firstName"`
+	LastName  string   `json:"lastName"`
+	Role      string   `json:"role"`
+	Enabled   bool     `json:"enabled"`
+	ClientIDs []string `json:"clientIds"`
+	Errors    []string `json:"errors,omitempty"`
+	Status    string   `json:"status,omitempty"`   // valid|invalid|success|failed|skipped
+	ErrorMsg  string   `json:"errorMsg,omitempty"` // for failed
+}
+
+type PreviewResponse struct {
+	JobID    string          `json:"jobId"`
+	FileName string          `json:"fileName"`
+	Total    int             `json:"total"`
+	Valid    int             `json:"valid"`
+	Invalid  int             `json:"invalid"`
+	Rows     []ImportUserRow `json:"rows"` // include both valid + invalid for preview table
+}
+
+type ExecuteResponse struct {
+	JobID        string `json:"jobId"`
+	Total        int    `json:"total"`
+	SuccessCount int    `json:"successCount"`
+	FailureCount int    `json:"failureCount"`
+	Status       string `json:"status"`
+}
+
+type JobStatusResponse struct {
+	JobID        string          `json:"jobId"`
+	FileName     string          `json:"fileName"`
+	Status       string          `json:"status"`
+	Total        int             `json:"total"`
+	Valid        int             `json:"valid"`
+	SuccessCount int             `json:"successCount"`
+	FailureCount int             `json:"failureCount"`
+	Rows         []ImportUserRow `json:"rows"`
+}
+
+type parsedRow struct {
+	row ImportUserRow
+	raw struct {
+		clientIDs string
+	}
+}

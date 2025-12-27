@@ -109,3 +109,37 @@ CREATE TABLE revoked_tokens (
     token_hash  TEXT UNIQUE NOT NULL,
     revoked_at  TIMESTAMP DEFAULT NOW()
 );
+
+
+CREATE TYPE import_job_status AS ENUM ('previewed', 'running', 'completed', 'failed');
+
+CREATE TABLE IF NOT EXISTS import_jobs (
+  id            UUID PRIMARY KEY,
+  filename      TEXT NOT NULL,
+  status        import_job_status NOT NULL DEFAULT 'previewed',
+  total_rows    INT  NOT NULL DEFAULT 0,
+  valid_rows    INT  NOT NULL DEFAULT 0,
+  success_count INT  NOT NULL DEFAULT 0,
+  failure_count INT  NOT NULL DEFAULT 0,
+  created_by    TEXT NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS import_job_items (
+  id          UUID PRIMARY KEY,
+  job_id      UUID NOT NULL REFERENCES import_jobs(id) ON DELETE CASCADE,
+  row_number  INT  NOT NULL,
+  username    TEXT,
+  email       TEXT,
+  first_name  TEXT,
+  last_name   TEXT,
+  role        TEXT,
+  enabled     BOOLEAN,
+  client_ids  TEXT,  -- raw string from CSV, e.g. "app1,app2"
+  status      TEXT NOT NULL DEFAULT 'pending', -- pending|success|failed|skipped
+  error_msg   TEXT,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_job_items_job ON import_job_items(job_id);
