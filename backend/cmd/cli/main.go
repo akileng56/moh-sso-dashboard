@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/moh-sso-dashboard/internal/keycloak"
+	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/spf13/cobra"
 )
 
@@ -141,7 +142,14 @@ var createUserCmd = &cobra.Command{
 		if err := kc.Authenticate(); err != nil {
 			log.Fatalf("❌ Auth failed: %v", err)
 		}
-		if err := kc.CreateUser( user model.User); err != nil {
+
+		user := model.User{
+			Username: username,
+			Email:    username + "@example.com",
+			Enabled:  true,
+		}
+
+		if _, err := kc.CreateUser(&user); err != nil {
 			log.Fatalf("❌ Failed to create user: %v", err)
 		}
 		fmt.Printf("✅ User '%s' created successfully\n", username)
