@@ -17,9 +17,48 @@ func NewAuditService(store db.Store) *AuditService {
 	return &AuditService{store: store}
 }
 
-func (a *AuditService) Log(ctx context.Context, userID uuid.NullUUID, action string, metadata interface{}) error {
+// ----------------------------------------------------
+// internal helper
+// Ensures FK safety for audit logs
+// ----------------------------------------------------
+func (a *AuditService) safeUserID(
+	ctx context.Context,
+	userID uuid.NullUUID,
+) uuid.NullUUID {
+
+	// Anonymous / system action
+	if !userID.Valid {
+		return userID
+	}
+
+	exists, err := a.store.UserExists(ctx, userID.UUID)
+	if err != nil {
+		// Fail-safe: never break audit logging
+		return uuid.NullUUID{}
+	}
+
+	if !exists {
+		// User not yet synced locally
+		return uuid.NullUUID{}
+	}
+
+	return userID
+}
+
+// ----------------------------------------------------
+// Core audit logger (ALL logs go through here)
+// ----------------------------------------------------
+func (a *AuditService) Log(
+	ctx context.Context,
+	userID uuid.NullUUID,
+	action string,
+	metadata interface{},
+) error {
+
+	safeID := a.safeUserID(ctx, userID)
+
 	return a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
-		UserID: userID,
+		UserID: safeID,
 		Action: action,
 		Metadata: pqtype.NullRawMessage{
 			RawMessage: utils.Encode(metadata),
@@ -28,12 +67,14 @@ func (a *AuditService) Log(ctx context.Context, userID uuid.NullUUID, action str
 	})
 }
 
+// ----------------------------------------------------
+// Auth / security logs
+// ----------------------------------------------------
 func (a *AuditService) LogLogin(
 	ctx context.Context,
 	userID uuid.NullUUID,
 	success bool,
 	clientID string,
-	tenantID string,
 	ip string,
 	userAgent string,
 	country string,
@@ -44,18 +85,12 @@ func (a *AuditService) LogLogin(
 		"success":    success,
 		"client_id":  clientID,
 		"ip":         ip,
+		"user_agent": userAgent,
 		"country":    country,
 		"city":       city,
-		"user_agent": userAgent,
 	}
 
-	return a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
-		UserID: userID,
-		Action: "login",
-		Metadata: pqtype.NullRawMessage{
-			RawMessage: utils.Encode(metadata),
-			Valid:      metadata != nil,
-		}})
+	return a.Log(ctx, userID, "login", metadata)
 }
 
 func (a *AuditService) LogPasswordReset(
@@ -70,27 +105,18 @@ func (a *AuditService) LogPasswordReset(
 		"ip":      ip,
 	}
 
-	return a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
-		UserID: userID,
-		Action: "password_reset",
-		Metadata: pqtype.NullRawMessage{
-			RawMessage: utils.Encode(metadata),
-			Valid:      metadata != nil,
-		}})
+	return a.Log(ctx, userID, "password_reset", metadata)
 }
 
+// ----------------------------------------------------
+// Admin actions
+// ----------------------------------------------------
 func (a *AuditService) LogAdminAction(
 	ctx context.Context,
 	adminID uuid.NullUUID,
-	action string, // e.g. "CREATE_USER", "DELETE_CLIENT", etc.
+	action string, // e.g. CREATE_USER, DELETE_CLIENT
 	metadata map[string]interface{},
 ) error {
 
-	return a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
-		UserID: adminID,
-		Action: action,
-		Metadata: pqtype.NullRawMessage{
-			RawMessage: utils.Encode(metadata),
-			Valid:      metadata != nil,
-		}})
+	return a.Log(ctx, adminID, action, metadata)
 }

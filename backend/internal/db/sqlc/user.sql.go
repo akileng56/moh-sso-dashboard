@@ -558,3 +558,16 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, updateUserLastLogin, id)
 	return err
 }
+
+const userExists = `-- name: UserExists :one
+SELECT EXISTS (
+  SELECT 1 FROM users WHERE id = $1
+)
+`
+
+func (q *Queries) UserExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	row := q.db.QueryRowContext(ctx, userExists, id)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}

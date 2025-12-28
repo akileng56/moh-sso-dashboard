@@ -82,6 +82,7 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
 	UserAgentStatsInRange(ctx context.Context, arg UserAgentStatsInRangeParams) ([]UserAgentStatsInRangeRow, error)
+	UserExists(ctx context.Context, id uuid.UUID) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)

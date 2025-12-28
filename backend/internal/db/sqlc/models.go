@@ -101,19 +101,21 @@ type ImportJob struct {
 }
 
 type ImportJobItem struct {
-	ID        uuid.UUID      `json:"id"`
-	JobID     uuid.UUID      `json:"job_id"`
-	RowNumber int32          `json:"row_number"`
-	Username  sql.NullString `json:"username"`
-	Email     sql.NullString `json:"email"`
-	FirstName sql.NullString `json:"first_name"`
-	LastName  sql.NullString `json:"last_name"`
-	Role      sql.NullString `json:"role"`
-	Enabled   sql.NullBool   `json:"enabled"`
-	ClientIds sql.NullString `json:"client_ids"`
-	Status    string         `json:"status"`
-	ErrorMsg  sql.NullString `json:"error_msg"`
-	CreatedAt time.Time      `json:"created_at"`
+	ID          uuid.UUID      `json:"id"`
+	JobID       uuid.UUID      `json:"job_id"`
+	RowNumber   int32          `json:"row_number"`
+	Username    sql.NullString `json:"username"`
+	Email       sql.NullString `json:"email"`
+	FirstName   sql.NullString `json:"first_name"`
+	LastName    sql.NullString `json:"last_name"`
+	Role        sql.NullString `json:"role"`
+	Enabled     sql.NullBool   `json:"enabled"`
+	EmailSent   bool           `json:"email_sent"`
+	EmailSentAt time.Time      `json:"email_sent_at"`
+	ClientIds   sql.NullString `json:"client_ids"`
+	Status      string         `json:"status"`
+	ErrorMsg    sql.NullString `json:"error_msg"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 type RevokedToken struct {

@@ -19,7 +19,11 @@ type AuthHandler struct {
 	config       *config.Config
 }
 
-func NewAuthHandler(authService service.AuthService, auditService *service.AuditService, config *config.Config) *AuthHandler {
+func NewAuthHandler(
+	authService service.AuthService,
+	auditService *service.AuditService,
+	config *config.Config,
+) *AuthHandler {
 	return &AuthHandler{
 		authService:  authService,
 		auditService: auditService,
@@ -27,25 +31,33 @@ func NewAuthHandler(authService service.AuthService, auditService *service.Audit
 	}
 }
 
+// ----------------------------------------------------
+// LOGIN (redirect to Keycloak)
+// ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
-		uuid.NullUUID{},
+		uuid.NullUUID{}, // anonymous
 		"login_initiated",
 		map[string]interface{}{
 			"ip":         c.ClientIP(),
 			"user_agent": c.Request.UserAgent(),
-			"client_id":  "sso-dashboard",
+			"client_id":  h.config.KeycloakClientID,
 		},
 	)
 
-	authURL, err := url.Parse(h.config.KeycloakBaseUrl + "/realms/moh-realm" + "/protocol/openid-connect/auth")
+	authURL, err := url.Parse(
+		h.config.KeycloakBaseUrl +
+			"/realms/" + h.config.KeycloakRealm +
+			"/protocol/openid-connect/auth",
+	)
 	if err != nil {
 		log.Println("Failed to parse Keycloak URL:", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
+
 	q := authURL.Query()
 	q.Set("client_id", h.config.KeycloakClientID)
 	q.Set("response_type", "code")
@@ -53,11 +65,14 @@ func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 	q.Set("redirect_uri", h.config.KeycloakRedirectUri)
 
 	authURL.RawQuery = q.Encode()
-
 	c.Redirect(http.StatusTemporaryRedirect, authURL.String())
 }
 
+// ----------------------------------------------------
+// GET CURRENT USER
+// ----------------------------------------------------
 func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
+
 	accessToken, err := c.Cookie("access_token")
 	if err != nil || accessToken == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
@@ -70,10 +85,9 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 		return
 	}
 
-	// Extract User ID from JWT
 	userID := utils.ExtractUserIDFromJWT(accessToken)
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		"get_me",
@@ -86,61 +100,64 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
+// ----------------------------------------------------
+// OIDC CALLBACK
+// ----------------------------------------------------
 func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
+
 	code := c.Query("code")
 	if code == "" {
 
-		h.auditService.LogLogin(
+		_ = h.auditService.LogLogin(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			false,
-			"sso-dashboard",
+			h.config.KeycloakClientID,
 			c.ClientIP(),
 			c.Request.UserAgent(),
 			"",
 			"",
-			"",
 		)
 
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Missing authorization code"})
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "Missing authorization code",
+		})
 		return
 	}
 
 	tokens, err := h.authService.ProcessAuthCode(code)
 	if err != nil {
+
 		log.Printf("Authentication failed: %v", err)
 
-		h.auditService.LogLogin(
+		_ = h.auditService.LogLogin(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			false,
-			"sso-dashboard",
+			h.config.KeycloakClientID,
 			c.ClientIP(),
 			c.Request.UserAgent(),
 			"",
 			"",
-			"",
 		)
 
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Authentication failed. Please try again."})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"error": "Authentication failed. Please try again.",
+		})
 		return
 	}
 
-	// Get user details
-	_, _ = h.authService.GetMe(tokens.AccessToken)
-
-	// Extract User ID from JWT
+	// Extract user ID from token
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
 	// Login success
-	h.auditService.LogLogin(
+	_ = h.auditService.LogLogin(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		true,
-		"sso-dashboard",
+		h.config.KeycloakClientID,
 		c.ClientIP(),
 		c.Request.UserAgent(),
-		"",
 		"",
 		"",
 	)
@@ -152,11 +169,15 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
 }
 
+// ----------------------------------------------------
+// REFRESH TOKEN
+// ----------------------------------------------------
 func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
+
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil || refreshToken == "" {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			"refresh_failed",
@@ -166,15 +187,18 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 			},
 		)
 
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Session expired. Please log in."})
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Session expired. Please log in.",
+		})
 		return
 	}
 
 	tokens, err := h.authService.GetAccessToken(refreshToken)
 	if err != nil {
+
 		log.Printf("Token refresh failed: %v", err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			"refresh_failed",
@@ -185,15 +209,16 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		)
 
 		h.setSecureRefreshTokenCookie(c, "", -1)
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Session expired or invalid."})
+
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+			"error": "Session expired or invalid.",
+		})
 		return
 	}
 
-	// Extract User ID
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
-	// refresh_success
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		"refresh_success",
@@ -203,7 +228,6 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		},
 	)
 
-	// refresh cookies
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
@@ -213,11 +237,14 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 	})
 }
 
+// ----------------------------------------------------
+// LOGOUT
+// ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 
 	userID := c.GetString("user_id")
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		"logout",
@@ -228,7 +255,6 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	)
 
 	refreshToken, _ := c.Cookie("refresh_token")
-
 	if refreshToken != "" {
 		if err := h.authService.LogOut(refreshToken); err != nil {
 			log.Printf("Keycloak logout failed: %v", err)
@@ -254,7 +280,14 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
 }
 
-func (h *AuthHandler) setSecureAccessTokenCookie(c *gin.Context, token string, maxAge int64) {
+// ----------------------------------------------------
+// COOKIE HELPERS
+// ----------------------------------------------------
+func (h *AuthHandler) setSecureAccessTokenCookie(
+	c *gin.Context,
+	token string,
+	maxAge int64,
+) {
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "access_token",
 		Value:    token,
@@ -266,12 +299,15 @@ func (h *AuthHandler) setSecureAccessTokenCookie(c *gin.Context, token string, m
 	})
 }
 
-func (h *AuthHandler) setSecureRefreshTokenCookie(c *gin.Context, token string, maxAge int64) {
+func (h *AuthHandler) setSecureRefreshTokenCookie(
+	c *gin.Context,
+	token string,
+	maxAge int64,
+) {
 	http.SetCookie(c.Writer, &http.Cookie{
-		Name:  "refresh_token",
-		Value: token,
-		Expires: time.Now().
-			Add(time.Duration(maxAge) * time.Second),
+		Name:     "refresh_token",
+		Value:    token,
+		Expires:  time.Now().Add(time.Duration(maxAge) * time.Second),
 		Path:     "/",
 		HttpOnly: true,
 		Secure:   false,

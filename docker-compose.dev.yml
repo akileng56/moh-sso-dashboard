@@ -29,7 +29,7 @@ services:
       keycloak-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      test: ["CMD", "curl", "-f", "http://keycloak:8080/realms/master"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -98,7 +98,7 @@ services:
     container_name: sso-backend
     environment:
       - SERVER_PORT=9000
-      - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-http://localhost:8081}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-moh-realm}
       - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-dashboard}
       - KEYCLOAK_REDIRECT_URI=${KEYCLOAK_REDIRECT_URI:-http://localhost:9000/api/v1/auth/callback}

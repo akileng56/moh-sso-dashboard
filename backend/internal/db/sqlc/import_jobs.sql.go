@@ -111,7 +111,7 @@ func (q *Queries) InsertImportJobItem(ctx context.Context, arg InsertImportJobIt
 }
 
 const listImportJobFailedItems = `-- name: ListImportJobFailedItems :many
-SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, client_ids, status, error_msg, created_at
+SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
 FROM import_job_items
 WHERE job_id = $1 AND status IN ('failed')
 ORDER BY row_number ASC
@@ -136,6 +136,8 @@ func (q *Queries) ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID)
 			&i.LastName,
 			&i.Role,
 			&i.Enabled,
+			&i.EmailSent,
+			&i.EmailSentAt,
 			&i.ClientIds,
 			&i.Status,
 			&i.ErrorMsg,
@@ -155,7 +157,7 @@ func (q *Queries) ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID)
 }
 
 const listImportJobItems = `-- name: ListImportJobItems :many
-SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, client_ids, status, error_msg, created_at
+SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
 FROM import_job_items
 WHERE job_id = $1
 ORDER BY row_number ASC
@@ -180,6 +182,8 @@ func (q *Queries) ListImportJobItems(ctx context.Context, jobID uuid.UUID) ([]Im
 			&i.LastName,
 			&i.Role,
 			&i.Enabled,
+			&i.EmailSent,
+			&i.EmailSentAt,
 			&i.ClientIds,
 			&i.Status,
 			&i.ErrorMsg,
