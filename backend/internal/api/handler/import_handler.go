@@ -11,10 +11,10 @@ import (
 
 type ImportHandler struct {
 	importSevice *service.ImportService
-	config       config.Config
+	config       *config.Config
 }
 
-func NewImportHandler(importSevice *service.ImportService, config config.Config) *ImportHandler {
+func NewImportHandler(importSevice *service.ImportService, config *config.Config) *ImportHandler {
 	return &ImportHandler{
 		importSevice: importSevice,
 		config:       config,

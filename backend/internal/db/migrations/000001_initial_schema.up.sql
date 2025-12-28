@@ -16,9 +16,9 @@ CREATE TABLE users (
     email       VARCHAR(255) UNIQUE NOT NULL,
     enabled     BOOLEAN DEFAULT TRUE,
     role        VARCHAR(50) NOT NULL,
-    created_at  TIMESTAMP DEFAULT NOW(),
-    updated_at  TIMESTAMP DEFAULT NOW(),
-    last_login_at TIMESTAMP DEFAULT NOW()
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
@@ -28,7 +28,7 @@ CREATE TABLE roles (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        VARCHAR(50) UNIQUE NOT NULL,
     description TEXT,
-    created_at  TIMESTAMP DEFAULT NOW()
+    created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
@@ -52,8 +52,8 @@ CREATE TABLE client (
     icon            TEXT,
     public_client   BOOLEAN DEFAULT FALSE,
     enabled         BOOLEAN DEFAULT TRUE,
-    created_at      TIMESTAMP DEFAULT NOW(),
-    updated_at      TIMESTAMP DEFAULT NOW()
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
@@ -63,8 +63,8 @@ CREATE TABLE client_secrets (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     client_id   UUID NOT NULL REFERENCES client(id) ON DELETE CASCADE,
     secret_hash TEXT NOT NULL,
-    created_at  TIMESTAMP DEFAULT NOW(),
-    expires_at  TIMESTAMP
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    expires_at  TIMESTAMPTZ
 );
 
 -- ============================================================
@@ -73,7 +73,7 @@ CREATE TABLE client_secrets (
 CREATE TABLE user_client_access (
     user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     client_id UUID NOT NULL REFERENCES client(id) ON DELETE CASCADE,
-    granted_at TIMESTAMP DEFAULT NOW(),
+    granted_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, client_id)
 );
 
@@ -86,8 +86,8 @@ CREATE TABLE sessions (
     refresh_token   TEXT NOT NULL,
     user_agent      TEXT,
     ip_address      TEXT,
-    created_at      TIMESTAMP DEFAULT NOW(),
-    expires_at      TIMESTAMP NOT NULL
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    expires_at      TIMESTAMPTZ NOT NULL
 );
 
 -- ============================================================
@@ -98,7 +98,7 @@ CREATE TABLE audit_logs (
     user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
     action     VARCHAR(200) NOT NULL,
     metadata   JSONB,
-    created_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ============================================================
@@ -107,7 +107,7 @@ CREATE TABLE audit_logs (
 CREATE TABLE revoked_tokens (
     id          BIGSERIAL PRIMARY KEY,
     token_hash  TEXT UNIQUE NOT NULL,
-    revoked_at  TIMESTAMP DEFAULT NOW()
+    revoked_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
 
@@ -136,6 +136,8 @@ CREATE TABLE IF NOT EXISTS import_job_items (
   last_name   TEXT,
   role        TEXT,
   enabled     BOOLEAN,
+  email_sent  BOOLEAN NOT NULL DEFAULT FALSE,
+  email_sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   client_ids  TEXT,  -- raw string from CSV, e.g. "app1,app2"
   status      TEXT NOT NULL DEFAULT 'pending', -- pending|success|failed|skipped
   error_msg   TEXT,

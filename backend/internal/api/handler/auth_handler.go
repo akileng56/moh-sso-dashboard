@@ -16,10 +16,10 @@ import (
 type AuthHandler struct {
 	authService  service.AuthService
 	auditService *service.AuditService
-	config       config.Config
+	config       *config.Config
 }
 
-func NewAuthHandler(authService service.AuthService, auditService *service.AuditService, config config.Config) *AuthHandler {
+func NewAuthHandler(authService service.AuthService, auditService *service.AuditService, config *config.Config) *AuthHandler {
 	return &AuthHandler{
 		authService:  authService,
 		auditService: auditService,

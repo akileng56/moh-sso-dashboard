@@ -21,6 +21,5 @@ EXPOSE 9000
 
 # Use environment file if exists
 ENV $(cat app.env | xargs)
-
 # Start backend in dev mode
 CMD ["sh", "-c", "go run ./cmd/server"]

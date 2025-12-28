@@ -13,13 +13,13 @@ import (
 
 type metricsRepository struct {
 	db     db.Store
-	config config.Config
+	config *config.Config
 	logger *logger.Logger
 }
 
 // Constructor
 func NewMetricsRepository(
-	cfg config.Config,
+	cfg *config.Config,
 	store db.Store,
 	log logger.Logger,
 ) MetricsRepository {

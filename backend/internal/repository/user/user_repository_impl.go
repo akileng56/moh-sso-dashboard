@@ -16,14 +16,14 @@ import (
 
 type userRepository struct {
 	keycloakClient *keycloak.Client
-	config         config.Config
+	config         *config.Config
 	db             db.Store
 	logger         *logger.Logger
 }
 
 func NewUserRepository(
 	keycloakClient *keycloak.Client,
-	config config.Config,
+	config *config.Config,
 	store db.Store,
 	log logger.Logger,
 ) UserRepository {

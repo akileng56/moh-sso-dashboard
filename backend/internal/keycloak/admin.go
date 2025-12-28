@@ -467,3 +467,35 @@ func (c *Client) AddRealmRoleToUser(ctx context.Context, userID string, role Rol
 	}
 	return nil
 }
+
+func (c *Client) SendUserOnboardingEmail(
+	ctx context.Context,
+	userID string,
+) error {
+
+	actions := []string{
+		"UPDATE_PASSWORD",
+		"VERIFY_EMAIL",
+	}
+
+	url := fmt.Sprintf(
+		"%s/admin/realms/%s/users/%s/execute-actions-email",
+		c.BaseURL,
+		c.Realm,
+		userID,
+	)
+
+	req, _ := json.Marshal(actions)
+
+	resp, err := c.Put(url, bytes.NewBuffer(req))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		return fmt.Errorf("failed to send email: %s", resp.Status)
+	}
+
+	return nil
+}
