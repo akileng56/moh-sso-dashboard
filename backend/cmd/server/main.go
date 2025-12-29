@@ -90,11 +90,12 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService, auditSvc, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
+	auditHandler := handler.NewAuditHandler(store)
 
 	// heallthHandler := handler.NewHealthHandler()
 
 	// --- Router and Server Start ---
-	r := router.SetupRouter(importHandler, authHandler, clientHandler, userHandler, metricsHandler, auditSvc)
+	r := router.SetupRouter(importHandler, authHandler, clientHandler, userHandler, metricsHandler, auditSvc, auditHandler)
 
 	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
 

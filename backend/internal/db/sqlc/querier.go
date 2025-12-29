@@ -17,6 +17,7 @@ type Querier interface {
 	ActiveUsersThisWeek(ctx context.Context) (int64, error)
 	ActiveUsersToday(ctx context.Context) (int64, error)
 	ApproximateActiveSessions(ctx context.Context) (int64, error)
+	AuditMetricsOverview(ctx context.Context, arg AuditMetricsOverviewParams) (AuditMetricsOverviewRow, error)
 	ClientUsageForUserInRange(ctx context.Context, arg ClientUsageForUserInRangeParams) ([]ClientUsageForUserInRangeRow, error)
 	CountActiveUsers(ctx context.Context) (int64, error)
 	CountActiveUsersInRange(ctx context.Context, arg CountActiveUsersInRangeParams) (int64, error)
@@ -38,8 +39,11 @@ type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	ExportAuditLogs(ctx context.Context, arg ExportAuditLogsParams) ([]ExportAuditLogsRow, error)
+	FailedLoginsByDay(ctx context.Context, arg FailedLoginsByDayParams) ([]FailedLoginsByDayRow, error)
 	FailedLoginsByUserInRange(ctx context.Context, arg FailedLoginsByUserInRangeParams) ([]FailedLoginsByUserInRangeRow, error)
 	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
+	GetAuditLog(ctx context.Context, id int64) (GetAuditLogRow, error)
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
 	GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, error)
@@ -50,6 +54,8 @@ type Querier interface {
 	InsertImportJobItem(ctx context.Context, arg InsertImportJobItemParams) error
 	LastLoginForAllUsers(ctx context.Context) ([]LastLoginForAllUsersRow, error)
 	LastLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
+	ListAuditActions(ctx context.Context) ([]string, error)
+	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
 	ListEnabledClients(ctx context.Context) ([]Client, error)
@@ -73,6 +79,7 @@ type Querier interface {
 	SearchClients(ctx context.Context, query sql.NullString) ([]Client, error)
 	SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error)
 	SuspiciousLoginsInRange(ctx context.Context, arg SuspiciousLoginsInRangeParams) ([]SuspiciousLoginsInRangeRow, error)
+	TopFailureIPs(ctx context.Context, arg TopFailureIPsParams) ([]TopFailureIPsRow, error)
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error

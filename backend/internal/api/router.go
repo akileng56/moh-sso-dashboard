@@ -19,6 +19,7 @@ func SetupRouter(
 	userHandler *handler.UserHandler,
 	metricsHandler *handler.MetricsHandler,
 	auditSvc *service.AuditService,
+	auditHandler *handler.AuditHandler,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -125,6 +126,19 @@ func SetupRouter(
 				metrics.GET("/users/never-logged-in", metricsHandler.NeverLoggedInUsers)
 				metrics.GET("/users/last-login/:userID", metricsHandler.LastLoginForUser)
 				metrics.GET("/users/client-usage/:userID", metricsHandler.UserClientUsage)
+			}
+
+			audit := admin.Group("/audit-logs")
+			{
+				audit.GET("/audit-logs", auditHandler.ListAuditLogs)
+				audit.GET("/audit-logs/actions", auditHandler.ListAuditActions)
+				audit.GET("/audit-logs/:id", auditHandler.GetAuditLog)
+
+				audit.GET("/audit-logs/metrics/overview", auditHandler.AuditMetricsOverview)
+				audit.GET("/audit-logs/metrics/failed-logins-by-day", auditHandler.FailedLoginsByDay)
+				audit.GET("/audit-logs/metrics/top-failure-ips", auditHandler.TopFailureIPs)
+
+				audit.GET("/audit-logs/export", auditHandler.ExportAuditLogs) // csv/json
 			}
 		}
 	}
