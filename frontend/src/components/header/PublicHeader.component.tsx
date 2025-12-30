@@ -1,5 +1,4 @@
 import type React from "react";
-
 import {
   Header,
   HeaderName,
@@ -8,37 +7,34 @@ import {
   SkipToContent,
 } from "@carbon/react";
 import { UserAvatarFilled, Logout } from "@carbon/icons-react";
-
+import { useAuth } from "../../context/useAuth";
 import AppMenuAction from "../appmenu/AppMenu.component";
 
-const API_BASE = "http://localhost:9000/api/v1/auth";
+const PublicHeader: React.FC = () => {
+  const { logout, user } = useAuth();
 
-const DashboardHeader: React.FC = () => {
-  const handleLogout = () => {
-    window.location.href = `${API_BASE}/logout`;
-  };
   return (
-    <Header aria-label="App Name">
+    <Header aria-label="MOH Integrated Health Portal">
       <SkipToContent />
-      <HeaderName href="#" prefix="MOH">
-        Intranet
+
+      <HeaderName prefix="MOH" href="/dashboard">
+        Integrated Health Portal
       </HeaderName>
 
       <HeaderGlobalBar>
-        <HeaderGlobalAction aria-label="User Avatar" tooltipAlignment="end">
+        <HeaderGlobalAction aria-label="User">
           <UserAvatarFilled size={20} />
+          <span style={{ marginLeft: 8 }}>{user?.username}</span>
         </HeaderGlobalAction>
-        <HeaderGlobalAction
-          aria-label="Logout"
-          tooltipAlignment="end"
-          onClick={handleLogout}
-        >
+
+        <HeaderGlobalAction aria-label="Logout" onClick={logout}>
           <Logout size={20} />
         </HeaderGlobalAction>
+
         <AppMenuAction />
       </HeaderGlobalBar>
     </Header>
   );
 };
 
-export default DashboardHeader;
+export default PublicHeader;

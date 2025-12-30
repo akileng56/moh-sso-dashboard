@@ -34,9 +34,11 @@ type TokenResponse struct {
 }
 
 type AuthUser struct {
-	Subject string `json:"sub"`
-	Email   string `json:"email"`
-	Name    string `json:"name"`
+	ID          string              `json:"id"`
+	Username    string              `json:"username"`
+	Email       string              `json:"email,omitempty"`
+	IsAdmin     bool                `json:"is_admin"`
+	ClientRoles map[string][]string `json:"client_roles"`
 }
 
 // NewClient creates a new Keycloak client
@@ -204,12 +206,66 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		return nil, errors.New("invalid token claims")
 	}
 
-	return &AuthUser{
-		Subject: claims["sub"].(string),
-		Email:   claims["email"].(string),
-		Name:    claims["name"].(string),
-	}, nil
+	// ----------------------------
+	// Basic identity
+	// ----------------------------
+	sub, _ := claims["sub"].(string)
+	email, _ := claims["email"].(string)
 
+	username := ""
+	if v, ok := claims["preferred_username"].(string); ok {
+		username = v
+	} else if v, ok := claims["name"].(string); ok {
+		username = v
+	}
+
+	// ----------------------------
+	// Realm roles → is_admin
+	// ----------------------------
+	isAdmin := false
+	if ra, ok := claims["realm_access"].(map[string]interface{}); ok {
+		if roles, ok := ra["roles"].([]interface{}); ok {
+			for _, r := range roles {
+				if role, ok := r.(string); ok && role == "admin" {
+					isAdmin = true
+					break
+				}
+			}
+		}
+	}
+
+	// ----------------------------
+	// Client roles → app access
+	// ----------------------------
+	clientRoles := map[string][]string{}
+
+	if ra, ok := claims["resource_access"].(map[string]interface{}); ok {
+		for clientID, raw := range ra {
+			block, ok := raw.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			roles, ok := block["roles"].([]interface{})
+			if !ok {
+				continue
+			}
+
+			for _, r := range roles {
+				if role, ok := r.(string); ok {
+					clientRoles[clientID] = append(clientRoles[clientID], role)
+				}
+			}
+		}
+	}
+
+	return &AuthUser{
+		ID:          sub,
+		Username:    username,
+		Email:       email,
+		IsAdmin:     isAdmin,
+		ClientRoles: clientRoles,
+	}, nil
 }
 
 // doRequest performs an authenticated HTTP request to Keycloak

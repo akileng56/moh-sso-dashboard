@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
@@ -126,4 +127,31 @@ func EscapeCSV(s string) string {
 		return `"` + s + `"`
 	}
 	return s
+}
+
+func TokenHasRealmRole(tokenStr string, role string) bool {
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenStr, jwt.MapClaims{})
+	if err != nil {
+		return false
+	}
+
+	claims := token.Claims.(jwt.MapClaims)
+
+	ra, ok := claims["realm_access"].(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	roles, ok := ra["roles"].([]interface{})
+	if !ok {
+		return false
+	}
+
+	for _, r := range roles {
+		if r.(string) == role {
+			return true
+		}
+	}
+
+	return false
 }

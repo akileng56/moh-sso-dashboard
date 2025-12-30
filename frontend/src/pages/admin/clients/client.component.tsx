@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../../context/useAuth";
+import { useAuth } from "../../../context/useAuth";
 
 export default function ClientsPage() {
   const { accessToken } = useAuth();

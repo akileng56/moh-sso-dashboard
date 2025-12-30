@@ -1,6 +1,5 @@
-// src/context/AuthProvider.tsx
 import React, { useEffect, useState, useCallback, useMemo } from "react";
-import { AuthContext } from "./authContext";
+import { AuthContext, type AuthUser } from "./authContext";
 
 const API_BASE = "http://localhost:9000/api/v1/auth";
 
@@ -8,7 +7,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchMe = useCallback(async (token: string) => {
+    const res = await fetch(`${API_BASE}/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      credentials: "include",
+    });
+
+    if (!res.ok) return null;
+    return res.json();
+  }, []);
 
   const tryRefresh = useCallback(async () => {
     try {
@@ -21,14 +33,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const data = await res.json();
       setAccessToken(data.access_token);
+
+      const me = await fetchMe(data.access_token);
+      if (me?.user) {
+        setUser(me.user);
+      }
+
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
-  }, []);
+  }, [fetchMe]);
 
   const logout = useCallback(() => {
     setAccessToken(null);
+    setUser(null);
     window.location.href = `${API_BASE}/logout`;
   }, []);
 
@@ -43,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     })();
   }, [tryRefresh]);
 
+  // Silent refresh loop
   useEffect(() => {
     const interval = setInterval(() => {
       tryRefresh();
@@ -50,16 +70,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [tryRefresh]);
 
+  const isAdmin = user?.is_admin === true;
+
   const ctx = useMemo(
     () => ({
       authenticated: !!accessToken,
       accessToken,
+      user,
+      isAdmin,
+      loading,
       logout,
     }),
-    [accessToken, logout]
+    [accessToken, user, isAdmin, loading, logout]
   );
 
-  if (loading) return <p>Authenticating...</p>;
+  if (loading) return <p>Authenticating…</p>;
 
   return <AuthContext.Provider value={ctx}>{children}</AuthContext.Provider>;
 };

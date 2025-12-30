@@ -36,15 +36,11 @@ func NewAuthHandler(
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 
-	_ = h.auditService.Log(
+	_ = h.auditService.LoginInitiated(
 		c.Request.Context(),
-		uuid.NullUUID{}, // anonymous
-		"login_initiated",
-		map[string]interface{}{
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-			"client_id":  h.config.KeycloakClientID,
-		},
+		c.ClientIP(),
+		c.Request.UserAgent(),
+		h.config.KeycloakClientID,
 	)
 
 	authURL, err := url.Parse(
@@ -90,7 +86,7 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
-		"get_me",
+		"auth.get_me",
 		map[string]interface{}{
 			"ip":         c.ClientIP(),
 			"user_agent": c.Request.UserAgent(),
@@ -108,7 +104,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 
-		_ = h.auditService.LogLogin(
+		_ = h.auditService.LoginResult(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			false,
@@ -130,7 +126,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 
 		log.Printf("Authentication failed: %v", err)
 
-		_ = h.auditService.LogLogin(
+		_ = h.auditService.LoginResult(
 			c.Request.Context(),
 			uuid.NullUUID{},
 			false,
@@ -147,11 +143,10 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		return
 	}
 
-	// Extract user ID from token
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
-	// Login success
-	_ = h.auditService.LogLogin(
+	// login success
+	_ = h.auditService.LoginResult(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		true,
@@ -162,11 +157,18 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		"",
 	)
 
-	// Cookies
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
+	// Determine admin status (from token)
+	isAdmin := utils.TokenHasRealmRole(tokens.AccessToken, "admin")
+
+	redirectURL := "http://localhost:3000/dashboard"
+	if isAdmin {
+		redirectURL = "http://localhost:3000/admin"
+	}
+
+	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
 // ----------------------------------------------------
@@ -177,14 +179,12 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil || refreshToken == "" {
 
-		_ = h.auditService.Log(
+		_ = h.auditService.TokenRefresh(
 			c.Request.Context(),
 			uuid.NullUUID{},
-			"refresh_failed",
-			map[string]interface{}{
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+			false,
+			c.ClientIP(),
+			c.Request.UserAgent(),
 		)
 
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -198,14 +198,12 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 
 		log.Printf("Token refresh failed: %v", err)
 
-		_ = h.auditService.Log(
+		_ = h.auditService.TokenRefresh(
 			c.Request.Context(),
 			uuid.NullUUID{},
-			"refresh_failed",
-			map[string]interface{}{
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+			false,
+			c.ClientIP(),
+			c.Request.UserAgent(),
 		)
 
 		h.setSecureRefreshTokenCookie(c, "", -1)
@@ -218,14 +216,12 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
-	_ = h.auditService.Log(
+	_ = h.auditService.TokenRefresh(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
-		"refresh_success",
-		map[string]interface{}{
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		},
+		true,
+		c.ClientIP(),
+		c.Request.UserAgent(),
 	)
 
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
@@ -242,16 +238,13 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 
-	userID := c.GetString("user_id")
+	userID := utils.ToNullUUID(c.GetString("user_id"))
 
-	_ = h.auditService.Log(
+	_ = h.auditService.Logout(
 		c.Request.Context(),
-		utils.ToNullUUID(userID),
-		"logout",
-		map[string]interface{}{
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		},
+		userID,
+		c.ClientIP(),
+		c.Request.UserAgent(),
 	)
 
 	refreshToken, _ := c.Cookie("refresh_token")

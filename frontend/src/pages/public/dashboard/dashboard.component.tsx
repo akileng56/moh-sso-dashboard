@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import DashboardHeader from "../../components/header/Header.component";
-import { useAuth } from "../../context/useAuth";
+import DashboardHeader from "../../../components/header/PublicHeader.component";
+import { useAuth } from "../../../context/useAuth";
 
 interface UserProfile {
   id?: string;
