@@ -6,14 +6,22 @@ import {
   Tag,
   Tile,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@carbon/react";
-import { useAuditLogs } from "../../../hooks/useAuditLogs.ts";
-import { type AuditLog } from "../../../lib/api/audit.ts";
-import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer.tsx";
-import { AuditLogFilters } from "../../../components/audit/AuditLogFilters.tsx.tsx";
-import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel.tsx";
-import { EmptyState } from "../../../components/emptystate/EmptyState.tsx";
-import { ErrorState } from "../../../components/errorstate/ErrorState.tsx";
+
+import { useAuditLogs } from "../../../hooks/useAuditLogs";
+import { type AuditLog } from "../../../lib/api/audit";
+import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer";
+import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
+import { EmptyState } from "../../../components/emptystate/EmptyState";
+import { ErrorState } from "../../../components/errorstate/ErrorState";
+import { AuditLogFilters } from "../../../components/audit/AuditLogFilters.tsx";
 
 function toRFC3339(d: Date) {
   return d.toISOString();
@@ -42,23 +50,25 @@ export default function AuditLogs() {
   const rows = useMemo(
     () =>
       (data?.items ?? []).map((log) => ({
-        id: log.id,
+        id: log.id, // ✅ stable key
+        shortId: log.id.slice(0, 8), // UI only
         time: new Date(log.createdAt).toLocaleString(),
         actor: log.username ?? "System",
         action: log.action,
-        client: log.metadata?.client_id ?? "",
+        client: log.metadata?.client_id ?? "—",
         result:
-          typeof log.metadata?.success === "boolean"
-            ? log.metadata.success
-              ? "success"
-              : "failure"
-            : "",
+          log.metadata?.success === true
+            ? "success"
+            : log.metadata?.success === false
+            ? "failure"
+            : "—",
         raw: log,
       })),
     [data?.items]
   );
 
   const headers = [
+    { key: "shortId", header: "ID" },
     { key: "time", header: "Time" },
     { key: "actor", header: "Actor" },
     { key: "action", header: "Action" },
@@ -97,6 +107,8 @@ export default function AuditLogs() {
       {/* Filters */}
       <Tile>
         <AuditLogFilters
+          from={from}
+          to={to}
           onFromChange={setFrom}
           onToChange={setTo}
           onClientChange={setClientId}
@@ -105,16 +117,18 @@ export default function AuditLogs() {
           onClear={clearFilters}
           onExportCsv={() => window.open(buildExportUrl("csv"))}
           onExportJson={() => window.open(buildExportUrl("json"))}
-          from={""}
-          to={""}
         />
       </Tile>
 
-      {/* States + Table */}
+      {/* Table */}
       <Tile>
-        {loading && <InlineLoading description="Loading audit logs…" />}
+        {loading && (
+          <div style={{ padding: 16 }}>
+            <InlineLoading description="Loading audit logs…" />
+          </div>
+        )}
 
-        {error && (
+        {!loading && error && (
           <ErrorState
             title="Failed to load audit logs"
             description={error}
@@ -137,71 +151,78 @@ export default function AuditLogs() {
         )}
 
         {!loading && !error && rows.length > 0 && (
-          <DataTable rows={rows} headers={headers}>
-            {({ rows, headers, getHeaderProps, getRowProps }) => (
-              <table style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    {headers.map((h) => (
-                      <th key={h.key} {...getHeaderProps({ header: h })}>
-                        {h.header}
-                      </th>
-                    ))}
-                    <th>Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => {
-                    const raw = (row as any).raw as AuditLog;
-                    return (
-                      <tr
-                        {...getRowProps({ row })}
-                        onClick={() => setSelected(raw)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {row.cells.map((cell) => (
-                          <td key={cell.id}>
-                            {cell.info.header === "result" ? (
-                              <Tag
-                                type={
-                                  cell.value === "success" ? "green" : "red"
-                                }
-                              >
-                                {cell.value}
-                              </Tag>
-                            ) : (
-                              cell.value
-                            )}
-                          </td>
-                        ))}
-                        <td>
-                          <Button
-                            size="sm"
-                            kind="ghost"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelected(raw);
-                            }}
+          <>
+            <DataTable rows={rows} headers={headers}>
+              {({ rows, headers, getHeaderProps, getRowProps }) => (
+                <TableContainer>
+                  <Table size="lg">
+                    <TableHead>
+                      <TableRow>
+                        {headers.map((header) => (
+                          <TableHeader
+                            key={header.key}
+                            {...getHeaderProps({ header })}
                           >
-                            View
-                          </Button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            )}
-          </DataTable>
-        )}
+                            {header.header}
+                          </TableHeader>
+                        ))}
+                        <TableHeader />
+                      </TableRow>
+                    </TableHead>
 
-        <Pagination
-          page={1}
-          pageSize={50}
-          pageSizes={[50, 100, 200]}
-          totalItems={data?.items?.length ?? 0}
-          onChange={() => {}}
-        />
+                    <TableBody>
+                      {rows.map((row) => {
+                        const raw = (row as any).raw as AuditLog;
+
+                        return (
+                          <TableRow key={row.id} {...getRowProps({ row })}>
+                            {row.cells.map((cell) => (
+                              <TableCell key={cell.id}>
+                                {cell.info.header === "result" ? (
+                                  <Tag
+                                    type={
+                                      cell.value === "success"
+                                        ? "green"
+                                        : cell.value === "failure"
+                                        ? "red"
+                                        : "gray"
+                                    }
+                                  >
+                                    {cell.value}
+                                  </Tag>
+                                ) : (
+                                  cell.value
+                                )}
+                              </TableCell>
+                            ))}
+
+                            <TableCell style={{ textAlign: "right" }}>
+                              <Button
+                                size="sm"
+                                kind="ghost"
+                                onClick={() => setSelected(raw)}
+                              >
+                                View
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </DataTable>
+
+            <Pagination
+              page={1}
+              pageSize={50}
+              pageSizes={[50, 100, 200]}
+              totalItems={data?.items?.length ?? rows.length}
+              disabled
+            />
+          </>
+        )}
       </Tile>
 
       <AuditLogDrawer

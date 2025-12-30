@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -407,10 +406,6 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 	if err := json.NewDecoder(res.Body).Decode(&users); err != nil {
 		return nil, err
 	}
-
-	usersDate, _ := json.Marshal(users)
-
-	log.Println("Users:", string(usersDate))
 
 	return users, nil
 }
