@@ -51,15 +51,6 @@ function App() {
           }
         >
           <Route
-            path="audit-logs"
-            element={
-              <AdminRoute>
-                <AuditLogsPage />
-              </AdminRoute>
-            }
-          />
-
-          <Route
             path="users"
             element={
               <AdminRoute>
@@ -73,6 +64,14 @@ function App() {
             element={
               <AdminRoute>
                 <ClientsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="audit-logs"
+            element={
+              <AdminRoute>
+                <AuditLogsPage />
               </AdminRoute>
             }
           />

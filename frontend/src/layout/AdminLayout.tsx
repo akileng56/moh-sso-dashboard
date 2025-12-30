@@ -57,14 +57,7 @@ export default function AdminLayout() {
             isActive={location.pathname === "/admin"}
             onClick={() => navigate("/admin")}
           >
-            Dashboard
-          </SideNavLink>
-
-          <SideNavLink
-            isActive={location.pathname.startsWith("/admin/audit-logs")}
-            onClick={() => navigate("/admin/audit-logs")}
-          >
-            Audit Logs
+            Home
           </SideNavLink>
 
           <SideNavLink
@@ -79,6 +72,13 @@ export default function AdminLayout() {
             onClick={() => navigate("/admin/clients")}
           >
             Clients
+          </SideNavLink>
+
+          <SideNavLink
+            isActive={location.pathname.startsWith("/admin/audit-logs")}
+            onClick={() => navigate("/admin/audit-logs")}
+          >
+            Audits
           </SideNavLink>
         </SideNavItems>
       </SideNav>

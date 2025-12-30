@@ -20,6 +20,8 @@ function toRFC3339(d: Date) {
   return d.toISOString();
 }
 
+type SuccessFilter = "true" | "false";
+
 export const AuditLogs: React.FC = () => {
   const now = new Date();
   const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -27,13 +29,11 @@ export const AuditLogs: React.FC = () => {
   const [from, setFrom] = useState(toRFC3339(start));
   const [to, setTo] = useState(toRFC3339(now));
 
-  const [action, setAction] = useState<string | undefined>(undefined);
-  const [userId, setUserId] = useState<string | undefined>(undefined);
-  const [clientId, setClientId] = useState<string | undefined>(undefined);
-  const [ip, setIp] = useState<string | undefined>(undefined);
-  const [success, setSuccess] = useState<"true" | "false" | undefined>(
-    undefined
-  );
+  const [action, setAction] = useState<string>();
+  const [userId, setUserId] = useState<string>();
+  const [clientId, setClientId] = useState<string>();
+  const [ip, setIp] = useState<string>();
+  const [success, setSuccess] = useState<SuccessFilter>();
 
   const [selected, setSelected] = useState<AuditLog | null>(null);
 
@@ -52,21 +52,25 @@ export const AuditLogs: React.FC = () => {
 
   const { data, loading, error } = useAuditLogs(filters);
 
-  const rows = (data?.items ?? []).map((l) => ({
-    id: l.id,
-    time: new Date(l.createdAt).toLocaleString(),
-    actor: l.username ?? "System",
-    action: l.action,
-    ip: l.metadata?.ip ?? "",
-    client: l.metadata?.client_id ?? "",
-    result:
-      typeof l.metadata?.success === "boolean"
-        ? l.metadata.success
-          ? "success"
-          : "failure"
-        : "",
-    raw: l,
-  }));
+  const rows = useMemo(
+    () =>
+      (data?.items ?? []).map((log) => ({
+        id: log.id,
+        time: new Date(log.createdAt).toLocaleString(),
+        actor: log.username ?? "System",
+        action: log.action,
+        client: log.metadata?.client_id ?? "",
+        ip: log.metadata?.ip ?? "",
+        result:
+          typeof log.metadata?.success === "boolean"
+            ? log.metadata.success
+              ? "success"
+              : "failure"
+            : "",
+        raw: log,
+      })),
+    [data?.items]
+  );
 
   const headers = [
     { key: "time", header: "Time" },
@@ -76,6 +80,15 @@ export const AuditLogs: React.FC = () => {
     { key: "ip", header: "IP" },
     { key: "result", header: "Result" },
   ];
+
+  function buildExportUrl(format: "csv" | "json") {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== undefined) params.set(k, String(v));
+    });
+    params.set("format", format);
+    return `/admin/audit-logs/export?${params.toString()}`;
+  }
 
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
@@ -93,33 +106,28 @@ export const AuditLogs: React.FC = () => {
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <DatePicker
               datePickerType="range"
-              onChange={(dates: Date[]) => {
-                if (dates?.[0]) setFrom(toRFC3339(dates[0]));
-                if (dates?.[1]) setTo(toRFC3339(dates[1]));
+              onChange={(dates) => {
+                if (Array.isArray(dates)) {
+                  if (dates[0] instanceof Date) setFrom(toRFC3339(dates[0]));
+                  if (dates[1] instanceof Date) setTo(toRFC3339(dates[1]));
+                }
               }}
             >
-              <DatePickerInput
-                id="from"
-                labelText="From"
-                placeholder="mm/dd/yyyy"
-              />
-              <DatePickerInput
-                id="to"
-                labelText="To"
-                placeholder="mm/dd/yyyy"
-              />
+              <DatePickerInput id="from" labelText="From" />
+              <DatePickerInput id="to" labelText="To" />
             </DatePicker>
 
             <Search
-              labelText="IP"
-              placeholder="Filter by IP"
-              onChange={(e) => setIp(e.currentTarget.value || undefined)}
-            />
-
-            <Search
               labelText="Client ID"
-              placeholder="Filter by client_id"
-              onChange={(e) => setClientId(e.currentTarget.value || undefined)}
+              onChange={(e) => setClientId(e.target.value || undefined)}
+            />
+            <Search
+              labelText="User ID"
+              onChange={(e) => setUserId(e.target.value || undefined)}
+            />
+            <Search
+              labelText="Action"
+              onChange={(e) => setAction(e.target.value || undefined)}
             />
 
             <ComboBox
@@ -129,22 +137,10 @@ export const AuditLogs: React.FC = () => {
                 { id: "true", label: "Success" },
                 { id: "false", label: "Failure" },
               ]}
-              itemToString={(it) => (it ? it.label : "")}
+              itemToString={(item) => item?.label ?? ""}
               onChange={({ selectedItem }) =>
-                setSuccess((selectedItem?.id as any) || undefined)
+                setSuccess(selectedItem?.id as SuccessFilter | undefined)
               }
-            />
-
-            <Search
-              labelText="User ID"
-              placeholder="Filter by user UUID"
-              onChange={(e) => setUserId(e.currentTarget.value || undefined)}
-            />
-
-            <Search
-              labelText="Action"
-              placeholder="Filter by action"
-              onChange={(e) => setAction(e.currentTarget.value || undefined)}
             />
 
             <Button
@@ -162,28 +158,14 @@ export const AuditLogs: React.FC = () => {
 
             <Button
               kind="primary"
-              onClick={() => {
-                const p = new URLSearchParams(filters as any);
-                p.set("format", "csv");
-                window.open(
-                  `/admin/audit-logs/export?${p.toString()}`,
-                  "_blank"
-                );
-              }}
+              onClick={() => window.open(buildExportUrl("csv"))}
             >
               Export CSV
             </Button>
 
             <Button
               kind="tertiary"
-              onClick={() => {
-                const p = new URLSearchParams(filters as any);
-                p.set("format", "json");
-                window.open(
-                  `/admin/audit-logs/export?${p.toString()}`,
-                  "_blank"
-                );
-              }}
+              onClick={() => window.open(buildExportUrl("json"))}
             >
               Export JSON
             </Button>
@@ -201,29 +183,26 @@ export const AuditLogs: React.FC = () => {
               getTableProps,
             }) => (
               <table {...getTableProps()} style={{ width: "100%" }}>
-                {/* <thead>
+                <thead>
                   <tr>
-                    {headers.map((header) => (
-                      <th key={header.key} {...getHeaderProps({ header })}>
-                        {header.header}
+                    {headers.map((h) => (
+                      <th key={h.key} {...getHeaderProps({ header: h })}>
+                        {h.header}
                       </th>
                     ))}
                     <th>Details</th>
                   </tr>
-                </thead> */}
+                </thead>
                 <tbody>
-                  {rows.map((r) => {
-                    const raw = (r as any).raw as AuditLog;
-                    const result = (r as any).cells.find(
-                      (c: any) => c.info.header === "result"
-                    )?.value;
+                  {rows.map((row) => {
+                    const raw = (row as any).raw as AuditLog;
                     return (
                       <tr
-                        {...getRowProps({ row: r })}
+                        {...getRowProps({ row })}
                         style={{ cursor: "pointer" }}
                         onClick={() => setSelected(raw)}
                       >
-                        {r.cells.map((cell) => (
+                        {row.cells.map((cell) => (
                           <td key={cell.id}>
                             {cell.info.header === "result" && cell.value ? (
                               <Tag
@@ -263,17 +242,14 @@ export const AuditLogs: React.FC = () => {
             pageSize={50}
             pageSizes={[50, 100, 200]}
             totalItems={data?.items?.length ?? 0}
-            onChange={() => {
-              // MVP: cursor paging “Load more” is better than Carbon's page numbers.
-              // Implement a Load More button using next_cursor for stable pagination.
-            }}
+            onChange={() => {}}
           />
         </div>
       </Tile>
 
       <AuditLogDrawer
         log={selected}
-        open={!!selected}
+        open={Boolean(selected)}
         onClose={() => setSelected(null)}
       />
     </div>

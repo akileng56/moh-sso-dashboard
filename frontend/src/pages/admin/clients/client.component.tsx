@@ -1,50 +1,263 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  DataTable,
+  Table,
+  TableHead,
+  TableRow,
+  TableHeader,
+  TableBody,
+  TableCell,
+  InlineLoading,
+  Tile,
+  Dropdown,
+  Button,
+  Tag,
+} from "@carbon/react";
+import { View, UserFollow } from "@carbon/icons-react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/useAuth";
+
+interface Client {
+  id: string;
+  clientId: string;
+  name: string;
+  publicClient: boolean;
+  enabled: boolean;
+}
+
+/* -----------------------------
+ * Filters (typed, consistent)
+ * ----------------------------- */
+type StatusFilter = "all" | "enabled" | "disabled";
+type TypeFilter = "all" | "public" | "confidential";
+
+const STATUS_OPTIONS = [
+  { id: "all", label: "All" },
+  { id: "enabled", label: "Enabled" },
+  { id: "disabled", label: "Disabled" },
+] as const;
+
+const TYPE_OPTIONS = [
+  { id: "all", label: "All" },
+  { id: "public", label: "Public" },
+  { id: "confidential", label: "Confidential" },
+] as const;
+
+/* -----------------------------
+ * Table headers
+ * ----------------------------- */
+const headers = [
+  { key: "name", header: "Name" },
+  { key: "clientId", header: "Client ID" },
+  { key: "type", header: "Type" },
+  { key: "status", header: "Status" },
+  { key: "actions", header: "Actions" },
+];
 
 export default function ClientsPage() {
   const { accessToken } = useAuth();
-  const [clients, setClients] = useState([]);
+  const navigate = useNavigate();
+
+  const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+
+  /* -----------------------------
+   * Load clients
+   * ----------------------------- */
   useEffect(() => {
-    fetch("http://localhost:9000/api/v1/clients", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        setClients(data);
-        setLoading(false);
-      });
-  }, []);
+    if (!accessToken) return;
 
-  if (loading) return <p>Loading...</p>;
+    const controller = new AbortController();
+
+    async function loadClients() {
+      try {
+        const res = await fetch("http://localhost:9000/api/v1/clients", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          credentials: "include",
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          throw new Error(`Failed to load clients (${res.status})`);
+        }
+
+        setClients(await res.json());
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          setError(err.message ?? "Failed to load clients");
+        }
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadClients();
+    return () => controller.abort();
+  }, [accessToken]);
+
+  /* -----------------------------
+   * Filtering (pure & readable)
+   * ----------------------------- */
+  const filteredClients = useMemo(() => {
+    return clients.filter((c) => {
+      if (statusFilter === "enabled" && !c.enabled) return false;
+      if (statusFilter === "disabled" && c.enabled) return false;
+      if (typeFilter === "public" && !c.publicClient) return false;
+      if (typeFilter === "confidential" && c.publicClient) return false;
+      return true;
+    });
+  }, [clients, statusFilter, typeFilter]);
+
+  /* -----------------------------
+   * Placeholder toggle
+   * ----------------------------- */
+  function toggleClient(client: Client) {
+    setClients((prev) =>
+      prev.map((c) => (c.id === client.id ? { ...c, enabled: !c.enabled } : c))
+    );
+  }
+
+  /* -----------------------------
+   * Loading / error
+   * ----------------------------- */
+  if (loading) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <InlineLoading description="Loading clients…" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div style={{ padding: "2rem", color: "crimson" }}>{error}</div>;
+  }
+
+  /* -----------------------------
+   * Rows (explicit + consistent)
+   * ----------------------------- */
+  const rows = filteredClients.map((c) => ({
+    id: c.id,
+    name: c.name,
+    clientId: c.clientId,
+    type: c.publicClient ? "Public" : "Confidential",
+    status: c.enabled ? "Enabled" : "Disabled",
+    actions: "", // explicit placeholder
+    raw: c,
+  }));
 
   return (
     <div style={{ padding: "2rem" }}>
-      <h1>Registered Clients</h1>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Client ID</th>
-            <th>Type</th>
-            <th>Status</th>
-          </tr>
-        </thead>
+      <div>
+        <h3 style={{ margin: 0 }}>Clients</h3>
+        <p style={{ marginTop: 6, opacity: 0.8 }}>
+          Registered applications and services integrated with the platform.
+        </p>
+      </div>
 
-        <tbody>
-          {clients.map((c: any) => (
-            <tr key={c.id}>
-              <td>{c.name}</td>
-              <td>{c.clientId}</td>
-              <td>{c.publicClient ? "Public" : "Confidential"}</td>
-              <td>{c.enabled ? "Enabled" : "Disabled"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Tile>
+        {/* Filters */}
+        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
+          <Dropdown
+            id="client-status-filter"
+            titleText="Status"
+            items={STATUS_OPTIONS}
+            selectedItem={STATUS_OPTIONS.find((i) => i.id === statusFilter)}
+            itemToString={(item) => item?.label ?? ""}
+            onChange={({ selectedItem }) =>
+              setStatusFilter(selectedItem?.id as StatusFilter)
+            }
+          />
+
+          <Dropdown
+            id="client-type-filter"
+            titleText="Type"
+            items={TYPE_OPTIONS}
+            selectedItem={TYPE_OPTIONS.find((i) => i.id === typeFilter)}
+            itemToString={(item) => item?.label ?? ""}
+            onChange={({ selectedItem }) =>
+              setTypeFilter(selectedItem?.id as TypeFilter)
+            }
+          />
+        </div>
+
+        {/* Table */}
+        <DataTable rows={rows} headers={headers}>
+          {({ rows, headers, getHeaderProps, getRowProps, getTableProps }) => (
+            <Table {...getTableProps()}>
+              <TableHead>
+                <TableRow>
+                  {headers.map((h) => (
+                    <TableHeader key={h.key} {...getHeaderProps({ header: h })}>
+                      {h.header}
+                    </TableHeader>
+                  ))}
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {rows.map((row) => {
+                  const client = (row as any).raw as Client;
+
+                  return (
+                    <TableRow {...getRowProps({ row })}>
+                      {row.cells.map((cell) => {
+                        if (cell.info.header === "status") {
+                          return (
+                            <TableCell key={cell.id}>
+                              <Tag type={client?.enabled ? "green" : "red"}>
+                                {cell.value}
+                              </Tag>
+                            </TableCell>
+                          );
+                        }
+
+                        if (cell.info.header === "actions") {
+                          return (
+                            <TableCell key={cell.id}>
+                              <Button
+                                size="sm"
+                                kind="ghost"
+                                hasIconOnly
+                                renderIcon={View}
+                                iconDescription="View audit logs"
+                                onClick={() =>
+                                  navigate(
+                                    `/admin/audit-logs?client_id=${client.clientId}`
+                                  )
+                                }
+                              />
+                              <Button
+                                size="sm"
+                                kind="ghost"
+                                hasIconOnly
+                                renderIcon={UserFollow}
+                                iconDescription={
+                                  client?.enabled
+                                    ? "Disable client"
+                                    : "Enable client"
+                                }
+                                onClick={() => toggleClient(client)}
+                              />
+                            </TableCell>
+                          );
+                        }
+
+                        return (
+                          <TableCell key={cell.id}>{cell.value}</TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </DataTable>
+      </Tile>
     </div>
   );
 }
