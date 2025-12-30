@@ -247,6 +247,7 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		c.Request.UserAgent(),
 	)
 
+	// Revoke refresh token at Keycloak
 	refreshToken, _ := c.Cookie("refresh_token")
 	if refreshToken != "" {
 		if err := h.authService.LogOut(refreshToken); err != nil {
@@ -254,6 +255,7 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		}
 	}
 
+	// Clear cookies
 	clearCookie := func(name string, httpOnly bool) {
 		http.SetCookie(c.Writer, &http.Cookie{
 			Name:     name,
@@ -270,7 +272,11 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	clearCookie("access_token", false)
 	clearCookie("refresh_token", true)
 
-	c.Redirect(http.StatusTemporaryRedirect, "http://localhost:3000/dashboard")
+	// ✅ Redirect to login (NOT dashboard)
+	c.Redirect(
+		http.StatusTemporaryRedirect,
+		"http://localhost:9000/api/v1/auth/login",
+	)
 }
 
 // ----------------------------------------------------

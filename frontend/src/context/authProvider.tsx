@@ -9,6 +9,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const fetchMe = useCallback(async (token: string) => {
     const res = await fetch(`${API_BASE}/me`, {
@@ -23,6 +24,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const tryRefresh = useCallback(async () => {
+    if (loggingOut) return false;
+
     try {
       const res = await fetch(`${API_BASE}/refresh`, {
         method: "POST",
@@ -35,19 +38,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setAccessToken(data.access_token);
 
       const me = await fetchMe(data.access_token);
-      if (me?.user) {
-        setUser(me.user);
-      }
+      if (me?.user) setUser(me.user);
 
       return true;
     } catch {
       return false;
     }
-  }, [fetchMe]);
+  }, [fetchMe, loggingOut]);
 
   const logout = useCallback(() => {
-    setAccessToken(null);
-    setUser(null);
     window.location.href = `${API_BASE}/logout`;
   }, []);
 
@@ -64,11 +63,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Silent refresh loop
   useEffect(() => {
+    if (loggingOut) return;
+
     const interval = setInterval(() => {
       tryRefresh();
-    }, 240000); // 4 min
+    }, 240000);
+
     return () => clearInterval(interval);
-  }, [tryRefresh]);
+  }, [tryRefresh, loggingOut]);
 
   const isAdmin = user?.is_admin === true;
 

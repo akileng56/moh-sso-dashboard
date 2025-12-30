@@ -21,17 +21,30 @@ export default function AdminLayout() {
     <>
       {/* Top Header */}
       <Header aria-label="MOH Integrated Health Portal">
-        <HeaderName prefix="MOH" onClick={() => navigate("/admin")}>
+        <HeaderName
+          prefix="MOH"
+          onClick={() => navigate("/admin")}
+          style={{ cursor: "pointer" }}
+        >
           Integrated Health Portal
         </HeaderName>
 
+        {/* Global actions (icons only) */}
         <HeaderGlobalBar>
-          <HeaderGlobalAction aria-label="User">
+          {/* User indicator */}
+          <HeaderGlobalAction
+            aria-label={`Signed in as ${user?.username ?? "user"}`}
+            tooltipAlignment="end"
+          >
             <UserAvatarFilled size={20} />
-            <span style={{ marginLeft: 8 }}>{user?.username}</span>
           </HeaderGlobalAction>
 
-          <HeaderGlobalAction aria-label="Logout" onClick={logout}>
+          {/* Logout */}
+          <HeaderGlobalAction
+            aria-label="Logout"
+            tooltipAlignment="end"
+            onClick={logout}
+          >
             <Logout size={20} />
           </HeaderGlobalAction>
         </HeaderGlobalBar>
