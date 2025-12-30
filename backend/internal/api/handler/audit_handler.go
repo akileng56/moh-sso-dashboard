@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -112,8 +113,8 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 
 	// SQLC expects NULLable params; adapt based on your generated types if needed.
 	rows, err := h.store.ListAuditLogs(c.Request.Context(), db.ListAuditLogsParams{
-		StartTime: toNullTime(&from),
-		EndTime:   toNullTime(&to),
+		StartTime: from,
+		EndTime:   to,
 
 		Action:   toNullString(action),
 		UserID:   toNullUUID(userID),
@@ -127,6 +128,8 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 		RowLimit: limit + 1,
 	})
 
+	log.Println("err-->", err)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list audit logs"})
 		return
@@ -138,7 +141,7 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 	}
 
 	var nextCursorCreatedAt *time.Time
-	var nextCursorID *int64
+	var nextCursorID *uuid.UUID
 
 	if hasMore && len(rows) > 0 {
 		last := rows[len(rows)-1]
@@ -167,7 +170,7 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 func (h *AuditHandler) GetAuditLog(c *gin.Context) {
 	idStr := c.Param("id")
 
-	id, err := strconv.ParseInt(idStr, 10, 64)
+	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "invalid audit log id",
@@ -395,7 +398,9 @@ func (h *AuditHandler) ExportAuditLogs(c *gin.Context) {
 			userIDVal = r.UserID.UUID.String()
 		}
 
-		idStr := strconv.FormatInt(r.ID, 10)
+		// idStr := strconv.FormatInt(r, 10)
+
+		// id, _ := uuid.Parse(r.ID.String())
 
 		createdAtStr := ""
 		if r.CreatedAt.Valid {
@@ -403,7 +408,6 @@ func (h *AuditHandler) ExportAuditLogs(c *gin.Context) {
 		}
 
 		_ = w.Write([]string{
-			idStr,
 			createdAtStr,
 			userIDVal,
 			r.Username,

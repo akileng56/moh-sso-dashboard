@@ -1,6 +1,6 @@
 -- name: CreateUser :exec
 INSERT INTO users (
-    id, username, first_name, last_name, email, enabled, role
+    id, username, first_name, last_name, email, enabled, roles
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
 );
@@ -18,7 +18,7 @@ WHERE username = $1;
 -- name: GetUsersByRole :many
 SELECT *
 FROM users
-WHERE role = $1
+WHERE roles = $1
 ORDER BY created_at DESC;
 
 -- name: ListUsers :many
@@ -49,7 +49,7 @@ SET username = $2,
     last_name = $4,
     email = $5,
     enabled = $6,
-    role = $7,
+    roles = $7,
     updated_at = NOW()
 WHERE id = $1;
 
@@ -73,9 +73,9 @@ FROM users
 WHERE enabled = false;
 
 -- name: RoleDistribution :many
-SELECT role, COUNT(*) AS count
+SELECT roles, COUNT(*) AS count
 FROM users
-GROUP BY role;
+GROUP BY roles;
 
 -- name: NewUsersInRange :many
 SELECT
@@ -85,7 +85,7 @@ SELECT
     last_name,
     email,
     enabled,
-    role,
+    roles,
     created_at,
     updated_at,
     last_login_at
@@ -122,7 +122,7 @@ SELECT
     u.last_name,
     u.email,
     u.enabled,
-    u.role,
+    u.roles,
     u.created_at,
     u.updated_at,
     u.last_login_at

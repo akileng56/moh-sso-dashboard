@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -239,16 +240,57 @@ func (c *Client) DeleteClient(id string) error {
 // -------------------------------------------------------------------
 
 type UserInfo struct {
-	ID          string    `json:"id"`
-	Username    string    `json:"username"`
-	FirstName   string    `json:"firstName"`
-	LastName    string    `json:"lastName"`
-	Email       string    `json:"email"`
-	Enabled     bool      `json:"enabled"`
-	Role        string    `json:"role"`
-	CreatedAt   time.Time `json:"createdAt"`
-	UpdatedAt   time.Time `json:"updatedAt"`
-	LastLoginAt time.Time `json:"lastLoginAt"`
+	/* -----------------------------
+	 * Identity (Keycloak)
+	 * ----------------------------- */
+	ID        string `json:"id"` // Keycloak user ID
+	Username  string `json:"username"`
+	Email     string `json:"email"`
+	FirstName string `json:"firstName"`
+	LastName  string `json:"lastName"`
+
+	/* -----------------------------
+	 * Account Status
+	 * ----------------------------- */
+	Enabled         bool     `json:"enabled"`
+	EmailVerified   bool     `json:"emailVerified"`
+	RequiredActions []string `json:"requiredActions,omitempty"`
+	AccountStatus   string   `json:"accountStatus"`
+	// derived: ACTIVE | DISABLED | LOCKED | PENDING
+
+	/* -----------------------------
+	 * Authorization
+	 * ----------------------------- */
+	Roles       []string            `json:"roles"`       // realm + client roles
+	ClientRoles map[string][]string `json:"clientRoles"` // per client/app
+
+	/* -----------------------------
+	 * Activity & Security
+	 * ----------------------------- */
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	LastLoginIP string     `json:"lastLoginIp,omitempty"`
+
+	FailedLoginAttempts int  `json:"failedLoginAttempts,omitempty"`
+	TemporarilyLocked   bool `json:"temporarilyLocked"`
+
+	/* -----------------------------
+	 * Lifecycle
+	 * ----------------------------- */
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
+
+	/* -----------------------------
+	 * Metadata (DB / Admin)
+	 * ----------------------------- */
+	Source     string     `json:"source"` // manual | import | invite | sync
+	ImportedAt *time.Time `json:"importedAt,omitempty"`
+	Notes      string     `json:"notes,omitempty"`
+
+	/* -----------------------------
+	 * UI helpers (derived, optional)
+	 * ----------------------------- */
+	DisplayName   string `json:"displayName"`
+	NeverLoggedIn bool   `json:"neverLoggedIn"`
 }
 
 type CreateUserRequest struct {
@@ -278,6 +320,7 @@ type RoleRep struct {
 }
 
 func (c *Client) CreateUser(user *model.User) (string, error) {
+	c.BaseURL = "http://keycloak:8080"
 	payload := map[string]any{
 		"username":      user.Username,
 		"email":         user.Email,
@@ -294,7 +337,7 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 		},
 	}
 
-	res, err := c.Post(fmt.Sprintf("admin/realms/%s/users", c.Realm), payload)
+	res, err := c.Post("users", payload)
 	if err != nil {
 		return "", err
 	}
@@ -348,7 +391,8 @@ func (c *Client) FindUsers(ctx context.Context, q string, exact bool) ([]UserRep
 }
 
 func (c *Client) ListUsers() ([]UserInfo, error) {
-	res, err := c.Get(fmt.Sprintf("admin/realms/%s/users", c.Realm))
+	c.BaseURL = "http://keycloak:8080"
+	res, err := c.Get("users")
 	if err != nil {
 		return nil, err
 	}
@@ -364,6 +408,10 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 		return nil, err
 	}
 
+	usersDate, _ := json.Marshal(users)
+
+	log.Println("Users:", string(usersDate))
+
 	return users, nil
 }
 
@@ -371,6 +419,7 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 // Update User in Keycloak
 // -------------------------------------------------------------------
 func (c *Client) UpdateUser(user *model.User) error {
+	c.BaseURL = "http://keycloak:8080"
 	if user.ID == "" {
 		return fmt.Errorf("missing Keycloak user ID")
 	}
@@ -383,8 +432,7 @@ func (c *Client) UpdateUser(user *model.User) error {
 		"enabled":   user.Enabled,
 	}
 
-	res, err := c.Put(
-		fmt.Sprintf("admin/realms/%s/users/%s", c.Realm, user.ID),
+	res, err := c.Put(("users" + user.ID),
 		payload,
 	)
 	if err != nil {
@@ -404,13 +452,12 @@ func (c *Client) UpdateUser(user *model.User) error {
 // Delete User in Keycloak
 // -------------------------------------------------------------------
 func (c *Client) DeleteUser(userID string) error {
+	c.BaseURL = "http://keycloak:8080"
 	if userID == "" {
 		return fmt.Errorf("invalid user ID")
 	}
 
-	res, err := c.Delete(
-		fmt.Sprintf("admin/realms/%s/users/%s", c.Realm, userID),
-	)
+	res, err := c.Delete("users/" + userID)
 	if err != nil {
 		return fmt.Errorf("keycloak delete request failed: %w", err)
 	}

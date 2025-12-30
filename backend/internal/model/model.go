@@ -81,24 +81,25 @@ type ProtocolMapper struct {
 }
 
 type User struct {
-	ID          string
-	Username    string
-	FirstName   string
-	LastName    string
-	Email       string
-	Enabled     bool
-	Role        string
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	LastLoginAt time.Time
+	ID          string     `json:"id"`
+	Username    string     `json:"username"`
+	FirstName   string     `json:"firstName"`
+	LastName    string     `json:"lastName"`
+	Email       string     `json:"email"`
+	Enabled     bool       `json:"enabled"`
+	Roles       []string   `json:"roles"`
+	CreatedAt   time.Time  `json:"createdAt"`
+	UpdatedAt   time.Time  `json:"updatedAt"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
 }
 
 type UserResponse struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	FullName string `json:"full_name"`
-	IsActive bool   `json:"is_active"`
+	ID       string   `json:"id"`
+	Username string   `json:"username"`
+	Email    string   `json:"email"`
+	FullName string   `json:"full_name"`
+	IsActive bool     `json:"is_active"`
+	Roles    []string `json:"roles"`
 }
 
 type ImportUserRow struct {
@@ -107,7 +108,7 @@ type ImportUserRow struct {
 	Email     string   `json:"email"`
 	FirstName string   `json:"firstName"`
 	LastName  string   `json:"lastName"`
-	Role      string   `json:"role"`
+	Roles     []string `json:"roles"`
 	Enabled   bool     `json:"enabled"`
 	ClientIDs []string `json:"clientIds"`
 	Errors    []string `json:"errors,omitempty"`

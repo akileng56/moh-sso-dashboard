@@ -7,13 +7,13 @@ import {
   Tile,
   Button,
 } from "@carbon/react";
-import { useAuditLogs } from "../../../hooks/useAuditLogs";
-import { type AuditLog } from "../../../lib/api/audit";
-import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer";
-import { AuditLogFilters } from "../../../components/audit/AuditLogFilters.tsx";
-import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
-import { EmptyState } from "../../../components/emptystate/EmptyState";
-import { ErrorState } from "../../../components/errorstate/ErrorState";
+import { useAuditLogs } from "../../../hooks/useAuditLogs.ts";
+import { type AuditLog } from "../../../lib/api/audit.ts";
+import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer.tsx";
+import { AuditLogFilters } from "../../../components/audit/AuditLogFilters.tsx.tsx";
+import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel.tsx";
+import { EmptyState } from "../../../components/emptystate/EmptyState.tsx";
+import { ErrorState } from "../../../components/errorstate/ErrorState.tsx";
 
 function toRFC3339(d: Date) {
   return d.toISOString();

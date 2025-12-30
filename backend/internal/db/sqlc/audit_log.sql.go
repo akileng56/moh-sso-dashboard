@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -359,7 +360,7 @@ type ExportAuditLogsParams struct {
 }
 
 type ExportAuditLogsRow struct {
-	ID        int64                 `json:"id"`
+	ID        uuid.UUID             `json:"id"`
 	CreatedAt sql.NullTime          `json:"created_at"`
 	UserID    uuid.NullUUID         `json:"user_id"`
 	Username  string                `json:"username"`
@@ -523,7 +524,7 @@ WHERE a.id = $1
 `
 
 type GetAuditLogRow struct {
-	ID        int64                 `json:"id"`
+	ID        uuid.UUID             `json:"id"`
 	CreatedAt sql.NullTime          `json:"created_at"`
 	UserID    uuid.NullUUID         `json:"user_id"`
 	Username  string                `json:"username"`
@@ -531,7 +532,7 @@ type GetAuditLogRow struct {
 	Metadata  pqtype.NullRawMessage `json:"metadata"`
 }
 
-func (q *Queries) GetAuditLog(ctx context.Context, id int64) (GetAuditLogRow, error) {
+func (q *Queries) GetAuditLog(ctx context.Context, id uuid.UUID) (GetAuditLogRow, error) {
 	row := q.db.QueryRowContext(ctx, getAuditLog, id)
 	var i GetAuditLogRow
 	err := row.Scan(
@@ -546,7 +547,7 @@ func (q *Queries) GetAuditLog(ctx context.Context, id int64) (GetAuditLogRow, er
 }
 
 const inactiveUsersSince = `-- name: InactiveUsersSince :many
-SELECT u.id, u.username, u.first_name, u.last_name, u.email, u.enabled, u.role, u.created_at, u.updated_at, u.last_login_at
+SELECT u.id, u.username, u.first_name, u.last_name, u.email, u.enabled, u.roles, u.created_at, u.updated_at, u.last_login_at
 FROM users u
 LEFT JOIN LATERAL (
     SELECT created_at
@@ -577,7 +578,7 @@ func (q *Queries) InactiveUsersSince(ctx context.Context) ([]User, error) {
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -691,39 +692,53 @@ SELECT
 FROM audit_logs a
 LEFT JOIN users u ON u.id = a.user_id
 WHERE
-  a.created_at >= $1
-  AND a.created_at <  $2
+  a.created_at >= $1::timestamptz
+  AND a.created_at <  $2::timestamptz
 
-  AND ($3 IS NULL OR a.action = $3)
-  AND ($4 IS NULL OR a.user_id = $4)
-  AND ($5 IS NULL OR a.metadata->>'client_id' = $5)
-  AND ($6 IS NULL OR a.metadata->>'ip' = $6)
-  AND ($7 IS NULL OR a.metadata->>'success' = $7)
+  AND ($3::text IS NULL OR a.action = $3::text)
+  AND ($4::uuid IS NULL OR a.user_id = $4::uuid)
 
   AND (
-    $8 IS NULL
-    OR $9 IS NULL
-    OR (a.created_at, a.id) < ($8, $9)
+    $5::text IS NULL
+    OR a.metadata->>'client_id' = $5::text
+  )
+
+  AND (
+    $6::text IS NULL
+    OR a.metadata->>'ip' = $6::text
+  )
+
+  AND (
+    $7::text IS NULL
+    OR a.metadata->>'success' = $7::text
+  )
+
+  AND (
+    $8::timestamptz IS NULL
+    OR $9::uuid IS NULL
+    OR (a.created_at, a.id)
+       < ($8::timestamptz,
+          $9::uuid)
   )
 ORDER BY a.created_at DESC, a.id DESC
-LIMIT $10
+LIMIT $10::int
 `
 
 type ListAuditLogsParams struct {
-	StartTime       sql.NullTime `json:"start_time"`
-	EndTime         sql.NullTime `json:"end_time"`
-	Action          interface{}  `json:"action"`
-	UserID          interface{}  `json:"user_id"`
-	ClientID        interface{}  `json:"client_id"`
-	Ip              interface{}  `json:"ip"`
-	Success         interface{}  `json:"success"`
-	CursorCreatedAt interface{}  `json:"cursor_created_at"`
-	CursorID        interface{}  `json:"cursor_id"`
-	RowLimit        int32        `json:"row_limit"`
+	StartTime       time.Time      `json:"start_time"`
+	EndTime         time.Time      `json:"end_time"`
+	Action          sql.NullString `json:"action"`
+	UserID          uuid.NullUUID  `json:"user_id"`
+	ClientID        sql.NullString `json:"client_id"`
+	Ip              sql.NullString `json:"ip"`
+	Success         sql.NullString `json:"success"`
+	CursorCreatedAt sql.NullTime   `json:"cursor_created_at"`
+	CursorID        uuid.NullUUID  `json:"cursor_id"`
+	RowLimit        int32          `json:"row_limit"`
 }
 
 type ListAuditLogsRow struct {
-	ID        int64                 `json:"id"`
+	ID        uuid.UUID             `json:"id"`
 	CreatedAt sql.NullTime          `json:"created_at"`
 	UserID    uuid.NullUUID         `json:"user_id"`
 	Username  string                `json:"username"`
@@ -1057,7 +1072,7 @@ type SuspiciousLoginsInRangeParams struct {
 }
 
 type SuspiciousLoginsInRangeRow struct {
-	ID        int64         `json:"id"`
+	ID        uuid.UUID     `json:"id"`
 	UserID    uuid.NullUUID `json:"user_id"`
 	Ip        interface{}   `json:"ip"`
 	Country   interface{}   `json:"country"`

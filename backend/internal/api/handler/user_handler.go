@@ -3,6 +3,7 @@ package handler
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -11,11 +12,14 @@ import (
 	"github.com/moh-sso-dashboard/internal/utils"
 )
 
-func toUserResponse(user *models.User) models.UserResponse {
+func toUserResponse(u *models.User) models.UserResponse {
 	return models.UserResponse{
-		ID:       user.ID,
-		Username: user.Username,
-		Email:    user.Email,
+		ID:       u.ID,
+		Username: u.Username,
+		Email:    u.Email,
+		FullName: strings.TrimSpace(u.FirstName + " " + u.LastName),
+		IsActive: u.Enabled,
+		Roles:    u.Roles,
 	}
 }
 
@@ -157,6 +161,7 @@ func (h *UserHandler) ListUsers(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list users"})
 		return
 	}
+
 	responses := make([]models.UserResponse, len(users))
 	for i, user := range users {
 		responses[i] = toUserResponse(&user)

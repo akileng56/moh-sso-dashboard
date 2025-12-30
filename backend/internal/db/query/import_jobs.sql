@@ -27,7 +27,7 @@ WHERE id = $1;
 
 -- name: InsertImportJobItem :exec
 INSERT INTO import_job_items (
-  id, job_id, row_number, username, email, first_name, last_name, role, enabled, client_ids, status, error_msg
+  id, job_id, row_number, username, email, first_name, last_name, roles, enabled, client_ids, status, error_msg
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 );

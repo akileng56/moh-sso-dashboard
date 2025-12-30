@@ -47,7 +47,7 @@ func (s *UserService) CreateUser(req CreateUserRequest) (*models.User, error) {
 		LastName:  "",
 		Email:     req.Email,
 		Enabled:   true,
-		Role:      "user",
+		Roles:     []string{},
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}

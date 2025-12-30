@@ -11,6 +11,7 @@ import {
   Tile,
   Button,
   Tag,
+  Pagination,
 } from "@carbon/react";
 import { View, UserFollow, Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
@@ -20,7 +21,6 @@ import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 
 interface Client {
-  id: string;
   clientId: string;
   name: string;
   publicClient: boolean;
@@ -64,8 +64,13 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Filters
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   /* -----------------------------
    * Load clients
@@ -102,6 +107,13 @@ export default function ClientsPage() {
   }, [accessToken]);
 
   /* -----------------------------
+   * Reset page on filter change
+   * ----------------------------- */
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, typeFilter]);
+
+  /* -----------------------------
    * Filtering
    * ----------------------------- */
   const filteredClients = useMemo(() => {
@@ -115,11 +127,22 @@ export default function ClientsPage() {
   }, [clients, statusFilter, typeFilter]);
 
   /* -----------------------------
+   * Pagination slice
+   * ----------------------------- */
+  const paginatedClients = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    return filteredClients.slice(start, end);
+  }, [filteredClients, page, pageSize]);
+
+  /* -----------------------------
    * Toggle (placeholder)
    * ----------------------------- */
   function toggleClient(client: Client) {
     setClients((prev) =>
-      prev.map((c) => (c.id === client.id ? { ...c, enabled: !c.enabled } : c))
+      prev.map((c) =>
+        c.clientId === client.clientId ? { ...c, enabled: !c.enabled } : c
+      )
     );
   }
 
@@ -150,8 +173,8 @@ export default function ClientsPage() {
     );
   }
 
-  const rows = filteredClients.map((c) => ({
-    id: c.id,
+  const rows = paginatedClients.map((c) => ({
+    id: `${c.clientId}`,
     name: c.name,
     clientId: c.clientId,
     type: c.publicClient ? "Public" : "Confidential",
@@ -162,9 +185,7 @@ export default function ClientsPage() {
 
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
-      {/* --------------------------------
-       * Page Header
-       * -------------------------------- */}
+      {/* Header */}
       <div>
         <h3 style={{ margin: 0 }}>Clients</h3>
         <p style={{ marginTop: 6, opacity: 0.8 }}>
@@ -172,9 +193,7 @@ export default function ClientsPage() {
         </p>
       </div>
 
-      {/* --------------------------------
-       * Filters
-       * -------------------------------- */}
+      {/* Filters */}
       <Tile>
         <ClientFilters
           status={statusFilter}
@@ -186,9 +205,7 @@ export default function ClientsPage() {
         />
       </Tile>
 
-      {/* --------------------------------
-       * Empty / Table
-       * -------------------------------- */}
+      {/* Table */}
       <Tile>
         {filteredClients.length === 0 ? (
           <EmptyState
@@ -201,87 +218,103 @@ export default function ClientsPage() {
             }}
           />
         ) : (
-          <DataTable rows={rows} headers={headers}>
-            {({
-              rows,
-              headers,
-              getHeaderProps,
-              getRowProps,
-              getTableProps,
-            }) => (
-              <Table {...getTableProps()}>
-                <TableHead>
-                  <TableRow>
-                    {headers.map((h) => (
-                      <TableHeader
-                        key={h.key}
-                        {...getHeaderProps({ header: h })}
-                      >
-                        {h.header}
-                      </TableHeader>
-                    ))}
-                  </TableRow>
-                </TableHead>
+          <>
+            <DataTable rows={rows} headers={headers}>
+              {({
+                rows,
+                headers,
+                getHeaderProps,
+                getRowProps,
+                getTableProps,
+              }) => (
+                <Table {...getTableProps()}>
+                  <TableHead>
+                    <TableRow>
+                      {headers.map((h) => (
+                        <TableHeader
+                          key={h.key}
+                          {...getHeaderProps({ header: h })}
+                        >
+                          {h.header}
+                        </TableHeader>
+                      ))}
+                    </TableRow>
+                  </TableHead>
 
-                <TableBody>
-                  {rows.map((row) => {
-                    const client = (row as any).raw as Client;
+                  <TableBody>
+                    {rows.map((row) => {
+                      const client = (row as any).raw as Client;
 
-                    return (
-                      <TableRow {...getRowProps({ row })}>
-                        {row.cells.map((cell) => {
-                          if (cell.info.header === "status") {
+                      return (
+                        <TableRow {...getRowProps({ row })}>
+                          {row.cells.map((cell) => {
+                            if (cell.info.header === "status") {
+                              return (
+                                <TableCell key={cell.id}>
+                                  <Tag type={client?.enabled ? "green" : "red"}>
+                                    {cell.value}
+                                  </Tag>
+                                </TableCell>
+                              );
+                            }
+
+                            if (cell.info.header === "actions") {
+                              return (
+                                <TableCell key={cell.id}>
+                                  <div style={{ display: "flex", gap: 4 }}>
+                                    <Button
+                                      size="sm"
+                                      kind="ghost"
+                                      hasIconOnly
+                                      renderIcon={View}
+                                      iconDescription="View audit logs"
+                                      onClick={() =>
+                                        navigate(
+                                          `/admin/audit-logs?client_id=${client.clientId}`
+                                        )
+                                      }
+                                    />
+
+                                    <Button
+                                      size="sm"
+                                      kind="ghost"
+                                      hasIconOnly
+                                      renderIcon={UserFollow}
+                                      iconDescription={
+                                        client?.enabled
+                                          ? "Disable client"
+                                          : "Enable client"
+                                      }
+                                      onClick={() => toggleClient(client)}
+                                    />
+                                  </div>
+                                </TableCell>
+                              );
+                            }
+
                             return (
-                              <TableCell key={cell.id}>
-                                <Tag type={client.enabled ? "green" : "red"}>
-                                  {cell.value}
-                                </Tag>
-                              </TableCell>
+                              <TableCell key={cell.id}>{cell.value}</TableCell>
                             );
-                          }
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </DataTable>
 
-                          if (cell.info.header === "actions") {
-                            return (
-                              <TableCell key={cell.id}>
-                                <Button
-                                  size="sm"
-                                  kind="ghost"
-                                  hasIconOnly
-                                  renderIcon={View}
-                                  iconDescription="View audit logs"
-                                  onClick={() =>
-                                    navigate(
-                                      `/admin/audit-logs?client_id=${client.clientId}`
-                                    )
-                                  }
-                                />
-                                <Button
-                                  size="sm"
-                                  kind="ghost"
-                                  hasIconOnly
-                                  renderIcon={UserFollow}
-                                  iconDescription={
-                                    client.enabled
-                                      ? "Disable client"
-                                      : "Enable client"
-                                  }
-                                  onClick={() => toggleClient(client)}
-                                />
-                              </TableCell>
-                            );
-                          }
-
-                          return (
-                            <TableCell key={cell.id}>{cell.value}</TableCell>
-                          );
-                        })}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </DataTable>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              pageSizes={[10, 20, 30, 50]}
+              totalItems={filteredClients.length}
+              onChange={({ page, pageSize }) => {
+                setPage(page);
+                setPageSize(pageSize);
+              }}
+            />
+          </>
         )}
       </Tile>
     </div>

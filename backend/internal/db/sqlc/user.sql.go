@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countDisabledUsers = `-- name: CountDisabledUsers :one
@@ -66,7 +67,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users (
-    id, username, first_name, last_name, email, enabled, role
+    id, username, first_name, last_name, email, enabled, roles
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7
 )
@@ -79,7 +80,7 @@ type CreateUserParams struct {
 	LastName  sql.NullString `json:"last_name"`
 	Email     string         `json:"email"`
 	Enabled   sql.NullBool   `json:"enabled"`
-	Role      string         `json:"role"`
+	Roles     []string       `json:"roles"`
 }
 
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
@@ -90,7 +91,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.LastName,
 		arg.Email,
 		arg.Enabled,
-		arg.Role,
+		pq.Array(arg.Roles),
 	)
 	return err
 }
@@ -106,7 +107,7 @@ func (q *Queries) DeleteUser(ctx context.Context, id uuid.UUID) error {
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
 WHERE id = $1
 `
@@ -121,7 +122,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.LastName,
 		&i.Email,
 		&i.Enabled,
-		&i.Role,
+		pq.Array(&i.Roles),
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLoginAt,
@@ -130,7 +131,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 }
 
 const getUserByUsername = `-- name: GetUserByUsername :one
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
 WHERE username = $1
 `
@@ -145,7 +146,7 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 		&i.LastName,
 		&i.Email,
 		&i.Enabled,
-		&i.Role,
+		pq.Array(&i.Roles),
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.LastLoginAt,
@@ -154,14 +155,14 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 }
 
 const getUsersByRole = `-- name: GetUsersByRole :many
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
-WHERE role = $1
+WHERE roles = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) GetUsersByRole(ctx context.Context, role string) ([]User, error) {
-	rows, err := q.db.QueryContext(ctx, getUsersByRole, role)
+func (q *Queries) GetUsersByRole(ctx context.Context, roles []string) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, getUsersByRole, pq.Array(roles))
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +177,7 @@ func (q *Queries) GetUsersByRole(ctx context.Context, role string) ([]User, erro
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -195,7 +196,7 @@ func (q *Queries) GetUsersByRole(ctx context.Context, role string) ([]User, erro
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
 ORDER BY created_at DESC
 `
@@ -216,7 +217,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -235,7 +236,7 @@ func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
 }
 
 const listUsersPaged = `-- name: ListUsersPaged :many
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
 ORDER BY created_at DESC
 LIMIT $1 OFFSET $2
@@ -262,7 +263,7 @@ func (q *Queries) ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) 
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -288,7 +289,7 @@ SELECT
     u.last_name,
     u.email,
     u.enabled,
-    u.role,
+    u.roles,
     u.created_at,
     u.updated_at,
     u.last_login_at
@@ -317,7 +318,7 @@ func (q *Queries) NeverLoggedInUsers(ctx context.Context) ([]User, error) {
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -343,7 +344,7 @@ SELECT
     last_name,
     email,
     enabled,
-    role,
+    roles,
     created_at,
     updated_at,
     last_login_at
@@ -373,7 +374,7 @@ func (q *Queries) NewUsersInRange(ctx context.Context, arg NewUsersInRangeParams
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -435,14 +436,14 @@ func (q *Queries) NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([
 }
 
 const roleDistribution = `-- name: RoleDistribution :many
-SELECT role, COUNT(*) AS count
+SELECT roles, COUNT(*) AS count
 FROM users
-GROUP BY role
+GROUP BY roles
 `
 
 type RoleDistributionRow struct {
-	Role  string `json:"role"`
-	Count int64  `json:"count"`
+	Roles []string `json:"roles"`
+	Count int64    `json:"count"`
 }
 
 func (q *Queries) RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error) {
@@ -454,7 +455,7 @@ func (q *Queries) RoleDistribution(ctx context.Context) ([]RoleDistributionRow, 
 	items := []RoleDistributionRow{}
 	for rows.Next() {
 		var i RoleDistributionRow
-		if err := rows.Scan(&i.Role, &i.Count); err != nil {
+		if err := rows.Scan(pq.Array(&i.Roles), &i.Count); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -469,7 +470,7 @@ func (q *Queries) RoleDistribution(ctx context.Context) ([]RoleDistributionRow, 
 }
 
 const searchUsers = `-- name: SearchUsers :many
-SELECT id, username, first_name, last_name, email, enabled, role, created_at, updated_at, last_login_at
+SELECT id, username, first_name, last_name, email, enabled, roles, created_at, updated_at, last_login_at
 FROM users
 WHERE 
     username ILIKE '%' || $1 || '%' OR
@@ -495,7 +496,7 @@ func (q *Queries) SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]U
 			&i.LastName,
 			&i.Email,
 			&i.Enabled,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.LastLoginAt,
@@ -520,7 +521,7 @@ SET username = $2,
     last_name = $4,
     email = $5,
     enabled = $6,
-    role = $7,
+    roles = $7,
     updated_at = NOW()
 WHERE id = $1
 `
@@ -532,7 +533,7 @@ type UpdateUserParams struct {
 	LastName  sql.NullString `json:"last_name"`
 	Email     string         `json:"email"`
 	Enabled   sql.NullBool   `json:"enabled"`
-	Role      string         `json:"role"`
+	Roles     []string       `json:"roles"`
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
@@ -543,7 +544,7 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 		arg.LastName,
 		arg.Email,
 		arg.Enabled,
-		arg.Role,
+		pq.Array(arg.Roles),
 	)
 	return err
 }

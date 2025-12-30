@@ -14,7 +14,7 @@ import AdminLayout from "./layout/AdminLayout";
 import NewsFeedPage from "./pages/public/newsfeed/news_feed.component";
 import AppLauncherPage from "./pages/public/applauncher/app_launcher.component";
 
-import AuditLogsPage from "./pages/admin/audit/auditlogs_component";
+import AuditLogsPage from "./pages/admin/audit/audit_component";
 import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
 

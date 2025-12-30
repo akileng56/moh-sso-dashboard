@@ -312,22 +312,37 @@ SELECT
 FROM audit_logs a
 LEFT JOIN users u ON u.id = a.user_id
 WHERE
-  a.created_at >= sqlc.arg(start_time)
-  AND a.created_at <  sqlc.arg(end_time)
+  a.created_at >= sqlc.arg(start_time)::timestamptz
+  AND a.created_at <  sqlc.arg(end_time)::timestamptz
 
-  AND (sqlc.narg(action) IS NULL OR a.action = sqlc.narg(action))
-  AND (sqlc.narg(user_id) IS NULL OR a.user_id = sqlc.narg(user_id))
-  AND (sqlc.narg(client_id) IS NULL OR a.metadata->>'client_id' = sqlc.narg(client_id))
-  AND (sqlc.narg(ip) IS NULL OR a.metadata->>'ip' = sqlc.narg(ip))
-  AND (sqlc.narg(success) IS NULL OR a.metadata->>'success' = sqlc.narg(success))
+  AND (sqlc.narg(action)::text IS NULL OR a.action = sqlc.narg(action)::text)
+  AND (sqlc.narg(user_id)::uuid IS NULL OR a.user_id = sqlc.narg(user_id)::uuid)
 
   AND (
-    sqlc.narg(cursor_created_at) IS NULL
-    OR sqlc.narg(cursor_id) IS NULL
-    OR (a.created_at, a.id) < (sqlc.narg(cursor_created_at), sqlc.narg(cursor_id))
+    sqlc.narg(client_id)::text IS NULL
+    OR a.metadata->>'client_id' = sqlc.narg(client_id)::text
+  )
+
+  AND (
+    sqlc.narg(ip)::text IS NULL
+    OR a.metadata->>'ip' = sqlc.narg(ip)::text
+  )
+
+  AND (
+    sqlc.narg(success)::text IS NULL
+    OR a.metadata->>'success' = sqlc.narg(success)::text
+  )
+
+  AND (
+    sqlc.narg(cursor_created_at)::timestamptz IS NULL
+    OR sqlc.narg(cursor_id)::uuid IS NULL
+    OR (a.created_at, a.id)
+       < (sqlc.narg(cursor_created_at)::timestamptz,
+          sqlc.narg(cursor_id)::uuid)
   )
 ORDER BY a.created_at DESC, a.id DESC
-LIMIT sqlc.arg(row_limit);
+LIMIT sqlc.arg(row_limit)::int;
+
 
 
 

@@ -59,7 +59,7 @@ func (ns NullImportJobStatus) Value() (driver.Value, error) {
 }
 
 type AuditLog struct {
-	ID        int64                 `json:"id"`
+	ID        uuid.UUID             `json:"id"`
 	UserID    uuid.NullUUID         `json:"user_id"`
 	Action    string                `json:"action"`
 	Metadata  pqtype.NullRawMessage `json:"metadata"`
@@ -108,7 +108,7 @@ type ImportJobItem struct {
 	Email       sql.NullString `json:"email"`
 	FirstName   sql.NullString `json:"first_name"`
 	LastName    sql.NullString `json:"last_name"`
-	Role        sql.NullString `json:"role"`
+	Roles       []string       `json:"roles"`
 	Enabled     sql.NullBool   `json:"enabled"`
 	EmailSent   bool           `json:"email_sent"`
 	EmailSentAt time.Time      `json:"email_sent_at"`
@@ -148,7 +148,7 @@ type User struct {
 	LastName    sql.NullString `json:"last_name"`
 	Email       string         `json:"email"`
 	Enabled     sql.NullBool   `json:"enabled"`
-	Role        string         `json:"role"`
+	Roles       []string       `json:"roles"`
 	CreatedAt   sql.NullTime   `json:"created_at"`
 	UpdatedAt   sql.NullTime   `json:"updated_at"`
 	LastLoginAt sql.NullTime   `json:"last_login_at"`

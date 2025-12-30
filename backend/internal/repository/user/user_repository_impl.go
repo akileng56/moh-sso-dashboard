@@ -70,7 +70,6 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 			Bool:  user.Enabled,
 			Valid: user.Enabled,
 		},
-		Role: user.Role,
 	}
 
 	if err := r.db.CreateUser(ctx, params); err != nil {
@@ -122,10 +121,10 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 		LastName:    row.LastName.String,
 		Email:       row.Email,
 		Enabled:     enabled,
-		Role:        row.Role,
+		Roles:       row.Roles,
 		CreatedAt:   createdAt,
 		UpdatedAt:   updatedAt,
-		LastLoginAt: lastLoginAt,
+		LastLoginAt: &lastLoginAt,
 	}, nil
 }
 
@@ -133,52 +132,30 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 // List all users
 // ------------------------------------------------------------
 func (r *userRepository) ListUsers() ([]models.User, error) {
-	ctx := context.Background()
-
-	rows, err := r.db.ListUsers(ctx)
+	// Fetch users from Keycloak (single source of truth)
+	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to fetch keycloak users: %w", err)
 	}
 
-	users := make([]models.User, 0, len(rows))
+	result := make([]models.User, 0, len(kcUsers))
 
-	for _, row := range rows {
-
-		createdAt := time.Time{}
-		if row.CreatedAt.Valid {
-			createdAt = row.CreatedAt.Time
-		}
-
-		updatedAt := time.Time{}
-		if row.UpdatedAt.Valid {
-			updatedAt = row.UpdatedAt.Time
-		}
-
-		lastLoginAt := time.Time{}
-		if row.LastLoginAt.Valid {
-			lastLoginAt = row.LastLoginAt.Time
-		}
-
-		enabled := false
-		if row.Enabled.Valid {
-			enabled = row.Enabled.Bool
-		}
-
-		users = append(users, models.User{
-			ID:          row.ID.String(),
-			Username:    row.Username,
-			FirstName:   row.FirstName.String,
-			LastName:    row.LastName.String,
-			Email:       row.Email,
-			Enabled:     enabled,
-			Role:        row.Role,
-			CreatedAt:   createdAt,
-			UpdatedAt:   updatedAt,
-			LastLoginAt: lastLoginAt,
+	for _, kc := range kcUsers {
+		result = append(result, models.User{
+			ID:        kc.ID,
+			Username:  kc.Username,
+			FirstName: kc.FirstName,
+			LastName:  kc.LastName,
+			Email:     kc.Email,
+			Enabled:   kc.Enabled,
+			Roles:     kc.Roles, // realm + client roles already resolved
+			CreatedAt: kc.CreatedAt,
+			UpdatedAt: kc.UpdatedAt,
+			// LastLoginAt intentionally omitted (optional)
 		})
 	}
 
-	return users, nil
+	return result, nil
 }
 
 // ------------------------------------------------------------
@@ -219,7 +196,7 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 			Valid: true,
 		},
 
-		Role: user.Role,
+		Roles: user.Roles,
 	}
 
 	if err := r.db.UpdateUser(ctx, params); err != nil {

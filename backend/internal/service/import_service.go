@@ -108,7 +108,7 @@ func (s *ImportService) PreviewCSV(ctx context.Context, r io.Reader, fileName, c
 			Email:     get("email"),
 			FirstName: get("first_name"),
 			LastName:  get("last_name"),
-			Role:      strings.ToLower(get("role")),
+			Roles:     []string{strings.ToLower(get("roles"))},
 			Enabled:   true,
 		}
 
@@ -140,7 +140,7 @@ func (s *ImportService) PreviewCSV(ctx context.Context, r io.Reader, fileName, c
 		if user.LastName == "" {
 			user.Errors = append(user.Errors, "last_name is required")
 		}
-		if user.Role == "" || !allowedRoles[user.Role] {
+		if len(user.Roles) == 0 || !allowedRoles[user.Roles[0]] {
 			user.Errors = append(user.Errors, "role must be one of: admin,user")
 		}
 
@@ -196,10 +196,7 @@ func (s *ImportService) PreviewCSV(ctx context.Context, r io.Reader, fileName, c
 				String: user.LastName,
 				Valid:  user.LastName != "",
 			},
-			Role: sql.NullString{
-				String: user.Role,
-				Valid:  user.Role != "",
-			},
+			Roles: user.Roles,
 			Enabled: sql.NullBool{
 				Bool:  user.Enabled,
 				Valid: true,
@@ -279,7 +276,7 @@ func (s *ImportService) Execute(ctx context.Context, jobID uuid.UUID) (*model.Ex
 		email := it.Email.String
 		firstName := it.FirstName.String
 		lastName := it.LastName.String
-		role := strings.ToLower(it.Role.String)
+		role := strings.ToLower(it.Roles[0])
 
 		// Idempotency: if username exists now, skip
 		foundU, _ := s.kc.FindUsers(ctx, username, true)
@@ -417,7 +414,7 @@ func (s *ImportService) GetJob(ctx context.Context, jobID uuid.UUID) (*model.Job
 			Email:     it.Email.String,
 			FirstName: it.FirstName.String,
 			LastName:  it.LastName.String,
-			Role:      it.Role.String,
+			Roles:     it.Roles,
 			Enabled:   enabled,
 			ClientIDs: utils.SplitClientIDs(it.ClientIds.String),
 			Status:    it.Status,

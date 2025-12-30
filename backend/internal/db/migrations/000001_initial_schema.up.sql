@@ -9,17 +9,20 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 --  USERS (ID = Keycloak user_id)
 -- ============================================================
 CREATE TABLE users (
-    id          UUID PRIMARY KEY,              -- <-- CHANGED: NO DEFAULT
-    username    VARCHAR(100) UNIQUE NOT NULL,
-    first_name  VARCHAR(100),
-    last_name   VARCHAR(100),
-    email       VARCHAR(255) UNIQUE NOT NULL,
-    enabled     BOOLEAN DEFAULT TRUE,
-    role        VARCHAR(50) NOT NULL,
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW(),
-    last_login_at TIMESTAMPTZ DEFAULT NOW()
+    id            UUID PRIMARY KEY,
+    username      VARCHAR(100) UNIQUE NOT NULL,
+    first_name    VARCHAR(100),
+    last_name     VARCHAR(100),
+    email         VARCHAR(255) UNIQUE NOT NULL,
+    enabled       BOOLEAN DEFAULT TRUE,
+
+    roles         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    last_login_at TIMESTAMPTZ
 );
+
 
 -- ============================================================
 --  ROLES
@@ -94,7 +97,7 @@ CREATE TABLE sessions (
 --  AUDIT LOGS
 -- ============================================================
 CREATE TABLE audit_logs (
-    id         BIGSERIAL PRIMARY KEY,
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
     action     VARCHAR(200) NOT NULL,
     metadata   JSONB,
@@ -134,7 +137,7 @@ CREATE TABLE IF NOT EXISTS import_job_items (
   email       TEXT,
   first_name  TEXT,
   last_name   TEXT,
-  role        TEXT,
+roles         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   enabled     BOOLEAN,
   email_sent  BOOLEAN NOT NULL DEFAULT FALSE,
   email_sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),

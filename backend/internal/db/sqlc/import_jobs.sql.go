@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createImportJob = `-- name: CreateImportJob :exec
@@ -71,7 +72,7 @@ func (q *Queries) GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, er
 
 const insertImportJobItem = `-- name: InsertImportJobItem :exec
 INSERT INTO import_job_items (
-  id, job_id, row_number, username, email, first_name, last_name, role, enabled, client_ids, status, error_msg
+  id, job_id, row_number, username, email, first_name, last_name, roles, enabled, client_ids, status, error_msg
 ) VALUES (
   $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
@@ -85,7 +86,7 @@ type InsertImportJobItemParams struct {
 	Email     sql.NullString `json:"email"`
 	FirstName sql.NullString `json:"first_name"`
 	LastName  sql.NullString `json:"last_name"`
-	Role      sql.NullString `json:"role"`
+	Roles     []string       `json:"roles"`
 	Enabled   sql.NullBool   `json:"enabled"`
 	ClientIds sql.NullString `json:"client_ids"`
 	Status    string         `json:"status"`
@@ -101,7 +102,7 @@ func (q *Queries) InsertImportJobItem(ctx context.Context, arg InsertImportJobIt
 		arg.Email,
 		arg.FirstName,
 		arg.LastName,
-		arg.Role,
+		pq.Array(arg.Roles),
 		arg.Enabled,
 		arg.ClientIds,
 		arg.Status,
@@ -111,7 +112,7 @@ func (q *Queries) InsertImportJobItem(ctx context.Context, arg InsertImportJobIt
 }
 
 const listImportJobFailedItems = `-- name: ListImportJobFailedItems :many
-SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
+SELECT id, job_id, row_number, username, email, first_name, last_name, roles, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
 FROM import_job_items
 WHERE job_id = $1 AND status IN ('failed')
 ORDER BY row_number ASC
@@ -134,7 +135,7 @@ func (q *Queries) ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID)
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.Enabled,
 			&i.EmailSent,
 			&i.EmailSentAt,
@@ -157,7 +158,7 @@ func (q *Queries) ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID)
 }
 
 const listImportJobItems = `-- name: ListImportJobItems :many
-SELECT id, job_id, row_number, username, email, first_name, last_name, role, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
+SELECT id, job_id, row_number, username, email, first_name, last_name, roles, enabled, email_sent, email_sent_at, client_ids, status, error_msg, created_at
 FROM import_job_items
 WHERE job_id = $1
 ORDER BY row_number ASC
@@ -180,7 +181,7 @@ func (q *Queries) ListImportJobItems(ctx context.Context, jobID uuid.UUID) ([]Im
 			&i.Email,
 			&i.FirstName,
 			&i.LastName,
-			&i.Role,
+			pq.Array(&i.Roles),
 			&i.Enabled,
 			&i.EmailSent,
 			&i.EmailSentAt,
