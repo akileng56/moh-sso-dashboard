@@ -8,7 +8,7 @@ import {
   CodeSnippet,
   Tag,
 } from "@carbon/react";
-import { type AuditLog } from "../lib/api/audit";
+import { type AuditLog } from "../../lib/api/audit";
 
 export const AuditLogDrawer: React.FC<{
   log: AuditLog | null;

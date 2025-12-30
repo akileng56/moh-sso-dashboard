@@ -9,13 +9,15 @@ import {
   TableCell,
   InlineLoading,
   Tile,
-  Dropdown,
   Button,
   Tag,
 } from "@carbon/react";
-import { View, UserFollow } from "@carbon/icons-react";
+import { View, UserFollow, Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/useAuth";
+import { ClientFilters } from "../../../components/client/ClientFilters";
+import { EmptyState } from "../../../components/emptystate/EmptyState";
+import { ErrorState } from "../../../components/errorstate/ErrorState";
 
 interface Client {
   id: string;
@@ -26,7 +28,7 @@ interface Client {
 }
 
 /* -----------------------------
- * Filters (typed, consistent)
+ * Filters
  * ----------------------------- */
 type StatusFilter = "all" | "enabled" | "disabled";
 type TypeFilter = "all" | "public" | "confidential";
@@ -100,7 +102,7 @@ export default function ClientsPage() {
   }, [accessToken]);
 
   /* -----------------------------
-   * Filtering (pure & readable)
+   * Filtering
    * ----------------------------- */
   const filteredClients = useMemo(() => {
     return clients.filter((c) => {
@@ -113,7 +115,7 @@ export default function ClientsPage() {
   }, [clients, statusFilter, typeFilter]);
 
   /* -----------------------------
-   * Placeholder toggle
+   * Toggle (placeholder)
    * ----------------------------- */
   function toggleClient(client: Client) {
     setClients((prev) =>
@@ -122,7 +124,7 @@ export default function ClientsPage() {
   }
 
   /* -----------------------------
-   * Loading / error
+   * Loading
    * ----------------------------- */
   if (loading) {
     return (
@@ -132,25 +134,37 @@ export default function ClientsPage() {
     );
   }
 
+  /* -----------------------------
+   * Error
+   * ----------------------------- */
   if (error) {
-    return <div style={{ padding: "2rem", color: "crimson" }}>{error}</div>;
+    return (
+      <ErrorState
+        title="Failed to load clients"
+        description={error}
+        primaryAction={{
+          label: "Retry",
+          onClick: () => window.location.reload(),
+        }}
+      />
+    );
   }
 
-  /* -----------------------------
-   * Rows (explicit + consistent)
-   * ----------------------------- */
   const rows = filteredClients.map((c) => ({
     id: c.id,
     name: c.name,
     clientId: c.clientId,
     type: c.publicClient ? "Public" : "Confidential",
     status: c.enabled ? "Enabled" : "Disabled",
-    actions: "", // explicit placeholder
+    actions: "",
     raw: c,
   }));
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={{ padding: 16, display: "grid", gap: 16 }}>
+      {/* --------------------------------
+       * Page Header
+       * -------------------------------- */}
       <div>
         <h3 style={{ margin: 0 }}>Clients</h3>
         <p style={{ marginTop: 6, opacity: 0.8 }}>
@@ -158,105 +172,117 @@ export default function ClientsPage() {
         </p>
       </div>
 
+      {/* --------------------------------
+       * Filters
+       * -------------------------------- */}
       <Tile>
-        {/* Filters */}
-        <div style={{ display: "flex", gap: "1rem", marginBottom: "1rem" }}>
-          <Dropdown
-            id="client-status-filter"
-            titleText="Status"
-            items={STATUS_OPTIONS}
-            selectedItem={STATUS_OPTIONS.find((i) => i.id === statusFilter)}
-            itemToString={(item) => item?.label ?? ""}
-            onChange={({ selectedItem }) =>
-              setStatusFilter(selectedItem?.id as StatusFilter)
-            }
+        <ClientFilters
+          status={statusFilter}
+          type={typeFilter}
+          statusOptions={STATUS_OPTIONS}
+          typeOptions={TYPE_OPTIONS}
+          onStatusChange={setStatusFilter}
+          onTypeChange={setTypeFilter}
+        />
+      </Tile>
+
+      {/* --------------------------------
+       * Empty / Table
+       * -------------------------------- */}
+      <Tile>
+        {filteredClients.length === 0 ? (
+          <EmptyState
+            title="No clients registered"
+            description="Start by registering an application to make it available in the platform."
+            primaryAction={{
+              label: "Register application",
+              icon: Add,
+              onClick: () => navigate("/admin/clients/new"),
+            }}
           />
+        ) : (
+          <DataTable rows={rows} headers={headers}>
+            {({
+              rows,
+              headers,
+              getHeaderProps,
+              getRowProps,
+              getTableProps,
+            }) => (
+              <Table {...getTableProps()}>
+                <TableHead>
+                  <TableRow>
+                    {headers.map((h) => (
+                      <TableHeader
+                        key={h.key}
+                        {...getHeaderProps({ header: h })}
+                      >
+                        {h.header}
+                      </TableHeader>
+                    ))}
+                  </TableRow>
+                </TableHead>
 
-          <Dropdown
-            id="client-type-filter"
-            titleText="Type"
-            items={TYPE_OPTIONS}
-            selectedItem={TYPE_OPTIONS.find((i) => i.id === typeFilter)}
-            itemToString={(item) => item?.label ?? ""}
-            onChange={({ selectedItem }) =>
-              setTypeFilter(selectedItem?.id as TypeFilter)
-            }
-          />
-        </div>
+                <TableBody>
+                  {rows.map((row) => {
+                    const client = (row as any).raw as Client;
 
-        {/* Table */}
-        <DataTable rows={rows} headers={headers}>
-          {({ rows, headers, getHeaderProps, getRowProps, getTableProps }) => (
-            <Table {...getTableProps()}>
-              <TableHead>
-                <TableRow>
-                  {headers.map((h) => (
-                    <TableHeader key={h.key} {...getHeaderProps({ header: h })}>
-                      {h.header}
-                    </TableHeader>
-                  ))}
-                </TableRow>
-              </TableHead>
+                    return (
+                      <TableRow {...getRowProps({ row })}>
+                        {row.cells.map((cell) => {
+                          if (cell.info.header === "status") {
+                            return (
+                              <TableCell key={cell.id}>
+                                <Tag type={client.enabled ? "green" : "red"}>
+                                  {cell.value}
+                                </Tag>
+                              </TableCell>
+                            );
+                          }
 
-              <TableBody>
-                {rows.map((row) => {
-                  const client = (row as any).raw as Client;
+                          if (cell.info.header === "actions") {
+                            return (
+                              <TableCell key={cell.id}>
+                                <Button
+                                  size="sm"
+                                  kind="ghost"
+                                  hasIconOnly
+                                  renderIcon={View}
+                                  iconDescription="View audit logs"
+                                  onClick={() =>
+                                    navigate(
+                                      `/admin/audit-logs?client_id=${client.clientId}`
+                                    )
+                                  }
+                                />
+                                <Button
+                                  size="sm"
+                                  kind="ghost"
+                                  hasIconOnly
+                                  renderIcon={UserFollow}
+                                  iconDescription={
+                                    client.enabled
+                                      ? "Disable client"
+                                      : "Enable client"
+                                  }
+                                  onClick={() => toggleClient(client)}
+                                />
+                              </TableCell>
+                            );
+                          }
 
-                  return (
-                    <TableRow {...getRowProps({ row })}>
-                      {row.cells.map((cell) => {
-                        if (cell.info.header === "status") {
                           return (
-                            <TableCell key={cell.id}>
-                              <Tag type={client?.enabled ? "green" : "red"}>
-                                {cell.value}
-                              </Tag>
-                            </TableCell>
+                            <TableCell key={cell.id}>{cell.value}</TableCell>
                           );
-                        }
-
-                        if (cell.info.header === "actions") {
-                          return (
-                            <TableCell key={cell.id}>
-                              <Button
-                                size="sm"
-                                kind="ghost"
-                                hasIconOnly
-                                renderIcon={View}
-                                iconDescription="View audit logs"
-                                onClick={() =>
-                                  navigate(
-                                    `/admin/audit-logs?client_id=${client.clientId}`
-                                  )
-                                }
-                              />
-                              <Button
-                                size="sm"
-                                kind="ghost"
-                                hasIconOnly
-                                renderIcon={UserFollow}
-                                iconDescription={
-                                  client?.enabled
-                                    ? "Disable client"
-                                    : "Enable client"
-                                }
-                                onClick={() => toggleClient(client)}
-                              />
-                            </TableCell>
-                          );
-                        }
-
-                        return (
-                          <TableCell key={cell.id}>{cell.value}</TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </DataTable>
+                        })}
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            )}
+          </DataTable>
+        )}
       </Tile>
     </div>
   );
