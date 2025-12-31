@@ -1,4 +1,4 @@
-import { Dropdown, Button } from "@carbon/react";
+import { Dropdown, Button, Stack } from "@carbon/react";
 
 interface UserFiltersProps {
   status: string;
@@ -20,32 +20,43 @@ export function UserFilters({
   onToggleNeverLoggedIn,
 }: UserFiltersProps) {
   return (
-    <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+    <Stack
+      orientation="horizontal"
+      gap={5}
+      style={{ alignItems: "flex-end", flexWrap: "nowrap" }}
+    >
+      {/* Status */}
       <Dropdown
-        label="Status Filter"
-        id="status-filter"
+        id="user-status-filter"
+        label="Status"
+        hideLabel
         titleText="Status"
         items={["all", "active", "disabled"]}
         selectedItem={status}
+        style={{ width: 160 }}
         onChange={({ selectedItem }) => onStatusChange(selectedItem as string)}
       />
 
+      {/* Role */}
       <Dropdown
-        label="Role Filter"
-        id="role-filter"
+        id="user-role-filter"
+        label="Role"
+        hideLabel
         titleText="Role"
         items={roles}
         selectedItem={selectedRole}
+        style={{ width: 200 }}
         onChange={({ selectedItem }) => onRoleChange(selectedItem as string)}
       />
 
+      {/* Never logged in toggle */}
       <Button
-        size="sm"
         kind={neverLoggedIn ? "primary" : "secondary"}
+        size="md"
         onClick={onToggleNeverLoggedIn}
       >
         Never logged in
       </Button>
-    </div>
+    </Stack>
   );
 }
