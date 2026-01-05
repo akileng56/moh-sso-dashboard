@@ -6,7 +6,6 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -127,8 +126,6 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 
 		RowLimit: limit + 1,
 	})
-
-	log.Println("err-->", err)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to list audit logs"})

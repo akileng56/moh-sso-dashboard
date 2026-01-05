@@ -25,10 +25,10 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"create_client_failed",
+			"client.create_failed",
 			map[string]interface{}{
 				"reason":     "invalid_body",
 				"ip":         c.ClientIP(),
@@ -44,10 +44,10 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to create client: %v", err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"create_client_failed",
+			"client.create_failed",
 			map[string]interface{}{
 				"client_id":  req.ClientID,
 				"reason":     err.Error(),
@@ -60,10 +60,10 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 		return
 	}
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"create_client_success",
+		"client.create_success",
 		map[string]interface{}{
 			"client_id":  newApp.ClientID,
 			"ip":         c.ClientIP(),
@@ -78,10 +78,10 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"get_client_failed",
+			"client.get_failed",
 			map[string]interface{}{
 				"reason":     "missing_id",
 				"ip":         c.ClientIP(),
@@ -97,10 +97,10 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to get client ID %s: %v", id, err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"get_client_not_found",
+			"client.get_failed",
 			map[string]interface{}{
 				"client_id":  id,
 				"ip":         c.ClientIP(),
@@ -112,10 +112,10 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 		return
 	}
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"get_client_success",
+		"client.success",
 		map[string]interface{}{
 			"client_id":  id,
 			"ip":         c.ClientIP(),
@@ -128,10 +128,10 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 
 func (h *ClientHandler) ListClients(c *gin.Context) {
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"list_clients",
+		"client.lists",
 		map[string]interface{}{
 			"ip":         c.ClientIP(),
 			"user_agent": c.Request.UserAgent(),
@@ -190,10 +190,10 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"delete_client_failed",
+			"client.delete_failed",
 			map[string]interface{}{
 				"reason":     "missing_id",
 				"ip":         c.ClientIP(),
@@ -208,10 +208,10 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	uid, err := uuid.Parse(id)
 	if err != nil {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"delete_client_failed",
+			"client.delete_failed",
 			map[string]interface{}{
 				"client_id":  id,
 				"reason":     "invalid_uuid",
@@ -227,10 +227,10 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	if err := h.service.DeleteClient(uid); err != nil {
 		log.Printf("ERROR: Failed to delete client ID %s: %v", id, err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"delete_client_failed",
+			"client.delete_failed",
 			map[string]interface{}{
 				"client_id":  id,
 				"reason":     err.Error(),
@@ -243,10 +243,10 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 		return
 	}
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"delete_client_success",
+		"client.delete_success",
 		map[string]interface{}{
 			"client_id":  id,
 			"ip":         c.ClientIP(),

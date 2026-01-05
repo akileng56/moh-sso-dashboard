@@ -36,10 +36,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	var req service.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"create_user_failed",
+			"user.create_failed",
 			map[string]interface{}{
 				"reason":     "invalid_body",
 				"ip":         c.ClientIP(),
@@ -54,10 +54,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to create user: %v", err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"create_user_failed",
+			"user.create_failed",
 			map[string]interface{}{
 				"username":   req.Username,
 				"email":      req.Email,
@@ -71,10 +71,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"create_user_success",
+		"user.create_success",
 		map[string]interface{}{
 			"user_id":    newUser.ID,
 			"username":   newUser.Username,
@@ -92,10 +92,10 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"get_user_failed",
+			"user.get_failed",
 			map[string]interface{}{
 				"reason":     "missing_id",
 				"ip":         c.ClientIP(),
@@ -113,10 +113,10 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 	if err != nil {
 		log.Printf("ERROR: Failed to get user ID %s: %v", id, err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"get_user_not_found",
+			"user.get_failed",
 			map[string]interface{}{
 				"user_id":    id,
 				"ip":         c.ClientIP(),
@@ -128,10 +128,10 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 		return
 	}
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"get_user_success",
+		"user.success",
 		map[string]interface{}{
 			"user_id":    id,
 			"ip":         c.ClientIP(),
@@ -145,10 +145,10 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 
 func (h *UserHandler) ListUsers(c *gin.Context) {
 
-	h.auditService.Log(
+	_ = h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"list_users",
+		"user.lists",
 		map[string]interface{}{
 			"ip":         c.ClientIP(),
 			"user_agent": c.Request.UserAgent(),
@@ -173,10 +173,10 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"delete_user_failed",
+			"user.delete_failed",
 			map[string]interface{}{
 				"reason":     "missing_id",
 				"ip":         c.ClientIP(),
@@ -190,10 +190,10 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	if err := h.service.DeleteUser(id); err != nil {
 		log.Printf("ERROR: Failed to delete user ID %s: %v", id, err)
 
-		h.auditService.Log(
+		_ = h.auditService.Log(
 			c.Request.Context(),
 			utils.ToNullUUID(c.GetString("user_id")),
-			"delete_user_failed",
+			"user.delete_failed",
 			map[string]interface{}{
 				"user_id":    id,
 				"reason":     err.Error(),
@@ -209,7 +209,7 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 	h.auditService.Log(
 		c.Request.Context(),
 		utils.ToNullUUID(c.GetString("user_id")),
-		"delete_user_success",
+		"user.delete_success",
 		map[string]interface{}{
 			"user_id":    id,
 			"ip":         c.ClientIP(),

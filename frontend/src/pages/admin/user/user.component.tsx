@@ -194,7 +194,7 @@ export default function UsersPage() {
           </p>
         </div>
 
-        <Button size="sm" onClick={() => navigate("/admin/users/import")}>
+        <Button size="md" onClick={() => navigate("/admin/users/import")}>
           Import users
         </Button>
       </div>
