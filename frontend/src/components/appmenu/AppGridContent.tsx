@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Grid, Column } from "@carbon/react";
-import AppTile from "./AppMenuItem.component";
-import { useAuth } from "../../context/useAuth";
-
 import {
   Document,
   Calendar,
@@ -12,7 +9,9 @@ import {
   App,
 } from "@carbon/icons-react";
 
-const API_BASE = "http://localhost:9000/api/v1/clients";
+import AppTile from "./AppMenuItem.component";
+import { useListClientsQuery } from "../../store/api/clients.api";
+import type { Client } from "../../store/types/client.types";
 
 const ICON_MAP: Record<string, React.ElementType> = {
   email: Email,
@@ -24,42 +23,23 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const AppGridContent: React.FC = () => {
-  const { accessToken } = useAuth();
-  const [clients, setClients] = useState<any[]>([]);
+  const { data: clients = [], isLoading, isError } = useListClientsQuery();
 
-  useEffect(() => {
-    if (!accessToken) return;
+  if (isLoading) {
+    return (
+      <Grid narrow style={{ padding: "1rem" }}>
+        <Column>Loading applications…</Column>
+      </Grid>
+    );
+  }
 
-    const controller = new AbortController();
-
-    const fetchClients = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          console.error("Failed to fetch clients");
-          return;
-        }
-
-        const data = await res.json();
-        setClients(data);
-      } catch (error: any) {
-        console.error("Error fetching clients:", error);
-      }
-    };
-
-    fetchClients();
-
-    return () => controller.abort();
-  }, [accessToken]);
+  if (isError) {
+    return (
+      <Grid narrow style={{ padding: "1rem" }}>
+        <Column>Failed to load applications.</Column>
+      </Grid>
+    );
+  }
 
   return (
     <Grid
@@ -75,8 +55,8 @@ const AppGridContent: React.FC = () => {
         gap: "1rem",
       }}
     >
-      {clients.map((client) => {
-        const Icon = ICON_MAP[client.attributes.icon] || Menu;
+      {clients.map((client: Client) => {
+        const Icon = ICON_MAP[(client as any).attributes?.icon] || Menu;
 
         return (
           <Column key={client.id} sm={2} md={2} lg={3}>

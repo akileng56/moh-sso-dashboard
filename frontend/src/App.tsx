@@ -25,56 +25,44 @@ function App() {
         {/* ---------------------------------- */}
         {/* PUBLIC (authenticated users) */}
         {/* ---------------------------------- */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <PublicLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* Default landing after login */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-
-          <Route path="/dashboard" element={<NewsFeedPage />} />
-          <Route path="/apps" element={<AppLauncherPage />} />
+        <Route element={<ProtectedRoute />}>
+          <Route element={<PublicLayout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<NewsFeedPage />} />
+            <Route path="/apps" element={<AppLauncherPage />} />
+          </Route>
         </Route>
 
         {/* ---------------------------------- */}
         {/* ADMIN */}
         {/* ---------------------------------- */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route
-            path="users"
-            element={
-              <AdminRoute>
-                <UsersPage />
-              </AdminRoute>
-            }
-          />
-
-          <Route
-            path="clients"
-            element={
-              <AdminRoute>
-                <ClientsPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="audit-logs"
-            element={
-              <AdminRoute>
-                <AuditLogsPage />
-              </AdminRoute>
-            }
-          />
+        <Route element={<ProtectedRoute />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="clients"
+              element={
+                <AdminRoute>
+                  <ClientsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="audit-logs"
+              element={
+                <AdminRoute>
+                  <AuditLogsPage />
+                </AdminRoute>
+              }
+            />
+          </Route>
         </Route>
 
         {/* ---------------------------------- */}

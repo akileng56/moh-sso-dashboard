@@ -3,8 +3,11 @@ package main
 import (
 	"database/sql"
 	"log"
+	"net"
+	"net/http"
 
 	_ "github.com/lib/pq"
+
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	config "github.com/moh-sso-dashboard/internal/config"
@@ -33,13 +36,12 @@ func main() {
 	appLogger.SetLevel(zerolog.InfoLevel)
 	appLogger.Info("Starting server in environment: %s", cfg.Environment)
 
-	// --- Database Setup ---
+	// ---------------------------------------------------------------------
+	// Database setup
+	// ---------------------------------------------------------------------
 	conn, err := sql.Open(cfg.DbDriver, cfg.DbSource())
 	if err != nil {
 		appLogger.Fatal("Cannot open database connection: %v", err)
-	}
-	if conn == nil {
-		appLogger.Fatal("Database connection is nil — check your configuration.")
 	}
 	defer conn.Close()
 
@@ -52,6 +54,9 @@ func main() {
 		appLogger.Fatal("Cannot migrate db: %v", err)
 	}
 
+	// ---------------------------------------------------------------------
+	// Keycloak
+	// ---------------------------------------------------------------------
 	keycloakClient := kcClientPkg.NewClient(
 		cfg.KeycloakBaseUrl,
 		cfg.KeycloakRealm,
@@ -62,44 +67,72 @@ func main() {
 	if err := keycloakClient.Authenticate(); err != nil {
 		appLogger.Fatal("Failed to authenticate Keycloak service account: %v", err)
 	}
-	appLogger.Info("Successfully authenticated Keycloak service account.")
+	appLogger.Info("Successfully authenticated Keycloak service account")
 
-	// store
+	// ---------------------------------------------------------------------
+	// Infrastructure
+	// ---------------------------------------------------------------------
 	store := store.NewStore(conn)
-
-	// redis
 	rdb := redis.NewRedisClient(cfg.RedisHost, cfg.RedisPort, cfg.RedisPassword)
 
-	// --- Repository Layer Initialization ---
-	authRepo := authRepo.NewAuthRepository(keycloakClient, cfg)
-	clientRepo := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
-	userRepo := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
-	metrics := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
+	// ---------------------------------------------------------------------
+	// Repositories
+	// ---------------------------------------------------------------------
+	authRepository := authRepo.NewAuthRepository(keycloakClient, cfg)
+	clientRepository := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
+	userRepository := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
+	metricsRepository := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 
-	// --- Service Layer Initialization ---
-	clientService := service.NewClientService(clientRepo)
-	userService := service.NewUserService(userRepo)
-	authService := service.NewAuthService(authRepo, rdb)
-	metricsService := service.NewMetricsService(metrics)
-	auditSvc := service.NewAuditService(store)
+	// ---------------------------------------------------------------------
+	// Services
+	// ---------------------------------------------------------------------
+	clientService := service.NewClientService(clientRepository)
+	userService := service.NewUserService(userRepository)
+	authService := service.NewAuthService(authRepository, rdb)
+	metricsService := service.NewMetricsService(metricsRepository)
+	auditService := service.NewAuditService(store)
 	importService := service.NewImportService(store, keycloakClient)
 
-	// --- Handler Layer Initialization ---
-	clientHandler := handler.NewClientHandler(clientService, auditSvc)
-	userHandler := handler.NewUserHandler(userService, auditSvc)
-	authHandler := handler.NewAuthHandler(authService, auditSvc, cfg)
+	// ---------------------------------------------------------------------
+	// Handlers
+	// ---------------------------------------------------------------------
+	clientHandler := handler.NewClientHandler(clientService, auditService)
+	userHandler := handler.NewUserHandler(userService, auditService)
+	authHandler := handler.NewAuthHandler(authService, auditService, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
 	auditHandler := handler.NewAuditHandler(store)
 
-	// heallthHandler := handler.NewHealthHandler()
+	// ---------------------------------------------------------------------
+	// Router
+	// ---------------------------------------------------------------------
+	r := router.SetupRouter(
+		importHandler,
+		authHandler,
+		clientHandler,
+		userHandler,
+		metricsHandler,
+		auditService,
+		auditHandler,
+	)
 
-	// --- Router and Server Start ---
-	r := router.SetupRouter(importHandler, authHandler, clientHandler, userHandler, metricsHandler, auditSvc, auditHandler)
+	// ---------------------------------------------------------------------
+	// 🚀 Server start (FORCED IPv4 — FIXES ECONNREFUSED)
+	// ---------------------------------------------------------------------
+	addr := ":" + cfg.ServerPort
 
-	appLogger.Info("Server listening securely on port :%s", cfg.ServerPort)
+	ln, err := net.Listen("tcp4", addr) // 🔥 FORCE IPv4
+	if err != nil {
+		appLogger.Fatal("Failed to bind IPv4 listener: %v", err)
+	}
 
-	if err := r.Run(":" + cfg.ServerPort); err != nil {
-		appLogger.Fatal("Gin server failed to run with TLS: %v", err)
+	appLogger.Info("Gin server listening on IPv4 %s", addr)
+
+	server := &http.Server{
+		Handler: r,
+	}
+
+	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
+		appLogger.Fatal("Gin server failed: %v", err)
 	}
 }

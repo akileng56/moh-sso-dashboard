@@ -1,47 +1,28 @@
-import React, { useEffect, useState } from "react";
+import type React from "react";
 import { Tile, InlineLoading } from "@carbon/react";
 
-type Overview = {
-  totalEvents: number;
-  totalFailures: number;
-  failedLogins: number;
-  successfulLogins: number;
+import { useAuditOverviewQuery } from "../../store/api/metrics.api";
+
+type Props = {
+  from: string;
+  to: string;
 };
 
-export const AuditMetricsPanel: React.FC<{ from: string; to: string }> = ({
-  from,
-  to,
-}) => {
-  const [data, setData] = useState<Overview | null>(null);
-  const [loading, setLoading] = useState(false);
+export const AuditMetricsPanel: React.FC<Props> = ({ from, to }) => {
+  const { data, isLoading, isError } = useAuditOverviewQuery(
+    { from, to },
+    {
+      skip: !from || !to,
+    }
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-
-    fetch(
-      `/admin/audit-logs/metrics/overview?from=${encodeURIComponent(
-        from
-      )}&to=${encodeURIComponent(to)}`,
-      {
-        credentials: "include",
-      }
-    )
-      .then((r) => r.json())
-      .then((json) => {
-        if (!cancelled) setData(json);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [from, to]);
-
-  if (loading && !data)
+  if (isLoading && !data) {
     return <InlineLoading description="Loading metrics..." />;
+  }
+
+  if (isError && !data) {
+    return <div style={{ opacity: 0.7 }}>Failed to load audit metrics</div>;
+  }
 
   return (
     <div
@@ -55,14 +36,17 @@ export const AuditMetricsPanel: React.FC<{ from: string; to: string }> = ({
         <strong>Total Events</strong>
         <div style={{ fontSize: 24 }}>{data?.totalEvents ?? "—"}</div>
       </Tile>
+
       <Tile>
         <strong>Total Failures</strong>
         <div style={{ fontSize: 24 }}>{data?.totalFailures ?? "—"}</div>
       </Tile>
+
       <Tile>
         <strong>Failed Logins</strong>
         <div style={{ fontSize: 24 }}>{data?.failedLogins ?? "—"}</div>
       </Tile>
+
       <Tile>
         <strong>Successful Logins</strong>
         <div style={{ fontSize: 24 }}>{data?.successfulLogins ?? "—"}</div>

@@ -8,12 +8,16 @@ import {
 } from "@carbon/react";
 import { UserAvatarFilled, Logout } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../context/useAuth";
+import { useSelector } from "react-redux";
+
+import { selectUser } from "../../store/auth/auth.selectors";
+import { useLogoutMutation } from "../../store/api/auth.api";
 import AppMenuAction from "../appmenu/AppMenu.component";
 
 const PublicHeader: React.FC = () => {
-  const { logout, user } = useAuth();
   const navigate = useNavigate();
+  const user = useSelector(selectUser);
+  const [logout] = useLogoutMutation();
 
   return (
     <Header aria-label="MOH Integrated Health Portal">
@@ -45,7 +49,7 @@ const PublicHeader: React.FC = () => {
         <HeaderGlobalAction
           aria-label="Logout"
           tooltipAlignment="end"
-          onClick={logout}
+          onClick={() => logout()}
         >
           <Logout size={20} />
         </HeaderGlobalAction>

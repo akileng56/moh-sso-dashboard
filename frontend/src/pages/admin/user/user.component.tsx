@@ -15,19 +15,16 @@ import {
 } from "@carbon/react";
 import { View, Reset, UserFollow, Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../context/useAuth";
+
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 import { UserFilters } from "../../../components/user/UserFilters";
 
-interface User {
-  id: string;
-  username: string;
-  email?: string;
-  enabled: boolean;
-  roles: string[];
-  lastLoginAt?: string;
-}
+import {
+  useListUsersQuery,
+  useToggleUserMutation,
+} from "../../../store/api/users.api";
+import type { User } from "../../../store/types/user.types";
 
 const headers = [
   { key: "username", header: "Username" },
@@ -39,55 +36,33 @@ const headers = [
 ];
 
 export default function UsersPage() {
-  const { accessToken } = useAuth();
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Filters
+  /* ---------------------------
+   * Filters
+   * --------------------------- */
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [neverLoggedIn, setNeverLoggedIn] = useState(false);
 
-  // Pagination
+  /* ---------------------------
+   * Pagination
+   * --------------------------- */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   /* ---------------------------
-   * Load users
+   * Data (SSOT)
    * --------------------------- */
-  useEffect(() => {
-    if (!accessToken) return;
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useListUsersQuery();
 
-    const controller = new AbortController();
-
-    async function loadUsers() {
-      try {
-        const res = await fetch("http://localhost:9000/api/v1/users", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          credentials: "include",
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load users (${res.status})`);
-        }
-
-        setUsers(await res.json());
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          setError(err.message ?? "Failed to load users");
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadUsers();
-    return () => controller.abort();
-  }, [accessToken]);
+  const [toggleUser] = useToggleUserMutation();
 
   /* ---------------------------
    * Reset page on filter change
@@ -101,16 +76,17 @@ export default function UsersPage() {
    * --------------------------- */
   const roles = useMemo(() => {
     const set = new Set<string>();
-    users.forEach((u) => u.roles?.forEach((r) => set.add(r)));
+    users.forEach((u) => u?.client_roles?.admin?.forEach((r) => set.add(r)));
     return ["all", ...Array.from(set)];
   }, [users]);
 
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter === "active" && !u.enabled) return false;
-      if (statusFilter === "disabled" && u.enabled) return false;
-      if (neverLoggedIn && u.lastLoginAt) return false;
-      if (roleFilter !== "all" && !u.roles.includes(roleFilter)) return false;
+      if (statusFilter === "active" && !u?.enabled) return false;
+      if (statusFilter === "disabled" && u?.enabled) return false;
+      if (neverLoggedIn && u.last_login_at) return false;
+      if (roleFilter !== "all" && !u?.client_roles?.admin?.includes(roleFilter))
+        return false;
       return true;
     });
   }, [users, statusFilter, roleFilter, neverLoggedIn]);
@@ -125,28 +101,9 @@ export default function UsersPage() {
   }, [filteredUsers, page, pageSize]);
 
   /* ---------------------------
-   * Actions
-   * --------------------------- */
-  async function toggleUser(user: User) {
-    await fetch(`http://localhost:9000/api/v1/users/${user.id}`, {
-      method: user.enabled ? "DELETE" : "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-      credentials: "include",
-    });
-
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? { ...u, enabled: !u.enabled } : u))
-    );
-  }
-
-  function resetPassword(user: User) {
-    alert(`Password reset initiated for ${user.username}`);
-  }
-
-  /* ---------------------------
    * Loading
    * --------------------------- */
-  if (loading) {
+  if (isLoading) {
     return (
       <div style={{ padding: "2rem" }}>
         <InlineLoading description="Loading users…" />
@@ -157,14 +114,14 @@ export default function UsersPage() {
   /* ---------------------------
    * Error
    * --------------------------- */
-  if (error) {
+  if (isError) {
     return (
       <ErrorState
         title="Failed to load users"
-        description={error}
+        description={(error as any)?.data?.message ?? "Failed to load users"}
         primaryAction={{
           label: "Retry",
-          onClick: () => window.location.reload(),
+          onClick: refetch,
         }}
       />
     );
@@ -174,10 +131,10 @@ export default function UsersPage() {
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
-    status: u.enabled ? "Active" : "Disabled",
-    roles: u.roles,
-    lastLogin: u.lastLoginAt
-      ? new Date(u.lastLoginAt).toLocaleString()
+    status: u?.enabled ? "Active" : "Disabled",
+    roles: u?.client_roles?.admin ?? [],
+    lastLogin: u.last_login_at
+      ? new Date(u.last_login_at).toLocaleString()
       : "Never",
     actions: "",
     raw: u,
@@ -269,11 +226,13 @@ export default function UsersPage() {
                               return (
                                 <TableCell key={cell.id}>
                                   <div style={{ display: "flex", gap: 4 }}>
-                                    {user?.roles.map((r) => (
-                                      <Tag key={r} size="sm">
-                                        {r}
-                                      </Tag>
-                                    ))}
+                                    {(user?.client_roles?.admin ?? []).map(
+                                      (r) => (
+                                        <Tag key={r} size="sm">
+                                          {r}
+                                        </Tag>
+                                      )
+                                    )}
                                   </div>
                                 </TableCell>
                               );
@@ -306,7 +265,12 @@ export default function UsersPage() {
                                           ? "Disable user"
                                           : "Enable user"
                                       }
-                                      onClick={() => toggleUser(user)}
+                                      onClick={() =>
+                                        toggleUser({
+                                          id: user.id,
+                                          enabled: !user?.enabled,
+                                        })
+                                      }
                                     />
 
                                     <Button
@@ -315,7 +279,11 @@ export default function UsersPage() {
                                       hasIconOnly
                                       renderIcon={Reset}
                                       iconDescription="Reset password"
-                                      onClick={() => resetPassword(user)}
+                                      onClick={() =>
+                                        alert(
+                                          `Password reset initiated for ${user.username}`
+                                        )
+                                      }
                                     />
                                   </div>
                                 </TableCell>

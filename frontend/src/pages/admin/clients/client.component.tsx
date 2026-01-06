@@ -15,17 +15,16 @@ import {
 } from "@carbon/react";
 import { View, UserFollow, Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../context/useAuth";
+
 import { ClientFilters } from "../../../components/client/ClientFilters";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 
-interface Client {
-  clientId: string;
-  name: string;
-  publicClient: boolean;
-  enabled: boolean;
-}
+import {
+  useListClientsQuery,
+  useToggleClientMutation,
+} from "../../../store/api/clients.api";
+import type { Client } from "../../../store/types/client.types";
 
 /* -----------------------------
  * Filters
@@ -57,54 +56,32 @@ const headers = [
 ];
 
 export default function ClientsPage() {
-  const { accessToken } = useAuth();
   const navigate = useNavigate();
 
-  const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Filters
+  /* -----------------------------
+   * Filters
+   * ----------------------------- */
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
-  // Pagination
+  /* -----------------------------
+   * Pagination
+   * ----------------------------- */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
   /* -----------------------------
-   * Load clients
+   * Data (SSOT)
    * ----------------------------- */
-  useEffect(() => {
-    if (!accessToken) return;
+  const {
+    data: clients = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useListClientsQuery();
 
-    const controller = new AbortController();
-
-    async function loadClients() {
-      try {
-        const res = await fetch("http://localhost:9000/api/v1/clients", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          credentials: "include",
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          throw new Error(`Failed to load clients (${res.status})`);
-        }
-
-        setClients(await res.json());
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
-          setError(err.message ?? "Failed to load clients");
-        }
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadClients();
-    return () => controller.abort();
-  }, [accessToken]);
+  const [toggleClient] = useToggleClientMutation();
 
   /* -----------------------------
    * Reset page on filter change
@@ -118,10 +95,10 @@ export default function ClientsPage() {
    * ----------------------------- */
   const filteredClients = useMemo(() => {
     return clients.filter((c) => {
-      if (statusFilter === "enabled" && !c.enabled) return false;
-      if (statusFilter === "disabled" && c.enabled) return false;
-      if (typeFilter === "public" && !c.publicClient) return false;
-      if (typeFilter === "confidential" && c.publicClient) return false;
+      if (statusFilter === "enabled" && !c?.enabled) return false;
+      if (statusFilter === "disabled" && c?.enabled) return false;
+      if (typeFilter === "public" && !c.public_client) return false;
+      if (typeFilter === "confidential" && c.public_client) return false;
       return true;
     });
   }, [clients, statusFilter, typeFilter]);
@@ -136,20 +113,9 @@ export default function ClientsPage() {
   }, [filteredClients, page, pageSize]);
 
   /* -----------------------------
-   * Toggle (placeholder)
-   * ----------------------------- */
-  function toggleClient(client: Client) {
-    setClients((prev) =>
-      prev.map((c) =>
-        c.clientId === client.clientId ? { ...c, enabled: !c.enabled } : c
-      )
-    );
-  }
-
-  /* -----------------------------
    * Loading
    * ----------------------------- */
-  if (loading) {
+  if (isLoading) {
     return (
       <div style={{ padding: "2rem" }}>
         <InlineLoading description="Loading clients…" />
@@ -160,25 +126,25 @@ export default function ClientsPage() {
   /* -----------------------------
    * Error
    * ----------------------------- */
-  if (error) {
+  if (isError) {
     return (
       <ErrorState
         title="Failed to load clients"
-        description={error}
+        description={(error as any)?.data?.message ?? "Failed to load clients"}
         primaryAction={{
           label: "Retry",
-          onClick: () => window.location.reload(),
+          onClick: refetch,
         }}
       />
     );
   }
 
   const rows = paginatedClients.map((c) => ({
-    id: `${c.clientId}`,
+    id: c.client_id,
     name: c.name,
-    clientId: c.clientId,
-    type: c.publicClient ? "Public" : "Confidential",
-    status: c.enabled ? "Enabled" : "Disabled",
+    clientId: c.client_id,
+    type: c.public_client ? "Public" : "Confidential",
+    status: c?.enabled ? "Enabled" : "Disabled",
     actions: "",
     raw: c,
   }));
@@ -261,7 +227,12 @@ export default function ClientsPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <div style={{ display: "flex", gap: 4 }}>
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      gap: 4,
+                                    }}
+                                  >
                                     <Button
                                       size="sm"
                                       kind="ghost"
@@ -270,7 +241,7 @@ export default function ClientsPage() {
                                       iconDescription="View audit logs"
                                       onClick={() =>
                                         navigate(
-                                          `/admin/audit-logs?client_id=${client.clientId}`
+                                          `/admin/audit-logs?client_id=${client.client_id}`
                                         )
                                       }
                                     />
@@ -285,7 +256,12 @@ export default function ClientsPage() {
                                           ? "Disable client"
                                           : "Enable client"
                                       }
-                                      onClick={() => toggleClient(client)}
+                                      onClick={() =>
+                                        toggleClient({
+                                          id: client.id,
+                                          enabled: !client?.enabled,
+                                        })
+                                      }
                                     />
                                   </div>
                                 </TableCell>

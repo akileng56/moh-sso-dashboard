@@ -10,12 +10,17 @@ import {
 } from "@carbon/react";
 import { Logout, UserAvatarFilled } from "@carbon/icons-react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/useAuth";
+import { useSelector } from "react-redux";
+
+import { selectUser } from "../store/auth/auth.selectors";
+import { useLogoutMutation } from "../store/api/auth.api";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, logout } = useAuth();
+
+  const user = useSelector(selectUser);
+  const [logout] = useLogoutMutation();
 
   return (
     <>
@@ -29,7 +34,7 @@ export default function AdminLayout() {
           Integrated Health Portal
         </HeaderName>
 
-        {/* Global actions (icons only) */}
+        {/* Global actions */}
         <HeaderGlobalBar>
           {/* User indicator */}
           <HeaderGlobalAction
@@ -43,7 +48,7 @@ export default function AdminLayout() {
           <HeaderGlobalAction
             aria-label="Logout"
             tooltipAlignment="end"
-            onClick={logout}
+            onClick={() => logout()}
           >
             <Logout size={20} />
           </HeaderGlobalAction>

@@ -8,7 +8,7 @@ import {
   CodeSnippet,
   Tag,
 } from "@carbon/react";
-import { type AuditLog } from "../../lib/api/audit";
+import { type AuditLog } from "../../store/types/audit.types";
 
 export const AuditLogDrawer: React.FC<{
   log: AuditLog | null;
@@ -42,7 +42,7 @@ export const AuditLogDrawer: React.FC<{
               )}
             </div>
             <div style={{ opacity: 0.8 }}>
-              {new Date(log.createdAt).toLocaleString()}
+              {new Date(log.created_at).toLocaleString()}
             </div>
           </div>
 
@@ -54,7 +54,7 @@ export const AuditLogDrawer: React.FC<{
               <strong>Actor:</strong> {log.username ?? "System"}
             </div>
             <div>
-              <strong>User ID:</strong> {log.userId ?? "—"}
+              <strong>User ID:</strong> {log.user_id ?? "—"}
             </div>
             <div>
               <strong>Client:</strong> {log.metadata?.client_id ?? "—"}

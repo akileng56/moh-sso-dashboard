@@ -1,12 +1,14 @@
-import type { JSX } from "react";
 import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/useAuth";
+import { useSelector } from "react-redux";
+import { selectIsAdmin } from "../store/auth/auth.selectors";
+import type { JSX } from "react";
 
-export function AdminRoute({ children }: { children: JSX.Element }) {
-  const { isAdmin, loading } = useAuth();
+export const AdminRoute = ({ children }: { children: JSX.Element }) => {
+  const isAdmin = useSelector(selectIsAdmin);
 
-  if (loading) return null;
-  if (!isAdmin) return <Navigate to="/" replace />;
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return children;
-}
+};

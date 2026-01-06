@@ -15,13 +15,13 @@ import {
   TableRow,
 } from "@carbon/react";
 
-import { useAuditLogs } from "../../../hooks/useAuditLogs";
-import { type AuditLog } from "../../../lib/api/audit";
 import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer";
 import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
-import { AuditLogFilters } from "../../../components/audit/AuditLogFilters.tsx";
+import { AuditLogFilters } from "../../../components/audit/AuditLogFilters";
+import type { AuditLog } from "../../../store/types/audit.types";
+import { useListAuditLogsQuery } from "../../../store/api/audit.api";
 
 function toRFC3339(d: Date) {
   return d.toISOString();
@@ -41,18 +41,35 @@ export default function AuditLogs() {
   const [selected, setSelected] = useState<AuditLog | null>(null);
 
   const filters = useMemo(
-    () => ({ from, to, action, client_id: clientId, success }),
+    () => ({
+      from,
+      to,
+      action,
+      client_id: clientId,
+      success,
+    }),
     [from, to, action, clientId, success]
   );
 
-  const { data, loading, error } = useAuditLogs(filters);
+  /* ---------------------------
+   * Data (SSOT)
+   * --------------------------- */
+  const { data, isLoading, isError, error, refetch } = useListAuditLogsQuery(
+    filters,
+    {
+      skip: !from || !to,
+    }
+  );
 
+  /* ---------------------------
+   * Table rows
+   * --------------------------- */
   const rows = useMemo(
     () =>
       (data?.items ?? []).map((log) => ({
-        id: log.id, // ✅ stable key
-        shortId: log.id.slice(0, 8), // UI only
-        time: new Date(log.createdAt).toLocaleString(),
+        id: log.id,
+        shortId: log.id.slice(0, 8),
+        time: new Date(log.created_at).toLocaleString(),
         actor: log.username ?? "System",
         action: log.action,
         client: log.metadata?.client_id ?? "—",
@@ -122,24 +139,26 @@ export default function AuditLogs() {
 
       {/* Table */}
       <Tile>
-        {loading && (
+        {isLoading && (
           <div style={{ padding: 16 }}>
             <InlineLoading description="Loading audit logs…" />
           </div>
         )}
 
-        {!loading && error && (
+        {isError && (
           <ErrorState
             title="Failed to load audit logs"
-            description={error}
+            description={
+              (error as any)?.data?.message ?? "Failed to load audit logs"
+            }
             primaryAction={{
               label: "Retry",
-              onClick: () => window.location.reload(),
+              onClick: refetch,
             }}
           />
         )}
 
-        {!loading && !error && rows.length === 0 && (
+        {!isLoading && !isError && rows.length === 0 && (
           <EmptyState
             title="No audit logs found"
             description="There are no audit events matching the selected filters."
@@ -150,7 +169,7 @@ export default function AuditLogs() {
           />
         )}
 
-        {!loading && !error && rows.length > 0 && (
+        {!isLoading && !isError && rows.length > 0 && (
           <>
             <DataTable rows={rows} headers={headers}>
               {({ rows, headers, getHeaderProps, getRowProps }) => (
