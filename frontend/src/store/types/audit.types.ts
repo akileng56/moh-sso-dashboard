@@ -52,6 +52,8 @@ export interface AuditLog {
       user_agent?: string;
       client_id?: string;
       success?: boolean;
+      country?: string;
+      city?: string;
       [key: string]: any;
     };
     Valid: boolean;

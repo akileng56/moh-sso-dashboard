@@ -18,7 +18,9 @@ export const AuditLogDrawer: React.FC<{
   if (!open || !log) return null;
 
   const success =
-    typeof log.metadata?.success === "boolean" ? log.metadata.success : null;
+    typeof log.metadata?.RawMessage.success === "boolean"
+      ? log.metadata?.RawMessage.success
+      : null;
 
   return (
     <ComposedModal open={open} onClose={onClose} size="lg">
@@ -42,7 +44,7 @@ export const AuditLogDrawer: React.FC<{
               )}
             </div>
             <div style={{ opacity: 0.8 }}>
-              {new Date(log.created_at).toLocaleString()}
+              {new Date(log.created_at.Time).toLocaleString()}
             </div>
           </div>
 
@@ -57,19 +59,21 @@ export const AuditLogDrawer: React.FC<{
               <strong>User ID:</strong> {log.user_id ?? "—"}
             </div>
             <div>
-              <strong>Client:</strong> {log.metadata?.client_id ?? "—"}
+              <strong>Client:</strong>{" "}
+              {log.metadata?.RawMessage.client_id ?? "—"}
             </div>
             <div>
-              <strong>IP:</strong> {log.metadata?.ip ?? "—"}
+              <strong>IP:</strong> {log.metadata?.RawMessage.ip ?? "—"}
             </div>
             <div>
-              <strong>User Agent:</strong> {log.metadata?.user_agent ?? "—"}
+              <strong>User Agent:</strong>{" "}
+              {log.metadata?.RawMessage.user_agent ?? "—"}
             </div>
             <div>
               <strong>Country/City:</strong>{" "}
-              {(log.metadata?.country ?? "—") +
+              {(log.metadata?.RawMessage.country ?? "—") +
                 " / " +
-                (log.metadata?.city ?? "—")}
+                (log.metadata?.RawMessage.city ?? "—")}
             </div>
           </div>
 
