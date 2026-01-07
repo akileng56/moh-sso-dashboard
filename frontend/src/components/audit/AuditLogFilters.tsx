@@ -43,7 +43,6 @@ export function AuditLogFilters({
       {/* Date range */}
       <DatePicker
         datePickerType="range"
-        style={{ minWidth: 320 }}
         onChange={(dates) => {
           if (Array.isArray(dates)) {
             if (dates[0] instanceof Date) {

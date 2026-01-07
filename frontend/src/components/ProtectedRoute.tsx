@@ -1,10 +1,11 @@
-import { Navigate, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
 import {
   selectAuthenticated,
   selectAuthLoading,
 } from "../store/auth/auth.selectors";
 import type { JSX } from "react";
+import { API } from "../lib/constants/api.constants";
 
 export const ProtectedRoute = ({ children }: { children?: JSX.Element }) => {
   const authenticated = useSelector(selectAuthenticated);
@@ -15,7 +16,7 @@ export const ProtectedRoute = ({ children }: { children?: JSX.Element }) => {
   }
 
   if (!authenticated) {
-    window.location.href = "http://localhost:9000/api/v1/auth/login";
+    window.location.replace(API.auth.login());
     return null;
   }
 

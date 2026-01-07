@@ -3,6 +3,7 @@ export interface Client {
   name: string;
   description?: string;
   enabled: boolean;
+  baseUrl?: string;
   public_client: boolean;
   redirect_uris: string[];
   created_at?: string;

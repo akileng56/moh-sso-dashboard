@@ -59,7 +59,7 @@ const AppGridContent: React.FC = () => {
         const Icon = ICON_MAP[(client as any).attributes?.icon] || Menu;
 
         return (
-          <Column key={client.id} sm={2} md={2} lg={3}>
+          <Column key={client.client_id} sm={2} md={2} lg={3}>
             <AppTile
               icon={Icon}
               name={client.name}

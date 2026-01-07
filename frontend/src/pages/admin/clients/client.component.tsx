@@ -197,10 +197,7 @@ export default function ClientsPage() {
                   <TableHead>
                     <TableRow>
                       {headers.map((h) => (
-                        <TableHeader
-                          key={h.key}
-                          {...getHeaderProps({ header: h })}
-                        >
+                        <TableHeader {...getHeaderProps({ header: h })}>
                           {h.header}
                         </TableHeader>
                       ))}
@@ -258,7 +255,7 @@ export default function ClientsPage() {
                                       }
                                       onClick={() =>
                                         toggleClient({
-                                          id: client.id,
+                                          id: client.client_id,
                                           enabled: !client?.enabled,
                                         })
                                       }

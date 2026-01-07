@@ -36,7 +36,8 @@ export function ClientFilters({
         id="client-status-filter"
         titleText="Status"
         hideLabel
-        items={statusOptions}
+        label="Status"
+        items={[...statusOptions]}
         selectedItem={statusOptions.find((i) => i.id === status)}
         itemToString={(item) => item?.label ?? ""}
         style={{ width: 180 }}
@@ -50,7 +51,8 @@ export function ClientFilters({
         id="client-type-filter"
         titleText="Type"
         hideLabel
-        items={typeOptions}
+        label="Type"
+        items={[...typeOptions]}
         selectedItem={typeOptions.find((i) => i.id === type)}
         itemToString={(item) => item?.label ?? ""}
         style={{ width: 200 }}

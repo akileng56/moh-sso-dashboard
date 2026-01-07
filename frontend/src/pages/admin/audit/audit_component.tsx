@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DataTable,
   InlineLoading,
@@ -124,12 +124,9 @@ export default function AuditLogs() {
       {/* Filters */}
       <Tile>
         <AuditLogFilters
-          from={from}
-          to={to}
           onFromChange={setFrom}
           onToChange={setTo}
           onClientChange={setClientId}
-          onActionChange={setAction}
           onSuccessChange={setSuccess}
           onClear={clearFilters}
           onExportCsv={() => window.open(buildExportUrl("csv"))}
@@ -178,10 +175,7 @@ export default function AuditLogs() {
                     <TableHead>
                       <TableRow>
                         {headers.map((header) => (
-                          <TableHeader
-                            key={header.key}
-                            {...getHeaderProps({ header })}
-                          >
+                          <TableHeader {...getHeaderProps({ header })}>
                             {header.header}
                           </TableHeader>
                         ))}
@@ -194,7 +188,7 @@ export default function AuditLogs() {
                         const raw = (row as any).raw as AuditLog;
 
                         return (
-                          <TableRow key={row.id} {...getRowProps({ row })}>
+                          <TableRow {...getRowProps({ row })}>
                             {row.cells.map((cell) => (
                               <TableCell key={cell.id}>
                                 {cell.info.header === "result" ? (

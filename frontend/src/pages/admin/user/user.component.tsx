@@ -195,10 +195,7 @@ export default function UsersPage() {
                   <TableHead>
                     <TableRow>
                       {headers.map((h) => (
-                        <TableHeader
-                          key={h.key}
-                          {...getHeaderProps({ header: h })}
-                        >
+                        <TableHeader {...getHeaderProps({ header: h })}>
                           {h.header}
                         </TableHeader>
                       ))}
