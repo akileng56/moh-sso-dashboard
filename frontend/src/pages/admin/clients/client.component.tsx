@@ -140,9 +140,9 @@ export default function ClientsPage() {
   }
 
   const rows = paginatedClients.map((c) => ({
-    id: c.client_id,
+    id: c.clientId,
     name: c.name,
-    clientId: c.client_id,
+    clientId: c.clientId,
     type: c.public_client ? "Public" : "Confidential",
     status: c?.enabled ? "Enabled" : "Disabled",
     actions: "",
@@ -238,7 +238,7 @@ export default function ClientsPage() {
                                       iconDescription="View audit logs"
                                       onClick={() =>
                                         navigate(
-                                          `/admin/audit-logs?client_id=${client.client_id}`
+                                          `/admin/audit-logs?client_id=${client.clientId}`
                                         )
                                       }
                                     />
@@ -255,7 +255,7 @@ export default function ClientsPage() {
                                       }
                                       onClick={() =>
                                         toggleClient({
-                                          id: client.client_id,
+                                          id: client.clientId,
                                           enabled: !client?.enabled,
                                         })
                                       }

@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   DataTable,
   InlineLoading,
-  Pagination,
   Tag,
   Tile,
   Button,
@@ -20,14 +19,18 @@ import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 import { AuditLogFilters } from "../../../components/audit/AuditLogFilters";
-import type { AuditLog } from "../../../store/types/audit.types";
+import type {
+  AuditFilters,
+  AuditLog,
+  Cursor,
+} from "../../../store/types/audit.types";
 import { useListAuditLogsQuery } from "../../../store/api/audit.api";
+
+type SuccessFilter = "true" | "false";
 
 function toRFC3339(d: Date) {
   return d.toISOString();
 }
-
-type SuccessFilter = "true" | "false";
 
 export default function AuditLogs() {
   const now = new Date();
@@ -40,48 +43,75 @@ export default function AuditLogs() {
   const [success, setSuccess] = useState<SuccessFilter>();
   const [selected, setSelected] = useState<AuditLog | null>(null);
 
-  const filters = useMemo(
-    () => ({
+  const [cursor, setCursor] = useState<Cursor | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [items, setItems] = useState<AuditLog[]>([]);
+
+  const queryArgs = useMemo<AuditFilters>(() => {
+    const q: AuditFilters = {
       from,
       to,
       action,
       client_id: clientId,
       success,
-    }),
-    [from, to, action, clientId, success]
-  );
+      limit: 50,
+    };
 
-  /* ---------------------------
-   * Data (SSOT)
-   * --------------------------- */
-  const { data, isLoading, isError, error, refetch } = useListAuditLogsQuery(
-    filters,
-    {
-      skip: !from || !to,
+    if (cursor) {
+      q.cursor = {
+        cursor_id: cursor.cursor_id,
+        cursor_created_at: cursor.cursor_created_at,
+      };
     }
-  );
 
-  /* ---------------------------
-   * Table rows
-   * --------------------------- */
+    return q;
+  }, [from, to, action, clientId, success, cursor]);
+
+  const { data, isLoading, isFetching, isError, error, refetch } =
+    useListAuditLogsQuery(queryArgs, {
+      skip: !from || !to,
+    });
+
+  useEffect(() => {
+    if (!data) return;
+
+    setItems((prev) => (cursor ? [...prev, ...data.items] : data.items));
+
+    setHasMore(data.has_more);
+
+    if (data.next_cursor) {
+      setCursor(data.next_cursor);
+    }
+  }, [data]);
+
+  useEffect(() => {
+    setCursor(null);
+    setHasMore(true);
+    setItems([]);
+    refetch();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [from, to, action, clientId, success]);
+
   const rows = useMemo(
     () =>
-      (data?.items ?? []).map((log) => ({
+      items.map((log) => ({
         id: log.id,
         shortId: log.id.slice(0, 8),
-        time: new Date(log.created_at).toLocaleString(),
+        time: log.created_at.Valid
+          ? new Date(log.created_at.Time).toLocaleString()
+          : "—",
         actor: log.username ?? "System",
         action: log.action,
-        client: log.metadata?.client_id ?? "—",
+        client: log.metadata?.RawMessage?.client_id ?? "—",
         result:
-          log.metadata?.success === true
+          log.metadata?.RawMessage?.success === true
             ? "success"
-            : log.metadata?.success === false
+            : log.metadata?.RawMessage?.success === false
             ? "failure"
             : "—",
         raw: log,
       })),
-    [data?.items]
+    [items]
   );
 
   const headers = [
@@ -101,7 +131,7 @@ export default function AuditLogs() {
 
   function buildExportUrl(format: "csv" | "json") {
     const params = new URLSearchParams();
-    Object.entries(filters).forEach(([k, v]) => {
+    Object.entries(queryArgs).forEach(([k, v]) => {
       if (v !== undefined) params.set(k, String(v));
     });
     params.set("format", format);
@@ -148,17 +178,14 @@ export default function AuditLogs() {
             description={
               (error as any)?.data?.message ?? "Failed to load audit logs"
             }
-            primaryAction={{
-              label: "Retry",
-              onClick: refetch,
-            }}
+            primaryAction={{ label: "Retry", onClick: refetch }}
           />
         )}
 
         {!isLoading && !isError && rows.length === 0 && (
           <EmptyState
             title="No audit logs found"
-            description="There are no audit events matching the selected filters."
+            description="No audit events match the selected filters."
             secondaryAction={{
               label: "Clear filters",
               onClick: clearFilters,
@@ -227,13 +254,18 @@ export default function AuditLogs() {
               )}
             </DataTable>
 
-            <Pagination
-              page={1}
-              pageSize={50}
-              pageSizes={[50, 100, 200]}
-              totalItems={data?.items?.length ?? rows.length}
-              disabled
-            />
+            {/* Load more */}
+            {hasMore && (
+              <div style={{ padding: 16, textAlign: "center" }}>
+                <Button
+                  kind="secondary"
+                  disabled={isFetching}
+                  onClick={() => refetch()}
+                >
+                  {isFetching ? "Loading…" : "Load more"}
+                </Button>
+              </div>
+            )}
           </>
         )}
       </Tile>

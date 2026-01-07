@@ -16,7 +16,7 @@ export type MetricsOverview = {
   successfulLogins: number;
 };
 
-export type AuditFilters = {
+export interface AuditFilters {
   from: string;
   to: string;
   action?: string;
@@ -24,18 +24,36 @@ export type AuditFilters = {
   client_id?: string;
   ip?: string;
   success?: "true" | "false";
-  page?: number;
   limit?: number;
-};
+  cursor?: Cursor;
+}
 
 export interface AuditLog {
   id: string;
+
   action: string;
-  username?: string;
-  user_id: string;
-  client_id?: string;
-  ip?: string;
-  success: boolean;
-  created_at: string;
-  metadata?: Record<string, any>;
+
+  username?: string | null;
+  user_id?: string | null;
+
+  /* sql.NullTime */
+  created_at: {
+    Time: string;
+    Valid: boolean;
+  };
+
+  /* json.RawMessage wrapped in sql.Null */
+  metadata?: {
+    RawMessage: {
+      ip?: string;
+      method?: string;
+      status?: number;
+      latency_ms?: number;
+      user_agent?: string;
+      client_id?: string;
+      success?: boolean;
+      [key: string]: any;
+    };
+    Valid: boolean;
+  };
 }

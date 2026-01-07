@@ -34,22 +34,22 @@ export const AuditMetricsPanel: React.FC<Props> = ({ from, to }) => {
     >
       <Tile>
         <strong>Total Events</strong>
-        <div style={{ fontSize: 24 }}>{data?.totalEvents ?? "—"}</div>
+        <div style={{ fontSize: 24 }}>{data?.total_events ?? "—"}</div>
       </Tile>
 
       <Tile>
         <strong>Total Failures</strong>
-        <div style={{ fontSize: 24 }}>{data?.totalFailures ?? "—"}</div>
+        <div style={{ fontSize: 24 }}>{data?.total_failures ?? "—"}</div>
       </Tile>
 
       <Tile>
         <strong>Failed Logins</strong>
-        <div style={{ fontSize: 24 }}>{data?.failedLogins ?? "—"}</div>
+        <div style={{ fontSize: 24 }}>{data?.failed_logins ?? "—"}</div>
       </Tile>
 
       <Tile>
         <strong>Successful Logins</strong>
-        <div style={{ fontSize: 24 }}>{data?.successfulLogins ?? "—"}</div>
+        <div style={{ fontSize: 24 }}>{data?.successful_logins ?? "—"}</div>
       </Tile>
     </div>
   );

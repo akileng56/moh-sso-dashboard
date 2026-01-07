@@ -1,5 +1,5 @@
 export interface Client {
-  client_id: string;
+  clientId: string;
   name: string;
   description?: string;
   enabled: boolean;

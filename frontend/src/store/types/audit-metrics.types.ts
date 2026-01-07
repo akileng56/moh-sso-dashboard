@@ -1,8 +1,8 @@
 export interface AuditOverview {
-  totalEvents: number;
-  totalFailures: number;
-  failedLogins: number;
-  successfulLogins: number;
+  total_events: number;
+  total_failures: number;
+  failed_logins: number;
+  successful_logins: number;
 }
 
 export interface AuditMetricsFilters {
