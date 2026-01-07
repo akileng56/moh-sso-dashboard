@@ -38,7 +38,12 @@ export function AuditLogFilters({
     <Stack
       orientation="horizontal"
       gap={5}
-      style={{ alignItems: "flex-end", flexWrap: "nowrap" }}
+      style={{
+        width: "100%",
+        justifyContent: "flex-end",
+        alignItems: "flex-end",
+        flexWrap: "nowrap",
+      }}
     >
       {/* Date range */}
       <DatePicker
