@@ -42,7 +42,7 @@ export const notificationsApi = baseApi.injectEndpoints({
         method: "PATCH",
         credentials: "include",
       }),
-      invalidatesTags: (result, error, id) => [
+      invalidatesTags: (_, __, id) => [
         { type: "Notification", id },
         { type: "Notification", id: "LIST" },
         { type: "Notification", id: "COUNT" },

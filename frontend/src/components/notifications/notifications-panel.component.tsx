@@ -70,12 +70,14 @@ export function NotificationsPanel({ notifications, onClose }: Props) {
   );
 }
 
-function mapSeverity(sev: string) {
-  switch (sev) {
+function mapSeverity(
+  severity: "info" | "warning" | "critical"
+): "red" | "gray" | "high-contrast" {
+  switch (severity) {
     case "critical":
       return "red";
     case "warning":
-      return "yellow";
+      return "high-contrast";
     default:
       return "gray";
   }
