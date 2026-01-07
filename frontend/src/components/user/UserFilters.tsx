@@ -62,6 +62,10 @@ export function UserFilters({
       >
         Never logged in
       </Button>
+
+      <Button size="md" kind="primary" onClick={() => {}}>
+        Import users
+      </Button>
     </Stack>
   );
 }

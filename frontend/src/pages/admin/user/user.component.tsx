@@ -150,10 +150,6 @@ export default function UsersPage() {
             Manage users, roles, and access to applications.
           </p>
         </div>
-
-        <Button size="md" onClick={() => navigate("/admin/users/import")}>
-          Import users
-        </Button>
       </div>
 
       {/* Filters */}
