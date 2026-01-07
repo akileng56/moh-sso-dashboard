@@ -19,6 +19,7 @@ func SetupRouter(
 	metricsHandler *handler.MetricsHandler,
 	auditSvc *service.AuditService,
 	auditHandler *handler.AuditHandler,
+	notificationsHandler *handler.NotificationsHandler,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -158,6 +159,21 @@ func SetupRouter(
 				audit.GET("/metrics/top-failure-ips", auditHandler.TopFailureIPs)
 
 				audit.GET("/export", auditHandler.ExportAuditLogs)
+			}
+
+			// -------- Notifications ----------
+			notifications := admin.Group("/notifications")
+			{
+				notifications.POST("", notificationsHandler.Notify)
+				notifications.GET("", notificationsHandler.ListNotifications)
+				notifications.GET("/:id", notificationsHandler.GetNotificationByID)
+				notifications.PATCH("/:id/read", notificationsHandler.MarkNotificationAsRead)
+				notifications.DELETE("/:id", notificationsHandler.DeleteNotification)
+
+				notifications.GET("/count", notificationsHandler.CountNotifications)
+				notifications.GET("/count/unread", notificationsHandler.CountUnreadNotificationsCount)
+
+				notifications.DELETE("/cleanup", notificationsHandler.DeleteOldNotifications)
 			}
 		}
 	}

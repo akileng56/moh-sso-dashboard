@@ -31,13 +31,31 @@ type Querier interface {
 	CountNewClientsToday(ctx context.Context) (int64, error)
 	CountNewUsersThisWeek(ctx context.Context) (int64, error)
 	CountNewUsersToday(ctx context.Context) (int64, error)
+	CountNotifications(ctx context.Context, targetRole string) (int64, error)
 	CountPasswordResetsInRange(ctx context.Context, arg CountPasswordResetsInRangeParams) (int64, error)
+	CountUnreadNotifications(ctx context.Context, targetRole string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	// =====================================================
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	// =====================================================
+	// Clients
+	// =====================================================
 	CreateClient(ctx context.Context, arg CreateClientParams) error
+	// =====================================================
+	// Import Jobs
+	// =====================================================
 	CreateImportJob(ctx context.Context, arg CreateImportJobParams) error
+	// =====================================================
+	// Notifications
+	// =====================================================
+	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
+	// =====================================================
+	// Users
+	// =====================================================
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
+	DeleteNotificationByID(ctx context.Context, id uuid.UUID) error
+	DeleteOldNotifications(ctx context.Context) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	ExportAuditLogs(ctx context.Context, arg ExportAuditLogsParams) ([]ExportAuditLogsRow, error)
 	FailedLoginsByDay(ctx context.Context, arg FailedLoginsByDayParams) ([]FailedLoginsByDayRow, error)
@@ -47,6 +65,7 @@ type Querier interface {
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
 	GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, error)
+	GetNotificationByID(ctx context.Context, id uuid.UUID) (Notification, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUsersByRole(ctx context.Context, roles []string) ([]User, error)
@@ -61,6 +80,8 @@ type Querier interface {
 	ListEnabledClients(ctx context.Context) ([]Client, error)
 	ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
 	ListImportJobItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
+	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]Notification, error)
+	ListNotificationsByCursor(ctx context.Context, arg ListNotificationsByCursorParams) ([]Notification, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) ([]User, error)
 	LoginCountForClientInRange(ctx context.Context, arg LoginCountForClientInRangeParams) (int64, error)
@@ -68,6 +89,8 @@ type Querier interface {
 	LoginSuccessFailureInRange(ctx context.Context, arg LoginSuccessFailureInRangeParams) (LoginSuccessFailureInRangeRow, error)
 	LoginTrend(ctx context.Context) ([]LoginTrendRow, error)
 	LoginTrendByDay(ctx context.Context, arg LoginTrendByDayParams) ([]LoginTrendByDayRow, error)
+	MarkAllNotificationsRead(ctx context.Context, targetRole string) error
+	MarkNotificationRead(ctx context.Context, id uuid.UUID) error
 	MostAccessedClients(ctx context.Context, arg MostAccessedClientsParams) ([]MostAccessedClientsRow, error)
 	MostActiveClients(ctx context.Context) ([]MostActiveClientsRow, error)
 	NeverLoggedInUsers(ctx context.Context) ([]User, error)

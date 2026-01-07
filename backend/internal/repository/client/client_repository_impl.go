@@ -1,4 +1,4 @@
-package repository
+package client
 
 import (
 	"context"
@@ -78,11 +78,11 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 		},
 		PublicClient: sql.NullBool{
 			Bool:  client.PublicClient,
-			Valid: client.PublicClient != false,
+			Valid: client.PublicClient,
 		},
 		Enabled: sql.NullBool{
 			Bool:  client.Enabled,
-			Valid: client.Enabled != false,
+			Valid: client.Enabled,
 		},
 	})
 }

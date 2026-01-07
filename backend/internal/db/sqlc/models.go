@@ -118,6 +118,18 @@ type ImportJobItem struct {
 	CreatedAt   time.Time      `json:"created_at"`
 }
 
+type Notification struct {
+	ID         uuid.UUID             `json:"id"`
+	Type       string                `json:"type"`
+	Title      string                `json:"title"`
+	Message    string                `json:"message"`
+	Severity   sql.NullString        `json:"severity"`
+	TargetRole string                `json:"target_role"`
+	Metadata   pqtype.NullRawMessage `json:"metadata"`
+	Read       sql.NullBool          `json:"read"`
+	CreatedAt  sql.NullTime          `json:"created_at"`
+}
+
 type RevokedToken struct {
 	ID        int64        `json:"id"`
 	TokenHash string       `json:"token_hash"`

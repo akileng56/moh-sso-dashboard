@@ -14,6 +14,7 @@ import (
 )
 
 const createImportJob = `-- name: CreateImportJob :exec
+
 INSERT INTO import_jobs (
   id, filename, status, total_rows, valid_rows, success_count, failure_count, created_by
 ) VALUES (
@@ -32,6 +33,9 @@ type CreateImportJobParams struct {
 	CreatedBy    string          `json:"created_by"`
 }
 
+// =====================================================
+// Import Jobs
+// =====================================================
 func (q *Queries) CreateImportJob(ctx context.Context, arg CreateImportJobParams) error {
 	_, err := q.db.ExecContext(ctx, createImportJob,
 		arg.ID,

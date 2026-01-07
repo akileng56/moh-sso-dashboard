@@ -66,6 +66,7 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 }
 
 const createUser = `-- name: CreateUser :exec
+
 INSERT INTO users (
     id, username, first_name, last_name, email, enabled, roles
 ) VALUES (
@@ -83,6 +84,9 @@ type CreateUserParams struct {
 	Roles     []string       `json:"roles"`
 }
 
+// =====================================================
+// Users
+// =====================================================
 func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	_, err := q.db.ExecContext(ctx, createUser,
 		arg.ID,

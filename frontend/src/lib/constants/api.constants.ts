@@ -121,6 +121,18 @@ export const API = {
 
       export: () => `${API_BASE}/admin/audit-logs/export`,
     },
+
+    notifications: {
+      base: `${API_BASE}/admin/notifications`,
+      notify: () => `${API_BASE}/admin/notifications`,
+      list: () => `${API_BASE}/admin/notifications`,
+      byId: (id: string) => `${API_BASE}/admin/notifications/${id}`,
+      markAsRead: (id: string) => `${API_BASE}/admin/notifications/${id}/read`,
+      delete: (id: string) => `${API_BASE}/admin/notifications/${id}`,
+      count: () => `${API_BASE}/admin/notifications/count`,
+      countUnread: () => `${API_BASE}/admin/notifications/count/unread`,
+      deleteOld: () => `${API_BASE}/admin/notifications/cleanup`,
+    },
   },
 
   // --------------------------------------------------

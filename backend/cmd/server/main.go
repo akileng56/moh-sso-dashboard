@@ -17,6 +17,7 @@ import (
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
 	metricsRepo "github.com/moh-sso-dashboard/internal/repository/metrics"
+	"github.com/moh-sso-dashboard/internal/repository/notifications"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/service"
 
@@ -82,6 +83,7 @@ func main() {
 	clientRepository := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
 	userRepository := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
 	metricsRepository := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
+	notificationsRepository := notifications.NewNotificationsRepository(store, *appLogger)
 
 	// ---------------------------------------------------------------------
 	// Services
@@ -92,6 +94,7 @@ func main() {
 	metricsService := service.NewMetricsService(metricsRepository)
 	auditService := service.NewAuditService(store)
 	importService := service.NewImportService(store, keycloakClient)
+	notificationsService := service.NewNotificationsService(notificationsRepository)
 
 	// ---------------------------------------------------------------------
 	// Handlers
@@ -102,6 +105,7 @@ func main() {
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
 	auditHandler := handler.NewAuditHandler(store)
+	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
 	// ---------------------------------------------------------------------
 	// Router
@@ -114,6 +118,7 @@ func main() {
 		metricsHandler,
 		auditService,
 		auditHandler,
+		notificationsHandler,
 	)
 
 	// ---------------------------------------------------------------------

@@ -308,6 +308,9 @@ func (q *Queries) CountPasswordResetsInRange(ctx context.Context, arg CountPassw
 }
 
 const createAuditLog = `-- name: CreateAuditLog :exec
+	-- AuditLogs
+	-- =====================================================
+
 INSERT INTO audit_logs (
     user_id, action, metadata
 ) VALUES (
@@ -321,6 +324,7 @@ type CreateAuditLogParams struct {
 	Metadata pqtype.NullRawMessage `json:"metadata"`
 }
 
+// =====================================================
 func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error {
 	_, err := q.db.ExecContext(ctx, createAuditLog, arg.UserID, arg.Action, arg.Metadata)
 	return err

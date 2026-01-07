@@ -1,3 +1,7 @@
+-- =====================================================
+-- Import Jobs
+-- =====================================================
+
 -- name: CreateImportJob :exec
 INSERT INTO import_jobs (
   id, filename, status, total_rows, valid_rows, success_count, failure_count, created_by

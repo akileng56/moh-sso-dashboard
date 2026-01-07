@@ -1,3 +1,7 @@
+	-- =====================================================
+	-- AuditLogs
+	-- =====================================================
+
 -- name: CreateAuditLog :exec
 INSERT INTO audit_logs (
     user_id, action, metadata

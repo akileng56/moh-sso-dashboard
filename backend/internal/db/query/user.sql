@@ -1,3 +1,7 @@
+-- =====================================================
+-- Users
+-- =====================================================
+
 -- name: CreateUser :exec
 INSERT INTO users (
     id, username, first_name, last_name, email, enabled, roles

@@ -77,6 +77,7 @@ func (q *Queries) CountNewClientsToday(ctx context.Context) (int64, error) {
 }
 
 const createClient = `-- name: CreateClient :exec
+
 INSERT INTO client (
     id, client_id, name, description, base_url, icon, public_client, enabled
 ) VALUES (
@@ -95,6 +96,9 @@ type CreateClientParams struct {
 	Enabled      sql.NullBool   `json:"enabled"`
 }
 
+// =====================================================
+// Clients
+// =====================================================
 func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) error {
 	_, err := q.db.ExecContext(ctx, createClient,
 		arg.ID,

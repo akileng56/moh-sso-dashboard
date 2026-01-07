@@ -1,7 +1,10 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Client struct {
@@ -149,4 +152,16 @@ type parsedRow struct {
 	raw struct {
 		clientIDs string
 	}
+}
+
+type Notification struct {
+	ID         uuid.UUID       `json:"id"`
+	Type       string          `json:"type"`
+	Title      string          `json:"title"`
+	Message    string          `json:"message"`
+	Severity   string          `json:"severity"`    // info | warning | critical
+	TargetRole string          `json:"target_role"` // admin | super_admin | etc
+	Metadata   json.RawMessage `json:"metadata"`    // JSONB from Postgres
+	Read       bool            `json:"read"`
+	CreatedAt  time.Time       `json:"created_at"`
 }

@@ -1,3 +1,7 @@
+-- =====================================================
+-- Clients
+-- =====================================================
+
 -- name: CreateClient :exec
 INSERT INTO client (
     id, client_id, name, description, base_url, icon, public_client, enabled
