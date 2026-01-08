@@ -17,6 +17,7 @@ import AppLauncherPage from "./pages/public/applauncher/app_launcher.component";
 import AuditLogsPage from "./pages/admin/audit/audit_component";
 import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
+import HomePage from "./pages/admin/home/home.component";
 
 function App() {
   return (
@@ -25,44 +26,60 @@ function App() {
         {/* ---------------------------------- */}
         {/* PUBLIC (authenticated users) */}
         {/* ---------------------------------- */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<PublicLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<NewsFeedPage />} />
-            <Route path="/apps" element={<AppLauncherPage />} />
-          </Route>
+        <Route
+          element={
+            <ProtectedRoute>
+              <PublicLayout />
+            </ProtectedRoute>
+          }
+        >
+          {/* Default landing after login */}
+          <Route index element={<Navigate to="/dashboard" replace />} />
+
+          <Route path="/dashboard" element={<NewsFeedPage />} />
+          <Route path="/apps" element={<AppLauncherPage />} />
         </Route>
 
         {/* ---------------------------------- */}
         {/* ADMIN */}
         {/* ---------------------------------- */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route
-              path="users"
-              element={
-                <AdminRoute>
-                  <UsersPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="clients"
-              element={
-                <AdminRoute>
-                  <ClientsPage />
-                </AdminRoute>
-              }
-            />
-            <Route
-              path="audit-logs"
-              element={
-                <AdminRoute>
-                  <AuditLogsPage />
-                </AdminRoute>
-              }
-            />
-          </Route>
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<Navigate to="/admin/home" replace />} />
+
+          <Route path="home" element={<HomePage />} />
+
+          <Route
+            path="users"
+            element={
+              <AdminRoute>
+                <UsersPage />
+              </AdminRoute>
+            }
+          />
+
+          <Route
+            path="clients"
+            element={
+              <AdminRoute>
+                <ClientsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="audit-logs"
+            element={
+              <AdminRoute>
+                <AuditLogsPage />
+              </AdminRoute>
+            }
+          />
         </Route>
 
         {/* ---------------------------------- */}

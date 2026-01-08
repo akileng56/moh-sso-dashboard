@@ -9,13 +9,6 @@ export type AuditListResponse = {
   has_more: boolean;
 };
 
-export type MetricsOverview = {
-  totalEvents: number;
-  totalFailures: number;
-  failedLogins: number;
-  successfulLogins: number;
-};
-
 export interface AuditFilters {
   from: string;
   to: string;

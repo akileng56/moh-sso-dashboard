@@ -1,18 +1,19 @@
 import { Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { InlineLoading } from "@carbon/react";
 import {
   selectAuthenticated,
-  selectAuthLoading,
+  selectAuthLoaded,
 } from "../store/auth/auth.selectors";
-import type { JSX } from "react";
 import { API } from "../lib/constants/api.constants";
+import type { JSX } from "react";
 
 export const ProtectedRoute = ({ children }: { children?: JSX.Element }) => {
   const authenticated = useSelector(selectAuthenticated);
-  const loading = useSelector(selectAuthLoading);
+  const loaded = useSelector(selectAuthLoaded);
 
-  if (loading) {
-    return <p>Authenticating…</p>; // or spinner
+  if (!loaded) {
+    return <InlineLoading description="Checking session…" />;
   }
 
   if (!authenticated) {
