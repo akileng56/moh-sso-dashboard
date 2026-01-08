@@ -127,12 +127,14 @@ export default function UsersPage() {
     );
   }
 
+  const clientId = "dashboard";
+
   const rows = paginatedUsers.map((u) => ({
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
     status: u?.enabled ? "Active" : "Disabled",
-    roles: u?.client_roles?.admin ?? [],
+    roles: u?.client_roles?.[clientId] ?? [],
     lastLogin: u.last_login_at
       ? new Date(u.last_login_at).toLocaleString()
       : "Never",

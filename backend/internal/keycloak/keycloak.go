@@ -34,11 +34,22 @@ type TokenResponse struct {
 }
 
 type AuthUser struct {
-	ID          string              `json:"id"`
-	Username    string              `json:"username"`
-	Email       string              `json:"email,omitempty"`
-	IsAdmin     bool                `json:"is_admin"`
-	ClientRoles map[string][]string `json:"client_roles"`
+	ID               string              `json:"id"`
+	Username         string              `json:"username"`
+	Email            string              `json:"email,omitempty"`
+	FirstName        string              `json:"first_name,omitempty"`
+	LastName         string              `json:"last_name,omitempty"`
+	FullName         string              `json:"full_name,omitempty"`
+	IsAdmin          bool                `json:"is_admin"`     // derived (realm admin)
+	RealmRoles       []string            `json:"realm_roles"`  // e.g. ["admin"]
+	ClientRoles      map[string][]string `json:"client_roles"` // client_id → roles
+	Enabled          bool                `json:"enabled"`
+	EmailVerified    bool                `json:"email_verified"`
+	RequirePwdChange bool                `json:"require_pwd_change"`
+	LastLoginAt      *time.Time          `json:"last_login_at,omitempty"`
+	LoginIP          string              `json:"login_ip,omitempty"`
+	UserAgent        string              `json:"user_agent,omitempty"`
+	CreatedAt        time.Time           `json:"created_at,omitempty"`
 }
 
 // NewClient creates a new Keycloak client
@@ -195,7 +206,6 @@ func (c *Client) LogOut(refreshToken string) error {
 
 // get User profile / Info
 func (c *Client) Me(accessToken string) (*AuthUser, error) {
-
 	token, _, err := new(jwt.Parser).ParseUnverified(accessToken, jwt.MapClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("token parse error: %w", err)
@@ -207,35 +217,60 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 	}
 
 	// ----------------------------
-	// Basic identity
+	// Helpers (panic-safe)
 	// ----------------------------
-	sub, _ := claims["sub"].(string)
-	email, _ := claims["email"].(string)
+	getString := func(key string) string {
+		if v, ok := claims[key].(string); ok {
+			return v
+		}
+		return ""
+	}
 
-	username := ""
-	if v, ok := claims["preferred_username"].(string); ok {
-		username = v
-	} else if v, ok := claims["name"].(string); ok {
-		username = v
+	getBool := func(key string) bool {
+		if v, ok := claims[key].(bool); ok {
+			return v
+		}
+		return false
 	}
 
 	// ----------------------------
-	// Realm roles → is_admin
+	// Core identity
 	// ----------------------------
+	id := getString("sub")
+	username := getString("preferred_username")
+	email := getString("email")
+
+	firstName := getString("given_name")
+	lastName := getString("family_name")
+
+	fullName := strings.TrimSpace(
+		fmt.Sprintf("%s %s", firstName, lastName),
+	)
+	if fullName == "" {
+		fullName = getString("name")
+	}
+
+	// ----------------------------
+	// Realm roles
+	// ----------------------------
+	realmRoles := []string{}
 	isAdmin := false
+
 	if ra, ok := claims["realm_access"].(map[string]interface{}); ok {
 		if roles, ok := ra["roles"].([]interface{}); ok {
 			for _, r := range roles {
-				if role, ok := r.(string); ok && role == "admin" {
-					isAdmin = true
-					break
+				if role, ok := r.(string); ok {
+					realmRoles = append(realmRoles, role)
+					if role == "admin" {
+						isAdmin = true
+					}
 				}
 			}
 		}
 	}
 
 	// ----------------------------
-	// Client roles → app access
+	// Client roles (resource_access)
 	// ----------------------------
 	clientRoles := map[string][]string{}
 
@@ -246,25 +281,53 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 				continue
 			}
 
-			roles, ok := block["roles"].([]interface{})
-			if !ok {
-				continue
-			}
-
-			for _, r := range roles {
-				if role, ok := r.(string); ok {
-					clientRoles[clientID] = append(clientRoles[clientID], role)
+			if roles, ok := block["roles"].([]interface{}); ok {
+				for _, r := range roles {
+					if role, ok := r.(string); ok {
+						clientRoles[clientID] = append(
+							clientRoles[clientID],
+							role,
+						)
+					}
 				}
 			}
 		}
 	}
 
+	// ----------------------------
+	// Session & account metadata
+	// ----------------------------
+	var lastLoginAt *time.Time
+	if v, ok := claims["auth_time"].(float64); ok {
+		t := time.Unix(int64(v), 0)
+		lastLoginAt = &t
+	}
+
+	emailVerified := getBool("email_verified")
+
+	// Keycloak only issues tokens for enabled users
+	enabled := true
+
 	return &AuthUser{
-		ID:          sub,
-		Username:    username,
-		Email:       email,
+		// Identity
+		ID:        id,
+		Username:  username,
+		Email:     email,
+		FirstName: firstName,
+		LastName:  lastName,
+		FullName:  fullName,
+
+		// Authorization
 		IsAdmin:     isAdmin,
+		RealmRoles:  realmRoles,
 		ClientRoles: clientRoles,
+
+		// Account state
+		Enabled:       enabled,
+		EmailVerified: emailVerified,
+
+		// Session
+		LastLoginAt: lastLoginAt,
 	}, nil
 }
 

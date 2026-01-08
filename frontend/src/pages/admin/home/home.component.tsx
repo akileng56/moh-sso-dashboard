@@ -53,10 +53,7 @@ export default function HomePage() {
     data: metrics,
     isLoading: metricsLoading,
     isError: metricsError,
-  } = useAuditOverviewQuery({
-    from,
-    to,
-  });
+  } = useAuditOverviewQuery({ from, to }, { skip: !from || !to });
 
   /* ==================================================
    * Notifications
@@ -92,11 +89,9 @@ export default function HomePage() {
 
             <Stack orientation="horizontal" gap={4}>
               <span>{user.email}</span>
-              {Object.entries(user.client_roles).map(([client, roles]) => (
-                <Tag key={client} type="blue">
-                  {client}: {roles.join(", ")}
-                </Tag>
-              ))}{" "}
+              <Tag key={user.id} type="blue">
+                {user.realm_roles.join(", ")}
+              </Tag>
               <span>
                 Last login:{" "}
                 {user.last_login_at
@@ -204,7 +199,7 @@ export default function HomePage() {
             <SignalTile label="Active users today" value={0} />
             <SignalTile
               label="Failed logins (24h)"
-              value={0}
+              value={metrics?.failed_logins}
               severity="warning"
             />
             <SignalTile label="Suspicious logins" value={0} severity="danger" />

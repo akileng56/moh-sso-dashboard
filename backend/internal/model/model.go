@@ -84,25 +84,38 @@ type ProtocolMapper struct {
 }
 
 type User struct {
-	ID          string     `json:"id"`
-	Username    string     `json:"username"`
-	FirstName   string     `json:"firstName"`
-	LastName    string     `json:"lastName"`
-	Email       string     `json:"email"`
-	Enabled     bool       `json:"enabled"`
-	Roles       []string   `json:"roles"`
-	CreatedAt   time.Time  `json:"createdAt"`
-	UpdatedAt   time.Time  `json:"updatedAt"`
-	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
+	ID               string              `json:"id"`
+	Username         string              `json:"username"`
+	Email            string              `json:"email"`
+	FirstName        string              `json:"first_name,omitempty"`
+	LastName         string              `json:"last_name,omitempty"`
+	FullName         string              `json:"full_name,omitempty"`
+	RealmRoles       []string            `json:"realm_roles"`
+	IsAdmin          bool                `json:"is_admin"`
+	ClientRoles      map[string][]string `json:"client_roles,omitempty"`
+	Enabled          bool                `json:"enabled"`
+	EmailVerified    bool                `json:"email_verified"`
+	RequirePwdChange bool                `json:"require_pwd_change"`
+	LastLoginAt      *time.Time          `json:"last_login_at,omitempty"`
+	CreatedAt        time.Time           `json:"created_at"`
+	UpdatedAt        time.Time           `json:"updated_at"`
+	CreatedBy        string              `json:"created_by,omitempty"`
+	UpdatedBy        string              `json:"updated_by,omitempty"`
 }
 
 type UserResponse struct {
-	ID       string   `json:"id"`
-	Username string   `json:"username"`
-	Email    string   `json:"email"`
-	FullName string   `json:"full_name"`
-	IsActive bool     `json:"is_active"`
-	Roles    []string `json:"roles"`
+	ID               string              `json:"id"`
+	Username         string              `json:"username"`
+	Email            string              `json:"email,omitempty"`
+	FullName         string              `json:"full_name"`
+	IsAdmin          bool                `json:"is_admin"`
+	RealmRoles       []string            `json:"realm_roles"`
+	ClientRoles      map[string][]string `json:"client_roles,omitempty"`
+	IsActive         bool                `json:"is_active"`
+	EmailVerified    bool                `json:"email_verified,omitempty"`
+	RequirePwdChange bool                `json:"require_pwd_change,omitempty"`
+	LastLoginAt      *time.Time          `json:"last_login_at,omitempty"`
+	CreatedAt        *time.Time          `json:"created_at,omitempty"`
 }
 
 type ImportUserRow struct {

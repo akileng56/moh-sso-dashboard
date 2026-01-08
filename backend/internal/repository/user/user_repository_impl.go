@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +13,7 @@ import (
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
+	"github.com/moh-sso-dashboard/internal/model"
 	models "github.com/moh-sso-dashboard/internal/model"
 )
 
@@ -84,47 +87,46 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 // Get user by ID
 // ------------------------------------------------------------
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
-	ctx := context.Background()
-
-	row, err := r.db.GetUserByID(ctx, id)
+	// 1. Fetch from Keycloak (source of truth)
+	kcUser, err := r.keycloakClient.GetUser(id.String())
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
+		r.logger.Error("Failed creating user in Keycloak: %v", err)
+		return nil, fmt.Errorf("keycloak user creation failed: %w", err)
+	}
+
+	// 2. Optional: enrich from DB (local metadata)
+	ctx := context.Background()
+	row, err := r.db.GetUserByID(ctx, id)
+	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 
-	createdAt := time.Time{}
+	var createdAt time.Time
+	var updatedAt time.Time
+
 	if row.CreatedAt.Valid {
 		createdAt = row.CreatedAt.Time
 	}
-
-	updatedAt := time.Time{}
 	if row.UpdatedAt.Valid {
 		updatedAt = row.UpdatedAt.Time
 	}
 
-	lastLoginAt := time.Time{}
-	if row.LastLoginAt.Valid {
-		lastLoginAt = row.LastLoginAt.Time
-	}
-
-	enabled := false
-	if row.Enabled.Valid {
-		enabled = row.Enabled.Bool
-	}
-
+	// 3. Build unified user model
 	return &models.User{
-		ID:          row.ID.String(),
-		Username:    row.Username,
-		FirstName:   row.FirstName.String,
-		LastName:    row.LastName.String,
-		Email:       row.Email,
-		Enabled:     enabled,
-		Roles:       row.Roles,
-		CreatedAt:   createdAt,
-		UpdatedAt:   updatedAt,
-		LastLoginAt: &lastLoginAt,
+		ID:            kcUser.ID,
+		Username:      kcUser.Username,
+		Email:         kcUser.Email,
+		FirstName:     kcUser.FirstName,
+		LastName:      kcUser.LastName,
+		FullName:      strings.TrimSpace(kcUser.FirstName + " " + kcUser.LastName),
+		RealmRoles:    kcUser.Roles,
+		ClientRoles:   kcUser.ClientRoles,
+		IsAdmin:       slices.Contains(kcUser.Roles, "admin"),
+		Enabled:       kcUser.Enabled,
+		EmailVerified: kcUser.EmailVerified,
+		LastLoginAt:   kcUser.LastLoginAt,
+		CreatedAt:     createdAt,
+		UpdatedAt:     updatedAt,
 	}, nil
 }
 
@@ -132,7 +134,6 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 // List all users
 // ------------------------------------------------------------
 func (r *userRepository) ListUsers() ([]models.User, error) {
-	// Fetch users from Keycloak (single source of truth)
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch keycloak users: %w", err)
@@ -142,16 +143,19 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 
 	for _, kc := range kcUsers {
 		result = append(result, models.User{
-			ID:        kc.ID,
-			Username:  kc.Username,
-			FirstName: kc.FirstName,
-			LastName:  kc.LastName,
-			Email:     kc.Email,
-			Enabled:   kc.Enabled,
-			Roles:     kc.Roles, // realm + client roles already resolved
-			CreatedAt: kc.CreatedAt,
-			UpdatedAt: kc.UpdatedAt,
-			// LastLoginAt intentionally omitted (optional)
+			ID:            kc.ID,
+			Username:      kc.Username,
+			Email:         kc.Email,
+			FirstName:     kc.FirstName,
+			LastName:      kc.LastName,
+			FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
+			RealmRoles:    kc.Roles,
+			ClientRoles:   kc.ClientRoles,
+			IsAdmin:       slices.Contains(kc.Roles, "admin"),
+			Enabled:       kc.Enabled,
+			EmailVerified: kc.EmailVerified,
+			LastLoginAt:   kc.LastLoginAt,
+			CreatedAt:     kc.CreatedAt,
 		})
 	}
 
@@ -165,19 +169,25 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
 
 	// ----------------------------------------------------
-	// 1️⃣ Update user in Keycloak
+	// 1️⃣ Update user in Keycloak (source of truth)
 	// ----------------------------------------------------
-	if err := r.keycloakClient.UpdateUser(user); err != nil {
+	if err := r.keycloakClient.UpdateUser(&model.User{
+		ID:        user.ID,
+		Username:  user.Username,
+		Email:     user.Email,
+		FirstName: user.FirstName,
+		LastName:  user.LastName,
+		Enabled:   user.Enabled,
+	}); err != nil {
 		r.logger.Error("Failed to update user in Keycloak: %v", err)
 		return fmt.Errorf("keycloak update failed: %w", err)
 	}
 
 	// ----------------------------------------------------
-	// 2️⃣ Update in Postgres (SQLC)
+	// 2️⃣ Update local metadata in Postgres
 	// ----------------------------------------------------
 	params := db.UpdateUserParams{
-		ID:       uuid.MustParse(user.ID),
-		Username: user.Username,
+		ID: uuid.MustParse(user.ID),
 
 		FirstName: sql.NullString{
 			String: user.FirstName,
@@ -190,13 +200,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 		},
 
 		Email: user.Email,
-
-		Enabled: sql.NullBool{
-			Bool:  user.Enabled,
-			Valid: true,
-		},
-
-		Roles: user.Roles,
 	}
 
 	if err := r.db.UpdateUser(ctx, params); err != nil {
@@ -217,18 +220,10 @@ func (r *userRepository) DeleteUser(id string) error {
 	if err != nil {
 		return fmt.Errorf("invalid UUID: %w", err)
 	}
-
-	// ----------------------------------------------------
-	// 1️⃣ Delete from Keycloak
-	// ----------------------------------------------------
 	if err := r.keycloakClient.DeleteUser(id); err != nil {
 		r.logger.Error("Keycloak failed to delete user %s: %v", id, err)
 		return fmt.Errorf("keycloak delete failed: %w", err)
 	}
-
-	// ----------------------------------------------------
-	// 2️⃣ Delete from Postgres
-	// ----------------------------------------------------
 	if err := r.db.DeleteUser(ctx, uid); err != nil {
 		r.logger.Error("DB failed to delete user %s: %v", id, err)
 		return fmt.Errorf("db delete failed: %w", err)

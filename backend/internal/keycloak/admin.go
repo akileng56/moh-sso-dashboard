@@ -318,6 +318,10 @@ type RoleRep struct {
 	Name string `json:"name"`
 }
 
+// -----------------------------------------
+// create user
+// -----------------------------------------
+
 func (c *Client) CreateUser(user *model.User) (string, error) {
 	c.BaseURL = "http://keycloak:8080"
 	payload := map[string]any{
@@ -361,6 +365,10 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 
 	return kcID, nil
 }
+
+// --------------------------------------------------------
+// find users
+// --------------------------------------------------------
 
 func (c *Client) FindUsers(ctx context.Context, q string, exact bool) ([]UserRep, error) {
 	u := fmt.Sprintf("%s/admin/realms/%s/users", c.BaseURL, c.Realm)
@@ -408,6 +416,31 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 	}
 
 	return users, nil
+}
+
+// ---------------------------------------------------------
+// Get User in Keycloak
+// ---------------------------------------------------------
+
+func (c *Client) GetUser(userID string) (*UserInfo, error) {
+	c.BaseURL = "http://keycloak:8080"
+	res, err := c.Get("users/" + userID)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("failed to get user: %s", string(body))
+	}
+
+	var user UserInfo
+	if err := json.NewDecoder(res.Body).Decode(&user); err != nil {
+		return nil, err
+	}
+
+	return &user, nil
 }
 
 // -------------------------------------------------------------------
