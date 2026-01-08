@@ -165,3 +165,113 @@ type Notification struct {
 	Read       bool            `json:"read"`
 	CreatedAt  time.Time       `json:"created_at"`
 }
+
+type NotificationType string
+
+// =====================================================
+// AUTH / SECURITY
+// =====================================================
+const (
+	LoginFailed            NotificationType = "LOGIN_FAILED"
+	LoginSucceeded         NotificationType = "LOGIN_SUCCEEDED"
+	SuspiciousLogin        NotificationType = "SUSPICIOUS_LOGIN"
+	PasswordResetRequested NotificationType = "PASSWORD_RESET_REQUESTED"
+	PasswordResetCompleted NotificationType = "PASSWORD_RESET_COMPLETED"
+	AccountLocked          NotificationType = "ACCOUNT_LOCKED"
+	AccountUnlocked        NotificationType = "ACCOUNT_UNLOCKED"
+)
+
+// =====================================================
+// USERS
+// =====================================================
+const (
+	UserImported    NotificationType = "USER_IMPORTED"
+	UserCreated     NotificationType = "USER_CREATED"
+	UserUpdated     NotificationType = "USER_UPDATED"
+	UserDisabled    NotificationType = "USER_DISABLED"
+	UserEnabled     NotificationType = "USER_ENABLED"
+	UserRoleChanged NotificationType = "USER_ROLE_CHANGED"
+)
+
+// =====================================================
+// CLIENTS / APPLICATIONS
+// =====================================================
+const (
+	ClientCreated       NotificationType = "CLIENT_CREATED"
+	ClientUpdated       NotificationType = "CLIENT_UPDATED"
+	ClientDisabled      NotificationType = "CLIENT_DISABLED"
+	ClientEnabled       NotificationType = "CLIENT_ENABLED"
+	ClientSecretRotated NotificationType = "CLIENT_SECRET_ROTATED"
+)
+
+// =====================================================
+// SYSTEM / OPERATIONS
+// =====================================================
+const (
+	SystemStartup   NotificationType = "SYSTEM_STARTUP"
+	SystemShutdown  NotificationType = "SYSTEM_SHUTDOWN"
+	ConfigChanged   NotificationType = "CONFIG_CHANGED"
+	BackupCompleted NotificationType = "BACKUP_COMPLETED"
+	BackupFailed    NotificationType = "BACKUP_FAILED"
+)
+
+// =====================================================
+// IMPORTS / BACKGROUND JOBS
+// =====================================================
+const (
+	ImportStarted   NotificationType = "IMPORT_STARTED"
+	ImportCompleted NotificationType = "IMPORT_COMPLETED"
+	ImportFailed    NotificationType = "IMPORT_FAILED"
+)
+
+// =====================================================
+// AUDIT / COMPLIANCE
+// =====================================================
+const (
+	AuditExported   NotificationType = "AUDIT_EXPORTED"
+	PolicyViolation NotificationType = "POLICY_VIOLATION"
+)
+
+func (t NotificationType) Severity() string {
+	switch t {
+
+	// 🔴 Critical
+	case SuspiciousLogin,
+		AccountLocked,
+		ClientDisabled,
+		ImportFailed,
+		BackupFailed,
+		PolicyViolation:
+		return "critical"
+
+	// 🟠 Warning
+	case LoginFailed,
+		UserDisabled,
+		UserRoleChanged,
+		ConfigChanged:
+		return "warning"
+
+	// ⚪ Info
+	default:
+		return "info"
+	}
+}
+
+func (t NotificationType) Title() string {
+	switch t {
+	case LoginFailed:
+		return "Failed login attempt"
+	case SuspiciousLogin:
+		return "Suspicious login detected"
+	case UserImported:
+		return "Users imported"
+	case UserDisabled:
+		return "User account disabled"
+	case ClientDisabled:
+		return "Client application disabled"
+	case ImportFailed:
+		return "Import job failed"
+	default:
+		return "System notification"
+	}
+}

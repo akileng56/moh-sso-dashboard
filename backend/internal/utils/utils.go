@@ -18,7 +18,7 @@ func GenerateClientID() string {
 }
 
 // helper
-func ToNullUUID(s string) uuid.NullUUID { // <-- ADDED
+func ToNullUUID(s string) uuid.NullUUID {
 	if s == "" {
 		return uuid.NullUUID{Valid: false}
 	}
