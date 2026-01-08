@@ -6,6 +6,7 @@ import {
   Security,
   Notification,
 } from "@carbon/icons-react";
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import "./home.css";
 
@@ -19,26 +20,32 @@ import { useListClientsQuery } from "../../../store/api/clients.api";
 import { useAuditOverviewQuery } from "../../../store/api/metrics.api";
 import { useGetNotificationsQuery } from "../../../store/api/notifications.api";
 
+/* -----------------------------
+ * Utils
+ * ----------------------------- */
+const toRFC3339 = (d: Date) => d.toISOString();
+
 export default function HomePage() {
-  // filters
-  function toRFC3339(d: Date) {
-    return d.toISOString();
-  }
+  /* -----------------------------
+   * Date range (last 7 days)
+   * ----------------------------- */
+  const { from, to } = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return {
+      from: toRFC3339(start),
+      to: toRFC3339(now),
+    };
+  }, []);
 
-  const now = new Date();
-  const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const from = toRFC3339(start);
-  const to = toRFC3339(now);
-
-  /* ==================================================
+  /* -----------------------------
    * Identity
-   * ================================================== */
+   * ----------------------------- */
   const user = useSelector(selectUser);
 
-  /* ==================================================
+  /* -----------------------------
    * Applications
-   * ================================================== */
+   * ----------------------------- */
   const {
     data: clients = [],
     isLoading: appsLoading,
@@ -46,18 +53,19 @@ export default function HomePage() {
     refetch: refetchApps,
   } = useListClientsQuery();
 
-  /* ==================================================
-   * Metrics (System Signals)
-   * ================================================== */
+  /* -----------------------------
+   * Metrics
+   * ----------------------------- */
   const {
     data: metrics,
     isLoading: metricsLoading,
     isError: metricsError,
+    refetch: refetchMetrics,
   } = useAuditOverviewQuery({ from, to }, { skip: !from || !to });
 
-  /* ==================================================
+  /* -----------------------------
    * Notifications
-   * ================================================== */
+   * ----------------------------- */
   const { data: notifications = [], isLoading: notificationsLoading } =
     useGetNotificationsQuery({
       unread: false,
@@ -67,32 +75,28 @@ export default function HomePage() {
 
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
-      {/* ==================================================
-       * Header
-       * ================================================== */}
       <div>
-        <h3 style={{ margin: 0 }}>Admin Overview</h3>
+        {" "}
+        <h3 style={{ margin: 0 }}>Admin Overview</h3>{" "}
         <p style={{ marginTop: 6, opacity: 0.8 }}>
-          System status, applications, and quick actions.
-        </p>
+          {" "}
+          System status, applications, and quick actions.{" "}
+        </p>{" "}
       </div>
-
       {/* ==================================================
-       * Identity
+       * HERO / WELCOME
        * ================================================== */}
-      <Tile>
+      <Tile className="home-hero">
         {!user ? (
           <InlineLoading description="Loading user…" />
         ) : (
           <Stack gap={3}>
-            <h4>Welcome, {user.username}</h4>
+            <h3 style={{ margin: 0 }}>Welcome back, {user.username}</h3>
 
-            <Stack orientation="horizontal" gap={4}>
+            <Stack orientation="horizontal" gap={3}>
+              <Tag type="blue">{user.realm_roles.join(", ")}</Tag>
               <span>{user.email}</span>
-              <Tag key={user.id} type="blue">
-                {user.realm_roles.join(", ")}
-              </Tag>
-              <span>
+              <span className="muted">
                 Last login:{" "}
                 {user.last_login_at
                   ? new Date(user.last_login_at).toLocaleString()
@@ -104,10 +108,44 @@ export default function HomePage() {
       </Tile>
 
       {/* ==================================================
-       * Applications
+       * SYSTEM SIGNALS
        * ================================================== */}
       <Tile>
-        <h4>Your applications</h4>
+        <h4>System signals</h4>
+
+        {metricsLoading && <InlineLoading description="Loading metrics…" />}
+
+        {metricsError && (
+          <ErrorState
+            title="Failed to load metrics"
+            description="System metrics are currently unavailable."
+            primaryAction={{ label: "Retry", onClick: refetchMetrics }}
+          />
+        )}
+
+        {metrics && (
+          <div className="home-grid">
+            <SignalTile label="Active users today" value={0} />
+            <SignalTile
+              label="Failed logins (24h)"
+              value={metrics.failed_logins}
+              severity="warning"
+            />
+            <SignalTile label="Suspicious logins" value={0} severity="danger" />
+          </div>
+        )}
+      </Tile>
+
+      {/* ==================================================
+       * APPLICATIONS
+       * ================================================== */}
+      <Tile>
+        <h4>
+          Your applications{" "}
+          <Tag size="sm" type="cool-gray">
+            {clients.length}
+          </Tag>
+        </h4>
 
         {appsLoading && <InlineLoading description="Loading applications…" />}
 
@@ -140,12 +178,11 @@ export default function HomePage() {
 
                   <Button
                     size="sm"
-                    kind="primary"
+                    kind={client.enabled ? "primary" : "secondary"}
                     renderIcon={Launch}
                     disabled={!client.enabled}
-                    onClick={() => {}}
                   >
-                    Launch
+                    {client.enabled ? "Launch" : "Disabled"}
                   </Button>
                 </Stack>
               </Tile>
@@ -155,7 +192,7 @@ export default function HomePage() {
       </Tile>
 
       {/* ==================================================
-       * Quick Actions
+       * QUICK ACTIONS
        * ================================================== */}
       <Tile>
         <h4>Quick actions</h4>
@@ -180,35 +217,7 @@ export default function HomePage() {
       </Tile>
 
       {/* ==================================================
-       * System Signals
-       * ================================================== */}
-      <Tile>
-        <h4>System signals</h4>
-
-        {metricsLoading && <InlineLoading description="Loading metrics…" />}
-
-        {metricsError && (
-          <ErrorState
-            title="Failed to load metrics"
-            description="System metrics are currently unavailable."
-          />
-        )}
-
-        {metrics && (
-          <div className="home-grid">
-            <SignalTile label="Active users today" value={0} />
-            <SignalTile
-              label="Failed logins (24h)"
-              value={metrics?.failed_logins}
-              severity="warning"
-            />
-            <SignalTile label="Suspicious logins" value={0} severity="danger" />
-          </div>
-        )}
-      </Tile>
-
-      {/* ==================================================
-       * Notifications
+       * NOTIFICATIONS
        * ================================================== */}
       <Tile>
         <h4>Notifications</h4>
@@ -229,7 +238,7 @@ export default function HomePage() {
             {notifications.map((n) => (
               <div key={n.id} className="notification-item">
                 <Notification size={16} />
-                <span>{n.message}</span>
+                <span className="notification-text">{n.message}</span>
               </div>
             ))}
           </Stack>
