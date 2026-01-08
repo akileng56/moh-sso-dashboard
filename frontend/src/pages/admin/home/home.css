@@ -37,10 +37,35 @@
  * ========================= */
 .notification-item {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.notification-unread {
+  background-color: var(--cds-layer-hover);
+}
+
+.notification-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+
+.notification-title {
   font-size: 0.875rem;
-  line-height: 1.4;
+}
+
+.notification-message {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+
+.notification-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
 }
 
 /* =========================

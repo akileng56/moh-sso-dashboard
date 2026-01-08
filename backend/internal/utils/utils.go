@@ -155,3 +155,8 @@ func TokenHasRealmRole(tokenStr string, role string) bool {
 
 	return false
 }
+
+func MustJSON(v interface{}) json.RawMessage {
+	b, _ := json.Marshal(v)
+	return b
+}

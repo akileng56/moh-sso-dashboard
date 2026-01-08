@@ -88,20 +88,21 @@ func main() {
 	// ---------------------------------------------------------------------
 	// Services
 	// ---------------------------------------------------------------------
-	clientService := service.NewClientService(clientRepository)
-	userService := service.NewUserService(userRepository)
+
 	authService := service.NewAuthService(authRepository, rdb)
 	metricsService := service.NewMetricsService(metricsRepository)
 	auditService := service.NewAuditService(store)
 	importService := service.NewImportService(store, keycloakClient)
 	notificationsService := service.NewNotificationsService(notificationsRepository)
+	clientService := service.NewClientService(clientRepository, notificationsService)
+	userService := service.NewUserService(userRepository, notificationsService)
 
 	// ---------------------------------------------------------------------
 	// Handlers
 	// ---------------------------------------------------------------------
 	clientHandler := handler.NewClientHandler(clientService, auditService)
 	userHandler := handler.NewUserHandler(userService, auditService)
-	authHandler := handler.NewAuthHandler(authService, auditService, cfg)
+	authHandler := handler.NewAuthHandler(authService, auditService, notificationsService, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
 	auditHandler := handler.NewAuditHandler(store)

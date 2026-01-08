@@ -1,0 +1,36 @@
+.quick-action {
+  cursor: pointer;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: background-color 0.15s ease;
+}
+
+.quick-action:hover {
+  background-color: var(--cds-layer-hover);
+}
+
+.quick-action__icon {
+  margin-top: 2px;
+}
+
+.quick-action__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quick-action__description {
+  margin: 0;
+  font-size: 0.875rem;
+  opacity: 0.8;
+}
+
+/* Emphasis tones */
+.quick-action--warning {
+  border-left: 4px solid var(--cds-support-warning);
+}
+
+.quick-action--danger {
+  border-left: 4px solid var(--cds-support-error);
+}

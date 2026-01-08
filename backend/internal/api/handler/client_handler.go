@@ -21,6 +21,11 @@ func NewClientHandler(s *service.ClientService, audit *service.AuditService) *Cl
 }
 
 func (h *ClientHandler) CreateClient(c *gin.Context) {
+
+	user_id := c.GetString("user_id")
+
+	id, _ := uuid.Parse(user_id)
+
 	var req service.CreateClientRequest
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -40,7 +45,7 @@ func (h *ClientHandler) CreateClient(c *gin.Context) {
 		return
 	}
 
-	newApp, err := h.service.CreateClient(req)
+	newApp, err := h.service.CreateClient(c.Request.Context(), req, id)
 	if err != nil {
 		log.Printf("ERROR: Failed to create client: %v", err)
 
@@ -206,6 +211,8 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	}
 
 	uid, err := uuid.Parse(id)
+
+	user_id, _ := uuid.Parse(c.GetString("user_id"))
 	if err != nil {
 
 		_ = h.auditService.Log(
@@ -224,7 +231,7 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.DeleteClient(uid); err != nil {
+	if err := h.service.DeleteClient(c.Request.Context(), uid, user_id); err != nil {
 		log.Printf("ERROR: Failed to delete client ID %s: %v", id, err)
 
 		_ = h.auditService.Log(

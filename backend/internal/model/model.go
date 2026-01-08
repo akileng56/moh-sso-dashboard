@@ -186,6 +186,7 @@ type NotificationType string
 // =====================================================
 const (
 	LoginFailed            NotificationType = "LOGIN_FAILED"
+	TokenRefreshFailed     NotificationType = "TOKEN_REFRESH_FAILED"
 	LoginSucceeded         NotificationType = "LOGIN_SUCCEEDED"
 	SuspiciousLogin        NotificationType = "SUSPICIOUS_LOGIN"
 	PasswordResetRequested NotificationType = "PASSWORD_RESET_REQUESTED"
@@ -202,6 +203,7 @@ const (
 	UserCreated     NotificationType = "USER_CREATED"
 	UserUpdated     NotificationType = "USER_UPDATED"
 	UserDisabled    NotificationType = "USER_DISABLED"
+	UserDeleted     NotificationType = "USER_DELETED"
 	UserEnabled     NotificationType = "USER_ENABLED"
 	UserRoleChanged NotificationType = "USER_ROLE_CHANGED"
 )
@@ -212,6 +214,7 @@ const (
 const (
 	ClientCreated       NotificationType = "CLIENT_CREATED"
 	ClientUpdated       NotificationType = "CLIENT_UPDATED"
+	ClientDeleted       NotificationType = "CLIENT_DELETED"
 	ClientDisabled      NotificationType = "CLIENT_DISABLED"
 	ClientEnabled       NotificationType = "CLIENT_ENABLED"
 	ClientSecretRotated NotificationType = "CLIENT_SECRET_ROTATED"
@@ -264,6 +267,11 @@ func (t NotificationType) Severity() string {
 		ConfigChanged:
 		return "warning"
 
+		// ⚪ Info
+	case SystemStartup,
+		BackupCompleted:
+		return "info"
+
 	// ⚪ Info
 	default:
 		return "info"
@@ -272,6 +280,16 @@ func (t NotificationType) Severity() string {
 
 func (t NotificationType) Title() string {
 	switch t {
+	case SystemStartup:
+		return "System started"
+	case SystemShutdown:
+		return "System shutdown"
+	case ConfigChanged:
+		return "Configuration changed"
+	case BackupCompleted:
+		return "Backup completed"
+	case BackupFailed:
+		return "Backup failed"
 	case LoginFailed:
 		return "Failed login attempt"
 	case SuspiciousLogin:

@@ -8,26 +8,30 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 type AuthHandler struct {
-	authService  service.AuthService
-	auditService *service.AuditService
-	config       *config.Config
+	authService         service.AuthService
+	auditService        *service.AuditService
+	notificationService service.NotificationsService
+	config              *config.Config
 }
 
 func NewAuthHandler(
 	authService service.AuthService,
 	auditService *service.AuditService,
+	notificationService service.NotificationsService,
 	config *config.Config,
 ) *AuthHandler {
 	return &AuthHandler{
-		authService:  authService,
-		auditService: auditService,
-		config:       config,
+		authService:         authService,
+		auditService:        auditService,
+		notificationService: notificationService,
+		config:              config,
 	}
 }
 
@@ -49,7 +53,7 @@ func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 			"/protocol/openid-connect/auth",
 	)
 	if err != nil {
-		log.Println("Failed to parse Keycloak URL:", err)
+		log.Println("failed to parse Keycloak URL:", err)
 		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
@@ -71,13 +75,13 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 
 	accessToken, err := c.Cookie("access_token")
 	if err != nil || accessToken == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 		return
 	}
 
 	user, err := h.authService.GetMe(accessToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired access token"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
 		return
 	}
 
@@ -116,7 +120,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		)
 
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "Missing authorization code",
+			"error": "missing authorization code",
 		})
 		return
 	}
@@ -124,7 +128,14 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	tokens, err := h.authService.ProcessAuthCode(code)
 	if err != nil {
 
-		log.Printf("Authentication failed: %v", err)
+		// 🔔 Notification: login failed (best-effort)
+		h.notificationService.NotifyLoginFailed(
+			c.Request.Context(),
+			h.config.KeycloakClientID,
+			c.ClientIP(),
+			c.Request.UserAgent(),
+			err,
+		)
 
 		_ = h.auditService.LoginResult(
 			c.Request.Context(),
@@ -138,7 +149,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		)
 
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "Authentication failed. Please try again.",
+			"error": "authentication failed. please try again",
 		})
 		return
 	}
@@ -160,7 +171,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
-	// Determine admin status (from token)
+	// Determine admin status
 	isAdmin := utils.TokenHasRealmRole(tokens.AccessToken, "admin")
 
 	redirectURL := "http://localhost:3000/dashboard"
@@ -188,7 +199,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		)
 
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Session expired. Please log in.",
+			"error": "session expired",
 		})
 		return
 	}
@@ -196,7 +207,12 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 	tokens, err := h.authService.GetAccessToken(refreshToken)
 	if err != nil {
 
-		log.Printf("Token refresh failed: %v", err)
+		// 🔔 Notification: token refresh failed (best-effort)
+		h.notificationService.NotifyTokenRefreshFailed(
+			c.Request.Context(),
+			c.ClientIP(),
+			c.Request.UserAgent(),
+		)
 
 		_ = h.auditService.TokenRefresh(
 			c.Request.Context(),
@@ -209,7 +225,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		h.setSecureRefreshTokenCookie(c, "", -1)
 
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "Session expired or invalid.",
+			"error": "invalid refresh token",
 		})
 		return
 	}
@@ -247,15 +263,11 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		c.Request.UserAgent(),
 	)
 
-	// Revoke refresh token at Keycloak
 	refreshToken, _ := c.Cookie("refresh_token")
 	if refreshToken != "" {
-		if err := h.authService.LogOut(refreshToken); err != nil {
-			log.Printf("Keycloak logout failed: %v", err)
-		}
+		_ = h.authService.LogOut(refreshToken)
 	}
 
-	// Clear cookies
 	clearCookie := func(name string, httpOnly bool) {
 		http.SetCookie(c.Writer, &http.Cookie{
 			Name:     name,
@@ -272,7 +284,6 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	clearCookie("access_token", false)
 	clearCookie("refresh_token", true)
 
-	// ✅ Redirect to login (NOT dashboard)
 	c.Redirect(
 		http.StatusTemporaryRedirect,
 		"http://localhost:9000/api/v1/auth/login",

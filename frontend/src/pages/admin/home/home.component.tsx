@@ -10,15 +10,18 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import "./home.css";
 
-import { QuickAction } from "../../../components/home/QuickAction";
-import { SignalTile } from "../../../components/home/SignalTile";
+import { SignalTile } from "../../../components/home/signal-tile/signal-tile.component";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 
 import { selectUser } from "../../../store/auth/auth.selectors";
 import { useListClientsQuery } from "../../../store/api/clients.api";
 import { useAuditOverviewQuery } from "../../../store/api/metrics.api";
-import { useGetNotificationsQuery } from "../../../store/api/notifications.api";
+import {
+  useGetNotificationsQuery,
+  useMarkNotificationAsReadMutation,
+} from "../../../store/api/notifications.api";
+import { QuickAction } from "../../../components/home/quick-action/quick-action.component";
 
 /* -----------------------------
  * Utils
@@ -64,6 +67,19 @@ export default function HomePage() {
   } = useAuditOverviewQuery({ from, to }, { skip: !from || !to });
 
   /* -----------------------------
+   * Security Health Score
+   * ----------------------------- */
+  const securityScore = useMemo(() => {
+    if (!metrics) return 100;
+
+    let score = 100;
+    score -= Math.min(metrics.failed_logins * 2, 40);
+    score -= Math.min((metrics.suspicious_logins ?? 0) * 5, 40);
+
+    return Math.max(score, 0);
+  }, [metrics]);
+
+  /* -----------------------------
    * Notifications
    * ----------------------------- */
   const { data: notifications = [], isLoading: notificationsLoading } =
@@ -73,16 +89,20 @@ export default function HomePage() {
       offset: 0,
     });
 
+  const [markNotificationAsRead] = useMarkNotificationAsReadMutation();
+
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
+      {/* ==================================================
+       * HEADER
+       * ================================================== */}
       <div>
-        {" "}
-        <h3 style={{ margin: 0 }}>Admin Overview</h3>{" "}
+        <h3 style={{ margin: 0 }}>Admin Overview</h3>
         <p style={{ marginTop: 6, opacity: 0.8 }}>
-          {" "}
-          System status, applications, and quick actions.{" "}
-        </p>{" "}
+          System status, applications, and quick actions.
+        </p>
       </div>
+
       {/* ==================================================
        * HERO / WELCOME
        * ================================================== */}
@@ -125,13 +145,27 @@ export default function HomePage() {
 
         {metrics && (
           <div className="home-grid">
-            <SignalTile label="Active users today" value={0} />
+            <SignalTile
+              label="Security health score"
+              value={`${securityScore}%`}
+              severity={
+                securityScore > 80
+                  ? "success"
+                  : securityScore > 50
+                  ? "warning"
+                  : "danger"
+              }
+            />
             <SignalTile
               label="Failed logins (24h)"
               value={metrics.failed_logins}
               severity="warning"
             />
-            <SignalTile label="Suspicious logins" value={0} severity="danger" />
+            <SignalTile
+              label="Suspicious logins"
+              value={metrics.suspicious_logins ?? 0}
+              severity="danger"
+            />
           </div>
         )}
       </Tile>
@@ -192,6 +226,38 @@ export default function HomePage() {
       </Tile>
 
       {/* ==================================================
+       * CLIENT USAGE METRICS
+       * ================================================== */}
+      {/* <Tile>
+        <h4>Client usage (last 7 days)</h4>
+
+        {!metrics?.top_clients?.length && (
+          <EmptyState
+            title="No usage data"
+            description="No client activity recorded for this period."
+          />
+        )}
+
+        {metrics?.top_clients?.length > 0 && (
+          <Stack gap={3}>
+            {metrics.top_clients.map((c) => (
+              <div
+                key={c.client_id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <strong>{c.name}</strong>
+                <Tag type="cool-gray">{c.logins} logins</Tag>
+              </div>
+            ))}
+          </Stack>
+        )}
+      </Tile> */}
+
+      {/* ==================================================
        * QUICK ACTIONS
        * ================================================== */}
       <Tile>
@@ -201,23 +267,28 @@ export default function HomePage() {
           <QuickAction
             icon={<Add />}
             label="Create user"
+            description="Add a new user to the system"
             href="/admin/users/new"
           />
+
           <QuickAction
             icon={<UserFollow />}
             label="Import users"
+            description="Bulk upload users via CSV"
             href="/admin/users/import"
           />
+
           <QuickAction
             icon={<Security />}
             label="Security alerts"
+            description="Review suspicious activity"
             href="/admin/metrics/security"
+            tone="warning"
           />
         </div>
       </Tile>
-
       {/* ==================================================
-       * NOTIFICATIONS
+       * NOTIFICATIONS (ACTIONABLE)
        * ================================================== */}
       <Tile>
         <h4>Notifications</h4>
@@ -236,9 +307,43 @@ export default function HomePage() {
         {!notificationsLoading && notifications.length > 0 && (
           <Stack gap={3}>
             {notifications.map((n) => (
-              <div key={n.id} className="notification-item">
+              <div
+                key={n.id}
+                className={`notification-item ${
+                  !n.read ? "notification-unread" : ""
+                }`}
+              >
                 <Notification size={16} />
-                <span className="notification-text">{n.message}</span>
+
+                <div className="notification-content">
+                  <strong className="notification-title">{n.title}</strong>
+                  <span className="notification-message">{n.message}</span>
+
+                  <span className="notification-meta">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                </div>
+
+                <Tag
+                  size="sm"
+                  type={
+                    n.severity === "critical"
+                      ? "red"
+                      : n.severity === "warning"
+                      ? "yellow"
+                      : "blue"
+                  }
+                >
+                  {n.severity}
+                </Tag>
+
+                <Button
+                  size="sm"
+                  kind="ghost"
+                  onClick={() => markNotificationAsRead(n.id)}
+                >
+                  Dismiss
+                </Button>
               </div>
             ))}
           </Stack>

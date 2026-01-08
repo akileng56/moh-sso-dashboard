@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import "./AppMenu.css";
 
 interface AppTileProps {
@@ -7,11 +8,20 @@ interface AppTileProps {
   href: string;
 }
 
-const AppTile: React.FC<AppTileProps> = ({ icon: Icon, name, href }) => (
-  <a id="app_menu_it" href={href}>
-    <Icon size={36} style={{ marginBottom: "0.4rem" }} />
-    <span style={{ fontSize: "0.8rem" }}>{name}</span>
-  </a>
-);
+const AppTile: React.FC<AppTileProps> = ({ icon: Icon, name, href }) => {
+  const navigate = useNavigate();
+
+  return (
+    <button
+      type="button"
+      className="app-menu-item"
+      onClick={() => navigate(href)}
+      aria-label={name}
+    >
+      <Icon size={28} className="app-menu-item__icon" />
+      <span className="app-menu-item__label">{name}</span>
+    </button>
+  );
+};
 
 export default AppTile;

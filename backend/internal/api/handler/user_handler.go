@@ -49,6 +49,7 @@ func NewUserHandler(s *service.UserService, audit *service.AuditService) *UserHa
 }
 
 func (h *UserHandler) CreateUser(c *gin.Context) {
+
 	var req service.CreateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 
@@ -66,7 +67,10 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
 		return
 	}
-	newUser, err := h.service.CreateUser(req)
+
+	user_id, _ := uuid.Parse(c.GetString("user_id"))
+
+	newUser, err := h.service.CreateUser(c.Request.Context(), req, user_id)
 	if err != nil {
 		log.Printf("ERROR: Failed to create user: %v", err)
 
@@ -203,7 +207,12 @@ func (h *UserHandler) DeleteUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
 		return
 	}
-	if err := h.service.DeleteUser(id); err != nil {
+
+	user_id, _ := uuid.Parse(c.GetString("user_id"))
+
+	uid, _ := uuid.Parse(id)
+
+	if err := h.service.DeleteUser(c.Request.Context(), uid, user_id); err != nil {
 		log.Printf("ERROR: Failed to delete user ID %s: %v", id, err)
 
 		_ = h.auditService.Log(

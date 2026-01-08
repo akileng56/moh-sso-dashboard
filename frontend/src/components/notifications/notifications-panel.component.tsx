@@ -5,25 +5,29 @@ import {
   StructuredListCell,
   Tag,
   Button,
+  Stack,
 } from "@carbon/react";
 import { Close } from "@carbon/icons-react";
 import type { Notification } from "../../store/types/notifications.types";
+import "./notifications-panel.css";
 
 type Props = {
   notifications: Notification[];
   onClose: () => void;
+  onMarkRead?: (id: string) => void;
+  onView?: (notification: Notification) => void;
 };
 
-export function NotificationsPanel({ notifications, onClose }: Props) {
+export function NotificationsPanel({
+  notifications,
+  onClose,
+  onMarkRead,
+  onView,
+}: Props) {
   return (
-    <div style={{ width: 360, padding: "1rem" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginBottom: "1rem",
-        }}
-      >
+    <div className="notifications-panel">
+      {/* Header */}
+      <div className="notifications-panel__header">
         <strong>Notifications</strong>
         <Button
           size="sm"
@@ -36,30 +40,50 @@ export function NotificationsPanel({ notifications, onClose }: Props) {
       </div>
 
       {notifications.length === 0 ? (
-        <p style={{ opacity: 0.7 }}>No notifications</p>
+        <p className="notifications-panel__empty">No notifications</p>
       ) : (
         <StructuredListWrapper>
           <StructuredListBody>
             {notifications.map((n) => (
               <StructuredListRow
                 key={n.id}
-                style={{
-                  cursor: "pointer",
-                  backgroundColor: n.read ? "inherit" : "#f4f4f4",
-                }}
+                className={`notification-row ${
+                  !n.read ? "notification-row--unread" : ""
+                }`}
+                tabIndex={0}
+                onClick={() => onView?.(n)}
               >
                 <StructuredListCell>
-                  <div style={{ fontWeight: 600 }}>{n.title}</div>
-                  <div style={{ fontSize: "0.8rem", opacity: 0.7 }}>
-                    {new Date(n.created_at).toLocaleString()}
-                  </div>
-                  <div style={{ marginTop: 4 }}>{n.message}</div>
+                  <Stack gap={1}>
+                    <span className="notification-title">{n.title}</span>
+
+                    <span className="notification-message">{n.message}</span>
+
+                    <span className="notification-meta">
+                      {new Date(n.created_at).toLocaleString()}
+                    </span>
+                  </Stack>
                 </StructuredListCell>
 
-                <StructuredListCell>
-                  <Tag size="sm" type={mapSeverity(n.severity)}>
-                    {n.severity}
-                  </Tag>
+                <StructuredListCell className="notification-actions">
+                  <Stack gap={2}>
+                    <Tag size="sm" type={mapSeverity(n.severity)}>
+                      {n.severity}
+                    </Tag>
+
+                    {!n.read && onMarkRead && (
+                      <Button
+                        size="sm"
+                        kind="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onMarkRead(n.id);
+                        }}
+                      >
+                        Mark read
+                      </Button>
+                    )}
+                  </Stack>
                 </StructuredListCell>
               </StructuredListRow>
             ))}
@@ -70,14 +94,17 @@ export function NotificationsPanel({ notifications, onClose }: Props) {
   );
 }
 
+/* -----------------------------
+ * Severity mapping (Carbon-safe)
+ * ----------------------------- */
 function mapSeverity(
   severity: "info" | "warning" | "critical"
-): "red" | "gray" | "high-contrast" {
+): "red" | "yellow" | "gray" {
   switch (severity) {
     case "critical":
       return "red";
     case "warning":
-      return "high-contrast";
+      return "yellow";
     default:
       return "gray";
   }
