@@ -13,20 +13,19 @@ import { Notification, Logout, UserAvatarFilled } from "@carbon/icons-react";
 import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
-import { useLogoutMutation } from "../store/api/auth.api";
 import { selectUser } from "../store/auth/auth.selectors";
 import { NotificationsPanel } from "../components/notifications/notifications-panel.component";
 import {
   useGetNotificationsQuery,
   useGetUnreadNotificationsCountQuery,
 } from "../store/api/notifications.api";
+import { API } from "../lib/constants/api.constants";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const user = useSelector(selectUser);
-  const [logout] = useLogoutMutation();
 
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -37,6 +36,10 @@ export default function AdminLayout() {
   });
 
   const { data: unreadCount = 0 } = useGetUnreadNotificationsCountQuery();
+
+  const handleLogout = () => {
+    window.location.replace(API.auth.logout());
+  };
 
   return (
     <>
@@ -74,7 +77,7 @@ export default function AdminLayout() {
           <HeaderGlobalAction
             aria-label="Logout"
             tooltipAlignment="end"
-            onClick={() => logout()}
+            onClick={() => handleLogout()}
           >
             <Logout size={20} />
           </HeaderGlobalAction>

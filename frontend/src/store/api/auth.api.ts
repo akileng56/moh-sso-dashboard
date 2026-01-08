@@ -52,19 +52,7 @@ export const authApi = baseApi.injectEndpoints({
         }
       },
     }),
-
-    logout: builder.mutation<void, void>({
-      query: () => ({
-        url: API.auth.logout(),
-        method: "GET",
-        credentials: "include",
-      }),
-      async onQueryStarted(_, { dispatch }) {
-        dispatch(logoutAction());
-        window.location.replace(API.auth.logout());
-      },
-    }),
   }),
 });
 
-export const { useMeQuery, useRefreshMutation, useLogoutMutation } = authApi;
+export const { useMeQuery, useRefreshMutation } = authApi;

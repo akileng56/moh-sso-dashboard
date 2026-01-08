@@ -11,14 +11,16 @@ import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
 import { selectUser } from "../../store/auth/auth.selectors";
-import { useLogoutMutation } from "../../store/api/auth.api";
 import AppMenuAction from "../appmenu/AppMenu.component";
+import { API } from "../../lib/constants/api.constants";
 
 const PublicHeader: React.FC = () => {
   const navigate = useNavigate();
   const user = useSelector(selectUser);
-  const [logout] = useLogoutMutation();
 
+  const handleLogout = () => {
+    window.location.replace(API.auth.logout());
+  };
   return (
     <Header aria-label="MOH Integrated Health Portal">
       <SkipToContent />
@@ -49,7 +51,7 @@ const PublicHeader: React.FC = () => {
         <HeaderGlobalAction
           aria-label="Logout"
           tooltipAlignment="end"
-          onClick={() => logout()}
+          onClick={() => handleLogout()}
         >
           <Logout size={20} />
         </HeaderGlobalAction>
