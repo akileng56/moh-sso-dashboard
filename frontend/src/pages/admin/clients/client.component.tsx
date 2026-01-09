@@ -9,12 +9,10 @@ import {
   TableCell,
   InlineLoading,
   Tile,
-  Button,
   Tag,
   Pagination,
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
-import { useNavigate } from "react-router-dom";
 import { OverflowMenu, OverflowMenuItem } from "@carbon/react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
@@ -26,6 +24,8 @@ import {
   useToggleClientMutation,
 } from "../../../store/api/clients.api";
 import type { Client } from "../../../store/types/client.types";
+import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
+import { ClientFormPanel } from "../../../components/panels/client-form-panel";
 
 /* -----------------------------
  * Filters
@@ -57,7 +57,7 @@ const headers = [
 ];
 
 export default function ClientsPage() {
-  const navigate = useNavigate();
+  const { openPanel, closePanel } = useHeaderPanel();
 
   /* -----------------------------
    * Filters
@@ -72,7 +72,7 @@ export default function ClientsPage() {
   const [pageSize, setPageSize] = useState(10);
 
   /* -----------------------------
-   * Data (SSOT)
+   * Data
    * ----------------------------- */
   const {
     data: clients = [],
@@ -96,8 +96,8 @@ export default function ClientsPage() {
    * ----------------------------- */
   const filteredClients = useMemo(() => {
     return clients.filter((c) => {
-      if (statusFilter === "enabled" && !c?.enabled) return false;
-      if (statusFilter === "disabled" && c?.enabled) return false;
+      if (statusFilter === "enabled" && !c.enabled) return false;
+      if (statusFilter === "disabled" && c.enabled) return false;
       if (typeFilter === "public" && !c.public_client) return false;
       if (typeFilter === "confidential" && c.public_client) return false;
       return true;
@@ -109,8 +109,7 @@ export default function ClientsPage() {
    * ----------------------------- */
   const paginatedClients = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredClients.slice(start, end);
+    return filteredClients.slice(start, start + pageSize);
   }, [filteredClients, page, pageSize]);
 
   /* -----------------------------
@@ -132,10 +131,7 @@ export default function ClientsPage() {
       <ErrorState
         title="Failed to load clients"
         description={(error as any)?.data?.message ?? "Failed to load clients"}
-        primaryAction={{
-          label: "Retry",
-          onClick: refetch,
-        }}
+        primaryAction={{ label: "Retry", onClick: refetch }}
       />
     );
   }
@@ -145,7 +141,7 @@ export default function ClientsPage() {
     name: c.name,
     clientId: c.clientId,
     type: c.public_client ? "Public" : "Confidential",
-    status: c?.enabled ? "Enabled" : "Disabled",
+    status: c.enabled ? "Enabled" : "Disabled",
     actions: "",
     raw: c,
   }));
@@ -181,7 +177,14 @@ export default function ClientsPage() {
             primaryAction={{
               label: "Register application",
               icon: Add,
-              onClick: () => navigate("/admin/clients/new"),
+              onClick: () =>
+                openPanel({
+                  title: "Create client",
+                  content: (
+                    <ClientFormPanel mode="create" onSuccess={closePanel} />
+                  ),
+                  size: "md",
+                }),
             }}
           />
         ) : (
@@ -231,11 +234,20 @@ export default function ClientsPage() {
                                     ariaLabel="Client actions"
                                   >
                                     <OverflowMenuItem
-                                      itemText="View audit logs"
+                                      itemText="Edit client"
+                                      hasDivider
                                       onClick={() =>
-                                        navigate(
-                                          `/admin/audit-logs?client_id=${client.clientId}`
-                                        )
+                                        openPanel({
+                                          title: "Edit client",
+                                          content: (
+                                            <ClientFormPanel
+                                              mode={"edit"}
+                                              initialClient={client}
+                                              onSuccess={closePanel}
+                                            />
+                                          ),
+                                          size: "md",
+                                        })
                                       }
                                     />
 
@@ -245,7 +257,6 @@ export default function ClientsPage() {
                                           ? "Disable client"
                                           : "Enable client"
                                       }
-                                      hasDivider
                                       isDelete={client?.enabled}
                                       onClick={() =>
                                         toggleClient({

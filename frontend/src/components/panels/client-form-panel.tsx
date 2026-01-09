@@ -1,4 +1,4 @@
-// components/clients/panels/CreateClientPanel.tsx
+// components/clients/panels/ClientFormPanel.tsx
 import {
   Stack,
   TextInput,
@@ -8,22 +8,32 @@ import {
   Form,
   FormGroup,
 } from "@carbon/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-type CreateClientPayload = {
+export type ClientFormMode = "create" | "edit";
+
+export type ClientFormPayload = {
   clientId: string;
   name: string;
-  publicClient: boolean;
+  public_client: boolean;
   enabled: boolean;
 };
 
-export function CreateClientPanel() {
-  const [form, setForm] = useState<CreateClientPayload>({
-    clientId: "",
-    name: "",
-    publicClient: false,
-    enabled: true,
-  });
+type Props = {
+  mode: ClientFormMode;
+  initialClient?: ClientFormPayload;
+  onSuccess?: () => void;
+};
+
+export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
+  const [form, setForm] = useState<ClientFormPayload>(
+    initialClient ?? {
+      clientId: "",
+      name: "",
+      public_client: false,
+      enabled: true,
+    }
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +43,13 @@ export function CreateClientPanel() {
    * ----------------------------- */
   const isClientIdValid = /^[a-z0-9-]+$/.test(form.clientId);
 
-  const isValid = form.clientId && form.name && isClientIdValid;
+  const isValid = useMemo(() => {
+    if (!form.clientId || !form.name) return false;
+    if (mode === "create") return isClientIdValid;
+    return true;
+  }, [form, mode, isClientIdValid]);
 
-  const handleChange = (field: keyof CreateClientPayload, value: any) => {
+  const handleChange = (field: keyof ClientFormPayload, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -49,19 +63,27 @@ export function CreateClientPanel() {
     setError(null);
 
     try {
-      /**
-       * Payload mirrors Keycloak client creation:
-       * - publicClient controls secret generation
-       * - enabled toggles client access
-       */
-      await fetch("/api/v1/admin/clients", {
-        method: "POST",
+      const url =
+        mode === "create"
+          ? "/api/v1/admin/clients"
+          : `/api/v1/admin/clients/${form.clientId}`;
+
+      const method = mode === "create" ? "POST" : "PUT";
+
+      await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(form),
       });
-    } catch (err) {
-      setError("Failed to create client");
+
+      onSuccess?.();
+    } catch {
+      setError(
+        mode === "create"
+          ? "Failed to create client"
+          : "Failed to update client"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -78,11 +100,20 @@ export function CreateClientPanel() {
             <TextInput
               id="clientId"
               labelText="Client ID"
-              helperText="Lowercase letters, numbers, and dashes only"
+              helperText={
+                mode === "create"
+                  ? "Lowercase letters, numbers, and dashes only"
+                  : "Client ID cannot be changed"
+              }
               placeholder="moh-dashboard"
               required
+              disabled={mode === "edit"}
               value={form.clientId}
-              invalid={form.clientId.length > 0 && !isClientIdValid}
+              invalid={
+                mode === "create" &&
+                form.clientId.length > 0 &&
+                !isClientIdValid
+              }
               invalidText="Only lowercase letters, numbers, and dashes are allowed"
               onChange={(e) => handleChange("clientId", e.target.value)}
             />
@@ -106,7 +137,7 @@ export function CreateClientPanel() {
             <Checkbox
               id="publicClient"
               labelText="Public client (no client secret)"
-              checked={form.publicClient}
+              checked={form.public_client}
               onChange={(checked) => handleChange("publicClient", checked)}
             />
 
@@ -134,9 +165,15 @@ export function CreateClientPanel() {
             onClick={handleSubmit}
           >
             {submitting ? (
-              <InlineLoading description="Creating client…" />
-            ) : (
+              <InlineLoading
+                description={
+                  mode === "create" ? "Creating client…" : "Updating client…"
+                }
+              />
+            ) : mode === "create" ? (
               "Create client"
+            ) : (
+              "Save changes"
             )}
           </Button>
         </Stack>

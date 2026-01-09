@@ -15,46 +15,50 @@ import {
   Pagination,
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
-import { useNavigate } from "react-router-dom";
 
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 import { UserFilters } from "../../../components/user/UserFilters";
+import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 
 import {
   useListUsersQuery,
   useToggleUserMutation,
 } from "../../../store/api/users.api";
 import type { User } from "../../../store/types/user.types";
+import { UserFormPanel } from "../../../components/panels/create-user-panel";
 
+/* -----------------------------
+ * Table headers
+ * ----------------------------- */
 const headers = [
   { key: "username", header: "Username" },
   { key: "email", header: "Email" },
   { key: "status", header: "Status" },
-  { key: "verified", header: "Email Verified" },
-  { key: "lastLogin", header: "Last Login" },
+  { key: "verified", header: "Email verified" },
+  { key: "lastLogin", header: "Last login" },
   { key: "actions", header: "" },
 ];
 
 export default function UsersPage() {
-  const navigate = useNavigate();
+  const { openPanel, closePanel } = useHeaderPanel();
 
-  /* ---------------------------
+  /* -----------------------------
    * Filters
-   * --------------------------- */
+   * ----------------------------- */
   const [statusFilter, setStatusFilter] = useState("all");
   const [roleFilter, setRoleFilter] = useState("all");
   const [neverLoggedIn, setNeverLoggedIn] = useState(false);
 
-  /* ---------------------------
+  /* -----------------------------
    * Pagination
-   * --------------------------- */
+   * ----------------------------- */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  /* ---------------------------
+  /* -----------------------------
    * Data (SSOT)
-   * --------------------------- */
+   * ----------------------------- */
   const {
     data: users = [],
     isLoading,
@@ -65,26 +69,29 @@ export default function UsersPage() {
 
   const [toggleUser] = useToggleUserMutation();
 
-  /* ---------------------------
+  /* -----------------------------
    * Reset page on filter change
-   * --------------------------- */
+   * ----------------------------- */
   useEffect(() => {
     setPage(1);
   }, [statusFilter, roleFilter, neverLoggedIn]);
 
-  /* ---------------------------
-   * Derived filters
-   * --------------------------- */
+  /* -----------------------------
+   * Derived roles
+   * ----------------------------- */
   const roles = useMemo(() => {
     const set = new Set<string>();
     users.forEach((u) => u?.client_roles?.admin?.forEach((r) => set.add(r)));
     return ["all", ...Array.from(set)];
   }, [users]);
 
+  /* -----------------------------
+   * Filtering
+   * ----------------------------- */
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter === "active" && !u?.enabled) return false;
-      if (statusFilter === "disabled" && u?.enabled) return false;
+      if (statusFilter === "active" && !u.enabled) return false;
+      if (statusFilter === "disabled" && u.enabled) return false;
       if (neverLoggedIn && u.last_login_at) return false;
       if (roleFilter !== "all" && !u?.client_roles?.admin?.includes(roleFilter))
         return false;
@@ -92,18 +99,17 @@ export default function UsersPage() {
     });
   }, [users, statusFilter, roleFilter, neverLoggedIn]);
 
-  /* ---------------------------
+  /* -----------------------------
    * Pagination slice
-   * --------------------------- */
+   * ----------------------------- */
   const paginatedUsers = useMemo(() => {
     const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    return filteredUsers.slice(start, end);
+    return filteredUsers.slice(start, start + pageSize);
   }, [filteredUsers, page, pageSize]);
 
-  /* ---------------------------
+  /* -----------------------------
    * Loading
-   * --------------------------- */
+   * ----------------------------- */
   if (isLoading) {
     return (
       <div style={{ padding: "2rem" }}>
@@ -112,18 +118,15 @@ export default function UsersPage() {
     );
   }
 
-  /* ---------------------------
+  /* -----------------------------
    * Error
-   * --------------------------- */
+   * ----------------------------- */
   if (isError) {
     return (
       <ErrorState
         title="Failed to load users"
         description={(error as any)?.data?.message ?? "Failed to load users"}
-        primaryAction={{
-          label: "Retry",
-          onClick: refetch,
-        }}
+        primaryAction={{ label: "Retry", onClick: refetch }}
       />
     );
   }
@@ -132,8 +135,8 @@ export default function UsersPage() {
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
-    status: u?.enabled ? "Active" : "Disabled",
-    verified: u?.email_verified ? "Verified" : "Not Verified",
+    status: u.enabled ? "Active" : "Disabled",
+    verified: u.email_verified ? "Verified" : "Not verified",
     lastLogin: u.last_login_at
       ? new Date(u.last_login_at).toLocaleString()
       : "Never",
@@ -144,13 +147,11 @@ export default function UsersPage() {
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <div>
-          <h3 style={{ margin: 0 }}>Users</h3>
-          <p style={{ marginTop: 6, opacity: 0.8 }}>
-            Manage users, roles, and access to applications.
-          </p>
-        </div>
+      <div>
+        <h3 style={{ margin: 0 }}>Users</h3>
+        <p style={{ marginTop: 6, opacity: 0.8 }}>
+          Manage users, roles, and access to applications.
+        </p>
       </div>
 
       {/* Filters */}
@@ -173,9 +174,16 @@ export default function UsersPage() {
             title="No users found"
             description="No users match the selected filters."
             primaryAction={{
-              label: "Import users",
+              label: "Create user",
               icon: Add,
-              onClick: () => navigate("/admin/users/import"),
+              onClick: () =>
+                openPanel({
+                  title: "Create user",
+                  content: (
+                    <UserFormPanel mode="create" onSuccess={closePanel} />
+                  ),
+                  size: "md",
+                }),
             }}
           />
         ) : (
@@ -216,22 +224,6 @@ export default function UsersPage() {
                               );
                             }
 
-                            if (cell.info.header === "roles") {
-                              return (
-                                <TableCell key={cell.id}>
-                                  <div style={{ display: "flex", gap: 4 }}>
-                                    {(user?.client_roles?.admin ?? []).map(
-                                      (r) => (
-                                        <Tag key={r} size="sm">
-                                          {r}
-                                        </Tag>
-                                      )
-                                    )}
-                                  </div>
-                                </TableCell>
-                              );
-                            }
-
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
@@ -241,11 +233,20 @@ export default function UsersPage() {
                                     ariaLabel="User actions"
                                   >
                                     <OverflowMenuItem
-                                      itemText="View audit logs"
+                                      itemText="Edit user"
+                                      hasDivider
                                       onClick={() =>
-                                        navigate(
-                                          `/admin/audit-logs?user_id=${user.id}`
-                                        )
+                                        openPanel({
+                                          title: "Edit user",
+                                          content: (
+                                            <UserFormPanel
+                                              mode="edit"
+                                              initialUser={user}
+                                              onSuccess={closePanel}
+                                            />
+                                          ),
+                                          size: "md",
+                                        })
                                       }
                                     />
 
@@ -255,7 +256,6 @@ export default function UsersPage() {
                                           ? "Disable user"
                                           : "Enable user"
                                       }
-                                      hasDivider
                                       isDelete={user?.enabled}
                                       onClick={() =>
                                         toggleUser({
@@ -267,6 +267,7 @@ export default function UsersPage() {
 
                                     <OverflowMenuItem
                                       itemText="Reset password"
+                                      hasDivider
                                       onClick={() =>
                                         alert(
                                           `Password reset initiated for ${user.username}`

@@ -22,10 +22,10 @@ import {
   useMarkNotificationAsReadMutation,
 } from "../../../store/api/notifications.api";
 import { QuickAction } from "../../../components/home/quick-action/quick-action.component";
-import { CreateUserPanel } from "../../../components/panels/create-user-panel";
 import { ImportUsersPanel } from "../../../components/panels/import-users-panel";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
-import { CreateClientPanel } from "../../../components/panels/create-client-panel";
+import { ClientFormPanel } from "../../../components/panels/client-form-panel";
+import { UserFormPanel } from "../../../components/panels/create-user-panel";
 
 /* -----------------------------
  * Utils
@@ -271,7 +271,7 @@ export default function HomePage() {
             onClick={() =>
               openPanel({
                 title: "Create user",
-                content: <CreateUserPanel />,
+                content: <UserFormPanel mode={"create"} />,
                 size: "md",
               })
             }
@@ -283,7 +283,7 @@ export default function HomePage() {
             onClick={() =>
               openPanel({
                 title: "Create client",
-                content: <CreateClientPanel />,
+                content: <ClientFormPanel mode={"create"} />,
                 size: "md",
               })
             }

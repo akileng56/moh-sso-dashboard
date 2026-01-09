@@ -1,4 +1,4 @@
-// components/users/panels/CreateUserPanel.tsx
+// components/users/panels/UserFormPanel.tsx
 import {
   Stack,
   TextInput,
@@ -9,9 +9,12 @@ import {
   Form,
   FormGroup,
 } from "@carbon/react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import type { User } from "../../store/types/user.types";
 
-type CreateUserPayload = {
+export type UserFormMode = "create" | "edit";
+
+type UserFormPayload = {
   username: string;
   email: string;
   firstName: string;
@@ -27,46 +30,60 @@ const REALM_ROLES = [
   { id: "user", text: "User" },
 ];
 
-export function CreateUserPanel() {
-  const [form, setForm] = useState<CreateUserPayload>({
-    username: "",
-    email: "",
-    firstName: "",
-    lastName: "",
-    roles: [],
-    enabled: true,
-    emailVerified: true,
+type Props = {
+  mode: UserFormMode;
+  initialUser?: User;
+  onSuccess?: () => void;
+};
+
+export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
+  const [form, setForm] = useState<UserFormPayload>({
+    username: initialUser?.username ?? "",
+    email: initialUser?.email ?? "",
+    firstName: initialUser?.first_name ?? "",
+    lastName: initialUser?.last_name ?? "",
+    roles: initialUser?.client_roles?.admin ?? [],
+    enabled: initialUser?.enabled ?? true,
+    emailVerified: initialUser?.email_verified ?? true,
   });
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isValid =
-    form.username && form.email && form.firstName && form.lastName;
+  const isValid = useMemo(() => {
+    return form.username && form.email && form.firstName && form.lastName;
+  }, [form]);
 
-  const handleChange = (field: keyof CreateUserPayload, value: any) => {
+  const handleChange = (field: keyof UserFormPayload, value: any) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
+    if (!isValid) return;
+
     setSubmitting(true);
     setError(null);
 
     try {
-      /**
-       * This payload matches Keycloak user creation:
-       * - credentials generated server-side
-       * - temporary password
-       * - email verification flow
-       */
-      await fetch("/api/v1/admin/users", {
-        method: "POST",
+      const url =
+        mode === "create"
+          ? "/api/v1/admin/users"
+          : `/api/v1/admin/users/${initialUser?.id}`;
+
+      const method = mode === "create" ? "POST" : "PUT";
+
+      await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(form),
       });
-    } catch (err: any) {
-      setError("Failed to create user");
+
+      onSuccess?.();
+    } catch {
+      setError(
+        mode === "create" ? "Failed to create user" : "Failed to update user"
+      );
     } finally {
       setSubmitting(false);
     }
@@ -76,15 +93,19 @@ export function CreateUserPanel() {
     <Form>
       <Stack gap={5}>
         {/* -----------------------------
-         * Identity
+         * User details
          * ----------------------------- */}
         <FormGroup legendText="User details">
           <Stack gap={4}>
             <TextInput
               id="username"
               labelText="Username"
-              value={form.username}
               required
+              disabled={mode === "edit"}
+              helperText={
+                mode === "edit" ? "Username cannot be changed" : undefined
+              }
+              value={form.username}
               onChange={(e) => handleChange("username", e.target.value)}
             />
 
@@ -125,13 +146,15 @@ export function CreateUserPanel() {
               titleText="Realm roles"
               items={REALM_ROLES}
               itemToString={(item) => item?.text ?? ""}
+              initialSelectedItems={REALM_ROLES.filter((r) =>
+                form.roles.includes(r.id)
+              )}
               onChange={({ selectedItems }) =>
                 handleChange(
                   "roles",
                   selectedItems.map((r) => r.id)
                 )
               }
-              label={"Realm Roles"}
             />
 
             <Checkbox
@@ -150,9 +173,6 @@ export function CreateUserPanel() {
           </Stack>
         </FormGroup>
 
-        {/* -----------------------------
-         * Error
-         * ----------------------------- */}
         {error && <p style={{ color: "var(--cds-text-error)" }}>{error}</p>}
 
         {/* -----------------------------
@@ -165,9 +185,15 @@ export function CreateUserPanel() {
             onClick={handleSubmit}
           >
             {submitting ? (
-              <InlineLoading description="Creating user…" />
-            ) : (
+              <InlineLoading
+                description={
+                  mode === "create" ? "Creating user…" : "Saving changes…"
+                }
+              />
+            ) : mode === "create" ? (
               "Create user"
+            ) : (
+              "Save changes"
             )}
           </Button>
         </Stack>
