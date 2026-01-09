@@ -29,20 +29,6 @@
   pointer-events: none;
 }
 
-/* =========================
- * HeaderPanel override
- * ========================= */
-
-/* This is REQUIRED for notifications panel sizing */
-.notifications-header-panel {
-  width: 420px;
-  max-width: 420px;
-  padding: 0;
-
-  /* Prevent Carbon from clipping children */
-  overflow: visible;
-}
-
 /* Ensure HeaderPanel aligns to right edge cleanly */
 .cds--header-panel.notifications-header-panel {
   right: 0;

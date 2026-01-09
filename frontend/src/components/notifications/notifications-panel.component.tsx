@@ -7,94 +7,83 @@ import {
   Button,
   Stack,
 } from "@carbon/react";
-import { Close } from "@carbon/icons-react";
 import type { Notification } from "../../store/types/notifications.types";
+
 import "./notifications-panel.css";
 
 type Props = {
   notifications: Notification[];
-  onClose: () => void;
   onMarkRead?: (id: string) => void;
   onView?: (notification: Notification) => void;
 };
 
 export function NotificationsPanel({
   notifications,
-  onClose,
   onMarkRead,
   onView,
 }: Props) {
+  if (notifications.length === 0) {
+    return <p className="notifications-panel__empty">No notifications</p>;
+  }
+
   return (
     <div className="notifications-panel">
-      {/* Header */}
-      <div className="notifications-panel__header">
-        <strong>Notifications</strong>
-        <Button
-          size="sm"
-          kind="ghost"
-          hasIconOnly
-          iconDescription="Close"
-          renderIcon={Close}
-          onClick={onClose}
-        />
-      </div>
+      <StructuredListWrapper>
+        <StructuredListBody>
+          {notifications.map((n) => (
+            <StructuredListRow
+              key={n.id}
+              className={`notification-row ${
+                !n.read ? "notification-row--unread" : ""
+              }`}
+              tabIndex={0}
+              onClick={() => onView?.(n)}
+            >
+              {/* ================= Content ================= */}
+              <StructuredListCell>
+                <Stack gap={1}>
+                  <span className="notification-title">{n.title}</span>
 
-      {notifications.length === 0 ? (
-        <p className="notifications-panel__empty">No notifications</p>
-      ) : (
-        <StructuredListWrapper>
-          <StructuredListBody>
-            {notifications.map((n) => (
-              <StructuredListRow
-                key={n.id}
-                className={`notification-row ${
-                  !n.read ? "notification-row--unread" : ""
-                }`}
-                tabIndex={0}
-                onClick={() => onView?.(n)}
-              >
-                <StructuredListCell>
-                  <Stack gap={1}>
-                    <span className="notification-title">{n.title}</span>
-                    <span className="notification-message">{n.message}</span>
-                    <span className="notification-meta">
-                      {new Date(n.created_at).toLocaleString()}
-                    </span>
-                  </Stack>
-                </StructuredListCell>
+                  <span className="notification-message">{n.message}</span>
 
-                <StructuredListCell className="notification-actions">
-                  <Stack gap={2}>
-                    <Tag size="sm" type={mapSeverity(n.severity)}>
-                      {n.severity}
-                    </Tag>
+                  <span className="notification-meta">
+                    {new Date(n.created_at).toLocaleString()}
+                  </span>
+                </Stack>
+              </StructuredListCell>
 
-                    {!n.read && onMarkRead && (
-                      <Button
-                        size="sm"
-                        kind="ghost"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onMarkRead(n.id);
-                        }}
-                      >
-                        Mark read
-                      </Button>
-                    )}
-                  </Stack>
-                </StructuredListCell>
-              </StructuredListRow>
-            ))}
-          </StructuredListBody>
-        </StructuredListWrapper>
-      )}
+              {/* ================= Actions ================= */}
+              <StructuredListCell className="notification-actions">
+                <Stack gap={2}>
+                  <Tag size="sm" type={mapSeverity(n.severity)}>
+                    {n.severity}
+                  </Tag>
+
+                  {!n.read && onMarkRead && (
+                    <Button
+                      size="sm"
+                      kind="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMarkRead(n.id);
+                      }}
+                    >
+                      Mark read
+                    </Button>
+                  )}
+                </Stack>
+              </StructuredListCell>
+            </StructuredListRow>
+          ))}
+        </StructuredListBody>
+      </StructuredListWrapper>
     </div>
   );
 }
 
-/* -----------------------------
+/* --------------------------------------------------
  * Severity mapping (Carbon-safe)
- * ----------------------------- */
+ * -------------------------------------------------- */
 function mapSeverity(
   severity: "info" | "warning" | "critical"
 ): "red" | "yellow" | "gray" {

@@ -22,6 +22,9 @@ import {
   useMarkNotificationAsReadMutation,
 } from "../../../store/api/notifications.api";
 import { QuickAction } from "../../../components/home/quick-action/quick-action.component";
+import { CreateUserPanel } from "../../../components/panels/create-user-panel";
+import { ImportUsersPanel } from "../../../components/panels/import-users-panel";
+import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 
 /* -----------------------------
  * Utils
@@ -29,6 +32,7 @@ import { QuickAction } from "../../../components/home/quick-action/quick-action.
 const toRFC3339 = (d: Date) => d.toISOString();
 
 export default function HomePage() {
+  const { openPanel } = useHeaderPanel();
   /* -----------------------------
    * Date range (last 7 days)
    * ----------------------------- */
@@ -102,7 +106,6 @@ export default function HomePage() {
           System status, applications, and quick actions.
         </p>
       </div>
-
       {/* ==================================================
        * HERO / WELCOME
        * ================================================== */}
@@ -126,7 +129,6 @@ export default function HomePage() {
           </Stack>
         )}
       </Tile>
-
       {/* ==================================================
        * SYSTEM SIGNALS
        * ================================================== */}
@@ -169,7 +171,6 @@ export default function HomePage() {
           </div>
         )}
       </Tile>
-
       {/* ==================================================
        * APPLICATIONS
        * ================================================== */}
@@ -224,7 +225,6 @@ export default function HomePage() {
           </div>
         )}
       </Tile>
-
       {/* ==================================================
        * CLIENT USAGE METRICS
        * ================================================== */}
@@ -256,7 +256,6 @@ export default function HomePage() {
           </Stack>
         )}
       </Tile> */}
-
       {/* ==================================================
        * QUICK ACTIONS
        * ================================================== */}
@@ -268,14 +267,24 @@ export default function HomePage() {
             icon={<Add />}
             label="Create user"
             description="Add a new user to the system"
-            href="/admin/users/new"
+            onClick={() =>
+              openPanel({
+                title: "Create user",
+                content: <CreateUserPanel />,
+              })
+            }
           />
 
           <QuickAction
             icon={<UserFollow />}
             label="Import users"
             description="Bulk upload users via CSV"
-            href="/admin/users/import"
+            onClick={() =>
+              openPanel({
+                title: "Import users",
+                content: <ImportUsersPanel />,
+              })
+            }
           />
 
           <QuickAction
@@ -287,6 +296,7 @@ export default function HomePage() {
           />
         </div>
       </Tile>
+
       {/* ==================================================
        * NOTIFICATIONS (ACTIONABLE)
        * ================================================== */}

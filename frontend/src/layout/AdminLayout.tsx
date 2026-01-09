@@ -1,5 +1,4 @@
 import {
-  HeaderPanel,
   HeaderGlobalAction,
   Content,
   Header,
@@ -10,9 +9,9 @@ import {
   SideNavLink,
 } from "@carbon/react";
 import { Notification, Logout, UserAvatarFilled } from "@carbon/icons-react";
-import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
+
 import { selectUser } from "../store/auth/auth.selectors";
 import { NotificationsPanel } from "../components/notifications/notifications-panel.component";
 import {
@@ -20,15 +19,17 @@ import {
   useGetUnreadNotificationsCountQuery,
 } from "../store/api/notifications.api";
 import { API } from "../lib/constants/api.constants";
+
+import {
+  HeaderPanelProvider,
+  useHeaderPanel,
+} from "../components/header-panel/header-panel.context";
+
 import "./admin-layout.css";
 
-export default function AdminLayout() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
+function HeaderActions() {
   const user = useSelector(selectUser);
-
-  const [showNotifications, setShowNotifications] = useState(false);
+  const { openPanel } = useHeaderPanel();
 
   const { data: notifications = [] } = useGetNotificationsQuery({
     unread: true,
@@ -43,7 +44,51 @@ export default function AdminLayout() {
   };
 
   return (
-    <>
+    <HeaderGlobalBar>
+      {/* 🔔 Notifications */}
+      <HeaderGlobalAction
+        aria-label="Notifications"
+        tooltipAlignment="end"
+        onClick={() =>
+          openPanel({
+            title: "Notifications",
+            content: <NotificationsPanel notifications={notifications} />,
+          })
+        }
+      >
+        <Notification size={20} />
+        {unreadCount > 0 && (
+          <span className="notification-badge">{unreadCount}</span>
+        )}
+      </HeaderGlobalAction>
+
+      {/* 👤 User */}
+      <HeaderGlobalAction
+        aria-label={`Signed in as ${user?.username ?? "user"}`}
+        tooltipAlignment="end"
+      >
+        <UserAvatarFilled size={20} />
+      </HeaderGlobalAction>
+
+      {/* 🚪 Logout */}
+      <HeaderGlobalAction
+        aria-label="Logout"
+        tooltipAlignment="end"
+        onClick={handleLogout}
+      >
+        <Logout size={20} />
+      </HeaderGlobalAction>
+    </HeaderGlobalBar>
+  );
+}
+
+export default function AdminLayout() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  return (
+    <HeaderPanelProvider>
+      {/* ================= Header ================= */}
       <Header aria-label="MOH Integrated Health Portal">
         <HeaderName
           prefix="MOH"
@@ -53,49 +98,10 @@ export default function AdminLayout() {
           Integrated Health Portal
         </HeaderName>
 
-        <HeaderGlobalBar>
-          {/* 🔔 Notifications */}
-          <HeaderGlobalAction
-            aria-label="Notifications"
-            tooltipAlignment="end"
-            onClick={() => setShowNotifications(!showNotifications)}
-          >
-            <Notification size={20} />
-            {unreadCount > 0 && (
-              <span className="notification-badge">{unreadCount}</span>
-            )}
-          </HeaderGlobalAction>
-
-          {/* User */}
-          <HeaderGlobalAction
-            aria-label={`Signed in as ${user?.username ?? "user"}`}
-            tooltipAlignment="end"
-          >
-            <UserAvatarFilled size={20} />
-          </HeaderGlobalAction>
-
-          {/* Logout */}
-          <HeaderGlobalAction
-            aria-label="Logout"
-            tooltipAlignment="end"
-            onClick={() => handleLogout()}
-          >
-            <Logout size={20} />
-          </HeaderGlobalAction>
-        </HeaderGlobalBar>
-
-        {/* 🔔 Notifications Panel */}
-        {showNotifications && (
-          <HeaderPanel expanded className="notifications-header-panel">
-            <NotificationsPanel
-              notifications={notifications}
-              onClose={() => setShowNotifications(false)}
-            />
-          </HeaderPanel>
-        )}
+        <HeaderActions />
       </Header>
 
-      {/* SideNav unchanged */}
+      {/* ================= Side Nav ================= */}
       <SideNav isFixedNav expanded aria-label="Admin navigation">
         <SideNavItems>
           <SideNavLink
@@ -104,18 +110,21 @@ export default function AdminLayout() {
           >
             Home
           </SideNavLink>
+
           <SideNavLink
             isActive={location.pathname.startsWith("/admin/users")}
             onClick={() => navigate("/admin/users")}
           >
             Users
           </SideNavLink>
+
           <SideNavLink
             isActive={location.pathname.startsWith("/admin/clients")}
             onClick={() => navigate("/admin/clients")}
           >
             Clients
           </SideNavLink>
+
           <SideNavLink
             isActive={location.pathname.startsWith("/admin/audit-logs")}
             onClick={() => navigate("/admin/audit-logs")}
@@ -125,9 +134,10 @@ export default function AdminLayout() {
         </SideNavItems>
       </SideNav>
 
+      {/* ================= Content ================= */}
       <Content style={{ marginLeft: 256, paddingTop: "3rem" }}>
         <Outlet />
       </Content>
-    </>
+    </HeaderPanelProvider>
   );
 }
