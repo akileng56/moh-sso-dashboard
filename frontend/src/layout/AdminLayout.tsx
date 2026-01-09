@@ -20,6 +20,7 @@ import {
   useGetUnreadNotificationsCountQuery,
 } from "../store/api/notifications.api";
 import { API } from "../lib/constants/api.constants";
+import "./admin-layout.css";
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function AdminLayout() {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const { data: notifications = [] } = useGetNotificationsQuery({
-    unread: false,
+    unread: true,
     limit: 10,
     offset: 0,
   });
@@ -85,7 +86,7 @@ export default function AdminLayout() {
 
         {/* 🔔 Notifications Panel */}
         {showNotifications && (
-          <HeaderPanel expanded>
+          <HeaderPanel expanded className="notifications-header-panel">
             <NotificationsPanel
               notifications={notifications}
               onClose={() => setShowNotifications(false)}

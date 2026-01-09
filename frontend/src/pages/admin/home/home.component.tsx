@@ -84,7 +84,7 @@ export default function HomePage() {
    * ----------------------------- */
   const { data: notifications = [], isLoading: notificationsLoading } =
     useGetNotificationsQuery({
-      unread: false,
+      unread: true,
       limit: 5,
       offset: 0,
     });

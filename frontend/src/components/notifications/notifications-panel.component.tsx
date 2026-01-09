@@ -56,9 +56,7 @@ export function NotificationsPanel({
                 <StructuredListCell>
                   <Stack gap={1}>
                     <span className="notification-title">{n.title}</span>
-
                     <span className="notification-message">{n.message}</span>
-
                     <span className="notification-meta">
                       {new Date(n.created_at).toLocaleString()}
                     </span>

@@ -97,6 +97,7 @@ export const notificationsApi = baseApi.injectEndpoints({
         url: API.admin.notifications.countUnread(),
         credentials: "include",
       }),
+      transformResponse: (response: { count: number }) => response.count,
       providesTags: [{ type: "Notification", id: "COUNT" }],
     }),
   }),

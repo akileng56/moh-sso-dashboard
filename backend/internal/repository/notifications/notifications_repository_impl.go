@@ -68,8 +68,8 @@ func (r *notificationsRepository) ListNotifications(
 		Limit:      limit,
 		Offset:     offset,
 		Unread: sql.NullBool{
-			Bool:  *unread,
 			Valid: unread != nil,
+			Bool:  unread != nil && *unread,
 		},
 	}
 

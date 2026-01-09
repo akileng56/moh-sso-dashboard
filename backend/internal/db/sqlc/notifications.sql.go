@@ -143,7 +143,7 @@ WHERE
   target_role = $1
   AND (
     $4::boolean IS NULL
-    OR read = NOT $4
+    OR read = NOT $4::boolean
   )
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3

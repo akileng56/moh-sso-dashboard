@@ -29,11 +29,13 @@ FROM notifications
 WHERE
   target_role = $1
   AND (
-    sqlc.narg('unread')::boolean IS NULL
-    OR read = NOT sqlc.narg('unread')
+    sqlc.narg(unread)::boolean IS NULL
+    OR read = NOT sqlc.narg(unread)::boolean
   )
 ORDER BY created_at DESC
 LIMIT $2 OFFSET $3;
+
+
 
 
 -- name: CountUnreadNotifications :one
