@@ -12,6 +12,8 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  OverflowMenu,
+  OverflowMenuItem,
 } from "@carbon/react";
 
 import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer";
@@ -237,13 +239,12 @@ export default function AuditLogs() {
                             ))}
 
                             <TableCell style={{ textAlign: "right" }}>
-                              <Button
-                                size="sm"
-                                kind="ghost"
-                                onClick={() => setSelected(raw)}
-                              >
-                                View
-                              </Button>
+                              <OverflowMenu size="sm" flipped>
+                                <OverflowMenuItem
+                                  itemText="View"
+                                  onClick={() => setSelected(raw)}
+                                />
+                              </OverflowMenu>
                             </TableCell>
                           </TableRow>
                         );

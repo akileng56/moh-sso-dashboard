@@ -8,71 +8,49 @@ import (
 )
 
 type Client struct {
-	ID                      string   `json:"id,omitempty"`
-	ClientID                string   `json:"clientId"`
-	Name                    string   `json:"name,omitempty"`
-	Description             string   `json:"description,omitempty"`
-	RootURL                 string   `json:"rootUrl,omitempty"`
-	BaseURL                 string   `json:"baseUrl,omitempty"`
-	AdminURL                string   `json:"adminUrl,omitempty"`
-	SurrogateAuthRequired   bool     `json:"surrogateAuthRequired,omitempty"`
-	Enabled                 bool     `json:"enabled"`
-	AlwaysDisplayInConsole  bool     `json:"alwaysDisplayInConsole,omitempty"`
-	ClientAuthenticatorType string   `json:"clientAuthenticatorType,omitempty"`
-	RedirectUris            []string `json:"redirectUris,omitempty"`
-	WebOrigins              []string `json:"webOrigins,omitempty"`
-	NotBefore               int      `json:"notBefore,omitempty"`
-
-	BearerOnly         bool `json:"bearerOnly,omitempty"` // Added omitempty for boolean
-	ConsentRequired    bool `json:"consentRequired,omitempty"`
-	StandardFlow       bool `json:"standardFlowEnabled,omitempty"`
-	ImplicitFlow       bool `json:"implicitFlowEnabled,omitempty"`
-	DirectAccess       bool `json:"directAccessGrantsEnabled,omitempty"`
-	ServiceAccounts    bool `json:"serviceAccountsEnabled,omitempty"`
-	PublicClient       bool `json:"publicClient,omitempty"`
-	FrontChannelLogout bool `json:"frontchannelLogout,omitempty"`
-
-	Protocol string `json:"protocol,omitempty"` // Added omitempty
-
-	FullScopeAllowed          bool     `json:"fullScopeAllowed,omitempty"`
-	NodeReRegistrationTimeout int      `json:"nodeReRegistrationTimeout,omitempty"`
-	DefaultClientScopes       []string `json:"defaultClientScopes,omitempty"`
-	OptionalClientScopes      []string `json:"optionalClientScopes,omitempty"`
-
-	Access map[string]bool `json:"access,omitempty"` // Access/permissions flags
-
-	// --- CRITICAL MISSING FIELDS ---
-
-	// **Authentication/Security**
-	Secret                  string `json:"secret,omitempty"`                  // The client secret for confidential clients
-	ClientTemplate          string `json:"clientTemplate,omitempty"`          // The ID of the client template
-	UseTemplateConfig       bool   `json:"useTemplateConfig,omitempty"`       // Use client template configuration (Deprecated)
-	RootClientRealm         string `json:"rootClientRealm,omitempty"`         // Realm where client lives
-	RegistrationAccessToken string `json:"registrationAccessToken,omitempty"` // For dynamic client registration
-
-	// **Authorization Services (Permissions/Resources)**
-	AuthorizationServicesEnabled bool `json:"authorizationServicesEnabled,omitempty"`
-
-	// **Protocol Mappers & Roles**
-	ProtocolMappers []ProtocolMapper `json:"protocolMappers,omitempty"` // Defines how claims map to tokens
-	DefaultRoles    []string         `json:"defaultRoles,omitempty"`    // Default realm roles for service accounts
-
-	// **Token/Session Configuration**
-	AuthorizationURL string `json:"authorizationUrl,omitempty"` // SAML-specific
-	TlsRequired      string `json:"tlsRequired,omitempty"`      // Options: 'none', 'all'
-
-	// **Misc**
-	Attributes                         map[string]string `json:"attributes,omitempty"`                         // Key/value map for custom settings (already in your struct, but repeated for context)
-	AuthenticationFlowBindingOverrides map[string]string `json:"authenticationFlowBindingOverrides,omitempty"` // e.g., default: 'browser'
-
-	// **Registered Nodes/Clustering**
-	RegisteredNodes map[string]int `json:"registeredNodes,omitempty"` // Map of hostnames to registration time
+	ID                                 string            `json:"id,omitempty"`
+	ClientID                           string            `json:"clientId"`
+	Name                               string            `json:"name,omitempty"`
+	Description                        string            `json:"description,omitempty"`
+	RootURL                            string            `json:"rootUrl,omitempty"`
+	BaseURL                            string            `json:"baseUrl,omitempty"`
+	AdminURL                           string            `json:"adminUrl,omitempty"`
+	SurrogateAuthRequired              bool              `json:"surrogateAuthRequired,omitempty"`
+	Enabled                            bool              `json:"enabled"`
+	AlwaysDisplayInConsole             bool              `json:"alwaysDisplayInConsole,omitempty"`
+	ClientAuthenticatorType            string            `json:"clientAuthenticatorType,omitempty"`
+	RedirectUris                       []string          `json:"redirectUris,omitempty"`
+	WebOrigins                         []string          `json:"webOrigins,omitempty"`
+	NotBefore                          int               `json:"notBefore,omitempty"`
+	BearerOnly                         bool              `json:"bearerOnly,omitempty"`
+	ConsentRequired                    bool              `json:"consentRequired,omitempty"`
+	StandardFlow                       bool              `json:"standardFlowEnabled,omitempty"`
+	ImplicitFlow                       bool              `json:"implicitFlowEnabled,omitempty"`
+	DirectAccess                       bool              `json:"directAccessGrantsEnabled,omitempty"`
+	ServiceAccounts                    bool              `json:"serviceAccountsEnabled,omitempty"`
+	PublicClient                       bool              `json:"publicClient,omitempty"`
+	FrontChannelLogout                 bool              `json:"frontchannelLogout,omitempty"`
+	Protocol                           string            `json:"protocol,omitempty"`
+	FullScopeAllowed                   bool              `json:"fullScopeAllowed,omitempty"`
+	NodeReRegistrationTimeout          int               `json:"nodeReRegistrationTimeout,omitempty"`
+	DefaultClientScopes                []string          `json:"defaultClientScopes,omitempty"`
+	OptionalClientScopes               []string          `json:"optionalClientScopes,omitempty"`
+	Access                             map[string]bool   `json:"access,omitempty"`
+	Secret                             string            `json:"secret,omitempty"`
+	ClientTemplate                     string            `json:"clientTemplate,omitempty"`
+	UseTemplateConfig                  bool              `json:"useTemplateConfig,omitempty"`
+	RootClientRealm                    string            `json:"rootClientRealm,omitempty"`
+	RegistrationAccessToken            string            `json:"registrationAccessToken,omitempty"`
+	AuthorizationServicesEnabled       bool              `json:"authorizationServicesEnabled,omitempty"`
+	ProtocolMappers                    []ProtocolMapper  `json:"protocolMappers,omitempty"`
+	DefaultRoles                       []string          `json:"defaultRoles,omitempty"`
+	AuthorizationURL                   string            `json:"authorizationUrl,omitempty"`
+	TlsRequired                        string            `json:"tlsRequired,omitempty"`
+	Attributes                         map[string]string `json:"attributes,omitempty"`
+	AuthenticationFlowBindingOverrides map[string]string `json:"authenticationFlowBindingOverrides,omitempty"`
+	RegisteredNodes                    map[string]int    `json:"registeredNodes,omitempty"`
 }
 
-// --- Auxiliary Struct for ProtocolMappers ---
-
-// ProtocolMapper is a placeholder for the more complex Keycloak ProtocolMapperRepresentation
-// which is used inside the Client object to define how attributes are mapped to tokens.
 type ProtocolMapper struct {
 	ID              string            `json:"id,omitempty"`
 	Name            string            `json:"name,omitempty"`
@@ -80,7 +58,7 @@ type ProtocolMapper struct {
 	ProtocolMapper  string            `json:"protocolMapper,omitempty"`
 	ConsentRequired bool              `json:"consentRequired,omitempty"`
 	ConsentText     string            `json:"consentText,omitempty"`
-	Config          map[string]string `json:"config,omitempty"` // Critical field for mapper configuration
+	Config          map[string]string `json:"config,omitempty"`
 }
 
 type User struct {
@@ -128,8 +106,8 @@ type ImportUserRow struct {
 	Enabled   bool     `json:"enabled"`
 	ClientIDs []string `json:"clientIds"`
 	Errors    []string `json:"errors,omitempty"`
-	Status    string   `json:"status,omitempty"`   // valid|invalid|success|failed|skipped
-	ErrorMsg  string   `json:"errorMsg,omitempty"` // for failed
+	Status    string   `json:"status,omitempty"`
+	ErrorMsg  string   `json:"errorMsg,omitempty"`
 }
 
 type PreviewResponse struct {
@@ -138,7 +116,7 @@ type PreviewResponse struct {
 	Total    int             `json:"total"`
 	Valid    int             `json:"valid"`
 	Invalid  int             `json:"invalid"`
-	Rows     []ImportUserRow `json:"rows"` // include both valid + invalid for preview table
+	Rows     []ImportUserRow `json:"rows"`
 }
 
 type ExecuteResponse struct {
@@ -181,9 +159,6 @@ type Notification struct {
 
 type NotificationType string
 
-// =====================================================
-// AUTH / SECURITY
-// =====================================================
 const (
 	LoginFailed            NotificationType = "LOGIN_FAILED"
 	TokenRefreshFailed     NotificationType = "TOKEN_REFRESH_FAILED"
@@ -194,10 +169,6 @@ const (
 	AccountLocked          NotificationType = "ACCOUNT_LOCKED"
 	AccountUnlocked        NotificationType = "ACCOUNT_UNLOCKED"
 )
-
-// =====================================================
-// USERS
-// =====================================================
 const (
 	UserImported    NotificationType = "USER_IMPORTED"
 	UserCreated     NotificationType = "USER_CREATED"
@@ -207,10 +178,6 @@ const (
 	UserEnabled     NotificationType = "USER_ENABLED"
 	UserRoleChanged NotificationType = "USER_ROLE_CHANGED"
 )
-
-// =====================================================
-// CLIENTS / APPLICATIONS
-// =====================================================
 const (
 	ClientCreated       NotificationType = "CLIENT_CREATED"
 	ClientUpdated       NotificationType = "CLIENT_UPDATED"
@@ -219,10 +186,6 @@ const (
 	ClientEnabled       NotificationType = "CLIENT_ENABLED"
 	ClientSecretRotated NotificationType = "CLIENT_SECRET_ROTATED"
 )
-
-// =====================================================
-// SYSTEM / OPERATIONS
-// =====================================================
 const (
 	SystemStartup   NotificationType = "SYSTEM_STARTUP"
 	SystemShutdown  NotificationType = "SYSTEM_SHUTDOWN"
@@ -231,18 +194,12 @@ const (
 	BackupFailed    NotificationType = "BACKUP_FAILED"
 )
 
-// =====================================================
-// IMPORTS / BACKGROUND JOBS
-// =====================================================
 const (
 	ImportStarted   NotificationType = "IMPORT_STARTED"
 	ImportCompleted NotificationType = "IMPORT_COMPLETED"
 	ImportFailed    NotificationType = "IMPORT_FAILED"
 )
 
-// =====================================================
-// AUDIT / COMPLIANCE
-// =====================================================
 const (
 	AuditExported   NotificationType = "AUDIT_EXPORTED"
 	PolicyViolation NotificationType = "POLICY_VIOLATION"

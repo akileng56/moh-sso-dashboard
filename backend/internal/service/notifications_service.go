@@ -15,20 +15,15 @@ import (
 
 type NotificationsService interface {
 	Notify(ctx context.Context, notification model.Notification) (*model.Notification, error)
-
-	// 🔔 Auth helpers
 	NotifyLoginFailed(ctx context.Context, clientID, ip, userAgent string, err error)
 	NotifySuspiciousLogin(ctx context.Context, ip, userAgent string)
 	NotifyTokenRefreshFailed(ctx context.Context, ip, userAgent string)
 	NotifyAccountLocked(ctx context.Context, userID uuid.UUID)
-
-	// 🔔 System / Ops
 	NotifySystemStartup(ctx context.Context, version string)
 	NotifySystemShutdown(ctx context.Context, reason string)
 	NotifyConfigChanged(ctx context.Context, changedBy string, keys []string)
 	NotifyBackupCompleted(ctx context.Context, backupID string, durationSeconds int)
 	NotifyBackupFailed(ctx context.Context, backupID string, err error)
-
 	ListNotifications(
 		ctx context.Context,
 		role string,
@@ -36,7 +31,6 @@ type NotificationsService interface {
 		limit int32,
 		offset int32,
 	) ([]model.Notification, error)
-
 	GetNotificationByID(ctx context.Context, notificationID string) (*model.Notification, error)
 	MarkNotificationAsRead(ctx context.Context, notificationID string) error
 	DeleteNotification(ctx context.Context, notificationID string) error
@@ -57,9 +51,6 @@ func NewNotificationsService(
 	}
 }
 
-// ----------------------------------------------------
-// CORE NOTIFY
-// ----------------------------------------------------
 func (s *notificationsService) Notify(
 	ctx context.Context,
 	notification model.Notification,
@@ -77,17 +68,13 @@ func (s *notificationsService) Notify(
 	return n, nil
 }
 
-// ----------------------------------------------------
-// 🔔 AUTH / SECURITY HELPERS
-// ----------------------------------------------------
-
 func (s *notificationsService) NotifyLoginFailed(
 	ctx context.Context,
 	clientID, ip, userAgent string,
 	err error,
 ) {
-	nt := model.LoginFailed
 
+	nt := model.LoginFailed
 	_, _ = s.Notify(ctx, model.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
@@ -107,12 +94,12 @@ func (s *notificationsService) NotifySuspiciousLogin(
 	ctx context.Context,
 	ip, userAgent string,
 ) {
-	nt := model.SuspiciousLogin
 
+	nt := model.SuspiciousLogin
 	_, _ = s.Notify(ctx, model.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
-		Severity:   nt.Severity(), // critical
+		Severity:   nt.Severity(),
 		Message:    "Suspicious login attempt detected",
 		TargetRole: "admin",
 		Metadata: utils.MustJSON(map[string]interface{}{
@@ -126,8 +113,8 @@ func (s *notificationsService) NotifyTokenRefreshFailed(
 	ctx context.Context,
 	ip, userAgent string,
 ) {
-	nt := model.TokenRefreshFailed
 
+	nt := model.TokenRefreshFailed
 	_, _ = s.Notify(ctx, model.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
@@ -146,7 +133,6 @@ func (s *notificationsService) NotifyAccountLocked(
 	userID uuid.UUID,
 ) {
 	nt := model.AccountLocked
-
 	_, _ = s.Notify(ctx, model.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
@@ -158,10 +144,6 @@ func (s *notificationsService) NotifyAccountLocked(
 		}),
 	})
 }
-
-// ----------------------------------------------------
-// CRUD / QUERY METHODS (UNCHANGED)
-// ----------------------------------------------------
 
 func (s *notificationsService) ListNotifications(
 	ctx context.Context,
@@ -237,12 +219,6 @@ func (s *notificationsService) CountNotifications(
 ) (int64, error) {
 	return s.notificationsRepo.CountNotifications(ctx, targetRole)
 }
-
-// -------------------------------------
-
-// ----------------------------------------------------
-// 🔔 SYSTEM / OPERATIONS HELPERS
-// ----------------------------------------------------
 
 func (s *notificationsService) NotifySystemStartup(
 	ctx context.Context,

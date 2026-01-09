@@ -40,9 +40,9 @@ type AuthUser struct {
 	FirstName        string              `json:"first_name,omitempty"`
 	LastName         string              `json:"last_name,omitempty"`
 	FullName         string              `json:"full_name,omitempty"`
-	IsAdmin          bool                `json:"is_admin"`     // derived (realm admin)
-	RealmRoles       []string            `json:"realm_roles"`  // e.g. ["admin"]
-	ClientRoles      map[string][]string `json:"client_roles"` // client_id → roles
+	IsAdmin          bool                `json:"is_admin"`
+	RealmRoles       []string            `json:"realm_roles"`
+	ClientRoles      map[string][]string `json:"client_roles"`
 	Enabled          bool                `json:"enabled"`
 	EmailVerified    bool                `json:"email_verified"`
 	RequirePwdChange bool                `json:"require_pwd_change"`
@@ -216,9 +216,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		return nil, errors.New("invalid token claims")
 	}
 
-	// ----------------------------
-	// Helpers (panic-safe)
-	// ----------------------------
 	getString := func(key string) string {
 		if v, ok := claims[key].(string); ok {
 			return v
@@ -232,10 +229,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 		return false
 	}
-
-	// ----------------------------
-	// Core identity
-	// ----------------------------
 	id := getString("sub")
 	username := getString("preferred_username")
 	email := getString("email")
@@ -250,9 +243,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		fullName = getString("name")
 	}
 
-	// ----------------------------
-	// Realm roles
-	// ----------------------------
 	realmRoles := []string{}
 	isAdmin := false
 
@@ -269,9 +259,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// ----------------------------
-	// Client roles (resource_access)
-	// ----------------------------
 	clientRoles := map[string][]string{}
 
 	if ra, ok := claims["resource_access"].(map[string]interface{}); ok {
@@ -294,9 +281,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// ----------------------------
-	// Session & account metadata
-	// ----------------------------
 	var lastLoginAt *time.Time
 	if v, ok := claims["auth_time"].(float64); ok {
 		t := time.Unix(int64(v), 0)
@@ -309,25 +293,18 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 	enabled := true
 
 	return &AuthUser{
-		// Identity
-		ID:        id,
-		Username:  username,
-		Email:     email,
-		FirstName: firstName,
-		LastName:  lastName,
-		FullName:  fullName,
-
-		// Authorization
-		IsAdmin:     isAdmin,
-		RealmRoles:  realmRoles,
-		ClientRoles: clientRoles,
-
-		// Account state
+		ID:            id,
+		Username:      username,
+		Email:         email,
+		FirstName:     firstName,
+		LastName:      lastName,
+		FullName:      fullName,
+		IsAdmin:       isAdmin,
+		RealmRoles:    realmRoles,
+		ClientRoles:   clientRoles,
 		Enabled:       enabled,
 		EmailVerified: emailVerified,
-
-		// Session
-		LastLoginAt: lastLoginAt,
+		LastLoginAt:   lastLoginAt,
 	}, nil
 }
 

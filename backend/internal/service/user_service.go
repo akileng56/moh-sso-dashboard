@@ -40,9 +40,6 @@ func NewUserService(
 	}
 }
 
-// ----------------------------------------------------
-// CREATE USER
-// ----------------------------------------------------
 func (s *UserService) CreateUser(
 	ctx context.Context,
 	req CreateUserRequest,
@@ -70,7 +67,6 @@ func (s *UserService) CreateUser(
 		return nil, err
 	}
 
-	// 🔔 Notification: User Created
 	nt := models.UserCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
@@ -89,9 +85,6 @@ func (s *UserService) CreateUser(
 	return user, nil
 }
 
-// ----------------------------------------------------
-// ENABLE / DISABLE USER (USES UpdateUser)
-// ----------------------------------------------------
 func (s *UserService) SetUserEnabled(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -141,9 +134,6 @@ func (s *UserService) SetUserEnabled(
 	return nil
 }
 
-// ----------------------------------------------------
-// CHANGE USER ROLE (CRITICAL)
-// ----------------------------------------------------
 func (s *UserService) ChangeUserRole(
 	ctx context.Context,
 	userID uuid.UUID,
@@ -181,9 +171,6 @@ func (s *UserService) ChangeUserRole(
 	return nil
 }
 
-// ----------------------------------------------------
-// GET / LIST / DELETE
-// ----------------------------------------------------
 func (s *UserService) GetUser(id uuid.UUID) (*models.User, error) {
 	return s.repo.GetUserByID(id)
 }

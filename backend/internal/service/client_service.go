@@ -12,40 +12,27 @@ import (
 )
 
 type CreateClientRequest struct {
-	// Basic Info
-	Name        string `json:"name" validate:"required"`
-	Description string `json:"description,omitempty"`
-
-	// OAuth / OIDC Information
-	ClientID     string   `json:"client_id" validate:"required"`
-	ClientSecret string   `json:"client_secret,omitempty"`
-	RedirectURIs []string `json:"redirect_uris" validate:"required,dive,uri"`
-	WebOrigins   []string `json:"web_origins,omitempty"`
-
-	// Flow Controls
-	StandardFlowEnabled    bool `json:"standard_flow_enabled"`
-	ImplicitFlowEnabled    bool `json:"implicit_flow_enabled"`
-	DirectAccessGrants     bool `json:"direct_access_grants"`
-	ServiceAccountsEnabled bool `json:"service_accounts_enabled"`
-
-	// Access & Security
-	PublicClient bool `json:"public_client"`
-
-	// Optional Settings
-	RootURL   string `json:"root_url,omitempty"`
-	BaseURL   string `json:"base_url,omitempty"`
-	AdminURL  string `json:"admin_url,omitempty"`
-	Enabled   bool   `json:"enabled"`
-	Protocol  string `json:"protocol,omitempty"`
-	LoginURI  string `json:"login_uri,omitempty"`
-	LogoutURI string `json:"logout_uri,omitempty"`
-
-	// Roles
-	DefaultClientScopes  []string `json:"default_client_scopes,omitempty"`
-	OptionalClientScopes []string `json:"optional_client_scopes,omitempty"`
-
-	// Metadata
-	Tags []string `json:"tags,omitempty"`
+	Name                   string   `json:"name" validate:"required"`
+	Description            string   `json:"description,omitempty"`
+	ClientID               string   `json:"client_id" validate:"required"`
+	ClientSecret           string   `json:"client_secret,omitempty"`
+	RedirectURIs           []string `json:"redirect_uris" validate:"required,dive,uri"`
+	WebOrigins             []string `json:"web_origins,omitempty"`
+	StandardFlowEnabled    bool     `json:"standard_flow_enabled"`
+	ImplicitFlowEnabled    bool     `json:"implicit_flow_enabled"`
+	DirectAccessGrants     bool     `json:"direct_access_grants"`
+	ServiceAccountsEnabled bool     `json:"service_accounts_enabled"`
+	PublicClient           bool     `json:"public_client"`
+	RootURL                string   `json:"root_url,omitempty"`
+	BaseURL                string   `json:"base_url,omitempty"`
+	AdminURL               string   `json:"admin_url,omitempty"`
+	Enabled                bool     `json:"enabled"`
+	Protocol               string   `json:"protocol,omitempty"`
+	LoginURI               string   `json:"login_uri,omitempty"`
+	LogoutURI              string   `json:"logout_uri,omitempty"`
+	DefaultClientScopes    []string `json:"default_client_scopes,omitempty"`
+	OptionalClientScopes   []string `json:"optional_client_scopes,omitempty"`
+	Tags                   []string `json:"tags,omitempty"`
 }
 
 type ClientService struct {
@@ -93,8 +80,6 @@ func (s *ClientService) CreateClient(
 	if err := s.repo.CreateClient(newClient); err != nil {
 		return nil, err
 	}
-
-	// 🔔 Notification: Client Created (info)
 	nt := models.ClientCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
@@ -112,23 +97,14 @@ func (s *ClientService) CreateClient(
 	return newClient, nil
 }
 
-// ----------------------------------------------------
-// GET CLIENT
-// ----------------------------------------------------
 func (s *ClientService) GetClient(id string) (*models.Client, error) {
 	return s.repo.GetClientByID(id)
 }
 
-// ----------------------------------------------------
-// LIST CLIENTS
-// ----------------------------------------------------
 func (s *ClientService) ListClients() ([]models.Client, error) {
 	return s.repo.ListClients()
 }
 
-// ----------------------------------------------------
-// DELETE CLIENT (CRITICAL)
-// ----------------------------------------------------
 func (s *ClientService) DeleteClient(
 	ctx context.Context,
 	id uuid.UUID,
@@ -144,7 +120,6 @@ func (s *ClientService) DeleteClient(
 		return err
 	}
 
-	// 🔔 Notification: Client Deleted (critical)
 	nt := models.ClientDeleted
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),

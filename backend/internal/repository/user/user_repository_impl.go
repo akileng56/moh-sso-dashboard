@@ -13,7 +13,6 @@ import (
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
-	"github.com/moh-sso-dashboard/internal/model"
 	models "github.com/moh-sso-dashboard/internal/model"
 )
 
@@ -44,9 +43,6 @@ func NewUserRepository(
 	}
 }
 
-// ------------------------------------------------------------
-// Create user (Keycloak → DB)
-// ------------------------------------------------------------
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
@@ -83,18 +79,13 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	return kcID, nil
 }
 
-// ------------------------------------------------------------
-// Get user by ID
-// ------------------------------------------------------------
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
-	// 1. Fetch from Keycloak (source of truth)
 	kcUser, err := r.keycloakClient.GetUser(id.String())
 	if err != nil {
 		r.logger.Error("Failed creating user in Keycloak: %v", err)
 		return nil, fmt.Errorf("keycloak user creation failed: %w", err)
 	}
 
-	// 2. Optional: enrich from DB (local metadata)
 	ctx := context.Background()
 	row, err := r.db.GetUserByID(ctx, id)
 	if err != nil && err != sql.ErrNoRows {
@@ -111,7 +102,6 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 		updatedAt = row.UpdatedAt.Time
 	}
 
-	// 3. Build unified user model
 	return &models.User{
 		ID:            kcUser.ID,
 		Username:      kcUser.Username,
@@ -130,9 +120,6 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	}, nil
 }
 
-// ------------------------------------------------------------
-// List all users
-// ------------------------------------------------------------
 func (r *userRepository) ListUsers() ([]models.User, error) {
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
@@ -162,16 +149,10 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 	return result, nil
 }
 
-// ------------------------------------------------------------
-// Update user (Keycloak → DB)
-// ------------------------------------------------------------
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
 
-	// ----------------------------------------------------
-	// 1️⃣ Update user in Keycloak (source of truth)
-	// ----------------------------------------------------
-	if err := r.keycloakClient.UpdateUser(&model.User{
+	if err := r.keycloakClient.UpdateUser(&models.User{
 		ID:        user.ID,
 		Username:  user.Username,
 		Email:     user.Email,
@@ -183,9 +164,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 		return fmt.Errorf("keycloak update failed: %w", err)
 	}
 
-	// ----------------------------------------------------
-	// 2️⃣ Update local metadata in Postgres
-	// ----------------------------------------------------
 	params := db.UpdateUserParams{
 		ID: uuid.MustParse(user.ID),
 
@@ -210,9 +188,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 	return nil
 }
 
-// ------------------------------------------------------------
-// Delete User (Keycloak → DB)
-// ------------------------------------------------------------
 func (r *userRepository) DeleteUser(id string) error {
 	ctx := context.Background()
 

@@ -239,57 +239,28 @@ func (c *Client) DeleteClient(id string) error {
 // -------------------------------------------------------------------
 
 type UserInfo struct {
-	/* -----------------------------
-	 * Identity (Keycloak)
-	 * ----------------------------- */
-	ID        string `json:"id"` // Keycloak user ID
-	Username  string `json:"username"`
-	Email     string `json:"email"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
-
-	/* -----------------------------
-	 * Account Status
-	 * ----------------------------- */
-	Enabled         bool     `json:"enabled"`
-	EmailVerified   bool     `json:"emailVerified"`
-	RequiredActions []string `json:"requiredActions,omitempty"`
-	AccountStatus   string   `json:"accountStatus"`
-	// derived: ACTIVE | DISABLED | LOCKED | PENDING
-
-	/* -----------------------------
-	 * Authorization
-	 * ----------------------------- */
-	Roles       []string            `json:"roles"`       // realm + client roles
-	ClientRoles map[string][]string `json:"clientRoles"` // per client/app
-
-	/* -----------------------------
-	 * Activity & Security
-	 * ----------------------------- */
-	LastLoginAt *time.Time `json:"lastLoginAt,omitempty"`
-	LastLoginIP string     `json:"lastLoginIp,omitempty"`
-
-	FailedLoginAttempts int  `json:"failedLoginAttempts,omitempty"`
-	TemporarilyLocked   bool `json:"temporarilyLocked"`
-
-	/* -----------------------------
-	 * Lifecycle
-	 * ----------------------------- */
-	CreatedAt time.Time `json:"createdAt"`
-	UpdatedAt time.Time `json:"updatedAt"`
-
-	/* -----------------------------
-	 * Metadata (DB / Admin)
-	 * ----------------------------- */
-	Source     string     `json:"source"` // manual | import | invite | sync
-	ImportedAt *time.Time `json:"importedAt,omitempty"`
-	Notes      string     `json:"notes,omitempty"`
-
-	/* -----------------------------
-	 * UI helpers (derived, optional)
-	 * ----------------------------- */
-	DisplayName   string `json:"displayName"`
-	NeverLoggedIn bool   `json:"neverLoggedIn"`
+	ID                  string              `json:"id"`
+	Username            string              `json:"username"`
+	Email               string              `json:"email"`
+	FirstName           string              `json:"firstName"`
+	LastName            string              `json:"lastName"`
+	Enabled             bool                `json:"enabled"`
+	EmailVerified       bool                `json:"emailVerified"`
+	RequiredActions     []string            `json:"requiredActions,omitempty"`
+	AccountStatus       string              `json:"accountStatus"`
+	Roles               []string            `json:"roles"`
+	ClientRoles         map[string][]string `json:"clientRoles"`
+	LastLoginAt         *time.Time          `json:"lastLoginAt,omitempty"`
+	LastLoginIP         string              `json:"lastLoginIp,omitempty"`
+	FailedLoginAttempts int                 `json:"failedLoginAttempts,omitempty"`
+	TemporarilyLocked   bool                `json:"temporarilyLocked"`
+	CreatedAt           time.Time           `json:"createdAt"`
+	UpdatedAt           time.Time           `json:"updatedAt"`
+	Source              string              `json:"source"`
+	ImportedAt          *time.Time          `json:"importedAt,omitempty"`
+	Notes               string              `json:"notes,omitempty"`
+	DisplayName         string              `json:"displayName"`
+	NeverLoggedIn       bool                `json:"neverLoggedIn"`
 }
 
 type CreateUserRequest struct {

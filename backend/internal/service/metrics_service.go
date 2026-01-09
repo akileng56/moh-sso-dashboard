@@ -18,12 +18,6 @@ func NewMetricsService(repo repository.MetricsRepository) *MetricsService {
 	return &MetricsService{repo: repo}
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   SYSTEM-LEVEL METRICS
-// ────────────────────────────────────────────────────────────
-//
-
 func (s *MetricsService) CountUsers(ctx context.Context) (int64, error) {
 	return s.repo.CountUsers(ctx)
 }
@@ -68,12 +62,6 @@ func (s *MetricsService) ApproximateActiveSessions(ctx context.Context) (int64, 
 	return s.repo.ApproximateActiveSessions(ctx)
 }
 
-//
-// ────────────────────────────────────────────────────────────
-//   SECURITY / AUTH METRICS
-// ────────────────────────────────────────────────────────────
-//
-
 func (s *MetricsService) CountFailedLogins(ctx context.Context) (int64, error) {
 	return s.repo.CountFailedLogins(ctx)
 }
@@ -89,12 +77,6 @@ func (s *MetricsService) CountPasswordResetsInRange(ctx context.Context, start, 
 func (s *MetricsService) SuspiciousLogins(ctx context.Context, start, end time.Time, homeCountry string) ([]db.SuspiciousLoginsInRangeRow, error) {
 	return s.repo.SuspiciousLoginsInRange(ctx, start, end, homeCountry)
 }
-
-//
-// ────────────────────────────────────────────────────────────
-//   CLIENT METRICS
-// ────────────────────────────────────────────────────────────
-//
 
 func (s *MetricsService) CountClients(ctx context.Context) (int64, error) {
 	return s.repo.CountClients(ctx)
@@ -127,12 +109,6 @@ func (s *MetricsService) NewClientsInRange(ctx context.Context, start, end time.
 func (s *MetricsService) RecentlyCreatedClients(ctx context.Context, limit int32) ([]db.Client, error) {
 	return s.repo.RecentlyCreatedClients(ctx, limit)
 }
-
-//
-// ────────────────────────────────────────────────────────────
-//   USER METRICS
-// ────────────────────────────────────────────────────────────
-//
 
 func (s *MetricsService) NewUsersInRange(ctx context.Context, start, end time.Time) ([]db.User, error) {
 	return s.repo.NewUsersInRange(ctx, start, end)
