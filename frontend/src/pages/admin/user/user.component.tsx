@@ -9,11 +9,12 @@ import {
   TableCell,
   InlineLoading,
   Tile,
-  Button,
+  OverflowMenu,
+  OverflowMenuItem,
   Tag,
   Pagination,
 } from "@carbon/react";
-import { View, Reset, UserFollow, Add } from "@carbon/icons-react";
+import { Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
 
 import { EmptyState } from "../../../components/emptystate/EmptyState";
@@ -30,7 +31,7 @@ const headers = [
   { key: "username", header: "Username" },
   { key: "email", header: "Email" },
   { key: "status", header: "Status" },
-  { key: "roles", header: "Roles" },
+  { key: "verified", header: "Email Verified" },
   { key: "lastLogin", header: "Last Login" },
   { key: "actions", header: "" },
 ];
@@ -127,14 +128,12 @@ export default function UsersPage() {
     );
   }
 
-  const clientId = "dashboard";
-
   const rows = paginatedUsers.map((u) => ({
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
     status: u?.enabled ? "Active" : "Disabled",
-    roles: u?.client_roles?.[clientId] ?? [],
+    verified: u?.email_verified ? "Verified" : "Not Verified",
     lastLogin: u.last_login_at
       ? new Date(u.last_login_at).toLocaleString()
       : "Never",
@@ -236,13 +235,13 @@ export default function UsersPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <div style={{ display: "flex", gap: 4 }}>
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      hasIconOnly
-                                      renderIcon={View}
-                                      iconDescription="View audit logs"
+                                  <OverflowMenu
+                                    size="sm"
+                                    flipped
+                                    ariaLabel="User actions"
+                                  >
+                                    <OverflowMenuItem
+                                      itemText="View audit logs"
                                       onClick={() =>
                                         navigate(
                                           `/admin/audit-logs?user_id=${user.id}`
@@ -250,16 +249,14 @@ export default function UsersPage() {
                                       }
                                     />
 
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      hasIconOnly
-                                      renderIcon={UserFollow}
-                                      iconDescription={
+                                    <OverflowMenuItem
+                                      itemText={
                                         user?.enabled
                                           ? "Disable user"
                                           : "Enable user"
                                       }
+                                      hasDivider
+                                      isDelete={user?.enabled}
                                       onClick={() =>
                                         toggleUser({
                                           id: user.id,
@@ -268,19 +265,15 @@ export default function UsersPage() {
                                       }
                                     />
 
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      hasIconOnly
-                                      renderIcon={Reset}
-                                      iconDescription="Reset password"
+                                    <OverflowMenuItem
+                                      itemText="Reset password"
                                       onClick={() =>
                                         alert(
                                           `Password reset initiated for ${user.username}`
                                         )
                                       }
                                     />
-                                  </div>
+                                  </OverflowMenu>
                                 </TableCell>
                               );
                             }

@@ -13,8 +13,9 @@ import {
   Tag,
   Pagination,
 } from "@carbon/react";
-import { View, UserFollow, Add } from "@carbon/icons-react";
+import { Add } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
+import { OverflowMenu, OverflowMenuItem } from "@carbon/react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
@@ -224,18 +225,13 @@ export default function ClientsPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      gap: 4,
-                                    }}
+                                  <OverflowMenu
+                                    size="sm"
+                                    flipped
+                                    ariaLabel="Client actions"
                                   >
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      hasIconOnly
-                                      renderIcon={View}
-                                      iconDescription="View audit logs"
+                                    <OverflowMenuItem
+                                      itemText="View audit logs"
                                       onClick={() =>
                                         navigate(
                                           `/admin/audit-logs?client_id=${client.clientId}`
@@ -243,16 +239,14 @@ export default function ClientsPage() {
                                       }
                                     />
 
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      hasIconOnly
-                                      renderIcon={UserFollow}
-                                      iconDescription={
+                                    <OverflowMenuItem
+                                      itemText={
                                         client?.enabled
                                           ? "Disable client"
                                           : "Enable client"
                                       }
+                                      hasDivider
+                                      isDelete={client?.enabled}
                                       onClick={() =>
                                         toggleClient({
                                           id: client.clientId,
@@ -260,7 +254,7 @@ export default function ClientsPage() {
                                         })
                                       }
                                     />
-                                  </div>
+                                  </OverflowMenu>
                                 </TableCell>
                               );
                             }

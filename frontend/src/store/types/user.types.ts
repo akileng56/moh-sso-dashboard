@@ -6,6 +6,7 @@ export interface User {
   last_name?: string;
   enabled: boolean;
   is_admin: boolean;
+  email_verified: boolean;
   client_roles: Record<string, string[]>;
   last_login_at?: string;
   created_at?: string;

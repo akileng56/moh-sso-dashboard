@@ -25,6 +25,7 @@ import { QuickAction } from "../../../components/home/quick-action/quick-action.
 import { CreateUserPanel } from "../../../components/panels/create-user-panel";
 import { ImportUsersPanel } from "../../../components/panels/import-users-panel";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
+import { CreateClientPanel } from "../../../components/panels/create-client-panel";
 
 /* -----------------------------
  * Utils
@@ -228,7 +229,7 @@ export default function HomePage() {
       {/* ==================================================
        * CLIENT USAGE METRICS
        * ================================================== */}
-      {/* <Tile>
+      <Tile>
         <h4>Client usage (last 7 days)</h4>
 
         {!metrics?.top_clients?.length && (
@@ -255,7 +256,7 @@ export default function HomePage() {
             ))}
           </Stack>
         )}
-      </Tile> */}
+      </Tile>
       {/* ==================================================
        * QUICK ACTIONS
        * ================================================== */}
@@ -271,6 +272,18 @@ export default function HomePage() {
               openPanel({
                 title: "Create user",
                 content: <CreateUserPanel />,
+                size: "md",
+              })
+            }
+          />
+          <QuickAction
+            icon={<UserFollow />}
+            label="Create client"
+            description="Add a new client to the system"
+            onClick={() =>
+              openPanel({
+                title: "Create client",
+                content: <CreateClientPanel />,
                 size: "md",
               })
             }
@@ -293,7 +306,7 @@ export default function HomePage() {
             icon={<Security />}
             label="Security alerts"
             description="Review suspicious activity"
-            href="/admin/metrics/security"
+            href=""
             tone="warning"
           />
         </div>
