@@ -271,6 +271,7 @@ export default function HomePage() {
               openPanel({
                 title: "Create user",
                 content: <CreateUserPanel />,
+                size: "md",
               })
             }
           />
@@ -283,6 +284,7 @@ export default function HomePage() {
               openPanel({
                 title: "Import users",
                 content: <ImportUsersPanel />,
+                size: "lg",
               })
             }
           />
