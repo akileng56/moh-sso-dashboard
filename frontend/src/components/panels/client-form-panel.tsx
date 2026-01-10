@@ -9,11 +9,15 @@ import {
   FormGroup,
 } from "@carbon/react";
 import { useMemo, useState } from "react";
+import {
+  useCreateClientMutation,
+  useUpdateClientMutation,
+} from "../../store/api/clients.api";
 
 export type ClientFormMode = "create" | "edit";
 
 export type ClientFormPayload = {
-  clientId: string;
+  client_id: string;
   name: string;
   public_client: boolean;
   enabled: boolean;
@@ -28,28 +32,36 @@ type Props = {
 export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   const [form, setForm] = useState<ClientFormPayload>(
     initialClient ?? {
-      clientId: "",
+      client_id: "",
       name: "",
       public_client: false,
       enabled: true,
     }
   );
 
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [createClient, { isLoading: creating }] = useCreateClientMutation();
+
+  const [updateClient, { isLoading: updating }] = useUpdateClientMutation();
+
+  const submitting = creating || updating;
 
   /* -----------------------------
    * Validation
    * ----------------------------- */
-  const isClientIdValid = /^[a-z0-9-]+$/.test(form.clientId);
+  const isClientIdValid = /^[a-z0-9-]+$/.test(form.client_id);
 
   const isValid = useMemo(() => {
-    if (!form.clientId || !form.name) return false;
+    if (!form.client_id || !form.name) return false;
     if (mode === "create") return isClientIdValid;
     return true;
   }, [form, mode, isClientIdValid]);
 
-  const handleChange = (field: keyof ClientFormPayload, value: any) => {
+  const handleChange = <K extends keyof ClientFormPayload>(
+    field: K,
+    value: ClientFormPayload[K]
+  ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -57,35 +69,31 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
    * Submit
    * ----------------------------- */
   const handleSubmit = async () => {
-    if (!isValid) return;
+    if (!isValid || submitting) return;
 
-    setSubmitting(true);
     setError(null);
 
     try {
-      const url =
-        mode === "create"
-          ? "/api/v1/admin/clients"
-          : `/api/v1/admin/clients/${form.clientId}`;
-
-      const method = mode === "create" ? "POST" : "PUT";
-
-      await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(form),
-      });
+      if (mode === "create") {
+        await createClient(form).unwrap();
+      } else {
+        await updateClient({
+          id: form.client_id,
+          data: {
+            name: form.name,
+            public_client: form.public_client,
+          },
+        }).unwrap();
+      }
 
       onSuccess?.();
-    } catch {
+    } catch (err: any) {
       setError(
-        mode === "create"
-          ? "Failed to create client"
-          : "Failed to update client"
+        err?.data?.message ??
+          (mode === "create"
+            ? "Failed to create client"
+            : "Failed to update client")
       );
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -108,14 +116,14 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               placeholder="moh-dashboard"
               required
               disabled={mode === "edit"}
-              value={form.clientId}
+              value={form.client_id}
               invalid={
                 mode === "create" &&
-                form.clientId.length > 0 &&
+                form.client_id.length > 0 &&
                 !isClientIdValid
               }
               invalidText="Only lowercase letters, numbers, and dashes are allowed"
-              onChange={(e) => handleChange("clientId", e.target.value)}
+              onChange={(e) => handleChange("client_id", e.target.value)}
             />
 
             <TextInput
@@ -138,14 +146,16 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               id="publicClient"
               labelText="Public client (no client secret)"
               checked={form.public_client}
-              onChange={(checked) => handleChange("publicClient", checked)}
+              onChange={(_, { checked }) =>
+                handleChange("public_client", checked)
+              }
             />
 
             <Checkbox
               id="enabled"
               labelText="Client enabled"
               checked={form.enabled}
-              onChange={(checked) => handleChange("enabled", checked)}
+              onChange={(_, { checked }) => handleChange("enabled", checked)}
             />
           </Stack>
         </FormGroup>

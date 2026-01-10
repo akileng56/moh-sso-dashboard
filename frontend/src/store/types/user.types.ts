@@ -8,6 +8,7 @@ export interface User {
   is_admin: boolean;
   is_active: boolean;
   email_verified: boolean;
+  realm_roles: string[];
   client_roles: Record<string, string[]>;
   last_login_at?: string;
   created_at?: string;
@@ -23,5 +24,6 @@ export interface CreateUserPayload {
   is_active?: boolean;
   enabled?: boolean;
   email_verified: boolean;
+  realm_roles: string[];
   client_roles?: Record<string, string[]>;
 }

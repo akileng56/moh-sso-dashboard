@@ -80,7 +80,7 @@ const AppGridContent: React.FC = () => {
 
         return (
           <Column
-            key={client.clientId}
+            key={client.client_id}
             sm={2}
             md={2}
             lg={3}
