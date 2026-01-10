@@ -26,6 +26,7 @@ import { ImportUsersPanel } from "../../../components/panels/import-users-panel"
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 import { ClientFormPanel } from "../../../components/panels/client-form-panel";
 import { UserFormPanel } from "../../../components/panels/create-user-panel";
+import { ApplicationTile } from "../../../components/home/app/ApplicationTile";
 
 /* -----------------------------
  * Utils
@@ -203,25 +204,14 @@ export default function HomePage() {
         {!appsLoading && !appsError && clients.length > 0 && (
           <div className="home-grid">
             {clients.map((client) => (
-              <Tile key={client.clientId} className="app-tile">
-                <Stack gap={4}>
-                  <div className="app-header">
-                    <strong>{client.name}</strong>
-                    {!client.enabled && <Tag type="gray">Disabled</Tag>}
-                  </div>
-
-                  <p className="app-description">{client.description ?? "—"}</p>
-
-                  <Button
-                    size="sm"
-                    kind={client.enabled ? "primary" : "secondary"}
-                    renderIcon={Launch}
-                    disabled={!client.enabled}
-                  >
-                    {client.enabled ? "Launch" : "Disabled"}
-                  </Button>
-                </Stack>
-              </Tile>
+              <ApplicationTile
+                key={client.clientId}
+                clientId={client.clientId}
+                name={client.name}
+                description={client.description}
+                enabled={client?.enabled}
+                rootUrl={client.baseUrl}
+              />
             ))}
           </div>
         )}
@@ -261,36 +251,47 @@ export default function HomePage() {
        * QUICK ACTIONS
        * ================================================== */}
       <Tile>
-        <h4>Quick actions</h4>
+        {/* Header */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <h4 style={{ margin: 0 }}>Quick actions</h4>
+          <p className="muted" style={{ marginTop: 4 }}>
+            Common administrative tasks
+          </p>
+        </div>
 
         <div className="home-grid">
+          {/* Create user */}
           <QuickAction
-            icon={<Add />}
+            icon={<Add size={20} />}
             label="Create user"
             description="Add a new user to the system"
             onClick={() =>
               openPanel({
                 title: "Create user",
-                content: <UserFormPanel mode={"create"} />,
+                content: <UserFormPanel mode="create" />,
                 size: "md",
               })
             }
+            tone="warning"
           />
+
+          {/* Create client */}
           <QuickAction
-            icon={<UserFollow />}
+            icon={<UserFollow size={20} />}
             label="Create client"
-            description="Add a new client to the system"
+            description="Register a new application client"
             onClick={() =>
               openPanel({
                 title: "Create client",
-                content: <ClientFormPanel mode={"create"} />,
+                content: <ClientFormPanel mode="create" />,
                 size: "md",
               })
             }
           />
 
+          {/* Import users */}
           <QuickAction
-            icon={<UserFollow />}
+            icon={<UserFollow size={20} />}
             label="Import users"
             description="Bulk upload users via CSV"
             onClick={() =>
@@ -302,11 +303,12 @@ export default function HomePage() {
             }
           />
 
+          {/* Security alerts */}
           <QuickAction
-            icon={<Security />}
+            icon={<Security size={20} />}
             label="Security alerts"
             description="Review suspicious activity"
-            href=""
+            href="/admin/security/alerts"
             tone="warning"
           />
         </div>

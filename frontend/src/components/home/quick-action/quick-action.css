@@ -1,36 +1,77 @@
 .quick-action {
   cursor: pointer;
   display: flex;
-  gap: 12px;
   align-items: flex-start;
-  transition: background-color 0.15s ease;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 4px;
+
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.1s ease;
 }
 
+/* Hover */
 .quick-action:hover {
   background-color: var(--cds-layer-hover);
+  transform: translateY(-1px);
 }
 
+/* Keyboard focus (accessibility) */
+.quick-action:focus-visible {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
+}
+
+/* Icon */
 .quick-action__icon {
+  flex-shrink: 0;
   margin-top: 2px;
 }
 
+/* Content */
 .quick-action__content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
 }
 
+.quick-action__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Description */
 .quick-action__description {
   margin: 0;
   font-size: 0.875rem;
+  line-height: 1.4;
   opacity: 0.8;
 }
 
-/* Emphasis tones */
+/* =========================
+ * Emphasis tones
+ * ========================= */
+
+.quick-action--primary {
+  border-left: 4px solid var(--cds-support-info);
+}
+
 .quick-action--warning {
   border-left: 4px solid var(--cds-support-warning);
 }
 
 .quick-action--danger {
   border-left: 4px solid var(--cds-support-error);
+}
+
+/* =========================
+ * Disabled state
+ * ========================= */
+
+.quick-action--disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
