@@ -11,9 +11,10 @@ import {
   Tile,
   Tag,
   Pagination,
+  OverflowMenu,
+  OverflowMenuItem,
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
-import { OverflowMenu, OverflowMenuItem } from "@carbon/react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
@@ -26,6 +27,7 @@ import {
 import type { Client } from "../../../store/types/client.types";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 import { ClientFormPanel } from "../../../components/panels/client-form-panel";
+import { useEnableClientModal } from "../../../components/client/useEnableClientModal";
 
 /* -----------------------------
  * Filters
@@ -47,6 +49,7 @@ const TYPE_OPTIONS = [
 
 /* -----------------------------
  * Table headers
+ * NOTE: raw is hidden but preserved
  * ----------------------------- */
 const headers = [
   { key: "name", header: "Name" },
@@ -54,10 +57,13 @@ const headers = [
   { key: "type", header: "Type" },
   { key: "status", header: "Status" },
   { key: "actions", header: "Actions" },
+
+  { key: "raw", header: "" },
 ];
 
 export default function ClientsPage() {
   const { openPanel, closePanel } = useHeaderPanel();
+  const { openEnableClientModal } = useEnableClientModal();
 
   /* -----------------------------
    * Filters
@@ -136,6 +142,9 @@ export default function ClientsPage() {
     );
   }
 
+  /* -----------------------------
+   * Rows (raw preserved)
+   * ----------------------------- */
   const rows = paginatedClients.map((c) => ({
     id: c.clientId,
     name: c.name,
@@ -200,21 +209,28 @@ export default function ClientsPage() {
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
-                      {headers.map((h) => (
-                        <TableHeader {...getHeaderProps({ header: h })}>
-                          {h.header}
-                        </TableHeader>
-                      ))}
+                      {headers.map(
+                        (h) =>
+                          h.key !== "raw" && (
+                            <TableHeader {...getHeaderProps({ header: h })}>
+                              {h.header}
+                            </TableHeader>
+                          )
+                      )}
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
                     {rows.map((row) => {
-                      const client = (row as any).raw as Client;
+                      const client = row.cells.find(
+                        (c) => c.info.header === "raw"
+                      )?.value as Client;
 
                       return (
                         <TableRow {...getRowProps({ row })}>
                           {row.cells.map((cell) => {
+                            if (cell.info.header === "raw") return null;
+
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
@@ -228,11 +244,7 @@ export default function ClientsPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <OverflowMenu
-                                    size="sm"
-                                    flipped
-                                    ariaLabel="Client actions"
-                                  >
+                                  <OverflowMenu size="sm" flipped>
                                     <OverflowMenuItem
                                       itemText="Edit client"
                                       hasDivider
@@ -241,7 +253,7 @@ export default function ClientsPage() {
                                           title: "Edit client",
                                           content: (
                                             <ClientFormPanel
-                                              mode={"edit"}
+                                              mode="edit"
                                               initialClient={client}
                                               onSuccess={closePanel}
                                             />
@@ -259,9 +271,15 @@ export default function ClientsPage() {
                                       }
                                       isDelete={client?.enabled}
                                       onClick={() =>
-                                        toggleClient({
-                                          id: client.clientId,
-                                          enabled: !client?.enabled,
+                                        openEnableClientModal({
+                                          clientName: client.name,
+                                          enabled: client?.enabled,
+                                          onConfirm: async () => {
+                                            await toggleClient(
+                                              client.clientId,
+                                              client?.enabled
+                                            ).unwrap();
+                                          },
                                         })
                                       }
                                     />

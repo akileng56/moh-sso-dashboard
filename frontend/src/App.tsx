@@ -18,76 +18,79 @@ import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
 import HomePage from "./pages/admin/home/home.component";
 import AdminLayout from "./layout/admin/AdminLayout";
+import { ModalProvider } from "./components/modal/modal.context";
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* ---------------------------------- */}
-        {/* PUBLIC (authenticated users) */}
-        {/* ---------------------------------- */}
-        <Route
-          element={
-            <ProtectedRoute>
-              <PublicLayout />
-            </ProtectedRoute>
-          }
-        >
-          {/* Default landing after login */}
-          <Route index element={<Navigate to="/dashboard" replace />} />
-
-          <Route path="/dashboard" element={<NewsFeedPage />} />
-          <Route path="/apps" element={<AppLauncherPage />} />
-        </Route>
-
-        {/* ---------------------------------- */}
-        {/* ADMIN */}
-        {/* ---------------------------------- */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute>
-              <AdminLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Navigate to="/admin/home" replace />} />
-
-          <Route path="home" element={<HomePage />} />
-
+    <ModalProvider>
+      <Router>
+        <Routes>
+          {/* ---------------------------------- */}
+          {/* PUBLIC (authenticated users) */}
+          {/* ---------------------------------- */}
           <Route
-            path="users"
             element={
-              <AdminRoute>
-                <UsersPage />
-              </AdminRoute>
+              <ProtectedRoute>
+                <PublicLayout />
+              </ProtectedRoute>
             }
-          />
+          >
+            {/* Default landing after login */}
+            <Route index element={<Navigate to="/dashboard" replace />} />
 
-          <Route
-            path="clients"
-            element={
-              <AdminRoute>
-                <ClientsPage />
-              </AdminRoute>
-            }
-          />
-          <Route
-            path="audit-logs"
-            element={
-              <AdminRoute>
-                <AuditLogsPage />
-              </AdminRoute>
-            }
-          />
-        </Route>
+            <Route path="/dashboard" element={<NewsFeedPage />} />
+            <Route path="/apps" element={<AppLauncherPage />} />
+          </Route>
 
-        {/* ---------------------------------- */}
-        {/* FALLBACK */}
-        {/* ---------------------------------- */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Router>
+          {/* ---------------------------------- */}
+          {/* ADMIN */}
+          {/* ---------------------------------- */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/home" replace />} />
+
+            <Route path="home" element={<HomePage />} />
+
+            <Route
+              path="users"
+              element={
+                <AdminRoute>
+                  <UsersPage />
+                </AdminRoute>
+              }
+            />
+
+            <Route
+              path="clients"
+              element={
+                <AdminRoute>
+                  <ClientsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="audit-logs"
+              element={
+                <AdminRoute>
+                  <AuditLogsPage />
+                </AdminRoute>
+              }
+            />
+          </Route>
+
+          {/* ---------------------------------- */}
+          {/* FALLBACK */}
+          {/* ---------------------------------- */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+    </ModalProvider>
   );
 }
 

@@ -27,9 +27,11 @@ import {
 } from "../../../store/api/users.api";
 import type { User } from "../../../store/types/user.types";
 import { UserFormPanel } from "../../../components/panels/create-user-panel";
+import { useEnableUserModal } from "../../../components/user/useEnableUserModal";
+import { useResetPasswordModal } from "../../../components/user/useResetPasswordModal";
 
 /* -----------------------------
- * Table headers
+ * Table headers (raw hidden)
  * ----------------------------- */
 const headers = [
   { key: "username", header: "Username" },
@@ -38,10 +40,15 @@ const headers = [
   { key: "verified", header: "Email verified" },
   { key: "lastLogin", header: "Last login" },
   { key: "actions", header: "" },
+
+  // hidden technical column
+  { key: "raw", header: "" },
 ];
 
 export default function UsersPage() {
   const { openPanel, closePanel } = useHeaderPanel();
+  const { openEnableUserModal } = useEnableUserModal();
+  const { openResetPasswordModal } = useResetPasswordModal();
 
   /* -----------------------------
    * Filters
@@ -57,7 +64,7 @@ export default function UsersPage() {
   const [pageSize, setPageSize] = useState(10);
 
   /* -----------------------------
-   * Data (SSOT)
+   * Data
    * ----------------------------- */
   const {
     data: users = [],
@@ -90,8 +97,8 @@ export default function UsersPage() {
    * ----------------------------- */
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter === "active" && !u.enabled) return false;
-      if (statusFilter === "disabled" && u.enabled) return false;
+      if (statusFilter === "active" && !u.is_admin) return false;
+      if (statusFilter === "disabled" && u.is_admin) return false;
       if (neverLoggedIn && u.last_login_at) return false;
       if (roleFilter !== "all" && !u?.client_roles?.admin?.includes(roleFilter))
         return false;
@@ -108,7 +115,7 @@ export default function UsersPage() {
   }, [filteredUsers, page, pageSize]);
 
   /* -----------------------------
-   * Loading
+   * Loading / Error
    * ----------------------------- */
   if (isLoading) {
     return (
@@ -118,9 +125,6 @@ export default function UsersPage() {
     );
   }
 
-  /* -----------------------------
-   * Error
-   * ----------------------------- */
   if (isError) {
     return (
       <ErrorState
@@ -131,11 +135,14 @@ export default function UsersPage() {
     );
   }
 
+  /* -----------------------------
+   * Rows (raw preserved)
+   * ----------------------------- */
   const rows = paginatedUsers.map((u) => ({
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
-    status: u.enabled ? "Active" : "Disabled",
+    status: u.is_admin ? "Active" : "Disabled",
     verified: u.email_verified ? "Verified" : "Not verified",
     lastLogin: u.last_login_at
       ? new Date(u.last_login_at).toLocaleString()
@@ -199,25 +206,32 @@ export default function UsersPage() {
                 <Table {...getTableProps()}>
                   <TableHead>
                     <TableRow>
-                      {headers.map((h) => (
-                        <TableHeader {...getHeaderProps({ header: h })}>
-                          {h.header}
-                        </TableHeader>
-                      ))}
+                      {headers.map(
+                        (h) =>
+                          h.key !== "raw" && (
+                            <TableHeader {...getHeaderProps({ header: h })}>
+                              {h.header}
+                            </TableHeader>
+                          )
+                      )}
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
                     {rows.map((row) => {
-                      const user = (row as any).raw as User;
+                      const user = row.cells.find(
+                        (c) => c.info.header === "raw"
+                      )?.value as User;
 
                       return (
                         <TableRow {...getRowProps({ row })}>
                           {row.cells.map((cell) => {
+                            if (cell.info.header === "raw") return null;
+
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={user?.enabled ? "green" : "red"}>
+                                  <Tag type={user?.is_admin ? "green" : "red"}>
                                     {cell.value}
                                   </Tag>
                                 </TableCell>
@@ -227,11 +241,7 @@ export default function UsersPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <OverflowMenu
-                                    size="sm"
-                                    flipped
-                                    ariaLabel="User actions"
-                                  >
+                                  <OverflowMenu size="sm" flipped>
                                     <OverflowMenuItem
                                       itemText="Edit user"
                                       hasDivider
@@ -252,15 +262,21 @@ export default function UsersPage() {
 
                                     <OverflowMenuItem
                                       itemText={
-                                        user?.enabled
+                                        user?.is_admin
                                           ? "Disable user"
                                           : "Enable user"
                                       }
-                                      isDelete={user?.enabled}
+                                      isDelete={user.enabled}
                                       onClick={() =>
-                                        toggleUser({
-                                          id: user.id,
-                                          enabled: !user?.enabled,
+                                        openEnableUserModal({
+                                          username: user.username,
+                                          enabled: user?.is_admin,
+                                          onConfirm: async () => {
+                                            await toggleUser({
+                                              id: user.id,
+                                              enabled: !user?.enabled,
+                                            }).unwrap();
+                                          },
                                         })
                                       }
                                     />
@@ -269,9 +285,20 @@ export default function UsersPage() {
                                       itemText="Reset password"
                                       hasDivider
                                       onClick={() =>
-                                        alert(
-                                          `Password reset initiated for ${user.username}`
-                                        )
+                                        openResetPasswordModal({
+                                          username: user.username,
+                                          email: user.email,
+                                          onConfirm: async () => {
+                                            // 🔐 call backend
+                                            // example:
+                                            // await resetUserPassword(user.id).unwrap();
+
+                                            console.log(
+                                              "Reset password for",
+                                              user.username
+                                            );
+                                          },
+                                        })
                                       }
                                     />
                                   </OverflowMenu>
