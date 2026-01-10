@@ -9,65 +9,37 @@ import (
 )
 
 type Config struct {
-	// ==================================================
-	// Global
-	// ==================================================
-	Environment string `mapstructure:"ENVIRONMENT"`
-	GinMode     string `mapstructure:"GIN_MODE"`
-
-	// ==================================================
-	// Keycloak (Infrastructure)
-	// ==================================================
-	KeycloakVersion   string `mapstructure:"KEYCLOAK_VERSION"`
-	KeycloakDB        string `mapstructure:"KEYCLOAK_DB"`
-	KeycloakDBName    string `mapstructure:"KEYCLOAK_DB_NAME"`
-	KeycloakDBUser    string `mapstructure:"KEYCLOAK_DB_USER"`
-	KeycloakDBPass    string `mapstructure:"KEYCLOAK_DB_PASSWORD"`
-	KeycloakAdmin     string `mapstructure:"KEYCLOAK_ADMIN"`
-	KeycloakAdminPass string `mapstructure:"KEYCLOAK_ADMIN_PASSWORD"`
-	KeycloakHostname  string `mapstructure:"KEYCLOAK_HOSTNAME"`
-
-	// ==================================================
-	// Keycloak (Application / Backend)
-	// ==================================================
-	KeycloakBaseUrl      string `mapstructure:"KEYCLOAK_BASE_URL"`
-	KeycloakRealm        string `mapstructure:"KEYCLOAK_REALM"`
-	KeycloakClientID     string `mapstructure:"KEYCLOAK_CLIENT_ID"`
-	KeycloakClientSecret string `mapstructure:"KEYCLOAK_CLIENT_SECRET"`
-	KeycloakToken        string `mapstructure:"KEYCLOAK_TOKEN"`
-	KeycloakRedirectUri  string `mapstructure:"KEYCLOAK_REDIRECT_URI"`
-
-	// ==================================================
-	// Backend
-	// ==================================================
-	ServerPort string `mapstructure:"SERVER_PORT"`
-
-	EnableTls          bool   `mapstructure:"ENABLE_TLS"`
-	TlsCert            string `mapstructure:"TLS_CERT"`
-	TlsKey             string `mapstructure:"TLS_KEY"`
-	KeycloakCACertPath string `mapstructure:"TLS_KEYCLOAK_CA_CERT_PATH"`
-
-	// ==================================================
-	// Database
-	// ==================================================
-	DbDriver    string `mapstructure:"DB_DRIVER"`
-	DbHost      string `mapstructure:"DB_HOST"`
-	DbUser      string `mapstructure:"DB_USER"`
-	DbPassword  string `mapstructure:"DB_PASSWORD"`
-	DbName      string `mapstructure:"DB_NAME"`
-	DbPort      string `mapstructure:"DB_PORT"`
-	DbEnableSsl bool   `mapstructure:"DB_ENABLE_SSL"`
-
-	// ==================================================
-	// Redis
-	// ==================================================
-	RedisHost     string `mapstructure:"REDIS_HOST"`
-	RedisPort     string `mapstructure:"REDIS_PORT"`
-	RedisPassword string `mapstructure:"REDIS_PASSWORD"`
-
-	// ==================================================
-	// Auth / Tokens
-	// ==================================================
+	Environment          string        `mapstructure:"ENVIRONMENT"`
+	GinMode              string        `mapstructure:"GIN_MODE"`
+	KeycloakVersion      string        `mapstructure:"KEYCLOAK_VERSION"`
+	KeycloakDB           string        `mapstructure:"KEYCLOAK_DB"`
+	KeycloakDBName       string        `mapstructure:"KEYCLOAK_DB_NAME"`
+	KeycloakDBUser       string        `mapstructure:"KEYCLOAK_DB_USER"`
+	KeycloakDBPass       string        `mapstructure:"KEYCLOAK_DB_PASSWORD"`
+	KeycloakAdmin        string        `mapstructure:"KEYCLOAK_ADMIN"`
+	KeycloakAdminPass    string        `mapstructure:"KEYCLOAK_ADMIN_PASSWORD"`
+	KeycloakHostname     string        `mapstructure:"KEYCLOAK_HOSTNAME"`
+	KeycloakBaseUrl      string        `mapstructure:"KEYCLOAK_BASE_URL"`
+	KeycloakRealm        string        `mapstructure:"KEYCLOAK_REALM"`
+	KeycloakClientID     string        `mapstructure:"KEYCLOAK_CLIENT_ID"`
+	KeycloakClientSecret string        `mapstructure:"KEYCLOAK_CLIENT_SECRET"`
+	KeycloakToken        string        `mapstructure:"KEYCLOAK_TOKEN"`
+	KeycloakRedirectUri  string        `mapstructure:"KEYCLOAK_REDIRECT_URI"`
+	ServerPort           string        `mapstructure:"SERVER_PORT"`
+	EnableTls            bool          `mapstructure:"ENABLE_TLS"`
+	TlsCert              string        `mapstructure:"TLS_CERT"`
+	TlsKey               string        `mapstructure:"TLS_KEY"`
+	KeycloakCACertPath   string        `mapstructure:"TLS_KEYCLOAK_CA_CERT_PATH"`
+	DbDriver             string        `mapstructure:"DB_DRIVER"`
+	DbHost               string        `mapstructure:"DB_HOST"`
+	DbUser               string        `mapstructure:"DB_USER"`
+	DbPassword           string        `mapstructure:"DB_PASSWORD"`
+	DbName               string        `mapstructure:"DB_NAME"`
+	DbPort               string        `mapstructure:"DB_PORT"`
+	DbEnableSsl          bool          `mapstructure:"DB_ENABLE_SSL"`
+	RedisHost            string        `mapstructure:"REDIS_HOST"`
+	RedisPort            string        `mapstructure:"REDIS_PORT"`
+	RedisPassword        string        `mapstructure:"REDIS_PASSWORD"`
 	TokenSymmetricKey    string        `mapstructure:"TOKEN_SYMMETRIC_KEY"`
 	AccessTokenDuration  time.Duration `mapstructure:"ACCESS_TOKEN_DURATION"`
 	RefreshTokenDuration time.Duration `mapstructure:"REFRESH_TOKEN_DURATION"`

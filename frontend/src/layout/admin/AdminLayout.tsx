@@ -12,20 +12,18 @@ import { Notification, Logout, UserAvatarFilled } from "@carbon/icons-react";
 import { useSelector } from "react-redux";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 
-import { selectUser } from "../store/auth/auth.selectors";
-import { NotificationsPanel } from "../components/notifications/notifications-panel.component";
-import {
-  useGetNotificationsQuery,
-  useGetUnreadNotificationsCountQuery,
-} from "../store/api/notifications.api";
-import { API } from "../lib/constants/api.constants";
-
+import "./admin-layout.css";
+import { selectUser } from "../../store/auth/auth.selectors";
 import {
   HeaderPanelProvider,
   useHeaderPanel,
-} from "../components/header-panel/header-panel.context";
-
-import "./admin-layout.css";
+} from "../../components/header-panel/header-panel.context";
+import {
+  useGetNotificationsQuery,
+  useGetUnreadNotificationsCountQuery,
+} from "../../store/api/notifications.api";
+import { NotificationsPanel } from "../../components/notifications/notifications-panel.component";
+import { API } from "../../lib/constants/api.constants";
 
 function HeaderActions() {
   const user = useSelector(selectUser);

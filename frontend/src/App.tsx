@@ -8,8 +8,7 @@ import {
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 
-import PublicLayout from "./layout/PublicLayout";
-import AdminLayout from "./layout/AdminLayout";
+import PublicLayout from "./layout/public/PublicLayout";
 
 import NewsFeedPage from "./pages/public/newsfeed/news_feed.component";
 import AppLauncherPage from "./pages/public/applauncher/app_launcher.component";
@@ -18,6 +17,7 @@ import AuditLogsPage from "./pages/admin/audit/audit_component";
 import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
 import HomePage from "./pages/admin/home/home.component";
+import AdminLayout from "./layout/admin/AdminLayout";
 
 function App() {
   return (
