@@ -2,16 +2,36 @@ import { baseApi } from "./baseApi";
 import type { Client, CreateClientPayload } from "../types/client.types";
 import { API } from "../../lib/constants/api.constants";
 
+type UpdateClientPayload = {
+  id: string;
+  data: Partial<CreateClientPayload>;
+};
+
 export const clientsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    /* --------------------------------
+     * List clients
+     * -------------------------------- */
     listClients: builder.query<Client[], void>({
       query: () => ({
         url: API.clients.list(),
         credentials: "include",
       }),
-      providesTags: ["Client"],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((c) => ({
+                type: "Client" as const,
+                id: c.clientId,
+              })),
+              { type: "Client", id: "LIST" },
+            ]
+          : [{ type: "Client", id: "LIST" }],
     }),
 
+    /* --------------------------------
+     * Get single client
+     * -------------------------------- */
     getClient: builder.query<Client, string>({
       query: (id) => ({
         url: API.clients.byId(id),
@@ -20,6 +40,9 @@ export const clientsApi = baseApi.injectEndpoints({
       providesTags: (_r, _e, id) => [{ type: "Client", id }],
     }),
 
+    /* --------------------------------
+     * Create client
+     * -------------------------------- */
     createClient: builder.mutation<Client, CreateClientPayload>({
       query: (body) => ({
         url: API.clients.create(),
@@ -27,23 +50,53 @@ export const clientsApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
-      invalidatesTags: ["Client"],
+      invalidatesTags: [{ type: "Client", id: "LIST" }],
     }),
+
+    /* --------------------------------
+     * Update client
+     * -------------------------------- */
+    updateClient: builder.mutation<Client, UpdateClientPayload>({
+      query: ({ id, data }) => ({
+        url: API.clients.update(id),
+        method: "PATCH",
+        body: data,
+        credentials: "include",
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Client", id },
+        { type: "Client", id: "LIST" },
+      ],
+    }),
+
+    /* --------------------------------
+     * Delete client
+     * -------------------------------- */
     deleteClient: builder.mutation<void, string>({
       query: (id) => ({
         url: API.clients.delete(id),
         method: "DELETE",
         credentials: "include",
       }),
-      invalidatesTags: (_r, _e, id) => [{ type: "Client", id }],
+      invalidatesTags: (_r, _e, id) => [
+        { type: "Client", id },
+        { type: "Client", id: "LIST" },
+      ],
     }),
 
+    /* --------------------------------
+     * Enable / Disable client
+     * -------------------------------- */
     toggleClient: builder.mutation<void, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
-        url: `/clients/${id}`,
+        url: API.clients.toggerClient(id),
         method: enabled ? "POST" : "DELETE",
+        credentials: "include",
       }),
-      invalidatesTags: ["Client"],
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Client", id },
+        { type: "Client", id: "LIST" },
+      ],
     }),
   }),
 });
@@ -52,6 +105,7 @@ export const {
   useListClientsQuery,
   useGetClientQuery,
   useCreateClientMutation,
+  useUpdateClientMutation,
   useDeleteClientMutation,
   useToggleClientMutation,
 } = clientsApi;

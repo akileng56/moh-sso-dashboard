@@ -29,6 +29,8 @@ export const API = {
     byId: (id: string) => `${API_BASE}/clients/${id}`,
     create: () => `${API_BASE}/clients`,
     delete: (id: string) => `${API_BASE}/clients/${id}`,
+    update: (id: string) => `${API_BASE}/clients/${id}`,
+    toggerClient: (id: string) => `${API_BASE}/clients/${id}`,
   },
 
   // --------------------------------------------------
@@ -40,6 +42,9 @@ export const API = {
     byId: (id: string) => `${API_BASE}/users/${id}`,
     create: () => `${API_BASE}/users`,
     delete: (id: string) => `${API_BASE}/users/${id}`,
+    update: (id: string) => `${API_BASE}/users/${id}`,
+    toggerUser: (id: string) => `${API_BASE}/users${id}`,
+    resetPassword: (id: string) => `${API_BASE}/users/${id}/reset-password`,
   },
 
   // --------------------------------------------------

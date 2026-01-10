@@ -20,6 +20,8 @@ export interface CreateUserPayload {
   first_name?: string;
   last_name?: string;
   is_admin?: boolean;
+  is_active?: boolean;
   enabled?: boolean;
+  email_verified: boolean;
   client_roles?: Record<string, string[]>;
 }

@@ -2,16 +2,33 @@ import { baseApi } from "./baseApi";
 import type { CreateUserPayload, User } from "../types/user.types";
 import { API } from "../../lib/constants/api.constants";
 
+type UpdateUserPayload = {
+  id: string;
+  data: Partial<CreateUserPayload>;
+};
+
 export const usersApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    /* --------------------------------
+     * List users
+     * -------------------------------- */
     listUsers: builder.query<User[], void>({
       query: () => ({
         url: API.users.list(),
         credentials: "include",
       }),
-      providesTags: ["User"],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map((u) => ({ type: "User" as const, id: u.id })),
+              { type: "User", id: "LIST" },
+            ]
+          : [{ type: "User", id: "LIST" }],
     }),
 
+    /* --------------------------------
+     * Create user
+     * -------------------------------- */
     createUser: builder.mutation<User, CreateUserPayload>({
       query: (body) => ({
         url: API.users.create(),
@@ -19,24 +36,64 @@ export const usersApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
-      invalidatesTags: ["User"],
+      invalidatesTags: [{ type: "User", id: "LIST" }],
     }),
 
+    /* --------------------------------
+     * Update user
+     * -------------------------------- */
+    updateUser: builder.mutation<User, UpdateUserPayload>({
+      query: ({ id, data }) => ({
+        url: API.users.update(id),
+        method: "PATCH",
+        body: data,
+        credentials: "include",
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "User", id },
+        { type: "User", id: "LIST" },
+      ],
+    }),
+
+    /* --------------------------------
+     * Reset password
+     * -------------------------------- */
+    resetUserPassword: builder.mutation<void, string>({
+      query: (id) => ({
+        url: API.users.resetPassword(id),
+        method: "POST",
+        credentials: "include",
+      }),
+    }),
+
+    /* --------------------------------
+     * Delete user
+     * -------------------------------- */
     deleteUser: builder.mutation<void, string>({
       query: (id) => ({
         url: API.users.delete(id),
         method: "DELETE",
         credentials: "include",
       }),
-      invalidatesTags: (_r, _e, id) => [{ type: "User", id }],
+      invalidatesTags: (_r, _e, id) => [
+        { type: "User", id },
+        { type: "User", id: "LIST" },
+      ],
     }),
 
+    /* --------------------------------
+     * Enable / Disable user
+     * -------------------------------- */
     toggleUser: builder.mutation<void, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
         url: `/users/${id}`,
         method: enabled ? "POST" : "DELETE",
+        credentials: "include",
       }),
-      invalidatesTags: ["User"],
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "User", id },
+        { type: "User", id: "LIST" },
+      ],
     }),
   }),
 });
@@ -44,6 +101,8 @@ export const usersApi = baseApi.injectEndpoints({
 export const {
   useListUsersQuery,
   useCreateUserMutation,
+  useUpdateUserMutation,
+  useResetUserPasswordMutation,
   useDeleteUserMutation,
   useToggleUserMutation,
 } = usersApi;
