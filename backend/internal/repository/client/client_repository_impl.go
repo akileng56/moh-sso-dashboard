@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -28,9 +27,7 @@ func NewClientRepository(
 	log logger.Logger,
 ) ClientRepository {
 
-	// Authenticate Keycloak admin client
 	if err := keycloakClient.Authenticate(); err != nil {
-		fmt.Errorf("Failed to authenticate Keycloak admin client: %v", err)
 		panic(fmt.Sprintf("Keycloak authentication failed: %v", err))
 	}
 
@@ -42,52 +39,62 @@ func NewClientRepository(
 	}
 }
 
+// CREATE (Keycloak = Source of Truth)
 func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 	ctx := context.Background()
 
-	existingKCClient, _ := r.keycloakClient.GetClientByClientID(client.ClientID)
-	if existingKCClient != nil {
-		return errors.New("client already exists in keycloak")
-	}
-
-	err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
+	// 1️⃣ Create in Keycloak
+	if err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
 		ClientID:     client.ClientID,
 		Name:         client.Name,
 		Description:  client.Description,
 		BaseURL:      client.BaseURL,
 		PublicClient: client.PublicClient,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create in keycloak: %w", err)
+		Protocol:     "openid-connect",
+		RedirectURIs: []string{},
+		WebOrigins:   []string{},
+	}); err != nil {
+		return fmt.Errorf("keycloak create failed: %w", err)
 	}
 
-	return r.db.CreateClient(ctx, db.CreateClientParams{
-		ClientID: client.ClientID,
-		Name:     client.Name,
+	// 2️⃣ Read back authoritative KC state
+	kcClient, err := r.keycloakClient.GetClientByClientID(client.ClientID)
+	if err != nil {
+		return fmt.Errorf("keycloak read-back failed: %w", err)
+	}
+
+	// 3️⃣ Best-effort DB UPSERT
+	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
+		ClientID: kcClient.ClientID,
+		Name:     kcClient.Name,
 		Description: sql.NullString{
-			String: client.Description,
-			Valid:  client.Description != "",
+			String: kcClient.Description,
+			Valid:  kcClient.Description != "",
 		},
 		BaseUrl: sql.NullString{
-			String: client.BaseURL,
-			Valid:  client.BaseURL != "",
-		},
-		Icon: sql.NullString{
-			String: client.Attributes["icon"],
-			Valid:  client.Attributes["icon"] != "",
+			String: kcClient.BaseURL,
+			Valid:  kcClient.BaseURL != "",
 		},
 		PublicClient: sql.NullBool{
-			Bool:  client.PublicClient,
-			Valid: client.PublicClient,
+			Bool:  kcClient.PublicClient,
+			Valid: true,
 		},
 		Enabled: sql.NullBool{
-			Bool:  client.Enabled,
-			Valid: client.Enabled,
+			Bool:  kcClient.Enabled,
+			Valid: true,
 		},
-	})
+	}); err != nil {
+		r.logger.Warn(
+			"client created in keycloak but failed to sync db",
+			"clientId", kcClient.ClientID,
+			"error", err,
+		)
+	}
+
+	return nil
 }
 
-// GetClientByID retrieves a client by its ID.
+// GET BY ID (Keycloak authoritative)
 func (r *sqlcClientRepository) GetClientByID(id string) (*models.Client, error) {
 	ctx := context.Background()
 
@@ -96,23 +103,28 @@ func (r *sqlcClientRepository) GetClientByID(id string) (*models.Client, error) 
 		return nil, fmt.Errorf("invalid UUID: %w", err)
 	}
 
-	row, err := r.db.GetClientByID(ctx, uid)
+	dbRow, err := r.db.GetClientByID(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
 
+	kcClient, err := r.keycloakClient.GetClientByClientID(dbRow.ClientID)
+	if err != nil {
+		return nil, fmt.Errorf("keycloak client not found: %w", err)
+	}
+
 	return &models.Client{
-		ID:           row.ID.String(),
-		ClientID:     row.ClientID,
-		Name:         row.Name,
-		Description:  row.Description.String,
-		BaseURL:      row.BaseUrl.String,
-		PublicClient: row.PublicClient.Bool,
-		Enabled:      row.Enabled.Bool,
+		ID:           dbRow.ID.String(),
+		ClientID:     kcClient.ClientID,
+		Name:         kcClient.Name,
+		Description:  kcClient.Description,
+		BaseURL:      kcClient.BaseURL,
+		PublicClient: kcClient.PublicClient,
+		Enabled:      kcClient.Enabled,
 	}, nil
 }
 
-// ListClients retrieves all client entries.
+// LIST (KC primary, DB merged)
 func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	ctx := context.Background()
 
@@ -126,22 +138,19 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 		return nil, err
 	}
 
-	// Index DB by ClientID for easy merge
 	dbMap := map[string]db.Client{}
 	for _, c := range dbClients {
 		dbMap[c.ClientID] = c
 	}
 
-	// 3. Merge KC + DB (KC is primary)
 	var result []models.Client
+
 	for _, kc := range kcClients {
-		// Prepare the attributes map with just the "icon" key
 		attributes := map[string]string{}
 		if icon, ok := kc.Attributes["icon"]; ok {
 			attributes["icon"] = icon
 		}
 
-		// If exists in DB, merge metadata
 		if entry, ok := dbMap[kc.ClientID]; ok {
 			result = append(result, models.Client{
 				ID:           entry.ID.String(),
@@ -154,7 +163,6 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 				Attributes:   attributes,
 			})
 		} else {
-			// KC-only record
 			result = append(result, models.Client{
 				ID:           "",
 				ClientID:     kc.ClientID,
@@ -171,21 +179,73 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	return result, nil
 }
 
+// UPDATE (KC first, DB best-effort)
 func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
+	ctx := context.Background()
+
+	if err := r.keycloakClient.UpdateClient(client.ID, &models.Client{
+		ClientID:     client.ClientID,
+		Name:         client.Name,
+		Description:  client.Description,
+		BaseURL:      client.BaseURL,
+		PublicClient: client.PublicClient,
+		Enabled:      client.Enabled,
+	}); err != nil {
+		return fmt.Errorf("keycloak update failed: %w", err)
+	}
+
+	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
+		ClientID: client.ClientID,
+		Name:     client.Name,
+		Description: sql.NullString{
+			String: client.Description,
+			Valid:  client.Description != "",
+		},
+		BaseUrl: sql.NullString{
+			String: client.BaseURL,
+			Valid:  client.BaseURL != "",
+		},
+		PublicClient: sql.NullBool{
+			Bool:  client.PublicClient,
+			Valid: true,
+		},
+		Enabled: sql.NullBool{
+			Bool:  client.Enabled,
+			Valid: true,
+		},
+	}); err != nil {
+		r.logger.Warn(
+			"client updated in keycloak but db sync failed",
+			"clientId", client.ClientID,
+			"error", err,
+		)
+	}
+
 	return nil
 }
 
+// DELETE (KC authoritative)
 func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
 	ctx := context.Background()
 
 	dbClient, err := r.db.GetClientByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("client not found: %w", err)
+	if err != nil && err != sql.ErrNoRows {
+		return err
 	}
 
-	if err := r.keycloakClient.DeleteClient(dbClient.ClientID); err != nil {
-		return fmt.Errorf("failed deleting keycloak client: %w", err)
+	if dbClient.ClientID != "" {
+		if err := r.keycloakClient.DeleteClient(dbClient.ClientID); err != nil {
+			return fmt.Errorf("failed deleting keycloak client: %w", err)
+		}
 	}
 
-	return r.db.DeleteClient(ctx, id)
+	if err := r.db.DeleteClient(ctx, id); err != nil {
+		r.logger.Warn(
+			"client deleted in keycloak but db delete failed",
+			"id", id,
+			"error", err,
+		)
+	}
+
+	return nil
 }

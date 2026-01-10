@@ -21,11 +21,11 @@ export type UserFormMode = "create" | "edit";
 type UserFormPayload = {
   username: string;
   email: string;
-  first_name: string;
-  last_name: string;
-  realm_roles: string[];
+  firstName: string;
+  lastName: string;
+  realmRoles: string[];
   enabled: boolean;
-  email_verified: boolean;
+  emailVerified: boolean;
 };
 
 const REALM_ROLES = [
@@ -44,11 +44,11 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
   const [form, setForm] = useState<UserFormPayload>({
     username: initialUser?.username ?? "",
     email: initialUser?.email ?? "",
-    first_name: initialUser?.first_name ?? "",
-    last_name: initialUser?.last_name ?? "",
-    realm_roles: initialUser?.realm_roles ?? [],
+    firstName: initialUser?.firstName ?? "",
+    lastName: initialUser?.lastName ?? "",
+    realmRoles: initialUser?.realmRoles ?? [],
     enabled: initialUser?.enabled ?? true,
-    email_verified: initialUser?.email_verified ?? true,
+    emailVerified: initialUser?.emailVerified ?? true,
   });
 
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
    * Validation
    * ----------------------------- */
   const isValid = useMemo(() => {
-    return form.username && form.email && form.first_name && form.last_name;
+    return form.username && form.email && form.firstName && form.lastName;
   }, [form]);
 
   const handleChange = <K extends keyof UserFormPayload>(
@@ -89,11 +89,11 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
           id: initialUser.id,
           data: {
             email: form.email,
-            first_name: form.first_name,
-            last_name: form.last_name,
-            realm_roles: form.realm_roles,
+            firstName: form.firstName,
+            lastName: form.lastName,
+            realmRoles: form.realmRoles,
             enabled: form.enabled,
-            email_verified: form.email_verified,
+            emailVerified: form.emailVerified,
           },
         }).unwrap();
       }
@@ -142,16 +142,16 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               id="firstName"
               labelText="First name"
               required
-              value={form.first_name}
-              onChange={(e) => handleChange("first_name", e.target.value)}
+              value={form.firstName}
+              onChange={(e) => handleChange("firstName", e.target.value)}
             />
 
             <TextInput
               id="lastName"
               labelText="Last name"
               required
-              value={form.last_name}
-              onChange={(e) => handleChange("last_name", e.target.value)}
+              value={form.lastName}
+              onChange={(e) => handleChange("lastName", e.target.value)}
             />
           </Stack>
         </FormGroup>
@@ -168,11 +168,11 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               items={REALM_ROLES}
               itemToString={(item) => item?.text ?? ""}
               selectedItems={REALM_ROLES.filter((r) =>
-                form.realm_roles.includes(r.id)
+                form.realmRoles.includes(r.id)
               )}
               onChange={({ selectedItems }) =>
                 handleChange(
-                  "realm_roles",
+                  "realmRoles",
                   selectedItems.map((r) => r.id)
                 )
               }
@@ -188,9 +188,9 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
             <Checkbox
               id="emailVerified"
               labelText="Email verified"
-              checked={form.email_verified}
+              checked={form.emailVerified}
               onChange={(_, { checked }) =>
-                handleChange("email_verified", checked)
+                handleChange("emailVerified", checked)
               }
             />
           </Stack>

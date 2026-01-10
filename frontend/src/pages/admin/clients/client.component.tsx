@@ -104,8 +104,8 @@ export default function ClientsPage() {
     return clients.filter((c) => {
       if (statusFilter === "enabled" && !c.enabled) return false;
       if (statusFilter === "disabled" && c.enabled) return false;
-      if (typeFilter === "public" && !c.public_client) return false;
-      if (typeFilter === "confidential" && c.public_client) return false;
+      if (typeFilter === "public" && !c.publicClient) return false;
+      if (typeFilter === "confidential" && c.publicClient) return false;
       return true;
     });
   }, [clients, statusFilter, typeFilter]);
@@ -149,7 +149,7 @@ export default function ClientsPage() {
     id: c.clientId,
     name: c.name,
     clientId: c.clientId,
-    type: c.public_client ? "Public" : "Confidential",
+    type: c.publicClient ? "Public" : "Confidential",
     status: c.enabled ? "Enabled" : "Disabled",
     actions: "",
     raw: c,
@@ -276,7 +276,7 @@ export default function ClientsPage() {
                                           enabled: client?.enabled,
                                           onConfirm: async () => {
                                             await toggleClient(
-                                              client.client_id,
+                                              client.clientId,
                                               client?.enabled
                                             ).unwrap();
                                           },

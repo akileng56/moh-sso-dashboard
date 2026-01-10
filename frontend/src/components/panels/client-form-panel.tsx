@@ -17,9 +17,9 @@ import {
 export type ClientFormMode = "create" | "edit";
 
 export type ClientFormPayload = {
-  client_id: string;
+  clientId: string;
   name: string;
-  public_client: boolean;
+  publicClient: boolean;
   enabled: boolean;
 };
 
@@ -32,9 +32,9 @@ type Props = {
 export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   const [form, setForm] = useState<ClientFormPayload>(
     initialClient ?? {
-      client_id: "",
+      clientId: "",
       name: "",
-      public_client: false,
+      publicClient: false,
       enabled: true,
     }
   );
@@ -50,10 +50,10 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   /* -----------------------------
    * Validation
    * ----------------------------- */
-  const isClientIdValid = /^[a-z0-9-]+$/.test(form.client_id);
+  const isClientIdValid = /^[a-z0-9-]+$/.test(form.clientId);
 
   const isValid = useMemo(() => {
-    if (!form.client_id || !form.name) return false;
+    if (!form.clientId || !form.name) return false;
     if (mode === "create") return isClientIdValid;
     return true;
   }, [form, mode, isClientIdValid]);
@@ -78,10 +78,10 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
         await createClient(form).unwrap();
       } else {
         await updateClient({
-          id: form.client_id,
+          id: form?.clientId,
           data: {
             name: form.name,
-            public_client: form.public_client,
+            publicClient: form.publicClient,
           },
         }).unwrap();
       }
@@ -116,14 +116,14 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               placeholder="moh-dashboard"
               required
               disabled={mode === "edit"}
-              value={form.client_id}
+              value={form?.clientId}
               invalid={
                 mode === "create" &&
-                form.client_id.length > 0 &&
+                form?.clientId.length > 0 &&
                 !isClientIdValid
               }
               invalidText="Only lowercase letters, numbers, and dashes are allowed"
-              onChange={(e) => handleChange("client_id", e.target.value)}
+              onChange={(e) => handleChange("clientId", e.target.value)}
             />
 
             <TextInput
@@ -145,9 +145,9 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
             <Checkbox
               id="publicClient"
               labelText="Public client (no client secret)"
-              checked={form.public_client}
+              checked={form.publicClient}
               onChange={(_, { checked }) =>
-                handleChange("public_client", checked)
+                handleChange("publicClient", checked)
               }
             />
 

@@ -88,7 +88,7 @@ export default function UsersPage() {
    * ----------------------------- */
   const roles = useMemo(() => {
     const set = new Set<string>();
-    users.forEach((u) => u?.client_roles?.admin?.forEach((r) => set.add(r)));
+    users.forEach((u) => u?.realmRoles?.forEach((r) => set.add(r)));
     return ["all", ...Array.from(set)];
   }, [users]);
 
@@ -97,10 +97,10 @@ export default function UsersPage() {
    * ----------------------------- */
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter === "active" && !u.is_active) return false;
-      if (statusFilter === "disabled" && u.is_active) return false;
-      if (neverLoggedIn && u.last_login_at) return false;
-      if (roleFilter !== "all" && !u?.client_roles?.admin?.includes(roleFilter))
+      if (statusFilter === "active" && !u.isActive) return false;
+      if (statusFilter === "disabled" && u.isActive) return false;
+      if (neverLoggedIn && u.lastLoginAt) return false;
+      if (roleFilter !== "all" && !u?.realmRoles?.includes(roleFilter))
         return false;
       return true;
     });
@@ -142,10 +142,10 @@ export default function UsersPage() {
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
-    status: u.is_active ? "Active" : "Disabled",
-    verified: u.email_verified ? "Verified" : "Not verified",
-    lastLogin: u.last_login_at
-      ? new Date(u.last_login_at).toLocaleString()
+    status: u.isActive ? "Active" : "Disabled",
+    verified: u.emailVerified ? "Verified" : "Not verified",
+    lastLogin: u.lastLoginAt
+      ? new Date(u.lastLoginAt).toLocaleString()
       : "Never",
     actions: "",
     raw: u,
@@ -231,7 +231,7 @@ export default function UsersPage() {
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={!user?.is_admin ? "green" : "red"}>
+                                  <Tag type={!user?.isAdmin ? "green" : "red"}>
                                     {cell.value}
                                   </Tag>
                                 </TableCell>
@@ -262,7 +262,7 @@ export default function UsersPage() {
 
                                     <OverflowMenuItem
                                       itemText={
-                                        user?.is_active
+                                        user?.isActive
                                           ? "Disable user"
                                           : "Enable user"
                                       }
@@ -270,11 +270,11 @@ export default function UsersPage() {
                                       onClick={() =>
                                         openEnableUserModal({
                                           username: user.username,
-                                          enabled: user?.is_active,
+                                          enabled: user?.isActive,
                                           onConfirm: async () => {
                                             await toggleUser({
                                               id: user.id,
-                                              enabled: !user?.is_active,
+                                              enabled: !user?.isActive,
                                             }).unwrap();
                                           },
                                         })

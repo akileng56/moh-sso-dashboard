@@ -22,7 +22,7 @@ export const clientsApi = baseApi.injectEndpoints({
           ? [
               ...result.map((c) => ({
                 type: "Client" as const,
-                id: c.client_id,
+                id: c.clientId,
               })),
               { type: "Client", id: "LIST" },
             ]

@@ -9,6 +9,30 @@ INSERT INTO users (
     $1, $2, $3, $4, $5, $6, $7
 );
 
+-- name: UpsertUser :exec
+INSERT INTO users (
+    id,
+    username,
+    email,
+    first_name,
+    last_name,
+    enabled,
+    created_at,
+    updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, NOW(), NOW()
+)
+ON CONFLICT (id)
+DO UPDATE SET
+    username   = EXCLUDED.username,
+    email      = EXCLUDED.email,
+    first_name = EXCLUDED.first_name,
+    last_name  = EXCLUDED.last_name,
+    enabled    = EXCLUDED.enabled,
+    updated_at = NOW();
+
+
 -- name: GetUserByID :one
 SELECT *
 FROM users

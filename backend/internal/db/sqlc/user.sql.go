@@ -564,6 +564,51 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const upsertUser = `-- name: UpsertUser :exec
+INSERT INTO users (
+    id,
+    username,
+    email,
+    first_name,
+    last_name,
+    enabled,
+    created_at,
+    updated_at
+)
+VALUES (
+    $1, $2, $3, $4, $5, $6, NOW(), NOW()
+)
+ON CONFLICT (id)
+DO UPDATE SET
+    username   = EXCLUDED.username,
+    email      = EXCLUDED.email,
+    first_name = EXCLUDED.first_name,
+    last_name  = EXCLUDED.last_name,
+    enabled    = EXCLUDED.enabled,
+    updated_at = NOW()
+`
+
+type UpsertUserParams struct {
+	ID        uuid.UUID      `json:"id"`
+	Username  string         `json:"username"`
+	Email     string         `json:"email"`
+	FirstName sql.NullString `json:"first_name"`
+	LastName  sql.NullString `json:"last_name"`
+	Enabled   sql.NullBool   `json:"enabled"`
+}
+
+func (q *Queries) UpsertUser(ctx context.Context, arg UpsertUserParams) error {
+	_, err := q.db.ExecContext(ctx, upsertUser,
+		arg.ID,
+		arg.Username,
+		arg.Email,
+		arg.FirstName,
+		arg.LastName,
+		arg.Enabled,
+	)
+	return err
+}
+
 const userExists = `-- name: UserExists :one
 SELECT EXISTS (
   SELECT 1 FROM users WHERE id = $1

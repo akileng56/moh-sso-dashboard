@@ -14,51 +14,33 @@ import (
 	"github.com/moh-sso-dashboard/internal/model"
 )
 
-// -------------------------------------------------------------------
-// DTOs
-// -------------------------------------------------------------------
-
 type ClientInfo struct {
-	// --- Base Identification & URLs ---
-	ID          string `json:"id,omitempty"`          // Internal unique ID (UUID)
-	ClientID    string `json:"clientId"`              // The client ID used for OAuth/OIDC protocol
-	Name        string `json:"name,omitempty"`        // Display name for the client
-	Description string `json:"description,omitempty"` // Detailed description
-	BaseURL     string `json:"baseUrl,omitempty"`     // Base URL for the client application
-	RootURL     string `json:"rootUrl,omitempty"`     // Root URL for relative paths
-	AdminURL    string `json:"adminUrl,omitempty"`    // URL to the client's admin console
-
-	// --- Configuration & Status ---
-	Enabled      bool   `json:"enabled"`              // Whether the client is active
-	PublicClient bool   `json:"publicClient"`         // True for browser-based apps without a secret
-	BearerOnly   bool   `json:"bearerOnly,omitempty"` // True if the client only accepts bearer tokens
-	Protocol     string `json:"protocol"`             // Protocol used: "openid-connect" or "saml"
-
-	// --- Security & Credentials ---
-	Secret                  string `json:"secret,omitempty"`                  // Shared secret for confidential clients (if not publicClient)
-	ClientAuthenticatorType string `json:"clientAuthenticatorType,omitempty"` // e.g., "client-secret" or "client-jwt"
-
-	// --- Flows & Settings ---
-	RedirectURIs              []string `json:"redirectUris,omitempty"`              // Valid redirect URIs after successful authentication
-	WebOrigins                []string `json:"webOrigins,omitempty"`                // List of allowed CORS origins
-	StandardFlowEnabled       bool     `json:"standardFlowEnabled,omitempty"`       // Authorization Code Flow
-	ImplicitFlowEnabled       bool     `json:"implicitFlowEnabled,omitempty"`       // Implicit Flow (legacy)
-	DirectAccessGrantsEnabled bool     `json:"directAccessGrantsEnabled,omitempty"` // Resource Owner Password Credentials Grant
-	ServiceAccountsEnabled    bool     `json:"serviceAccountsEnabled,omitempty"`    // Enables a service account for machine-to-machine
-
-	// --- Scopes & Mappers ---
-	FullScopeAllowed     bool     `json:"fullScopeAllowed,omitempty"`     // If true, all realm roles and scopes are granted
-	DefaultClientScopes  []string `json:"defaultClientScopes,omitempty"`  // List of required scopes (client scopes)
-	OptionalClientScopes []string `json:"optionalClientScopes,omitempty"` // List of optional scopes
-
-	// --- Customization ---
-	Attributes map[string]string `json:"attributes,omitempty"` // Custom key/value client settings
-
-	// --- Complex Fields (often require separate structs/endpoints) ---
-	ProtocolMappers []ProtocolMapper `json:"protocolMappers,omitempty"` // Defines how claims are mapped into tokens
+	ID                        string            `json:"id,omitempty"`                        // Internal unique ID (UUID)
+	ClientID                  string            `json:"clientId"`                            // The client ID used for OAuth/OIDC protocol
+	Name                      string            `json:"name,omitempty"`                      // Display name for the client
+	Description               string            `json:"description,omitempty"`               // Detailed description
+	BaseURL                   string            `json:"baseUrl,omitempty"`                   // Base URL for the client application
+	RootURL                   string            `json:"rootUrl,omitempty"`                   // Root URL for relative paths
+	AdminURL                  string            `json:"adminUrl,omitempty"`                  // URL to the client's admin console
+	Enabled                   bool              `json:"enabled"`                             // Whether the client is active
+	PublicClient              bool              `json:"publicClient"`                        // True for browser-based apps without a secret
+	BearerOnly                bool              `json:"bearerOnly,omitempty"`                // True if the client only accepts bearer tokens
+	Protocol                  string            `json:"protocol"`                            // Protocol used: "openid-connect" or "saml"
+	Secret                    string            `json:"secret,omitempty"`                    // Shared secret for confidential clients (if not publicClient)
+	ClientAuthenticatorType   string            `json:"clientAuthenticatorType,omitempty"`   // e.g., "client-secret" or "client-jwt"
+	RedirectURIs              []string          `json:"redirectUris,omitempty"`              // Valid redirect URIs after successful authentication
+	WebOrigins                []string          `json:"webOrigins,omitempty"`                // List of allowed CORS origins
+	StandardFlowEnabled       bool              `json:"standardFlowEnabled,omitempty"`       // Authorization Code Flow
+	ImplicitFlowEnabled       bool              `json:"implicitFlowEnabled,omitempty"`       // Implicit Flow (legacy)
+	DirectAccessGrantsEnabled bool              `json:"directAccessGrantsEnabled,omitempty"` // Resource Owner Password Credentials Grant
+	ServiceAccountsEnabled    bool              `json:"serviceAccountsEnabled,omitempty"`    // Enables a service account for machine-to-machine
+	FullScopeAllowed          bool              `json:"fullScopeAllowed,omitempty"`          // If true, all realm roles and scopes are granted
+	DefaultClientScopes       []string          `json:"defaultClientScopes,omitempty"`       // List of required scopes (client scopes)
+	OptionalClientScopes      []string          `json:"optionalClientScopes,omitempty"`      // List of optional scopes
+	Attributes                map[string]string `json:"attributes,omitempty"`                // Custom key/value client settings
+	ProtocolMappers           []ProtocolMapper  `json:"protocolMappers,omitempty"`           // Defines how claims are mapped into tokens
 }
 
-// --- Auxiliary Struct for ProtocolMappers (as defined in the previous response) ---
 type ProtocolMapper struct {
 	ID             string            `json:"id,omitempty"`
 	Name           string            `json:"name,omitempty"`
@@ -216,6 +198,27 @@ func (c *Client) ListClients() ([]ClientInfo, error) {
 	}
 
 	return clients, nil
+}
+
+func (c *Client) UpdateClient(id string, payload *model.Client) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	res, err := c.Put("clients/"+id, payload)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		body, _ := io.ReadAll(res.Body)
+		return fmt.Errorf(
+			"failed to update client (status %d): %s",
+			res.StatusCode,
+			string(body),
+		)
+	}
+
+	return nil
 }
 
 func (c *Client) DeleteClient(id string) error {

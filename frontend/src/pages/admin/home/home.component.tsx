@@ -316,12 +316,30 @@ export default function HomePage() {
        * NOTIFICATIONS (ACTIONABLE)
        * ================================================== */}
       <Tile>
-        <h4>Notifications</h4>
+        {/* Header */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: "1rem",
+          }}
+        >
+          <h4 style={{ margin: 0 }}>Notifications</h4>
 
+          {notifications.length > 0 && (
+            <Tag size="sm" type="gray">
+              {notifications.filter((n) => !n.read).length} unread
+            </Tag>
+          )}
+        </div>
+
+        {/* Loading */}
         {notificationsLoading && (
           <InlineLoading description="Loading notifications…" />
         )}
 
+        {/* Empty state */}
         {!notificationsLoading && notifications.length === 0 && (
           <EmptyState
             title="No notifications"
@@ -329,48 +347,83 @@ export default function HomePage() {
           />
         )}
 
+        {/* List */}
         {!notificationsLoading && notifications.length > 0 && (
           <Stack gap={3}>
-            {notifications.map((n) => (
-              <div
-                key={n.id}
-                className={`notification-item ${
-                  !n.read ? "notification-unread" : ""
-                }`}
-              >
-                <Notification size={16} />
+            {notifications.map((n) => {
+              const severityTagType =
+                n.severity === "critical"
+                  ? "red"
+                  : n.severity === "warning"
+                  ? "yellow"
+                  : "blue";
 
-                <div className="notification-content">
-                  <strong className="notification-title">{n.title}</strong>
-                  <span className="notification-message">{n.message}</span>
+              return (
+                <div
+                  key={n.id}
+                  role="listitem"
+                  className={`notification-item ${
+                    !n.read ? "notification-unread" : ""
+                  }`}
+                  style={{
+                    display: "flex",
+                    gap: "0.75rem",
+                    padding: "0.75rem",
+                    borderRadius: "4px",
+                    background: !n.read
+                      ? "var(--cds-layer-accent)"
+                      : "transparent",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Notification size={16} style={{ marginTop: 2 }} />
 
-                  <span className="notification-meta">
-                    {new Date(n.created_at).toLocaleString()}
-                  </span>
+                  <div style={{ flex: 1 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "0.5rem",
+                      }}
+                    >
+                      <strong>{n.title}</strong>
+                      <Tag size="sm" type={severityTagType}>
+                        {n.severity}
+                      </Tag>
+                    </div>
+
+                    <p
+                      style={{
+                        margin: "0.25rem 0",
+                        opacity: 0.85,
+                      }}
+                    >
+                      {n.message}
+                    </p>
+
+                    <span
+                      style={{
+                        fontSize: "0.75rem",
+                        opacity: 0.6,
+                      }}
+                    >
+                      {new Date(n.created_at).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {!n.read && (
+                    <Button
+                      size="sm"
+                      kind="ghost"
+                      onClick={() => markNotificationAsRead(n.id)}
+                    >
+                      Mark as read
+                    </Button>
+                  )}
                 </div>
-
-                <Tag
-                  size="sm"
-                  type={
-                    n.severity === "critical"
-                      ? "red"
-                      : n.severity === "warning"
-                      ? "yellow"
-                      : "blue"
-                  }
-                >
-                  {n.severity}
-                </Tag>
-
-                <Button
-                  size="sm"
-                  kind="ghost"
-                  onClick={() => markNotificationAsRead(n.id)}
-                >
-                  Dismiss
-                </Button>
-              </div>
-            ))}
+              );
+            })}
           </Stack>
         )}
       </Tile>

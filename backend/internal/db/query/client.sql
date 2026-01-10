@@ -4,10 +4,41 @@
 
 -- name: CreateClient :exec
 INSERT INTO client (
-    id, client_id, name, description, base_url, icon, public_client, enabled
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
-);
+    $1, $2, $3, $4, $5, $6, $7
+)
+ON CONFLICT (client_id) DO NOTHING
+RETURNING id;
+
+-- name: UpsertClient :exec
+INSERT INTO client (
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled
+)
+VALUES ($1, $2, $3, $4, $5, $6,$7)
+ON CONFLICT (client_id)
+DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    base_url = EXCLUDED.base_url,
+    icon = EXCLUDED.icon,
+    public_client = EXCLUDED.public_client,
+    enabled = EXCLUDED.enabled,
+    updated_at = NOW();
+
+
 
 -- name: GetClientByID :one
 SELECT *

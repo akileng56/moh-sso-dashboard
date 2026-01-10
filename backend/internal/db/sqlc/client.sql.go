@@ -79,14 +79,21 @@ func (q *Queries) CountNewClientsToday(ctx context.Context) (int64, error) {
 const createClient = `-- name: CreateClient :exec
 
 INSERT INTO client (
-    id, client_id, name, description, base_url, icon, public_client, enabled
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8
+    $1, $2, $3, $4, $5, $6, $7
 )
+ON CONFLICT (client_id) DO NOTHING
+RETURNING id
 `
 
 type CreateClientParams struct {
-	ID           uuid.UUID      `json:"id"`
 	ClientID     string         `json:"client_id"`
 	Name         string         `json:"name"`
 	Description  sql.NullString `json:"description"`
@@ -101,7 +108,6 @@ type CreateClientParams struct {
 // =====================================================
 func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) error {
 	_, err := q.db.ExecContext(ctx, createClient,
-		arg.ID,
 		arg.ClientID,
 		arg.Name,
 		arg.Description,
@@ -479,6 +485,51 @@ type UpdateClientParams struct {
 func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) error {
 	_, err := q.db.ExecContext(ctx, updateClient,
 		arg.ID,
+		arg.ClientID,
+		arg.Name,
+		arg.Description,
+		arg.BaseUrl,
+		arg.Icon,
+		arg.PublicClient,
+		arg.Enabled,
+	)
+	return err
+}
+
+const upsertClient = `-- name: UpsertClient :exec
+INSERT INTO client (
+    client_id,
+    name,
+    description,
+    base_url,
+    icon,
+    public_client,
+    enabled
+)
+VALUES ($1, $2, $3, $4, $5, $6,$7)
+ON CONFLICT (client_id)
+DO UPDATE SET
+    name = EXCLUDED.name,
+    description = EXCLUDED.description,
+    base_url = EXCLUDED.base_url,
+    icon = EXCLUDED.icon,
+    public_client = EXCLUDED.public_client,
+    enabled = EXCLUDED.enabled,
+    updated_at = NOW()
+`
+
+type UpsertClientParams struct {
+	ClientID     string         `json:"client_id"`
+	Name         string         `json:"name"`
+	Description  sql.NullString `json:"description"`
+	BaseUrl      sql.NullString `json:"base_url"`
+	Icon         sql.NullString `json:"icon"`
+	PublicClient sql.NullBool   `json:"public_client"`
+	Enabled      sql.NullBool   `json:"enabled"`
+}
+
+func (q *Queries) UpsertClient(ctx context.Context, arg UpsertClientParams) error {
+	_, err := q.db.ExecContext(ctx, upsertClient,
 		arg.ClientID,
 		arg.Name,
 		arg.Description,

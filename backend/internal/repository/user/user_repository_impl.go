@@ -30,7 +30,6 @@ func NewUserRepository(
 	log logger.Logger,
 ) UserRepository {
 
-	// Authenticate Keycloak admin
 	if err := keycloakClient.Authenticate(); err != nil {
 		panic(fmt.Sprintf("❌ Failed to authenticate Keycloak admin: %v", err))
 	}
@@ -43,50 +42,61 @@ func NewUserRepository(
 	}
 }
 
+// CREATE (Keycloak = Source of Truth)
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
+	// 1️⃣ Create user in Keycloak (AUTHORITATIVE)
 	kcID, err := r.keycloakClient.CreateUser(user)
 	if err != nil {
-		r.logger.Error("Failed creating user in Keycloak: %v", err)
+		r.logger.Error("failed creating user in keycloak", "error", err)
 		return "", fmt.Errorf("keycloak user creation failed: %w", err)
 	}
 
-	userID, err := uuid.Parse(kcID)
-
+	uid, err := uuid.Parse(kcID)
 	if err != nil {
-		r.logger.Error("Failed to parse Keycloak ID: %v", err)
-		return "", fmt.Errorf("failed to parse Keycloak ID %v", err)
+		return "", fmt.Errorf("invalid keycloak user id: %w", err)
 	}
 
-	params := db.CreateUserParams{
-		ID:        userID,
-		Username:  user.Username,
-		FirstName: sql.NullString{String: user.FirstName, Valid: user.FirstName != ""},
-		LastName:  sql.NullString{String: user.LastName, Valid: user.LastName != ""},
-		Email:     user.Email,
+	// 2️⃣ Best-effort DB insert (cache only)
+	if err := r.db.UpsertUser(ctx, db.UpsertUserParams{
+		ID:       uid,
+		Username: user.Username,
+		Email:    user.Email,
+		FirstName: sql.NullString{
+			String: user.FirstName,
+			Valid:  user.FirstName != "",
+		},
+		LastName: sql.NullString{
+			String: user.LastName,
+			Valid:  user.LastName != "",
+		},
 		Enabled: sql.NullBool{
 			Bool:  user.Enabled,
-			Valid: user.Enabled,
+			Valid: true,
 		},
-	}
-
-	if err := r.db.CreateUser(ctx, params); err != nil {
-		r.logger.Error("Failed inserting user into DB: %v", err)
-		return "", err
+	}); err != nil {
+		r.logger.Warn(
+			"user created in keycloak but db sync failed",
+			"userId", kcID,
+			"error", err,
+		)
 	}
 
 	return kcID, nil
 }
 
+// GET BY ID (Keycloak authoritative)
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
+	ctx := context.Background()
+
+	// 1️⃣ Always read from Keycloak
 	kcUser, err := r.keycloakClient.GetUser(id.String())
 	if err != nil {
-		r.logger.Error("Failed creating user in Keycloak: %v", err)
-		return nil, fmt.Errorf("keycloak user creation failed: %w", err)
+		return nil, fmt.Errorf("keycloak user not found: %w", err)
 	}
 
-	ctx := context.Background()
+	// 2️⃣ Optional DB metadata
 	row, err := r.db.GetUserByID(ctx, id)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -120,6 +130,7 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	}, nil
 }
 
+// LIST (Keycloak primary)
 func (r *userRepository) ListUsers() ([]models.User, error) {
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
@@ -149,45 +160,50 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 	return result, nil
 }
 
+// UPDATE (Keycloak first)
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
 
+	// 1️⃣ Update in Keycloak
 	if err := r.keycloakClient.UpdateUser(&models.User{
 		ID:        user.ID,
-		Username:  user.Username,
 		Email:     user.Email,
 		FirstName: user.FirstName,
 		LastName:  user.LastName,
 		Enabled:   user.Enabled,
 	}); err != nil {
-		r.logger.Error("Failed to update user in Keycloak: %v", err)
 		return fmt.Errorf("keycloak update failed: %w", err)
 	}
 
-	params := db.UpdateUserParams{
-		ID: uuid.MustParse(user.ID),
-
+	// 2️⃣ Best-effort DB sync
+	if err := r.db.UpsertUser(ctx, db.UpsertUserParams{
+		ID:       uuid.MustParse(user.ID),
+		Username: user.Username,
+		Email:    user.Email,
 		FirstName: sql.NullString{
 			String: user.FirstName,
 			Valid:  user.FirstName != "",
 		},
-
 		LastName: sql.NullString{
 			String: user.LastName,
 			Valid:  user.LastName != "",
 		},
-
-		Email: user.Email,
-	}
-
-	if err := r.db.UpdateUser(ctx, params); err != nil {
-		r.logger.Error("Failed to update user in DB: %v", err)
-		return fmt.Errorf("db update failed: %w", err)
+		Enabled: sql.NullBool{
+			Bool:  user.Enabled,
+			Valid: true,
+		},
+	}); err != nil {
+		r.logger.Warn(
+			"user updated in keycloak but db sync failed",
+			"userId", user.ID,
+			"error", err,
+		)
 	}
 
 	return nil
 }
 
+// DELETE (Keycloak authoritative)
 func (r *userRepository) DeleteUser(id string) error {
 	ctx := context.Background()
 
@@ -195,13 +211,19 @@ func (r *userRepository) DeleteUser(id string) error {
 	if err != nil {
 		return fmt.Errorf("invalid UUID: %w", err)
 	}
+
+	// 1️⃣ Delete in Keycloak
 	if err := r.keycloakClient.DeleteUser(id); err != nil {
-		r.logger.Error("Keycloak failed to delete user %s: %v", id, err)
 		return fmt.Errorf("keycloak delete failed: %w", err)
 	}
+
+	// 2️⃣ Best-effort DB delete
 	if err := r.db.DeleteUser(ctx, uid); err != nil {
-		r.logger.Error("DB failed to delete user %s: %v", id, err)
-		return fmt.Errorf("db delete failed: %w", err)
+		r.logger.Warn(
+			"user deleted in keycloak but db delete failed",
+			"userId", id,
+			"error", err,
+		)
 	}
 
 	return nil
