@@ -16,7 +16,6 @@ import {
   OverflowMenuItem,
 } from "@carbon/react";
 
-import { AuditLogDrawer } from "../../../components/audit/AuditLogDrawer";
 import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
@@ -27,6 +26,8 @@ import type {
   Cursor,
 } from "../../../store/types/audit.types";
 import { useListAuditLogsQuery } from "../../../store/api/audit.api";
+import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
+import { AuditLogPanel } from "../../../components/audit/AuditLogDrawer";
 
 type SuccessFilter = "true" | "false";
 
@@ -43,11 +44,12 @@ export default function AuditLogs() {
   const [action, setAction] = useState<string>();
   const [clientId, setClientId] = useState<string>();
   const [success, setSuccess] = useState<SuccessFilter>();
-  const [selected, setSelected] = useState<AuditLog | null>(null);
 
   const [cursor, setCursor] = useState<Cursor | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [items, setItems] = useState<AuditLog[]>([]);
+
+  const { openPanel, closePanel } = useHeaderPanel();
 
   const queryArgs = useMemo<AuditFilters>(() => {
     const q: AuditFilters = {
@@ -70,15 +72,12 @@ export default function AuditLogs() {
   }, [from, to, action, clientId, success, cursor]);
 
   const { data, isLoading, isFetching, isError, error, refetch } =
-    useListAuditLogsQuery(queryArgs, {
-      skip: !from || !to,
-    });
+    useListAuditLogsQuery(queryArgs, { skip: !from || !to });
 
   useEffect(() => {
     if (!data) return;
 
     setItems((prev) => (cursor ? [...prev, ...data.items] : data.items));
-
     setHasMore(data.has_more);
 
     if (data.next_cursor) {
@@ -111,6 +110,8 @@ export default function AuditLogs() {
             : log.metadata?.RawMessage?.success === false
             ? "failure"
             : "—",
+
+        // 🔒 hidden but preserved
         raw: log,
       })),
     [items]
@@ -123,6 +124,9 @@ export default function AuditLogs() {
     { key: "action", header: "Action" },
     { key: "client", header: "Client" },
     { key: "result", header: "Result" },
+
+    // technical column (NOT rendered)
+    { key: "raw", header: "" },
   ];
 
   function clearFilters() {
@@ -131,18 +135,8 @@ export default function AuditLogs() {
     setSuccess(undefined);
   }
 
-  function buildExportUrl(format: "csv" | "json") {
-    const params = new URLSearchParams();
-    Object.entries(queryArgs).forEach(([k, v]) => {
-      if (v !== undefined) params.set(k, String(v));
-    });
-    params.set("format", format);
-    return `/admin/audit-logs/export?${params.toString()}`;
-  }
-
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
-      {/* Header */}
       <div>
         <h3 style={{ margin: 0 }}>Audit Logs</h3>
         <p style={{ marginTop: 6, opacity: 0.8 }}>
@@ -150,10 +144,8 @@ export default function AuditLogs() {
         </p>
       </div>
 
-      {/* Metrics */}
       <AuditMetricsPanel from={from} to={to} />
 
-      {/* Filters */}
       <Tile>
         <AuditLogFilters
           onFromChange={setFrom}
@@ -161,41 +153,31 @@ export default function AuditLogs() {
           onClientChange={setClientId}
           onSuccessChange={setSuccess}
           onClear={clearFilters}
-          onExportCsv={() => window.open(buildExportUrl("csv"))}
-          onExportJson={() => window.open(buildExportUrl("json"))}
+          onExportCsv={() => {}}
+          onExportJson={() => {}}
         />
       </Tile>
 
-      {/* Table */}
       <Tile>
-        {isLoading && (
-          <div style={{ padding: 16 }}>
-            <InlineLoading description="Loading audit logs…" />
-          </div>
-        )}
+        {isLoading && <InlineLoading description="Loading audit logs…" />}
 
         {isError && (
           <ErrorState
             title="Failed to load audit logs"
-            description={
-              (error as any)?.data?.message ?? "Failed to load audit logs"
-            }
+            description={(error as any)?.data?.message}
             primaryAction={{ label: "Retry", onClick: refetch }}
           />
         )}
 
-        {!isLoading && !isError && rows.length === 0 && (
+        {!isLoading && rows.length === 0 && (
           <EmptyState
             title="No audit logs found"
             description="No audit events match the selected filters."
-            secondaryAction={{
-              label: "Clear filters",
-              onClick: clearFilters,
-            }}
+            secondaryAction={{ label: "Clear filters", onClick: clearFilters }}
           />
         )}
 
-        {!isLoading && !isError && rows.length > 0 && (
+        {rows.length > 0 && (
           <>
             <DataTable rows={rows} headers={headers}>
               {({ rows, headers, getHeaderProps, getRowProps }) => (
@@ -203,46 +185,65 @@ export default function AuditLogs() {
                   <Table size="lg">
                     <TableHead>
                       <TableRow>
-                        {headers.map((header) => (
-                          <TableHeader {...getHeaderProps({ header })}>
-                            {header.header}
-                          </TableHeader>
-                        ))}
+                        {headers.map(
+                          (header) =>
+                            header.key !== "raw" && (
+                              <TableHeader {...getHeaderProps({ header })}>
+                                {header.header}
+                              </TableHeader>
+                            )
+                        )}
                         <TableHeader />
                       </TableRow>
                     </TableHead>
 
                     <TableBody>
                       {rows.map((row) => {
-                        const raw = (row as any).raw as AuditLog;
+                        const raw = row.cells.find(
+                          (c) => c.info.header === "raw"
+                        )?.value as AuditLog;
 
                         return (
                           <TableRow {...getRowProps({ row })}>
-                            {row.cells.map((cell) => (
-                              <TableCell key={cell.id}>
-                                {cell.info.header === "result" ? (
-                                  <Tag
-                                    type={
-                                      cell.value === "success"
-                                        ? "green"
-                                        : cell.value === "failure"
-                                        ? "red"
-                                        : "gray"
-                                    }
-                                  >
-                                    {cell.value}
-                                  </Tag>
-                                ) : (
-                                  cell.value
-                                )}
-                              </TableCell>
-                            ))}
+                            {row.cells.map((cell) => {
+                              if (cell.info.header === "raw") return null;
+
+                              return (
+                                <TableCell key={cell.id}>
+                                  {cell.info.header === "result" ? (
+                                    <Tag
+                                      type={
+                                        cell.value === "success"
+                                          ? "green"
+                                          : cell.value === "failure"
+                                          ? "red"
+                                          : "gray"
+                                      }
+                                    >
+                                      {cell.value}
+                                    </Tag>
+                                  ) : (
+                                    cell.value
+                                  )}
+                                </TableCell>
+                              );
+                            })}
 
                             <TableCell style={{ textAlign: "right" }}>
                               <OverflowMenu size="sm" flipped>
                                 <OverflowMenuItem
                                   itemText="View"
-                                  onClick={() => setSelected(raw)}
+                                  onClick={() =>
+                                    openPanel({
+                                      title: "Audit Log",
+                                      content: (
+                                        <AuditLogPanel
+                                          log={raw}
+                                          onClose={closePanel}
+                                        />
+                                      ),
+                                    })
+                                  }
                                 />
                               </OverflowMenu>
                             </TableCell>
@@ -255,9 +256,8 @@ export default function AuditLogs() {
               )}
             </DataTable>
 
-            {/* Load more */}
             {hasMore && (
-              <div style={{ padding: 16, textAlign: "center" }}>
+              <div style={{ textAlign: "center", padding: 16 }}>
                 <Button
                   kind="secondary"
                   disabled={isFetching}
@@ -270,12 +270,6 @@ export default function AuditLogs() {
           </>
         )}
       </Tile>
-
-      <AuditLogDrawer
-        log={selected}
-        open={Boolean(selected)}
-        onClose={() => setSelected(null)}
-      />
     </div>
   );
 }
