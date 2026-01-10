@@ -1,4 +1,6 @@
 import { Dropdown, Button, Stack } from "@carbon/react";
+import { ImportUsersPanel } from "../panels/import-users-panel";
+import { useHeaderPanel } from "../header-panel/header-panel.context";
 
 interface UserFiltersProps {
   status: string;
@@ -19,6 +21,7 @@ export function UserFilters({
   onRoleChange,
   onToggleNeverLoggedIn,
 }: UserFiltersProps) {
+  const { openPanel } = useHeaderPanel();
   return (
     <Stack
       orientation="horizontal"
@@ -63,7 +66,17 @@ export function UserFilters({
         Never logged in
       </Button>
 
-      <Button size="md" kind="primary" onClick={() => {}}>
+      <Button
+        size="md"
+        kind="primary"
+        onClick={() => {
+          openPanel({
+            title: "Import users",
+            content: <ImportUsersPanel />,
+            size: "lg",
+          });
+        }}
+      >
         Import users
       </Button>
     </Stack>

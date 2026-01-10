@@ -110,8 +110,6 @@ export default function AuditLogs() {
             : log.metadata?.RawMessage?.success === false
             ? "failure"
             : "—",
-
-        // 🔒 hidden but preserved
         raw: log,
       })),
     [items]
@@ -124,8 +122,6 @@ export default function AuditLogs() {
     { key: "action", header: "Action" },
     { key: "client", header: "Client" },
     { key: "result", header: "Result" },
-
-    // technical column (NOT rendered)
     { key: "raw", header: "" },
   ];
 
