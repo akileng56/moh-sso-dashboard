@@ -97,8 +97,8 @@ export default function UsersPage() {
    * ----------------------------- */
   const filteredUsers = useMemo(() => {
     return users.filter((u) => {
-      if (statusFilter === "active" && !u.is_admin) return false;
-      if (statusFilter === "disabled" && u.is_admin) return false;
+      if (statusFilter === "active" && !u.is_active) return false;
+      if (statusFilter === "disabled" && u.is_active) return false;
       if (neverLoggedIn && u.last_login_at) return false;
       if (roleFilter !== "all" && !u?.client_roles?.admin?.includes(roleFilter))
         return false;
@@ -142,7 +142,7 @@ export default function UsersPage() {
     id: u.id,
     username: u.username,
     email: u.email ?? "—",
-    status: u.is_admin ? "Active" : "Disabled",
+    status: u.is_active ? "Active" : "Disabled",
     verified: u.email_verified ? "Verified" : "Not verified",
     lastLogin: u.last_login_at
       ? new Date(u.last_login_at).toLocaleString()
@@ -231,7 +231,7 @@ export default function UsersPage() {
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={user?.is_admin ? "green" : "red"}>
+                                  <Tag type={!user?.is_admin ? "green" : "red"}>
                                     {cell.value}
                                   </Tag>
                                 </TableCell>
@@ -262,7 +262,7 @@ export default function UsersPage() {
 
                                     <OverflowMenuItem
                                       itemText={
-                                        user?.is_admin
+                                        user?.is_active
                                           ? "Disable user"
                                           : "Enable user"
                                       }
@@ -270,11 +270,11 @@ export default function UsersPage() {
                                       onClick={() =>
                                         openEnableUserModal({
                                           username: user.username,
-                                          enabled: user?.is_admin,
+                                          enabled: user?.is_active,
                                           onConfirm: async () => {
                                             await toggleUser({
                                               id: user.id,
-                                              enabled: !user?.enabled,
+                                              enabled: !user?.is_active,
                                             }).unwrap();
                                           },
                                         })
