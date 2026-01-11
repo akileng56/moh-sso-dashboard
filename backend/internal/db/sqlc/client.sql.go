@@ -79,6 +79,7 @@ func (q *Queries) CountNewClientsToday(ctx context.Context) (int64, error) {
 const createClient = `-- name: CreateClient :exec
 
 INSERT INTO client (
+    id,
     client_id,
     name,
     description,
@@ -87,13 +88,14 @@ INSERT INTO client (
     public_client,
     enabled
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7,$8
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id
 `
 
 type CreateClientParams struct {
+	ID           uuid.UUID      `json:"id"`
 	ClientID     string         `json:"client_id"`
 	Name         string         `json:"name"`
 	Description  sql.NullString `json:"description"`
@@ -108,6 +110,7 @@ type CreateClientParams struct {
 // =====================================================
 func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) error {
 	_, err := q.db.ExecContext(ctx, createClient,
+		arg.ID,
 		arg.ClientID,
 		arg.Name,
 		arg.Description,
@@ -498,6 +501,7 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) erro
 
 const upsertClient = `-- name: UpsertClient :exec
 INSERT INTO client (
+    id,
     client_id,
     name,
     description,
@@ -506,7 +510,7 @@ INSERT INTO client (
     public_client,
     enabled
 )
-VALUES ($1, $2, $3, $4, $5, $6,$7)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (client_id)
 DO UPDATE SET
     name = EXCLUDED.name,
@@ -519,6 +523,7 @@ DO UPDATE SET
 `
 
 type UpsertClientParams struct {
+	ID           uuid.UUID      `json:"id"`
 	ClientID     string         `json:"client_id"`
 	Name         string         `json:"name"`
 	Description  sql.NullString `json:"description"`
@@ -530,6 +535,7 @@ type UpsertClientParams struct {
 
 func (q *Queries) UpsertClient(ctx context.Context, arg UpsertClientParams) error {
 	_, err := q.db.ExecContext(ctx, upsertClient,
+		arg.ID,
 		arg.ClientID,
 		arg.Name,
 		arg.Description,

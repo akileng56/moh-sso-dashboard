@@ -77,9 +77,11 @@ func (s *ClientService) CreateClient(
 		Enabled:      true,
 	}
 
-	if err := s.repo.CreateClient(newClient); err != nil {
+	if _, err := s.repo.CreateClient(newClient); err != nil {
 		return nil, err
 	}
+
+	// 🔔 Notify admins
 	nt := models.ClientCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),

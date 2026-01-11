@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -40,11 +41,10 @@ func NewClientRepository(
 }
 
 // CREATE (Keycloak = Source of Truth)
-func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
+func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, error) {
 	ctx := context.Background()
 
-	// 1️⃣ Create in Keycloak
-	if err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
+	kcID, err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
 		ClientID:     client.ClientID,
 		Name:         client.Name,
 		Description:  client.Description,
@@ -53,18 +53,31 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 		Protocol:     "openid-connect",
 		RedirectURIs: []string{},
 		WebOrigins:   []string{},
-	}); err != nil {
-		return fmt.Errorf("keycloak create failed: %w", err)
+		Attributes: map[string]string{
+			"icon": "applications",
+		}})
+	if err != nil {
+		return "", fmt.Errorf("keycloak create failed: %w", err)
 	}
 
-	// 2️⃣ Read back authoritative KC state
 	kcClient, err := r.keycloakClient.GetClientByClientID(client.ClientID)
 	if err != nil {
-		return fmt.Errorf("keycloak read-back failed: %w", err)
+		return "", fmt.Errorf("keycloak read-back failed: %w", err)
 	}
 
-	// 3️⃣ Best-effort DB UPSERT
+	var icon sql.NullString
+	if kcClient.Attributes != nil {
+		if v, ok := kcClient.Attributes["icon"]; ok && v != "" {
+			icon = sql.NullString{
+				String: v,
+				Valid:  true,
+			}
+		}
+	}
+
+	id, _ := uuid.Parse(kcID)
 	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
+		ID:       id,
 		ClientID: kcClient.ClientID,
 		Name:     kcClient.Name,
 		Description: sql.NullString{
@@ -75,6 +88,7 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 			String: kcClient.BaseURL,
 			Valid:  kcClient.BaseURL != "",
 		},
+		Icon: icon,
 		PublicClient: sql.NullBool{
 			Bool:  kcClient.PublicClient,
 			Valid: true,
@@ -90,8 +104,7 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) error {
 			"error", err,
 		)
 	}
-
-	return nil
+	return kcID, nil
 }
 
 // GET BY ID (Keycloak authoritative)
@@ -133,14 +146,17 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 		return nil, fmt.Errorf("failed to fetch keycloak clients: %w", err)
 	}
 
+	log.Printf("kcClients --> %+v", kcClients)
+
 	dbClients, err := r.db.ListClients(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	// DB indexed strictly by DB ID
 	dbMap := map[string]db.Client{}
 	for _, c := range dbClients {
-		dbMap[c.ClientID] = c
+		dbMap[c.ID.String()] = c
 	}
 
 	var result []models.Client
@@ -151,9 +167,13 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 			attributes["icon"] = icon
 		}
 
-		if entry, ok := dbMap[kc.ClientID]; ok {
+		log.Printf("ids", kc.ID)
+
+		// 🔑 LOOKUP BY KEYCLOAK ID
+		if _, ok := dbMap[kc.ID]; ok {
+			// Exists in DB
 			result = append(result, models.Client{
-				ID:           entry.ID.String(),
+				ID:           kc.ID, // Keycloak internal ID
 				ClientID:     kc.ClientID,
 				Name:         kc.Name,
 				Description:  kc.Description,
@@ -163,8 +183,9 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 				Attributes:   attributes,
 			})
 		} else {
+			// Exists only in Keycloak
 			result = append(result, models.Client{
-				ID:           "",
+				ID:           kc.ID, // still returned
 				ClientID:     kc.ClientID,
 				Name:         kc.Name,
 				Description:  kc.Description,
@@ -175,6 +196,8 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 			})
 		}
 	}
+
+	log.Printf("result-3 --> %+v", result)
 
 	return result, nil
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type ClientRepository interface {
-	CreateClient(app *models.Client) error
+	CreateClient(app *models.Client) (string, error)
 	GetClientByID(id string) (*models.Client, error)
 	ListClients() ([]models.Client, error)
 	UpdateClient(app *models.Client) error

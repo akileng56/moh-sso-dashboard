@@ -47,7 +47,7 @@ CREATE TABLE user_roles (
 --  CLIENTS (Registered Applications)
 -- ============================================================
 CREATE TABLE client (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id              UUID PRIMARY KEY,
     client_id       VARCHAR(100) UNIQUE NOT NULL,
     name            VARCHAR(255) NOT NULL,
     description     TEXT,
@@ -137,7 +137,7 @@ CREATE TABLE IF NOT EXISTS import_job_items (
   email       TEXT,
   first_name  TEXT,
   last_name   TEXT,
-roles         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  roles         TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   enabled     BOOLEAN,
   email_sent  BOOLEAN NOT NULL DEFAULT FALSE,
   email_sent_at TIMESTAMPTZ NOT NULL DEFAULT now(),

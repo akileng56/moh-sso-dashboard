@@ -4,6 +4,7 @@
 
 -- name: CreateClient :exec
 INSERT INTO client (
+    id,
     client_id,
     name,
     description,
@@ -12,13 +13,14 @@ INSERT INTO client (
     public_client,
     enabled
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7,$8
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id;
 
 -- name: UpsertClient :exec
 INSERT INTO client (
+    id,
     client_id,
     name,
     description,
@@ -27,7 +29,7 @@ INSERT INTO client (
     public_client,
     enabled
 )
-VALUES ($1, $2, $3, $4, $5, $6,$7)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 ON CONFLICT (client_id)
 DO UPDATE SET
     name = EXCLUDED.name,
