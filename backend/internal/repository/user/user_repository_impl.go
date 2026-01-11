@@ -46,7 +46,6 @@ func NewUserRepository(
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
-	// 1️⃣ Create user in Keycloak (AUTHORITATIVE)
 	kcID, err := r.keycloakClient.CreateUser(user)
 	if err != nil {
 		r.logger.Error("failed creating user in keycloak", "error", err)
@@ -58,7 +57,6 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 		return "", fmt.Errorf("invalid keycloak user id: %w", err)
 	}
 
-	// 2️⃣ Best-effort DB insert (cache only)
 	if err := r.db.UpsertUser(ctx, db.UpsertUserParams{
 		ID:       uid,
 		Username: user.Username,
@@ -90,13 +88,11 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	ctx := context.Background()
 
-	// 1️⃣ Always read from Keycloak
 	kcUser, err := r.keycloakClient.GetUser(id.String())
 	if err != nil {
 		return nil, fmt.Errorf("keycloak user not found: %w", err)
 	}
 
-	// 2️⃣ Optional DB metadata
 	row, err := r.db.GetUserByID(ctx, id)
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
@@ -132,29 +128,59 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 
 // LIST (Keycloak primary)
 func (r *userRepository) ListUsers() ([]models.User, error) {
+	ctx := context.Background()
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch keycloak users: %w", err)
 	}
 
-	result := make([]models.User, 0, len(kcUsers))
+	dbUsers, err := r.db.ListUsers(ctx)
+	if err != nil {
+		return nil, err
+	}
 
+	dbMap := map[string]db.User{}
+	for _, u := range dbUsers {
+		dbMap[u.ID.String()] = u
+	}
+
+	var result []models.User
 	for _, kc := range kcUsers {
-		result = append(result, models.User{
-			ID:            kc.ID,
-			Username:      kc.Username,
-			Email:         kc.Email,
-			FirstName:     kc.FirstName,
-			LastName:      kc.LastName,
-			FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
-			RealmRoles:    kc.Roles,
-			ClientRoles:   kc.ClientRoles,
-			IsAdmin:       slices.Contains(kc.Roles, "admin"),
-			Enabled:       kc.Enabled,
-			EmailVerified: kc.EmailVerified,
-			LastLoginAt:   kc.LastLoginAt,
-			CreatedAt:     kc.CreatedAt,
-		})
+		if entry, ok := dbMap[kc.ID]; ok {
+			result = append(result, models.User{
+				ID:            entry.ID.String(),
+				Username:      kc.Username,
+				Email:         kc.Email,
+				FirstName:     kc.FirstName,
+				LastName:      kc.LastName,
+				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
+				RealmRoles:    kc.Roles,
+				ClientRoles:   kc.ClientRoles,
+				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				Enabled:       kc.Enabled,
+				EmailVerified: kc.EmailVerified,
+				LastLoginAt:   pickTime(entry.LastLoginAt, kc.LastLoginAt),
+				CreatedAt:     kc.CreatedAt,
+				UpdatedAt:     kc.UpdatedAt,
+			})
+		} else {
+			result = append(result, models.User{
+				ID:            kc.ID,
+				Username:      kc.Username,
+				Email:         kc.Email,
+				FirstName:     kc.FirstName,
+				LastName:      kc.LastName,
+				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
+				RealmRoles:    kc.Roles,
+				ClientRoles:   kc.ClientRoles,
+				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				Enabled:       kc.Enabled,
+				EmailVerified: kc.EmailVerified,
+				LastLoginAt:   kc.LastLoginAt,
+				CreatedAt:     kc.CreatedAt,
+				UpdatedAt:     kc.UpdatedAt,
+			})
+		}
 	}
 
 	return result, nil
@@ -163,8 +189,6 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 // UPDATE (Keycloak first)
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
-
-	// 1️⃣ Update in Keycloak
 	if err := r.keycloakClient.UpdateUser(&models.User{
 		ID:        user.ID,
 		Email:     user.Email,
@@ -175,7 +199,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 		return fmt.Errorf("keycloak update failed: %w", err)
 	}
 
-	// 2️⃣ Best-effort DB sync
 	if err := r.db.UpsertUser(ctx, db.UpsertUserParams{
 		ID:       uuid.MustParse(user.ID),
 		Username: user.Username,
@@ -212,12 +235,10 @@ func (r *userRepository) DeleteUser(id string) error {
 		return fmt.Errorf("invalid UUID: %w", err)
 	}
 
-	// 1️⃣ Delete in Keycloak
 	if err := r.keycloakClient.DeleteUser(id); err != nil {
 		return fmt.Errorf("keycloak delete failed: %w", err)
 	}
 
-	// 2️⃣ Best-effort DB delete
 	if err := r.db.DeleteUser(ctx, uid); err != nil {
 		r.logger.Warn(
 			"user deleted in keycloak but db delete failed",
@@ -227,4 +248,11 @@ func (r *userRepository) DeleteUser(id string) error {
 	}
 
 	return nil
+}
+
+func pickTime(db sql.NullTime, kc *time.Time) *time.Time {
+	if db.Valid {
+		return &db.Time
+	}
+	return kc
 }

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/model"
 )
 
@@ -304,12 +305,12 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 		"firstName":     user.FirstName,
 		"lastName":      user.LastName,
 		"enabled":       user.Enabled,
-		"emailVerified": true,
+		"emailVerified": user.EmailVerified,
 		"credentials": []map[string]any{
 			{
 				"type":      "password",
-				"value":     "",
-				"temporary": false,
+				"value":     uuid.NewString(),
+				"temporary": true,
 			},
 		},
 	}
