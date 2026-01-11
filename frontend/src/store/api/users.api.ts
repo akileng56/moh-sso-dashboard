@@ -20,10 +20,24 @@ export const usersApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map((u) => ({ type: "User" as const, id: u.id })),
+              ...result.map((user) => ({
+                type: "User" as const,
+                id: user.id,
+              })),
               { type: "User", id: "LIST" },
             ]
           : [{ type: "User", id: "LIST" }],
+    }),
+
+    /* --------------------------------
+     * Get single user (optional but recommended)
+     * -------------------------------- */
+    getUser: builder.query<User, string>({
+      query: (id) => ({
+        url: API.users.byId(id),
+        credentials: "include",
+      }),
+      providesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
     /* --------------------------------
@@ -64,6 +78,7 @@ export const usersApi = baseApi.injectEndpoints({
         method: "POST",
         credentials: "include",
       }),
+      invalidatesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
     /* --------------------------------
@@ -86,7 +101,7 @@ export const usersApi = baseApi.injectEndpoints({
      * -------------------------------- */
     toggleUser: builder.mutation<void, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
-        url: `/users/${id}`,
+        url: API.users.toggerUser(id),
         method: enabled ? "POST" : "DELETE",
         credentials: "include",
       }),
@@ -100,6 +115,7 @@ export const usersApi = baseApi.injectEndpoints({
 
 export const {
   useListUsersQuery,
+  useGetUserQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
   useResetUserPasswordMutation,

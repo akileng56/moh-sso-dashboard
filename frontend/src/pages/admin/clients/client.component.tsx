@@ -275,10 +275,10 @@ export default function ClientsPage() {
                                           clientName: client.name,
                                           enabled: client?.enabled,
                                           onConfirm: async () => {
-                                            await toggleClient(
-                                              client.clientId,
-                                              client?.enabled
-                                            ).unwrap();
+                                            await toggleClient({
+                                              id: client.clientId,
+                                              enabled: !client?.enabled,
+                                            }).unwrap();
                                           },
                                         })
                                       }

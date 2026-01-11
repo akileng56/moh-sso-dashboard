@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
 
 	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -146,8 +145,6 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 		return nil, fmt.Errorf("failed to fetch keycloak clients: %w", err)
 	}
 
-	log.Printf("kcClients --> %+v", kcClients)
-
 	dbClients, err := r.db.ListClients(ctx)
 	if err != nil {
 		return nil, err
@@ -166,8 +163,6 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 		if icon, ok := kc.Attributes["icon"]; ok {
 			attributes["icon"] = icon
 		}
-
-		log.Printf("ids", kc.ID)
 
 		// 🔑 LOOKUP BY KEYCLOAK ID
 		if _, ok := dbMap[kc.ID]; ok {
@@ -196,8 +191,6 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 			})
 		}
 	}
-
-	log.Printf("result-3 --> %+v", result)
 
 	return result, nil
 }

@@ -20,9 +20,9 @@ export const clientsApi = baseApi.injectEndpoints({
       providesTags: (result) =>
         result
           ? [
-              ...result.map((c) => ({
+              ...result.map((client) => ({
                 type: "Client" as const,
-                id: c.clientId,
+                id: client.id,
               })),
               { type: "Client", id: "LIST" },
             ]
@@ -37,7 +37,7 @@ export const clientsApi = baseApi.injectEndpoints({
         url: API.clients.byId(id),
         credentials: "include",
       }),
-      providesTags: (_r, _e, id) => [{ type: "Client", id }],
+      providesTags: (_result, _error, id) => [{ type: "Client", id }],
     }),
 
     /* --------------------------------
