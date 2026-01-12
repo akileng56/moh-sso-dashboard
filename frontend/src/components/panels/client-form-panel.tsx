@@ -9,10 +9,13 @@ import {
   FormGroup,
 } from "@carbon/react";
 import { useMemo, useState } from "react";
+
 import {
   useCreateClientMutation,
   useUpdateClientMutation,
 } from "../../store/api/clients.api";
+import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert";
+import { useToast } from "../notifications/toast/useToast";
 
 export type ClientFormMode = "create" | "edit";
 
@@ -30,6 +33,8 @@ type Props = {
 };
 
 export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
+  const toast = useToast();
+
   const [form, setForm] = useState<ClientFormPayload>(
     initialClient ?? {
       clientId: "",
@@ -76,30 +81,47 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
     try {
       if (mode === "create") {
         await createClient(form).unwrap();
+
+        toast.success(
+          "Client created",
+          `Client "${form.name}" was created successfully`
+        );
       } else {
         await updateClient({
-          id: form?.clientId,
+          id: form.clientId,
           data: {
             name: form.name,
             publicClient: form.publicClient,
           },
         }).unwrap();
+
+        toast.success("Client updated", `Changes to "${form.name}" were saved`);
       }
 
       onSuccess?.();
     } catch (err: any) {
-      setError(
+      const message =
         err?.data?.message ??
-          (mode === "create"
-            ? "Failed to create client"
-            : "Failed to update client")
-      );
+        (mode === "create"
+          ? "Failed to create client"
+          : "Failed to update client");
+
+      setError(message);
+
+      toast.error("Operation failed", "Please review the form and try again");
     }
   };
 
   return (
     <Form>
       <Stack gap={5}>
+        {/* -----------------------------
+         * Inline form error
+         * ----------------------------- */}
+        {error && (
+          <FormInlineAlert title="Unable to save client" subtitle={error} />
+        )}
+
         {/* -----------------------------
          * Client details
          * ----------------------------- */}
@@ -116,10 +138,10 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               placeholder="moh-dashboard"
               required
               disabled={mode === "edit"}
-              value={form?.clientId}
+              value={form.clientId}
               invalid={
                 mode === "create" &&
-                form?.clientId.length > 0 &&
+                form.clientId.length > 0 &&
                 !isClientIdValid
               }
               invalidText="Only lowercase letters, numbers, and dashes are allowed"
@@ -159,11 +181,6 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
             />
           </Stack>
         </FormGroup>
-
-        {/* -----------------------------
-         * Error
-         * ----------------------------- */}
-        {error && <p style={{ color: "var(--cds-text-error)" }}>{error}</p>}
 
         {/* -----------------------------
          * Actions

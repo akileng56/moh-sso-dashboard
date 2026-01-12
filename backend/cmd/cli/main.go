@@ -101,7 +101,7 @@ var createClientCmd = &cobra.Command{
 			Enabled:                true,
 		}
 
-		if err := kc.CreateClient(params); err != nil {
+		if _, err := kc.CreateClient(params); err != nil {
 			log.Fatalf("❌ Error creating client: %v", err)
 		}
 

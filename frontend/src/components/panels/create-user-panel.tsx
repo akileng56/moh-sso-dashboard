@@ -10,11 +10,14 @@ import {
   FormGroup,
 } from "@carbon/react";
 import { useMemo, useState } from "react";
+
 import {
   useCreateUserMutation,
   useUpdateUserMutation,
 } from "../../store/api/users.api";
 import type { User } from "../../store/types/user.types";
+import { useToast } from "../notifications/toast/useToast";
+import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert";
 
 export type UserFormMode = "create" | "edit";
 
@@ -41,6 +44,8 @@ type Props = {
 };
 
 export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
+  const toast = useToast();
+
   const [form, setForm] = useState<UserFormPayload>({
     username: initialUser?.username ?? "",
     email: initialUser?.email ?? "",
@@ -63,7 +68,12 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
    * Validation
    * ----------------------------- */
   const isValid = useMemo(() => {
-    return form.username && form.email && form.firstName && form.lastName;
+    return (
+      Boolean(form.username) &&
+      Boolean(form.email) &&
+      Boolean(form.firstName) &&
+      Boolean(form.lastName)
+    );
   }, [form]);
 
   const handleChange = <K extends keyof UserFormPayload>(
@@ -84,6 +94,11 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
     try {
       if (mode === "create") {
         await createUser(form).unwrap();
+
+        toast.success(
+          "User created",
+          `User "${form.username}" was created successfully`
+        );
       } else if (initialUser?.id) {
         await updateUser({
           id: initialUser.id,
@@ -96,22 +111,35 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
             emailVerified: form.emailVerified,
           },
         }).unwrap();
+
+        toast.success(
+          "User updated",
+          `Changes to "${form.username}" were saved`
+        );
       }
 
       onSuccess?.();
     } catch (err: any) {
-      setError(
+      const message =
         err?.data?.message ??
-          (mode === "create"
-            ? "Failed to create user"
-            : "Failed to update user")
-      );
+        (mode === "create" ? "Failed to create user" : "Failed to update user");
+
+      setError(message);
+
+      toast.error("Operation failed", "Please review the form and try again");
     }
   };
 
   return (
     <Form>
       <Stack gap={5}>
+        {/* -----------------------------
+         * Inline form error
+         * ----------------------------- */}
+        {error && (
+          <FormInlineAlert title="Unable to save user" subtitle={error} />
+        )}
+
         {/* -----------------------------
          * User details
          * ----------------------------- */}
@@ -195,11 +223,6 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
             />
           </Stack>
         </FormGroup>
-
-        {/* -----------------------------
-         * Error
-         * ----------------------------- */}
-        {error && <p style={{ color: "var(--cds-text-error)" }}>{error}</p>}
 
         {/* -----------------------------
          * Actions

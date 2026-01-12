@@ -24,6 +24,7 @@ import {
 } from "../../store/api/notifications.api";
 import { NotificationsPanel } from "../../components/notifications/notifications-panel.component";
 import { API } from "../../lib/constants/api.constants";
+import { ToastProvider } from "../../components/notifications/toast/ToastProvider";
 
 function HeaderActions() {
   const user = useSelector(selectUser);
@@ -85,57 +86,59 @@ export default function AdminLayout() {
   const location = useLocation();
 
   return (
-    <HeaderPanelProvider>
-      {/* ================= Header ================= */}
-      <Header aria-label="MOH Integrated Health Portal">
-        <HeaderName
-          prefix="MOH"
-          onClick={() => navigate("/admin")}
-          style={{ cursor: "pointer" }}
-        >
-          Integrated Health Portal
-        </HeaderName>
-
-        <HeaderActions />
-      </Header>
-
-      {/* ================= Side Nav ================= */}
-      <SideNav isFixedNav expanded aria-label="Admin navigation">
-        <SideNavItems>
-          <SideNavLink
-            isActive={location.pathname === "/admin"}
+    <ToastProvider>
+      <HeaderPanelProvider>
+        {/* ================= Header ================= */}
+        <Header aria-label="MOH Integrated Health Portal">
+          <HeaderName
+            prefix="MOH"
             onClick={() => navigate("/admin")}
+            style={{ cursor: "pointer" }}
           >
-            Home
-          </SideNavLink>
+            Integrated Health Portal
+          </HeaderName>
 
-          <SideNavLink
-            isActive={location.pathname.startsWith("/admin/users")}
-            onClick={() => navigate("/admin/users")}
-          >
-            Users
-          </SideNavLink>
+          <HeaderActions />
+        </Header>
 
-          <SideNavLink
-            isActive={location.pathname.startsWith("/admin/clients")}
-            onClick={() => navigate("/admin/clients")}
-          >
-            Clients
-          </SideNavLink>
+        {/* ================= Side Nav ================= */}
+        <SideNav isFixedNav expanded aria-label="Admin navigation">
+          <SideNavItems>
+            <SideNavLink
+              isActive={location.pathname === "/admin"}
+              onClick={() => navigate("/admin")}
+            >
+              Home
+            </SideNavLink>
 
-          <SideNavLink
-            isActive={location.pathname.startsWith("/admin/audit-logs")}
-            onClick={() => navigate("/admin/audit-logs")}
-          >
-            Audits
-          </SideNavLink>
-        </SideNavItems>
-      </SideNav>
+            <SideNavLink
+              isActive={location.pathname.startsWith("/admin/users")}
+              onClick={() => navigate("/admin/users")}
+            >
+              Users
+            </SideNavLink>
 
-      {/* ================= Content ================= */}
-      <Content style={{ marginLeft: 256, paddingTop: "3rem" }}>
-        <Outlet />
-      </Content>
-    </HeaderPanelProvider>
+            <SideNavLink
+              isActive={location.pathname.startsWith("/admin/clients")}
+              onClick={() => navigate("/admin/clients")}
+            >
+              Clients
+            </SideNavLink>
+
+            <SideNavLink
+              isActive={location.pathname.startsWith("/admin/audit-logs")}
+              onClick={() => navigate("/admin/audit-logs")}
+            >
+              Audits
+            </SideNavLink>
+          </SideNavItems>
+        </SideNav>
+
+        {/* ================= Content ================= */}
+        <Content style={{ marginLeft: 256, paddingTop: "3rem" }}>
+          <Outlet />
+        </Content>
+      </HeaderPanelProvider>
+    </ToastProvider>
   );
 }
