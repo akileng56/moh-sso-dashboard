@@ -5,112 +5,213 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
+	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/service"
 )
 
 type ImportHandler struct {
-	importSevice *service.ImportService
-	config       *config.Config
+	importService *service.ImportService
+	config        *config.Config
 }
 
-func NewImportHandler(importSevice *service.ImportService, config *config.Config) *ImportHandler {
+func NewImportHandler(
+	importService *service.ImportService,
+	config *config.Config,
+) *ImportHandler {
 	return &ImportHandler{
-		importSevice: importSevice,
-		config:       config,
+		importService: importService,
+		config:        config,
 	}
 }
+
+/* =========================================================
+ * Preview CSV
+ * ========================================================= */
 
 func (h *ImportHandler) Preview(c *gin.Context) {
 	file, err := c.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "file is required"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"CSV file is required",
+		)
 		return
 	}
 
 	f, err := file.Open()
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "unable to open file"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_FILE",
+			"Unable to open uploaded file",
+		)
 		return
 	}
 	defer f.Close()
 
-	createdBy := c.GetString("user_email") // adapt to your auth middleware
+	createdBy := c.GetString("user_email")
 	if createdBy == "" {
 		createdBy = "unknown"
 	}
 
-	resp, err := h.importSevice.PreviewCSV(c.Request.Context(), f, file.Filename, createdBy)
+	resp, err := h.importService.PreviewCSV(
+		c.Request.Context(),
+		f,
+		file.Filename,
+		createdBy,
+	)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			err.Error(),
+		)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	response.OK(c, http.StatusOK, resp)
 }
+
+/* =========================================================
+ * Execute Import Job
+ * ========================================================= */
 
 func (h *ImportHandler) Execute(c *gin.Context) {
 	var body struct {
 		JobID string `json:"jobId"`
 	}
+
 	if err := c.ShouldBindJSON(&body); err != nil || body.JobID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "jobId is required"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"jobId is required",
+		)
 		return
 	}
 
-	id, err := uuid.Parse(body.JobID)
+	jobID, err := uuid.Parse(body.JobID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jobId"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid jobId format",
+		)
 		return
 	}
 
-	resp, err := h.importSevice.Execute(c.Request.Context(), id)
+	resp, err := h.importService.Execute(
+		c.Request.Context(),
+		jobID,
+	)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to execute import job",
+		)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	response.OK(c, http.StatusOK, resp)
 }
+
+/* =========================================================
+ * Get Import Job
+ * ========================================================= */
 
 func (h *ImportHandler) GetJob(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("jobId"))
+	jobID, err := uuid.Parse(c.Param("jobId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jobId"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid jobId format",
+		)
 		return
 	}
 
-	resp, err := h.importSevice.GetJob(c.Request.Context(), id)
+	resp, err := h.importService.GetJob(
+		c.Request.Context(),
+		jobID,
+	)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		response.Fail(
+			c,
+			http.StatusNotFound,
+			"JOB_NOT_FOUND",
+			"Import job not found",
+		)
 		return
 	}
 
-	c.JSON(http.StatusOK, resp)
+	response.OK(c, http.StatusOK, resp)
 }
+
+/* =========================================================
+ * Download CSV Template (streaming – no envelope)
+ * ========================================================= */
 
 func (h *ImportHandler) DownloadTemplateCSV(c *gin.Context) {
 	c.Header("Content-Type", "text/csv")
-	c.Header("Content-Disposition", `attachment; filename="users_import_template.csv"`)
-	c.String(http.StatusOK, "username,email,first_name,last_name,role,enabled,client_ids\n")
+	c.Header(
+		"Content-Disposition",
+		`attachment; filename="users_import_template.csv"`,
+	)
+
+	c.String(
+		http.StatusOK,
+		"username,email,first_name,last_name,role,enabled,client_ids\n",
+	)
 }
 
+/* =========================================================
+ * Download Error CSV (streaming – no envelope)
+ * ========================================================= */
+
 func (h *ImportHandler) DownloadErrorsCSV(c *gin.Context) {
-	id, err := uuid.Parse(c.Param("jobId"))
+	jobID, err := uuid.Parse(c.Param("jobId"))
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid jobId"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid jobId format",
+		)
 		return
 	}
 
-	job, err := h.importSevice.GetJob(c.Request.Context(), id)
+	job, err := h.importService.GetJob(
+		c.Request.Context(),
+		jobID,
+	)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "job not found"})
+		response.Fail(
+			c,
+			http.StatusNotFound,
+			"JOB_NOT_FOUND",
+			"Import job not found",
+		)
 		return
 	}
 
-	csv := h.importSevice.BuildErrorCSV(job.Rows)
+	csv := h.importService.BuildErrorCSV(job.Rows)
 
 	c.Header("Content-Type", "text/csv")
-	c.Header("Content-Disposition", `attachment; filename="users_import_errors.csv"`)
+	c.Header(
+		"Content-Disposition",
+		`attachment; filename="users_import_errors.csv"`,
+	)
+
 	c.String(http.StatusOK, csv)
 }

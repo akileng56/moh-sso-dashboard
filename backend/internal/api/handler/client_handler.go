@@ -1,11 +1,14 @@
 package handler
 
 import (
-	"log"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/moh-sso-dashboard/internal/http/apierror"
+	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -16,147 +19,169 @@ type ClientHandler struct {
 	auditService *service.AuditService
 }
 
-func NewClientHandler(s *service.ClientService, audit *service.AuditService) *ClientHandler {
-	return &ClientHandler{service: s, auditService: audit}
+func NewClientHandler(
+	s *service.ClientService,
+	audit *service.AuditService,
+) *ClientHandler {
+	return &ClientHandler{
+		service:      s,
+		auditService: audit,
+	}
 }
 
+/* =========================================================
+ * Create Client
+ * ========================================================= */
 func (h *ClientHandler) CreateClient(c *gin.Context) {
-
-	user_id := c.GetString("user_id")
-
-	id, _ := uuid.Parse(user_id)
+	userIDStr := c.GetString("user_id")
+	userID, _ := uuid.Parse(userIDStr)
 
 	var req service.CreateClientRequest
-
 	if err := c.ShouldBindJSON(&req); err != nil {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"client.create_failed",
 			map[string]interface{}{
-				"reason":     "invalid_body",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "invalid_body",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
-		return
-	}
-
-	newApp, err := h.service.CreateClient(c.Request.Context(), req, id)
-	if err != nil {
-		log.Printf("ERROR: Failed to create client: %v", err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
-			"client.create_failed",
-			map[string]interface{}{
-				"client_id":  req.ClientID,
-				"reason":     err.Error(),
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Invalid request payload",
 		)
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create client"})
 		return
 	}
 
-	_ = h.auditService.Log(
+	newClient, err := h.service.CreateClient(
 		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
+		req,
+		userID,
+	)
+	if err != nil {
+		h.audit(
+			c,
+			"client.create_failed",
+			map[string]interface{}{
+				"client_id": req.ClientID,
+				"reason":    err.Error(),
+			},
+		)
+
+		var apiErr *apierror.APIError
+		if errors.As(err, &apiErr) {
+			response.Fail(
+				c,
+				apiErr.HTTPStatus,
+				apiErr.Code,
+				apiErr.Message,
+			)
+			return
+		}
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to create client",
+		)
+		return
+	}
+
+	h.audit(
+		c,
 		"client.create_success",
 		map[string]interface{}{
-			"client_id":  newApp.ClientID,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"client_id": newClient.ClientID,
 		},
 	)
 
-	c.JSON(http.StatusCreated, newApp)
+	response.OK(c, http.StatusCreated, newClient)
 }
 
+/* =========================================================
+ * Get Client
+ * ========================================================= */
 func (h *ClientHandler) GetClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"client.get_failed",
 			map[string]interface{}{
-				"reason":     "missing_id",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "missing_id",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Client ID is required"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Client ID is required",
+		)
 		return
 	}
 
-	app, err := h.service.GetClient(id)
+	client, err := h.service.GetClient(id)
 	if err != nil {
-		log.Printf("ERROR: Failed to get client ID %s: %v", id, err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"client.get_failed",
 			map[string]interface{}{
-				"client_id":  id,
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"client_id": id,
 			},
 		)
 
-		c.JSON(http.StatusNotFound, gin.H{"error": "Client not found"})
+		response.Fail(
+			c,
+			http.StatusNotFound,
+			"CLIENT_NOT_FOUND",
+			"Client not found",
+		)
 		return
 	}
 
-	_ = h.auditService.Log(
-		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
-		"client.success",
+	h.audit(
+		c,
+		"client.get_success",
 		map[string]interface{}{
-			"client_id":  id,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"client_id": id,
 		},
 	)
 
-	c.JSON(http.StatusOK, app)
+	response.OK(c, http.StatusOK, client)
 }
 
+/* =========================================================
+ * List Clients
+ * ========================================================= */
 func (h *ClientHandler) ListClients(c *gin.Context) {
-
-	_ = h.auditService.Log(
-		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
-		"client.lists",
-		map[string]interface{}{
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		},
+	h.audit(
+		c,
+		"client.list",
+		nil,
 	)
 
-	apps, err := h.service.ListClients()
+	clients, err := h.service.ListClients()
 	if err != nil {
-		log.Printf("ERROR: Failed to list clients: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list clients"})
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to list clients",
+		)
 		return
 	}
 
 	clientRoles := c.MustGet("client_roles").(map[string][]string)
 	isAdmin := c.GetBool("is_admin")
 
-	filtered := []model.Client{}
+	filtered := make([]model.Client, 0)
 
-	for _, client := range apps {
-
+	for _, client := range clients {
 		if client.Attributes == nil || client.Attributes["icon"] == "" {
 			continue
 		}
@@ -166,100 +191,129 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 			continue
 		}
 
-		clientID := client.ClientID
+		roles := clientRoles[client.ClientID]
+		expectedRole := client.ClientID + "_access"
 
-		roles, ok := clientRoles[clientID]
-		if !ok || len(roles) == 0 {
-			continue
-		}
-
-		expectedRole := clientID + "_access"
-
-		hasAccess := false
 		for _, r := range roles {
 			if r == expectedRole {
-				hasAccess = true
+				filtered = append(filtered, client)
 				break
 			}
 		}
-
-		if hasAccess {
-			filtered = append(filtered, client)
-		}
 	}
 
-	c.JSON(http.StatusOK, filtered)
+	response.OK(c, http.StatusOK, filtered)
 }
 
+/* =========================================================
+ * Delete Client
+ * ========================================================= */
 func (h *ClientHandler) DeleteClient(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"client.delete_failed",
 			map[string]interface{}{
-				"reason":     "missing_id",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "missing_id",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Client ID is required"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Client ID is required",
+		)
 		return
 	}
 
-	uid, err := uuid.Parse(id)
-
-	user_id, _ := uuid.Parse(c.GetString("user_id"))
+	clientID, err := uuid.Parse(id)
 	if err != nil {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"client.delete_failed",
 			map[string]interface{}{
-				"client_id":  id,
-				"reason":     "invalid_uuid",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"client_id": id,
+				"reason":    "invalid_uuid",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UUID format"})
-		return
-	}
-
-	if err := h.service.DeleteClient(c.Request.Context(), uid, user_id); err != nil {
-		log.Printf("ERROR: Failed to delete client ID %s: %v", id, err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
-			"client.delete_failed",
-			map[string]interface{}{
-				"client_id":  id,
-				"reason":     err.Error(),
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid client ID format",
 		)
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete client"})
 		return
 	}
 
-	_ = h.auditService.Log(
+	userID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.DeleteClient(
 		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
+		clientID,
+		userID,
+	); err != nil {
+		h.audit(
+			c,
+			"client.delete_failed",
+			map[string]interface{}{
+				"client_id": id,
+				"reason":    err.Error(),
+			},
+		)
+
+		var apiErr *apierror.APIError
+		if errors.As(err, &apiErr) {
+			response.Fail(
+				c,
+				apiErr.HTTPStatus,
+				apiErr.Code,
+				apiErr.Message,
+			)
+			return
+		}
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to delete client",
+		)
+		return
+	}
+
+	h.audit(
+		c,
 		"client.delete_success",
 		map[string]interface{}{
-			"client_id":  id,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"client_id": id,
 		},
 	)
 
 	c.Status(http.StatusNoContent)
+}
+
+/* =========================================================
+ * Audit helper
+ * ========================================================= */
+func (h *ClientHandler) audit(
+	c *gin.Context,
+	action string,
+	meta map[string]interface{},
+) {
+	if meta == nil {
+		meta = map[string]interface{}{}
+	}
+
+	meta["ip"] = c.ClientIP()
+	meta["user_agent"] = c.Request.UserAgent()
+
+	_ = h.auditService.Log(
+		c.Request.Context(),
+		utils.ToNullUUID(c.GetString("user_id")),
+		action,
+		meta,
+	)
 }

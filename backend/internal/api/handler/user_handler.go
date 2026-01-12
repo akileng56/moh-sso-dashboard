@@ -1,23 +1,27 @@
 package handler
 
 import (
-	"log"
+	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+
+	"github.com/moh-sso-dashboard/internal/http/apierror"
+	"github.com/moh-sso-dashboard/internal/http/response"
 	models "github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
 
+/* =========================================================
+ * Helpers
+ * ========================================================= */
+
 func toUserResponse(u *models.User) models.UserResponse {
 	fullName := strings.TrimSpace(
-		strings.Join(
-			[]string{u.FirstName, u.LastName},
-			" ",
-		),
+		strings.Join([]string{u.FirstName, u.LastName}, " "),
 	)
 
 	return models.UserResponse{
@@ -44,203 +48,302 @@ type UserHandler struct {
 	auditService *service.AuditService
 }
 
-func NewUserHandler(s *service.UserService, audit *service.AuditService) *UserHandler {
-	return &UserHandler{service: s, auditService: audit}
+func NewUserHandler(
+	s *service.UserService,
+	audit *service.AuditService,
+) *UserHandler {
+	return &UserHandler{
+		service:      s,
+		auditService: audit,
+	}
 }
 
+/* =========================================================
+ * Create User
+ * ========================================================= */
+
 func (h *UserHandler) CreateUser(c *gin.Context) {
-
 	var req service.CreateUserRequest
+
 	if err := c.ShouldBindJSON(&req); err != nil {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"user.create_failed",
 			map[string]interface{}{
-				"reason":     "invalid_body",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "invalid_body",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "details": err.Error()})
-		return
-	}
-
-	user_id, _ := uuid.Parse(c.GetString("user_id"))
-
-	newUser, err := h.service.CreateUser(c.Request.Context(), req, user_id)
-	if err != nil {
-		log.Printf("ERROR: Failed to create user: %v", err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
-			"user.create_failed",
-			map[string]interface{}{
-				"username":   req.Username,
-				"email":      req.Email,
-				"reason":     err.Error(),
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Invalid request payload",
 		)
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
-	_ = h.auditService.Log(
+	actorID, _ := uuid.Parse(c.GetString("user_id"))
+
+	user, err := h.service.CreateUser(
 		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
+		req,
+		actorID,
+	)
+	if err != nil {
+		h.audit(
+			c,
+			"user.create_failed",
+			map[string]interface{}{
+				"username": req.Username,
+				"email":    req.Email,
+				"reason":   err.Error(),
+			},
+		)
+
+		var apiErr *apierror.APIError
+		if errors.As(err, &apiErr) {
+			response.Fail(
+				c,
+				apiErr.HTTPStatus,
+				apiErr.Code,
+				apiErr.Message,
+			)
+			return
+		}
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to create user",
+		)
+		return
+	}
+
+	h.audit(
+		c,
 		"user.create_success",
 		map[string]interface{}{
-			"user_id":    newUser.ID,
-			"username":   newUser.Username,
-			"email":      newUser.Email,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"user_id":  user.ID,
+			"username": user.Username,
+			"email":    user.Email,
 		},
 	)
 
-	response := toUserResponse(newUser)
-	c.JSON(http.StatusCreated, response)
+	response.OK(
+		c,
+		http.StatusCreated,
+		toUserResponse(user),
+	)
 }
+
+/* =========================================================
+ * Get User
+ * ========================================================= */
 
 func (h *UserHandler) GetUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"user.get_failed",
 			map[string]interface{}{
-				"reason":     "missing_id",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "missing_id",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"User ID is required",
+		)
 		return
 	}
 
-	userID, _ := uuid.Parse(id)
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid user ID format",
+		)
+		return
+	}
 
 	user, err := h.service.GetUser(userID)
 	if err != nil {
-		log.Printf("ERROR: Failed to get user ID %s: %v", id, err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"user.get_failed",
 			map[string]interface{}{
-				"user_id":    id,
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"user_id": id,
 			},
 		)
 
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		response.Fail(
+			c,
+			http.StatusNotFound,
+			"USER_NOT_FOUND",
+			"User not found",
+		)
 		return
 	}
 
-	_ = h.auditService.Log(
-		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
-		"user.success",
+	h.audit(
+		c,
+		"user.get_success",
 		map[string]interface{}{
-			"user_id":    id,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"user_id": id,
 		},
 	)
 
-	response := toUserResponse(user)
-	c.JSON(http.StatusOK, response)
+	response.OK(
+		c,
+		http.StatusOK,
+		toUserResponse(user),
+	)
 }
 
-func (h *UserHandler) ListUsers(c *gin.Context) {
+/* =========================================================
+ * List Users
+ * ========================================================= */
 
-	_ = h.auditService.Log(
-		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
-		"user.lists",
-		map[string]interface{}{
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
-		},
+func (h *UserHandler) ListUsers(c *gin.Context) {
+	h.audit(
+		c,
+		"user.list",
+		nil,
 	)
 
 	users, err := h.service.ListUsers()
 	if err != nil {
-		log.Printf("ERROR: Failed to list users: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list users"})
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to list users",
+		)
 		return
 	}
 
 	responses := make([]models.UserResponse, len(users))
-	for i, user := range users {
-		responses[i] = toUserResponse(&user)
+	for i := range users {
+		responses[i] = toUserResponse(&users[i])
 	}
-	c.JSON(http.StatusOK, responses)
+
+	response.OK(
+		c,
+		http.StatusOK,
+		responses,
+	)
 }
+
+/* =========================================================
+ * Delete User
+ * ========================================================= */
 
 func (h *UserHandler) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
+		h.audit(
+			c,
 			"user.delete_failed",
 			map[string]interface{}{
-				"reason":     "missing_id",
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
+				"reason": "missing_id",
 			},
 		)
 
-		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID is required"})
-		return
-	}
-
-	user_id, _ := uuid.Parse(c.GetString("user_id"))
-
-	uid, _ := uuid.Parse(id)
-
-	if err := h.service.DeleteUser(c.Request.Context(), uid, user_id); err != nil {
-		log.Printf("ERROR: Failed to delete user ID %s: %v", id, err)
-
-		_ = h.auditService.Log(
-			c.Request.Context(),
-			utils.ToNullUUID(c.GetString("user_id")),
-			"user.delete_failed",
-			map[string]interface{}{
-				"user_id":    id,
-				"reason":     err.Error(),
-				"ip":         c.ClientIP(),
-				"user_agent": c.Request.UserAgent(),
-			},
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"User ID is required",
 		)
-
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete user"})
 		return
 	}
 
-	h.auditService.Log(
+	userID, err := uuid.Parse(id)
+	if err != nil {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid user ID format",
+		)
+		return
+	}
+
+	actorID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.DeleteUser(
 		c.Request.Context(),
-		utils.ToNullUUID(c.GetString("user_id")),
+		userID,
+		actorID,
+	); err != nil {
+		h.audit(
+			c,
+			"user.delete_failed",
+			map[string]interface{}{
+				"user_id": id,
+				"reason":  err.Error(),
+			},
+		)
+
+		var apiErr *apierror.APIError
+		if errors.As(err, &apiErr) {
+			response.Fail(
+				c,
+				apiErr.HTTPStatus,
+				apiErr.Code,
+				apiErr.Message,
+			)
+			return
+		}
+
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to delete user",
+		)
+		return
+	}
+
+	h.audit(
+		c,
 		"user.delete_success",
 		map[string]interface{}{
-			"user_id":    id,
-			"ip":         c.ClientIP(),
-			"user_agent": c.Request.UserAgent(),
+			"user_id": id,
 		},
 	)
 
 	c.Status(http.StatusNoContent)
+}
+
+/* =========================================================
+ * Audit helper
+ * ========================================================= */
+
+func (h *UserHandler) audit(
+	c *gin.Context,
+	action string,
+	meta map[string]interface{},
+) {
+	if meta == nil {
+		meta = map[string]interface{}{}
+	}
+
+	meta["ip"] = c.ClientIP()
+	meta["user_agent"] = c.Request.UserAgent()
+
+	_ = h.auditService.Log(
+		c.Request.Context(),
+		utils.ToNullUUID(c.GetString("user_id")),
+		action,
+		meta,
+	)
 }
