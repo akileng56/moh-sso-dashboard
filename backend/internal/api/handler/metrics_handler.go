@@ -7,8 +7,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-
-	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/service"
 )
 
@@ -20,105 +18,82 @@ func NewMetricsHandler(s *service.MetricsService) *MetricsHandler {
 	return &MetricsHandler{service: s}
 }
 
-/* =========================================================
- * Helpers
- * ========================================================= */
-
+// ===== Helper: Parse time range =====
 func (h *MetricsHandler) parseRange(c *gin.Context) (time.Time, time.Time, bool) {
 	startStr := c.Query("start")
 	endStr := c.Query("end")
 
 	if startStr == "" || endStr == "" {
-		response.Fail(
-			c,
-			http.StatusBadRequest,
-			"VALIDATION_FAILED",
-			"Both start and end parameters are required (RFC3339)",
-		)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing start or end parameter"})
 		return time.Time{}, time.Time{}, false
 	}
 
 	start, err := time.Parse(time.RFC3339, startStr)
 	if err != nil {
-		response.Fail(
-			c,
-			http.StatusBadRequest,
-			"INVALID_DATE_FORMAT",
-			"Invalid start format (must be RFC3339)",
-		)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid start format (must be RFC3339)"})
 		return time.Time{}, time.Time{}, false
 	}
 
 	end, err := time.Parse(time.RFC3339, endStr)
 	if err != nil {
-		response.Fail(
-			c,
-			http.StatusBadRequest,
-			"INVALID_DATE_FORMAT",
-			"Invalid end format (must be RFC3339)",
-		)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid end format (must be RFC3339)"})
 		return time.Time{}, time.Time{}, false
 	}
 
 	return start, end, true
 }
 
-/* =========================================================
- * System Metrics
- * ========================================================= */
+//
+// ===== SYSTEM METRICS =====
+//
 
 func (h *MetricsHandler) CountUsers(c *gin.Context) {
 	v, err := h.service.CountUsers(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to count users")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"total_users": v})
+	c.JSON(200, gin.H{"total_users": v})
 }
 
 func (h *MetricsHandler) CountDisabledUsers(c *gin.Context) {
 	v, err := h.service.CountDisabledUsers(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to count disabled users")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"disabled_users": v})
+	c.JSON(200, gin.H{"disabled_users": v})
 }
 
 func (h *MetricsHandler) ActiveUsersToday(c *gin.Context) {
 	v, err := h.service.ActiveUsersToday(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch active users today")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"active_users_today": v})
+	c.JSON(200, gin.H{"active_users_today": v})
 }
 
 func (h *MetricsHandler) ActiveUsersThisWeek(c *gin.Context) {
 	v, err := h.service.ActiveUsersThisWeek(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch active users this week")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"active_users_this_week": v})
+	c.JSON(200, gin.H{"active_users_this_week": v})
 }
 
-/* =========================================================
- * Login Trends
- * ========================================================= */
+//
+// ===== LOGIN TREND =====
+//
 
 func (h *MetricsHandler) LoginTrend(c *gin.Context) {
 	rows, err := h.service.LoginTrend(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch login trend")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) LoginTrendByDay(c *gin.Context) {
@@ -129,25 +104,24 @@ func (h *MetricsHandler) LoginTrendByDay(c *gin.Context) {
 
 	rows, err := h.service.LoginTrendByDay(c.Request.Context(), start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch login trend")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
-/* =========================================================
- * Security Metrics
- * ========================================================= */
+//
+// ===== SECURITY METRICS =====
+//
 
 func (h *MetricsHandler) CountFailedLogins(c *gin.Context) {
 	v, err := h.service.CountFailedLogins(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to count failed logins")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"failed_logins": v})
+	c.JSON(200, gin.H{"failed_logins": v})
 }
 
 func (h *MetricsHandler) CountFailedLoginsInRange(c *gin.Context) {
@@ -158,11 +132,11 @@ func (h *MetricsHandler) CountFailedLoginsInRange(c *gin.Context) {
 
 	v, err := h.service.CountFailedLoginsInRange(c.Request.Context(), start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to count failed logins")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, gin.H{"failed_logins": v})
+	c.JSON(200, gin.H{"failed_logins": v})
 }
 
 func (h *MetricsHandler) SuspiciousLogins(c *gin.Context) {
@@ -171,34 +145,28 @@ func (h *MetricsHandler) SuspiciousLogins(c *gin.Context) {
 		return
 	}
 
-	home := c.Query("home")
+	homeCountry := c.Query("home")
 
-	rows, err := h.service.SuspiciousLogins(
-		c.Request.Context(),
-		start,
-		end,
-		home,
-	)
+	rows, err := h.service.SuspiciousLogins(c.Request.Context(), start, end, homeCountry)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch suspicious logins")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
-/* =========================================================
- * Client Metrics
- * ========================================================= */
+//
+// ===== CLIENT METRICS =====
+//
 
 func (h *MetricsHandler) CountClients(c *gin.Context) {
 	v, err := h.service.CountClients(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to count clients")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, gin.H{"total_clients": v})
+	c.JSON(200, gin.H{"total_clients": v})
 }
 
 func (h *MetricsHandler) MostAccessedClients(c *gin.Context) {
@@ -214,34 +182,28 @@ func (h *MetricsHandler) MostAccessedClients(c *gin.Context) {
 		}
 	}
 
-	rows, err := h.service.MostAccessedClients(
-		c.Request.Context(),
-		start,
-		end,
-		limit,
-	)
+	rows, err := h.service.MostAccessedClients(c.Request.Context(), start, end, limit)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch client usage")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) ActiveUsersPerClientToday(c *gin.Context) {
 	rows, err := h.service.ActiveUsersPerClientToday(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch active users per client")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
-
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) LoginCountForClient(c *gin.Context) {
 	clientID := c.Query("client_id")
 	if clientID == "" {
-		response.Fail(c, http.StatusBadRequest, "CLIENT_ID NOT FOUND", "client_id required")
+		c.JSON(400, gin.H{"error": "client_id required"})
 		return
 	}
 
@@ -252,38 +214,45 @@ func (h *MetricsHandler) LoginCountForClient(c *gin.Context) {
 
 	v, err := h.service.LoginCountForClient(c.Request.Context(), clientID, start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, gin.H{"login_count": v})
+	c.JSON(200, gin.H{"login_count": v})
 }
 
-/* =========================================================
- * User Metrics
- * ========================================================= */
+//
+// ===== USER METRICS =====
+//
 
 func (h *MetricsHandler) LastLoginForUser(c *gin.Context) {
-	userID, err := uuid.Parse(c.Param("userID"))
-	if err != nil {
-		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid user ID format")
-		return
-	}
+	uid := c.Param("userID")
 
+	userID, err := uuid.Parse(uid)
+
+	if err != nil {
+
+		c.JSON(500, gin.H{"error": err.Error()})
+
+	}
 	row, err := h.service.LastLoginForUser(c.Request.Context(), userID)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch last login")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, row)
+	c.JSON(200, row)
 }
 
 func (h *MetricsHandler) UserClientUsage(c *gin.Context) {
-	userID, err := uuid.Parse(c.Param("userID"))
+	uid := c.Param("userID")
+
+	userID, err := uuid.Parse(uid)
+
 	if err != nil {
-		response.Fail(c, http.StatusBadGateway, "INVALID_UUID", "Invalid user ID format")
-		return
+
+		c.JSON(500, gin.H{"error": err.Error()})
+
 	}
 
 	start, end, ok := h.parseRange(c)
@@ -291,18 +260,13 @@ func (h *MetricsHandler) UserClientUsage(c *gin.Context) {
 		return
 	}
 
-	rows, err := h.service.ClientUsageForUser(
-		c.Request.Context(),
-		userID,
-		start,
-		end,
-	)
+	rows, err := h.service.ClientUsageForUser(c.Request.Context(), userID, start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch client usage")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) NewUsersInRange(c *gin.Context) {
@@ -313,11 +277,11 @@ func (h *MetricsHandler) NewUsersInRange(c *gin.Context) {
 
 	rows, err := h.service.NewUsersInRange(c.Request.Context(), start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch new users")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) NewUsersTrend(c *gin.Context) {
@@ -328,69 +292,87 @@ func (h *MetricsHandler) NewUsersTrend(c *gin.Context) {
 
 	rows, err := h.service.NewUsersTrend(c.Request.Context(), start, end)
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch user trend")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
 
 func (h *MetricsHandler) NeverLoggedInUsers(c *gin.Context) {
 	rows, err := h.service.NeverLoggedInUsers(c.Request.Context())
 	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to fetch users")
+		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	response.OK(c, http.StatusOK, rows)
+	c.JSON(200, rows)
 }
-
-/* =========================================================
- * Overview (Dashboard)
- * ========================================================= */
 
 func (h *MetricsHandler) Overview(c *gin.Context) {
 	ctx := c.Request.Context()
+
+	// ===== System Metrics =====
+	totalUsers, _ := h.service.CountUsers(ctx)
+	disabledUsers, _ := h.service.CountDisabledUsers(ctx)
+	activeToday, _ := h.service.ActiveUsersToday(ctx)
+	activeWeek, _ := h.service.ActiveUsersThisWeek(ctx)
+
+	// ===== Client Metrics =====
+	totalClients, _ := h.service.CountClients(ctx)
+	enabledClients, _ := h.service.CountEnabledClients(ctx)
+	activePerClientToday, _ := h.service.ActiveUsersPerClientToday(ctx)
+
+	// ===== Security Metrics =====
+	failedLogins, _ := h.service.CountFailedLogins(ctx)
+	activeSessions, _ := h.service.ApproximateActiveSessions(ctx)
+
+	// ===== Recent Trends (Last 30 Days) =====
 	now := time.Now()
 	start := now.AddDate(0, 0, -30)
 
-	response.OK(c, http.StatusOK, gin.H{
+	loginTrend, _ := h.service.LoginTrendByDay(ctx, start, now)
+	newUsersTrend, _ := h.service.NewUsersTrend(ctx, start, now)
+
+	// ===== Recently Created =====
+	recentClients, _ := h.service.RecentlyCreatedClients(ctx, 10)
+	recentUsers, _ := h.service.NewUsersInRange(ctx, start, now)
+
+	// ===== Never Logged In =====
+	neverLogged, _ := h.service.NeverLoggedInUsers(ctx)
+
+	// Build Response
+	response := gin.H{
 		"system": gin.H{
-			"total_users":            must(h.service.CountUsers(ctx)),
-			"disabled_users":         must(h.service.CountDisabledUsers(ctx)),
-			"active_users_today":     must(h.service.ActiveUsersToday(ctx)),
-			"active_users_this_week": must(h.service.ActiveUsersThisWeek(ctx)),
+			"total_users":            totalUsers,
+			"disabled_users":         disabledUsers,
+			"active_users_today":     activeToday,
+			"active_users_this_week": activeWeek,
 		},
 		"clients": gin.H{
-			"total_clients":   must(h.service.CountClients(ctx)),
-			"enabled_clients": must(h.service.CountEnabledClients(ctx)),
-			"active_today":    must(h.service.ActiveUsersPerClientToday(ctx)),
-			"recent_clients":  must(h.service.RecentlyCreatedClients(ctx, 10)),
+			"total_clients":   totalClients,
+			"enabled_clients": enabledClients,
+			"active_today":    activePerClientToday,
+			"recent_clients":  recentClients,
 		},
 		"security": gin.H{
-			"failed_logins":   must(h.service.CountFailedLogins(ctx)),
-			"active_sessions": must(h.service.ApproximateActiveSessions(ctx)),
+			"failed_logins":   failedLogins,
+			"active_sessions": activeSessions,
 		},
 		"trends": gin.H{
-			"login_trend_30_days":     must(h.service.LoginTrendByDay(ctx, start, now)),
-			"new_users_trend_30_days": must(h.service.NewUsersTrend(ctx, start, now)),
+			"login_trend_30_days":     loginTrend,
+			"new_users_trend_30_days": newUsersTrend,
 		},
 		"users": gin.H{
-			"recent_users":    must(h.service.NewUsersInRange(ctx, start, now)),
-			"never_logged_in": must(h.service.NeverLoggedInUsers(ctx)),
+			"recent_users":    recentUsers,
+			"never_logged_in": neverLogged,
 		},
 		"_meta": gin.H{
 			"range_start":  start,
 			"range_end":    now,
 			"generated_at": time.Now(),
 		},
-	})
-}
+	}
 
-/* =========================================================
- * Small helper to ignore secondary errors in Overview
- * ========================================================= */
-
-func must[T any](v T, _ error) T {
-	return v
+	c.JSON(http.StatusOK, response)
 }
