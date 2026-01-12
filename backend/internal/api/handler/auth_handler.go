@@ -10,6 +10,8 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/moh-sso-dashboard/internal/config"
+	"github.com/moh-sso-dashboard/internal/http/apierror"
+	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
@@ -36,10 +38,9 @@ func NewAuthHandler(
 }
 
 // ----------------------------------------------------
-// LOGIN (redirect to Keycloak)
+// LOGIN (redirect → Keycloak)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
-
 	_ = h.auditService.LoginInitiated(
 		c.Request.Context(),
 		c.ClientIP(),
@@ -69,19 +70,26 @@ func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 }
 
 // ----------------------------------------------------
-// GET CURRENT USER
+// GET CURRENT USER (API)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
-
 	accessToken, err := c.Cookie("access_token")
 	if err != nil || accessToken == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		response.Fail(c,
+			http.StatusUnauthorized,
+			apierror.ErrUnauthorized.Code,
+			apierror.ErrUnauthorized.Message,
+		)
 		return
 	}
 
 	user, err := h.authService.GetMe(accessToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+		response.Fail(c,
+			http.StatusUnauthorized,
+			apierror.ErrTokenInvalid.Code,
+			"Invalid or expired token",
+		)
 		return
 	}
 
@@ -97,27 +105,18 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 		},
 	)
 
-	c.JSON(http.StatusOK, gin.H{"user": user})
+	response.OK(c, http.StatusOK, gin.H{
+		"user": user,
+	})
 }
 
 // ----------------------------------------------------
-// OIDC CALLBACK
+// OIDC CALLBACK (redirect + cookies)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
-
 	code := c.Query("code")
 	if code == "" {
-
-		_ = h.auditService.LoginResult(
-			c.Request.Context(),
-			uuid.NullUUID{},
-			false,
-			h.config.KeycloakClientID,
-			c.ClientIP(),
-			c.Request.UserAgent(),
-			"",
-			"",
-		)
+		h.auditLoginFailure(c)
 
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "missing authorization code",
@@ -127,8 +126,6 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 
 	tokens, err := h.authService.ProcessAuthCode(code)
 	if err != nil {
-
-		// 🔔 Notification: login failed (best-effort)
 		h.notificationService.NotifyLoginFailed(
 			c.Request.Context(),
 			h.config.KeycloakClientID,
@@ -137,26 +134,17 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 			err,
 		)
 
-		_ = h.auditService.LoginResult(
-			c.Request.Context(),
-			uuid.NullUUID{},
-			false,
-			h.config.KeycloakClientID,
-			c.ClientIP(),
-			c.Request.UserAgent(),
-			"",
-			"",
-		)
+		h.auditLoginFailure(c)
 
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-			"error": "authentication failed. please try again",
-		})
+		c.AbortWithStatusJSON(
+			http.StatusInternalServerError,
+			gin.H{"error": "authentication failed"},
+		)
 		return
 	}
 
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
-	// login success
 	_ = h.auditService.LoginResult(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
@@ -171,11 +159,8 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
-	// Determine admin status
-	isAdmin := utils.TokenHasRealmRole(tokens.AccessToken, "admin")
-
 	redirectURL := "http://localhost:3000/dashboard"
-	if isAdmin {
+	if utils.TokenHasRealmRole(tokens.AccessToken, "admin") {
 		redirectURL = "http://localhost:3000/admin"
 	}
 
@@ -183,13 +168,11 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 }
 
 // ----------------------------------------------------
-// REFRESH TOKEN
+// REFRESH TOKEN (API)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
-
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil || refreshToken == "" {
-
 		_ = h.auditService.TokenRefresh(
 			c.Request.Context(),
 			uuid.NullUUID{},
@@ -197,17 +180,17 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 			c.ClientIP(),
 			c.Request.UserAgent(),
 		)
-
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "session expired",
-		})
+		response.Fail(
+			c,
+			http.StatusUnauthorized,
+			apierror.ErrTokenExpired.Code,
+			"Session expired",
+		)
 		return
 	}
 
 	tokens, err := h.authService.GetAccessToken(refreshToken)
 	if err != nil {
-
-		// 🔔 Notification: token refresh failed (best-effort)
 		h.notificationService.NotifyTokenRefreshFailed(
 			c.Request.Context(),
 			c.ClientIP(),
@@ -221,17 +204,18 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 			c.ClientIP(),
 			c.Request.UserAgent(),
 		)
-
 		h.setSecureRefreshTokenCookie(c, "", -1)
 
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
-			"error": "invalid refresh token",
-		})
+		response.Fail(
+			c,
+			http.StatusUnauthorized,
+			apierror.ErrTokenInvalid.Code,
+			"Invalid refresh token",
+		)
 		return
 	}
 
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
-
 	_ = h.auditService.TokenRefresh(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
@@ -239,21 +223,19 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		c.ClientIP(),
 		c.Request.UserAgent(),
 	)
-
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
-	c.JSON(http.StatusOK, gin.H{
+	response.OK(c, http.StatusOK, gin.H{
 		"access_token": tokens.AccessToken,
 		"expires_in":   tokens.ExpiresIn,
 	})
 }
 
 // ----------------------------------------------------
-// LOGOUT
+// LOGOUT (redirect)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
-
 	userID := utils.ToNullUUID(c.GetString("user_id"))
 
 	_ = h.auditService.Logout(
@@ -263,12 +245,11 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		c.Request.UserAgent(),
 	)
 
-	refreshToken, _ := c.Cookie("refresh_token")
-	if refreshToken != "" {
+	if refreshToken, _ := c.Cookie("refresh_token"); refreshToken != "" {
 		_ = h.authService.LogOut(refreshToken)
 	}
 
-	clearCookie := func(name string, httpOnly bool) {
+	clear := func(name string, httpOnly bool) {
 		http.SetCookie(c.Writer, &http.Cookie{
 			Name:     name,
 			Value:    "",
@@ -281,12 +262,28 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 		})
 	}
 
-	clearCookie("access_token", false)
-	clearCookie("refresh_token", true)
+	clear("access_token", false)
+	clear("refresh_token", true)
 
 	c.Redirect(
 		http.StatusTemporaryRedirect,
 		"http://localhost:9000/api/v1/auth/login",
+	)
+}
+
+// ----------------------------------------------------
+// Helpers
+// ----------------------------------------------------
+func (h *AuthHandler) auditLoginFailure(c *gin.Context) {
+	_ = h.auditService.LoginResult(
+		c.Request.Context(),
+		uuid.NullUUID{},
+		false,
+		h.config.KeycloakClientID,
+		c.ClientIP(),
+		c.Request.UserAgent(),
+		"",
+		"",
 	)
 }
 

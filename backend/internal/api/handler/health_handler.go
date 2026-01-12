@@ -2,43 +2,51 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/moh-sso-dashboard/internal/http/response"
 )
 
 type HealthHandler struct {
 	DBCheck       func() error
 	KeycloakCheck func() error
+	startedAt     time.Time
 }
 
-func NewHealthHandler(dbCheck func() error, kcCheck func() error) *HealthHandler {
+func NewHealthHandler(
+	dbCheck func() error,
+	kcCheck func() error,
+) *HealthHandler {
 	return &HealthHandler{
 		DBCheck:       dbCheck,
 		KeycloakCheck: kcCheck,
+		startedAt:     time.Now(),
 	}
 }
 
 func (h *HealthHandler) HandleHealth(c *gin.Context) {
 	status := "ok"
-	dbStatus := "ok"
-	kcStatus := "ok"
 
-	// DB health
+	db := "ok"
 	if err := h.DBCheck(); err != nil {
-		dbStatus = err.Error()
+		db = "unavailable"
 		status = "degraded"
 	}
 
-	// Keycloak health
+	keycloak := "ok"
 	if err := h.KeycloakCheck(); err != nil {
-		kcStatus = err.Error()
+		keycloak = "unavailable"
 		status = "degraded"
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"status":         status,
-		"database":       dbStatus,
-		"keycloak":       kcStatus,
-		"uptime_seconds": 0,
+	response.OK(c, http.StatusOK, gin.H{
+		"status": status,
+		"components": gin.H{
+			"database": db,
+			"keycloak": keycloak,
+		},
+		"uptime_seconds": int(time.Since(h.startedAt).Seconds()),
 	})
 }
