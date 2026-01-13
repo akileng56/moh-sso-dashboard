@@ -5,8 +5,16 @@ import type {
 } from "../types/notifications.types";
 import { baseApi } from "./baseApi";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
 export const notificationsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
+    /* --------------------------------
+     * List notifications
+     * -------------------------------- */
     getNotifications: builder.query<Notification[], GetNotificationsParams>({
       query: ({ unread, limit = 20, offset = 0 }) => {
         const params = new URLSearchParams();
@@ -24,6 +32,8 @@ export const notificationsApi = baseApi.injectEndpoints({
         };
       },
 
+      transformResponse: (res: ApiEnvelope<Notification[]>) => res.data,
+
       providesTags: (result) =>
         result
           ? [
@@ -36,68 +46,111 @@ export const notificationsApi = baseApi.injectEndpoints({
           : [{ type: "Notification", id: "LIST" }],
     }),
 
+    /* --------------------------------
+     * Mark as read
+     * -------------------------------- */
     markNotificationAsRead: builder.mutation<void, string>({
       query: (id) => ({
         url: API.admin.notifications.markAsRead(id),
         method: "PATCH",
         credentials: "include",
       }),
-      invalidatesTags: (_, __, id) => [
+
+      transformResponse: () => undefined,
+
+      invalidatesTags: (_r, _e, id) => [
         { type: "Notification", id },
         { type: "Notification", id: "LIST" },
         { type: "Notification", id: "COUNT" },
       ],
     }),
 
+    /* --------------------------------
+     * Delete notification
+     * -------------------------------- */
     deleteNotification: builder.mutation<void, string>({
       query: (id) => ({
         url: API.admin.notifications.delete(id),
         credentials: "include",
         method: "DELETE",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: ["Notification"],
     }),
 
+    /* --------------------------------
+     * Delete old notifications
+     * -------------------------------- */
     deleteOldNotifications: builder.mutation<void, void>({
       query: () => ({
         url: API.admin.notifications.deleteOld(),
         credentials: "include",
         method: "DELETE",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: ["Notification"],
     }),
 
+    /* --------------------------------
+     * Count notifications
+     * -------------------------------- */
     countNotifications: builder.query<number, void>({
       query: () => ({
         url: API.admin.notifications.count(),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<{ count: number }>) =>
+        res.data.count,
+
       providesTags: ["Notification"],
     }),
 
+    /* --------------------------------
+     * Create notification (internal)
+     * -------------------------------- */
     notify: builder.mutation<void, void>({
       query: () => ({
         url: API.admin.notifications.notify(),
         credentials: "include",
         method: "POST",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: ["Notification"],
     }),
 
+    /* --------------------------------
+     * Get single notification
+     * -------------------------------- */
     getNotification: builder.query<Notification, string>({
       query: (id) => ({
         url: API.admin.notifications.byId(id),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<Notification>) => res.data,
+
       providesTags: (_r, _e, id) => [{ type: "Notification", id }],
     }),
 
+    /* --------------------------------
+     * Count unread notifications
+     * -------------------------------- */
     getUnreadNotificationsCount: builder.query<number, void>({
       query: () => ({
         url: API.admin.notifications.countUnread(),
         credentials: "include",
       }),
-      transformResponse: (response: { count: number }) => response.count,
+
+      transformResponse: (res: ApiEnvelope<{ count: number }>) =>
+        res.data.count,
+
       providesTags: [{ type: "Notification", id: "COUNT" }],
     }),
   }),

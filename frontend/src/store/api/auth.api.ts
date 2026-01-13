@@ -2,22 +2,40 @@ import { baseApi } from "./baseApi";
 import {
   loginSuccess,
   logout as logoutAction,
-  setAccessToken,
   authLoaded,
+  setAccessToken,
 } from "../auth/auth.slice";
 import type { AuthUser } from "../auth/auth.types";
 import { API } from "../../lib/constants/api.constants";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
+type RefreshResponse = ApiEnvelope<{
+  access_token: string;
+  user: AuthUser;
+}>;
+
 export const authApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    me: builder.query<{ user: AuthUser }, void>({
+    /* -----------------------------
+     * Get current user
+     * ----------------------------- */
+    me: builder.query<AuthUser, void>({
       query: () => ({
         url: API.auth.me(),
         credentials: "include",
       }),
+      transformResponse: (res: ApiEnvelope<{ user: AuthUser }>) =>
+        res.data.user,
     }),
 
-    refresh: builder.mutation<{ access_token: string }, void>({
+    /* -----------------------------
+     * Refresh token
+     * ----------------------------- */
+    refresh: builder.mutation<RefreshResponse, void>({
       query: () => ({
         url: API.auth.refresh(),
         method: "POST",
@@ -29,9 +47,8 @@ export const authApi = baseApi.injectEndpoints({
           const { data } = await queryFulfilled;
 
           // Store new access token
-          dispatch(setAccessToken(data.access_token));
+          dispatch(setAccessToken(data.data.access_token));
 
-          // Re-fetch user profile
           const me = await dispatch(
             authApi.endpoints.me.initiate(undefined, {
               forceRefetch: true,
@@ -40,8 +57,8 @@ export const authApi = baseApi.injectEndpoints({
 
           dispatch(
             loginSuccess({
-              accessToken: data.access_token,
-              user: me.user,
+              accessToken: data.data.access_token,
+              user: me,
             })
           );
         } catch {

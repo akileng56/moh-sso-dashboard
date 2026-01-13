@@ -119,12 +119,12 @@ export default function HomePage() {
             <h3 style={{ margin: 0 }}>Welcome back, {user.username}</h3>
 
             <Stack orientation="horizontal" gap={3}>
-              <Tag type="blue">{user.realm_roles.join(", ")}</Tag>
+              <Tag type="blue">{user.realmRoles.join(", ")}</Tag>
               <span>{user.email}</span>
               <span className="muted">
                 Last login:{" "}
-                {user.last_login_at
-                  ? new Date(user.last_login_at).toLocaleString()
+                {user.lastLoginAt
+                  ? new Date(user.lastLoginAt).toLocaleString()
                   : "—"}
               </span>
             </Stack>

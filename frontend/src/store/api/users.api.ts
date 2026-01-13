@@ -2,6 +2,11 @@ import { baseApi } from "./baseApi";
 import type { CreateUserPayload, User } from "../types/user.types";
 import { API } from "../../lib/constants/api.constants";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
 type UpdateUserPayload = {
   id: string;
   data: Partial<CreateUserPayload>;
@@ -17,6 +22,9 @@ export const usersApi = baseApi.injectEndpoints({
         url: API.users.list(),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<User[]>) => res.data,
+
       providesTags: (result) =>
         result
           ? [
@@ -30,13 +38,16 @@ export const usersApi = baseApi.injectEndpoints({
     }),
 
     /* --------------------------------
-     * Get single user (optional but recommended)
+     * Get single user
      * -------------------------------- */
     getUser: builder.query<User, string>({
       query: (id) => ({
         url: API.users.byId(id),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<User>) => res.data,
+
       providesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
@@ -50,6 +61,9 @@ export const usersApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<User>) => res.data,
+
       invalidatesTags: [{ type: "User", id: "LIST" }],
     }),
 
@@ -63,6 +77,9 @@ export const usersApi = baseApi.injectEndpoints({
         body: data,
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<User>) => res.data,
+
       invalidatesTags: (_r, _e, { id }) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
@@ -78,6 +95,9 @@ export const usersApi = baseApi.injectEndpoints({
         method: "POST",
         credentials: "include",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
@@ -90,6 +110,9 @@ export const usersApi = baseApi.injectEndpoints({
         method: "DELETE",
         credentials: "include",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: (_r, _e, id) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
@@ -105,6 +128,9 @@ export const usersApi = baseApi.injectEndpoints({
         method: enabled ? "POST" : "DELETE",
         credentials: "include",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: (_r, _e, { id }) => [
         { type: "User", id },
         { type: "User", id: "LIST" },

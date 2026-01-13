@@ -32,14 +32,15 @@ const authSlice = createSlice({
      * --------------------------- */
     loginSuccess(
       state,
-      action: PayloadAction<{ accessToken: string; user: AuthUser }>
+      action: PayloadAction<{ accessToken?: string; user: AuthUser }>
     ) {
-      state.accessToken = action.payload.accessToken;
+      if (action.payload.accessToken !== undefined) {
+        state.accessToken = action.payload.accessToken;
+      }
+
       state.user = action.payload.user;
       state.loading = false;
-      state.loaded = true; // ✅ CRITICAL FIX
     },
-
     /* ---------------------------
      * Token refresh only
      * --------------------------- */
@@ -55,7 +56,7 @@ const authSlice = createSlice({
       state.accessToken = null;
       state.user = null;
       state.loading = false;
-      state.loaded = true; // ✅ CRITICAL FIX
+      state.loaded = true;
     },
   },
 });

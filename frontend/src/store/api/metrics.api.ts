@@ -5,6 +5,11 @@ import type {
 } from "../types/audit-metrics.types";
 import { API } from "../../lib/constants/api.constants";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
 export const metricsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     auditOverview: builder.query<AuditOverview, AuditMetricsFilters>({
@@ -13,6 +18,9 @@ export const metricsApi = baseApi.injectEndpoints({
         params: { from, to },
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<AuditOverview>) => res.data,
+
       providesTags: ["Audit"],
     }),
   }),

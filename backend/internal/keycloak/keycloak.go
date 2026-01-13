@@ -37,19 +37,19 @@ type AuthUser struct {
 	ID               string              `json:"id"`
 	Username         string              `json:"username"`
 	Email            string              `json:"email"`
-	FirstName        string              `json:"first_name"`
-	LastName         string              `json:"last_name"`
-	FullName         string              `json:"full_name"`
-	IsAdmin          bool                `json:"is_admin"`
-	RealmRoles       []string            `json:"realm_roles"`
-	ClientRoles      map[string][]string `json:"client_roles"`
+	FirstName        string              `json:"firstName"`
+	LastName         string              `json:"lastName"`
+	FullName         string              `json:"fullName"`
+	IsAdmin          bool                `json:"isAdmin"`
+	RealmRoles       []string            `json:"realmRoles"`
+	ClientRoles      map[string][]string `json:"clientRoles"`
 	Enabled          bool                `json:"enabled"`
-	EmailVerified    bool                `json:"email_verified"`
-	RequirePwdChange bool                `json:"require_pwd_change"`
-	LastLoginAt      *time.Time          `json:"last_login_at"`
-	LoginIP          string              `json:"login_ip"`
-	UserAgent        string              `json:"user_agent"`
-	CreatedAt        time.Time           `json:"created_at"`
+	EmailVerified    bool                `json:"emailVerified"`
+	RequirePwdChange bool                `json:"requirePwdChange"`
+	LastLoginAt      *time.Time          `json:"lastLoginAt"`
+	LoginIP          string              `json:"loginIp"`
+	UserAgent        string              `json:"userAgent"`
+	CreatedAt        time.Time           `json:"createdAt"`
 }
 
 // NewClient creates a new Keycloak client

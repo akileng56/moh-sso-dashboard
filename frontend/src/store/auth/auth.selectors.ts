@@ -17,7 +17,7 @@ export const selectAuthenticated = createSelector(
 
 export const selectIsAdmin = createSelector(
   selectUser,
-  (u) => u?.is_admin === true
+  (u) => u?.isAdmin === true
 );
 
 export const selectAuthLoading = createSelector(selectAuth, (a) => a.loading);

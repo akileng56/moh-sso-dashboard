@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	_ "github.com/lib/pq"
 
@@ -21,7 +23,7 @@ import (
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/service"
 
-	redis "github.com/moh-sso-dashboard/internal/cache"
+	cache "github.com/moh-sso-dashboard/internal/cache"
 	store "github.com/moh-sso-dashboard/internal/db/sqlc"
 
 	"github.com/rs/zerolog"
@@ -74,7 +76,20 @@ func main() {
 	// Infrastructure
 	// ---------------------------------------------------------------------
 	store := store.NewStore(conn)
-	rdb := redis.NewRedisClient(cfg.RedisHost, cfg.RedisPort, cfg.RedisPassword)
+
+	rdb := cache.NewRedisClient(cache.RedisConfig{
+		Host:         cfg.RedisHost,
+		Port:         cfg.RedisPort,
+		Password:     cfg.RedisPassword,
+		DB:           0,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+	})
+
+	// 🔥 Fail fast if Redis is unavailable
+	cache.MustPing(context.Background(), rdb)
+	appLogger.Info("Successfully connected to Redis")
 
 	// ---------------------------------------------------------------------
 	// Repositories
@@ -88,7 +103,6 @@ func main() {
 	// ---------------------------------------------------------------------
 	// Services
 	// ---------------------------------------------------------------------
-
 	authService := service.NewAuthService(authRepository, rdb)
 	metricsService := service.NewMetricsService(metricsRepository)
 	auditService := service.NewAuditService(store)
@@ -127,7 +141,7 @@ func main() {
 	// ---------------------------------------------------------------------
 	addr := ":" + cfg.ServerPort
 
-	ln, err := net.Listen("tcp4", addr) // 🔥 FORCE IPv4
+	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
 		appLogger.Fatal("Failed to bind IPv4 listener: %v", err)
 	}

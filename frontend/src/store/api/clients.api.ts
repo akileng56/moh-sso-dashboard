@@ -2,6 +2,11 @@ import { baseApi } from "./baseApi";
 import type { Client, CreateClientPayload } from "../types/client.types";
 import { API } from "../../lib/constants/api.constants";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
 type UpdateClientPayload = {
   id: string;
   data: Partial<CreateClientPayload>;
@@ -17,6 +22,9 @@ export const clientsApi = baseApi.injectEndpoints({
         url: API.clients.list(),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<Client[]>) => res.data,
+
       providesTags: (result) =>
         result
           ? [
@@ -37,6 +45,9 @@ export const clientsApi = baseApi.injectEndpoints({
         url: API.clients.byId(id),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<Client>) => res.data,
+
       providesTags: (_result, _error, id) => [{ type: "Client", id }],
     }),
 
@@ -50,6 +61,9 @@ export const clientsApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<Client>) => res.data,
+
       invalidatesTags: [{ type: "Client", id: "LIST" }],
     }),
 
@@ -63,6 +77,9 @@ export const clientsApi = baseApi.injectEndpoints({
         body: data,
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<Client>) => res.data,
+
       invalidatesTags: (_r, _e, { id }) => [
         { type: "Client", id },
         { type: "Client", id: "LIST" },
@@ -78,6 +95,10 @@ export const clientsApi = baseApi.injectEndpoints({
         method: "DELETE",
         credentials: "include",
       }),
+
+      // backend returns { success: true, data: null }
+      transformResponse: () => undefined,
+
       invalidatesTags: (_r, _e, id) => [
         { type: "Client", id },
         { type: "Client", id: "LIST" },
@@ -93,6 +114,9 @@ export const clientsApi = baseApi.injectEndpoints({
         method: enabled ? "POST" : "DELETE",
         credentials: "include",
       }),
+
+      transformResponse: () => undefined,
+
       invalidatesTags: (_r, _e, { id }) => [
         { type: "Client", id },
         { type: "Client", id: "LIST" },

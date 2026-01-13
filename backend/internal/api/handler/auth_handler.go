@@ -159,8 +159,11 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
+	// Determine admin status
+	isAdmin := utils.TokenHasRealmRole(tokens.AccessToken, "admin")
+
 	redirectURL := "http://localhost:3000/dashboard"
-	if utils.TokenHasRealmRole(tokens.AccessToken, "admin") {
+	if isAdmin {
 		redirectURL = "http://localhost:3000/admin"
 	}
 
