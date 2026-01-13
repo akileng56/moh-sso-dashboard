@@ -34,6 +34,7 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "attributes": {
+        "displayName": "MOH SSO Dashboard",
         "icon": "applications",
         "baseUrl": "http://localhost:3000",
         "access.token.lifespan": "1800",
@@ -58,6 +59,7 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
+        "displayName": "MOH Reports Portal",
         "icon": "document",
         "baseUrl": "http://localhost:4001"
       }
@@ -76,6 +78,7 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
+        "displayName": "HMIS Web Portal",
         "icon": "calendar",
         "baseUrl": "http://localhost:4002"
       }
@@ -94,6 +97,7 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
+        "displayName": "ObulamuCare Web Portal",
         "icon": "email",
         "baseUrl": "http://localhost:4003"
       }
@@ -112,6 +116,7 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
+        "displayName": "NDWH Dashboard",
         "icon": "user",
         "baseUrl": "http://localhost:4004"
       }
@@ -133,6 +138,7 @@
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "attributes": {
+        "displayName": "Survillience Dashboard",
         "icon": "user",
         "baseUrl": "http://localhost:4004"
       }

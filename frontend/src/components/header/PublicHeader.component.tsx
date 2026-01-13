@@ -13,6 +13,7 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../../store/auth/auth.selectors";
 import AppMenuAction from "../appmenu/AppMenu.component";
 import { API } from "../../lib/constants/api.constants";
+import { EnvironmentBadge } from "../../env/EnvironmentBadge";
 
 const PublicHeader: React.FC = () => {
   const navigate = useNavigate();
@@ -36,9 +37,10 @@ const PublicHeader: React.FC = () => {
 
       {/* Global Actions */}
       <HeaderGlobalBar>
+        {/* 🌱 Environment */}
+        <EnvironmentBadge />
         {/* App Launcher */}
         <AppMenuAction />
-
         {/* User indicator */}
         <HeaderGlobalAction
           aria-label={`Signed in as ${user?.username ?? "user"}`}
@@ -46,7 +48,6 @@ const PublicHeader: React.FC = () => {
         >
           <UserAvatarFilled size={20} />
         </HeaderGlobalAction>
-
         {/* Logout */}
         <HeaderGlobalAction
           aria-label="Logout"

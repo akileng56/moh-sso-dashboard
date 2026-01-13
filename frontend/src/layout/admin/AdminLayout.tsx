@@ -25,6 +25,7 @@ import {
 import { NotificationsPanel } from "../../components/notifications/notifications-panel.component";
 import { API } from "../../lib/constants/api.constants";
 import { ToastProvider } from "../../components/notifications/toast/ToastProvider";
+import { EnvironmentBadge } from "../../env/EnvironmentBadge";
 
 function HeaderActions() {
   const user = useSelector(selectUser);
@@ -44,6 +45,8 @@ function HeaderActions() {
 
   return (
     <HeaderGlobalBar>
+      {/* 🌱 Environment */}
+      <EnvironmentBadge />
       {/* 🔔 Notifications */}
       <HeaderGlobalAction
         aria-label="Notifications"
