@@ -201,14 +201,8 @@ func (r *metricsRepository) ActiveUsersPerClientToday(ctx context.Context) ([]db
 
 func (r *metricsRepository) NewClientsInRange(ctx context.Context, start, end time.Time) ([]db.Client, error) {
 	return r.db.NewClientsInRange(ctx, db.NewClientsInRangeParams{
-		StartTime: sql.NullTime{
-			Time:  start,
-			Valid: true,
-		},
-		EndTime: sql.NullTime{
-			Time:  end,
-			Valid: true,
-		},
+		StartTime: start,
+		EndTime:   end,
 	})
 }
 

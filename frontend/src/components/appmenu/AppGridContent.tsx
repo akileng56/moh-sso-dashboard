@@ -90,7 +90,8 @@ const AppGridContent: React.FC = () => {
               <AppTile
                 icon={Icon}
                 name={client.name}
-                href={client.baseUrl ?? "/"}
+                href={client.attributes?.["ui.home"] ?? "/"}
+                clientId={client.clientId}
               />
             </div>
           </Column>

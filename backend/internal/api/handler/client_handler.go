@@ -168,7 +168,6 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 
 	clients, err := h.service.ListClients()
 	if err != nil {
-
 		response.Fail(
 			c,
 			http.StatusInternalServerError,
@@ -184,7 +183,8 @@ func (h *ClientHandler) ListClients(c *gin.Context) {
 	filtered := make([]model.Client, 0)
 
 	for _, client := range clients {
-		if client.Attributes == nil || client.Attributes["icon"] == "" {
+
+		if client.Attributes == nil || client.Attributes["ui.icon"] == "" {
 			continue
 		}
 

@@ -160,3 +160,28 @@ func MustJSON(v interface{}) json.RawMessage {
 	b, _ := json.Marshal(v)
 	return b
 }
+
+func DefaultClientAttributes(clientID string) map[string]string {
+	sidenav := []map[string]string{
+		{
+			"id":         "dashboard",
+			"label":      "Dashboard",
+			"path":       "/dashboard",
+			"permission": clientID + ".dashboard.view",
+		},
+		{
+			"id":         "settings",
+			"label":      "Settings",
+			"path":       "/settings",
+			"permission": clientID + ".settings.manage",
+		},
+	}
+
+	raw, _ := json.Marshal(sidenav)
+
+	return map[string]string{
+		"ui.sidenav": string(raw),
+		"ui.home":    "/dashboard",
+		"ui.icon":    "applications",
+	}
+}

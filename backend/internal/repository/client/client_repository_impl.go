@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -11,6 +12,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	models "github.com/moh-sso-dashboard/internal/model"
+	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 type sqlcClientRepository struct {
@@ -49,6 +51,8 @@ func NewClientRepository(
 func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, error) {
 	ctx := context.Background()
 
+	attributes := utils.DefaultClientAttributes(client.ClientID)
+
 	kcID, err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
 		ClientID:     client.ClientID,
 		Name:         client.Name,
@@ -58,9 +62,7 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 		Protocol:     "openid-connect",
 		RedirectURIs: []string{},
 		WebOrigins:   []string{},
-		Attributes: map[string]string{
-			"icon": "applications",
-		},
+		Attributes:   attributes,
 	})
 	if err != nil {
 		return "", fmt.Errorf("keycloak create failed: %w", err)
@@ -74,8 +76,13 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 	id, _ := uuid.Parse(kcID)
 
 	var icon sql.NullString
-	if v := kcClient.Attributes["icon"]; v != "" {
+	if v := kcClient.Attributes["ui.icon"]; v != "" {
 		icon = sql.NullString{String: v, Valid: true}
+	}
+
+	attrsJSON, err := json.Marshal(kcClient.Attributes)
+	if err != nil {
+		return "", fmt.Errorf("marshal client attributes failed: %w", err)
 	}
 
 	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
@@ -90,17 +97,13 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 			String: kcClient.BaseURL,
 			Valid:  kcClient.BaseURL != "",
 		},
-		Icon: icon,
-		PublicClient: sql.NullBool{
-			Bool:  kcClient.PublicClient,
-			Valid: true,
-		},
-		Enabled: sql.NullBool{
-			Bool:  kcClient.Enabled,
-			Valid: true,
-		},
+		Icon:         icon,
+		PublicClient: kcClient.PublicClient,
+		Enabled:      kcClient.Enabled,
+		Attributes:   attrsJSON,
 	}); err != nil {
-		r.logger.Warn("client created in keycloak but db sync failed",
+		r.logger.Warn(
+			"client created in keycloak but db sync failed",
 			"clientId", kcClient.ClientID,
 			"error", err,
 		)
@@ -131,6 +134,7 @@ func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, erro
 		BaseURL:      kcClient.BaseURL,
 		PublicClient: kcClient.PublicClient,
 		Enabled:      kcClient.Enabled,
+		Attributes:   kcClient.Attributes,
 	}, nil
 }
 
@@ -149,6 +153,7 @@ func (r *sqlcClientRepository) GetClientByClientID(clientID string) (*models.Cli
 		BaseURL:      kc.BaseURL,
 		PublicClient: kc.PublicClient,
 		Enabled:      kc.Enabled,
+		Attributes:   kc.Attributes,
 	}, nil
 }
 
@@ -194,8 +199,9 @@ func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 			String: client.BaseURL,
 			Valid:  client.BaseURL != "",
 		},
-		PublicClient: sql.NullBool{Bool: client.PublicClient, Valid: true},
-		Enabled:      sql.NullBool{Bool: client.Enabled, Valid: true},
+		PublicClient: client.PublicClient,
+		Enabled:      client.Enabled,
+		Attributes:   json.RawMessage(client.Attributes[""]),
 	}); err != nil {
 		r.logger.Warn("client updated in keycloak but db sync failed",
 			"clientId", client.ClientID,

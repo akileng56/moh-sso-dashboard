@@ -51,3 +51,8 @@ export interface UpdateClientPayload {
   redirectUris?: string[];
   webOrigins?: string[];
 }
+
+export type ClientsState = {
+  items: Client[];
+  activeClientId: string | null;
+};

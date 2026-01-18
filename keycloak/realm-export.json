@@ -10,7 +10,6 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
-
   "clients": [
     {
       "id": "dashboard",
@@ -28,24 +27,18 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "secret": "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
-      "bearerOnly": false,
       "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
       "attributes": {
-        "displayName": "MOH SSO Dashboard",
-        "icon": "applications",
-        "baseUrl": "http://localhost:3000",
+        "ui.icon": "applications",
+        "ui.home": "/admin",
+        "ui.sidenav": "[{\"id\":\"overview\",\"label\":\"Overview\",\"path\":\"/admin\",\"permission\":\"dashboard.overview.view\"},{\"id\":\"clients\",\"label\":\"Clients\",\"path\":\"/admin/clients\",\"permission\":\"dashboard.clients.manage\"},{\"id\":\"users\",\"label\":\"Users\",\"path\":\"/admin/users\",\"permission\":\"dashboard.users.manage\"},{\"id\":\"audit\",\"label\":\"Audit Logs\",\"path\":\"/admin/audit\",\"permission\":\"dashboard.audit.view\"},{\"id\":\"settings\",\"label\":\"Settings\",\"path\":\"/admin/settings\",\"permission\":\"dashboard.settings.manage\"}]",
         "access.token.lifespan": "1800",
         "refresh.token.lifespan": "3600",
         "use.refresh.tokens": "true",
-        "refresh.token.max.reuse": "0",
-        "pkce.code.challenge.method": "",
-        "oauth2.device.authorization.grant.enabled": "false"
+        "refresh.token.max.reuse": "0"
       }
     },
-
     {
       "id": "moh-reports",
       "clientId": "moh-reports",
@@ -59,12 +52,11 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
-        "displayName": "MOH Reports Portal",
-        "icon": "document",
-        "baseUrl": "http://localhost:4001"
+        "ui.icon": "document",
+        "ui.home": "/reports",
+        "ui.sidenav": "[{\"id\":\"reports\",\"label\":\"Reports\",\"path\":\"/reports\",\"permission\":\"moh-reports.reports.view\"},{\"id\":\"exports\",\"label\":\"Exports\",\"path\":\"/exports\",\"permission\":\"moh-reports.exports.view\"}]"
       }
     },
-
     {
       "id": "hmis-web",
       "clientId": "hmis-web",
@@ -78,12 +70,11 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
-        "displayName": "HMIS Web Portal",
-        "icon": "calendar",
-        "baseUrl": "http://localhost:4002"
+        "ui.icon": "calendar",
+        "ui.home": "/dashboard",
+        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"hmis.dashboard.view\"},{\"id\":\"patients\",\"label\":\"Patients\",\"path\":\"/patients\",\"permission\":\"hmis.patients.view\"},{\"id\":\"reports\",\"label\":\"Reports\",\"path\":\"/reports\",\"permission\":\"hmis.reports.view\"}]"
       }
     },
-
     {
       "id": "obulamu-web",
       "clientId": "obulamu-web",
@@ -97,12 +88,11 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
-        "displayName": "ObulamuCare Web Portal",
-        "icon": "email",
-        "baseUrl": "http://localhost:4003"
+        "ui.icon": "email",
+        "ui.home": "/home",
+        "ui.sidenav": "[{\"id\":\"home\",\"label\":\"Home\",\"path\":\"/home\",\"permission\":\"obulamu.home.view\"},{\"id\":\"groups\",\"label\":\"Support Groups\",\"path\":\"/groups\",\"permission\":\"obulamu.groups.view\"},{\"id\":\"messages\",\"label\":\"Messages\",\"path\":\"/messages\",\"permission\":\"obulamu.messages.view\"}]"
       }
     },
-
     {
       "id": "ndwh-dashboard",
       "clientId": "ndwh-dashboard",
@@ -116,16 +106,16 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "attributes": {
-        "displayName": "NDWH Dashboard",
-        "icon": "user",
-        "baseUrl": "http://localhost:4004"
+        "ui.icon": "user",
+        "ui.home": "/dashboard",
+        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"ndwh.dashboard.view\"},{\"id\":\"datasets\",\"label\":\"Datasets\",\"path\":\"/datasets\",\"permission\":\"ndwh.datasets.view\"}]"
       }
     },
     {
       "id": "survellience-dashboard",
       "clientId": "survellience-dashboard",
-      "name": "Survillience Dashboard",
-      "description": "Survillience Dashboard",
+      "name": "Surveillance Dashboard",
+      "description": "Surveillance Dashboard",
       "rootUrl": "http://localhost:4004",
       "baseUrl": "/",
       "redirectUris": ["http://localhost:4004/*"],
@@ -133,27 +123,35 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "secret": "U$FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zXe+yTig=",
-      "bearerOnly": false,
       "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
       "attributes": {
-        "displayName": "Survillience Dashboard",
-        "icon": "user",
-        "baseUrl": "http://localhost:4004"
+        "ui.icon": "user",
+        "ui.home": "/dashboard",
+        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"survellience.dashboard.view\"},{\"id\":\"alerts\",\"label\":\"Alerts\",\"path\":\"/alerts\",\"permission\":\"survellience.alerts.view\"}]"
       }
     }
   ],
-
   "roles": {
     "realm": [
-      { "name": "admin", "description": "Administrator role with full access" },
-      { "name": "manager", "description": "Can manage some applications" },
-      { "name": "user", "description": "Standard user role" }
+      {
+        "name": "admin",
+        "description": "Administrator role with full access"
+      },
+      {
+        "name": "manager",
+        "description": "Can manage some applications"
+      },
+      {
+        "name": "user",
+        "description": "Standard user role"
+      }
     ],
     "client": {
       "dashboard": [
-        { "name": "dashboard_access", "description": "Access MOH Dashboard" }
+        {
+          "name": "dashboard_access",
+          "description": "Access MOH Dashboard"
+        }
       ],
       "moh-reports": [
         {
@@ -162,7 +160,10 @@
         }
       ],
       "hmis-web": [
-        { "name": "hmis-web_access", "description": "Access HMIS Web Portal" }
+        {
+          "name": "hmis-web_access",
+          "description": "Access HMIS Web Portal"
+        }
       ],
       "obulamu-web": [
         {
@@ -171,17 +172,19 @@
         }
       ],
       "ndwh-dashboard": [
-        { "name": "ndwh-dashboard_access", "description": "Access ndwh EMR" }
+        {
+          "name": "ndwh-dashboard_access",
+          "description": "Access NDWH Dashboard"
+        }
       ],
       "survellience-dashboard": [
         {
           "name": "survellience-dashboard_access",
-          "description": "Access survillence  dashboard"
+          "description": "Access Surveillance Dashboard"
         }
       ]
     }
   },
-
   "users": [
     {
       "username": "service-account-dashboard",
@@ -197,7 +200,6 @@
         ]
       }
     },
-
     {
       "username": "admin",
       "enabled": true,
@@ -206,7 +208,11 @@
       "lastName": "Admin",
       "email": "admin@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "Admin@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "Admin@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["admin"],
       "clientRoles": {
@@ -218,7 +224,6 @@
         "survellience-dashboard": ["survellience-dashboard_access"]
       }
     },
-
     {
       "username": "clientadmin",
       "enabled": true,
@@ -227,7 +232,11 @@
       "lastName": "Administrator",
       "email": "client.admin@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "ClientAdmin@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "ClientAdmin@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["manager"],
       "clientRoles": {
@@ -235,7 +244,6 @@
         "moh-reports": ["moh-reports_access"]
       }
     },
-
     {
       "username": "reportuser",
       "enabled": true,
@@ -244,14 +252,17 @@
       "lastName": "User",
       "email": "report.user@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "ReportUser@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "ReportUser@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
         "moh-reports": ["moh-reports_access"]
       }
     },
-
     {
       "username": "hmisuser",
       "enabled": true,
@@ -260,14 +271,17 @@
       "lastName": "User",
       "email": "hmis.user@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "HmisUser@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "HmisUser@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
         "hmis-web": ["hmis-web_access"]
       }
     },
-
     {
       "username": "obulamuuser",
       "enabled": true,
@@ -276,14 +290,17 @@
       "lastName": "User",
       "email": "obulamu.user@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "ObulamuUser@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "ObulamuUser@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
         "obulamu-web": ["obulamu-web_access"]
       }
     },
-
     {
       "username": "ndwhuser",
       "enabled": true,
@@ -292,7 +309,11 @@
       "lastName": "User",
       "email": "ndwh.user@moh.go.ug",
       "credentials": [
-        { "type": "password", "value": "ndwhUser@123", "temporary": false }
+        {
+          "type": "password",
+          "value": "ndwhUser@123",
+          "temporary": false
+        }
       ],
       "realmRoles": ["user"],
       "clientRoles": {
@@ -319,9 +340,7 @@
       }
     }
   ],
-
   "defaultRoles": ["user"],
-
   "clientScopeMappings": {
     "dashboard": [
       {

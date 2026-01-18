@@ -2,6 +2,7 @@ import { Content } from "@carbon/react";
 import { Outlet } from "react-router-dom";
 import PublicHeader from "../../components/header/PublicHeader.component";
 import { PublicFooter } from "../../components/footer/PublicFooter";
+import { ClientSideNav } from "../../components/sidenav/ClientSideNav";
 
 export default function PublicLayout() {
   return (
@@ -12,19 +13,32 @@ export default function PublicLayout() {
         flexDirection: "column",
       }}
     >
+      {/* 🔹 Global Header */}
       <PublicHeader />
 
-      {/* Main content */}
-      <Content
+      {/* 🔹 SideNav + Content row */}
+      <div
         style={{
-          paddingTop: "3rem",
-          flex: 1, // 🔑 pushes footer to bottom
+          display: "flex",
+          flex: 1,
         }}
       >
-        <Outlet />
-      </Content>
+        {/* 🔹 Dynamic client SideNav */}
+        <ClientSideNav />
 
-      {/* Footer OUTSIDE Content */}
+        {/* 🔹 Main content */}
+        <Content
+          id="main-content"
+          style={{
+            paddingTop: "3rem", // Carbon header offset
+            flex: 1,
+          }}
+        >
+          <Outlet />
+        </Content>
+      </div>
+
+      {/* 🔹 Footer */}
       <PublicFooter />
     </div>
   );

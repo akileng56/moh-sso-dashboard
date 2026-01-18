@@ -7,6 +7,7 @@ package db
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -67,16 +68,17 @@ type AuditLog struct {
 }
 
 type Client struct {
-	ID           uuid.UUID      `json:"id"`
-	ClientID     string         `json:"client_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	BaseUrl      sql.NullString `json:"base_url"`
-	Icon         sql.NullString `json:"icon"`
-	PublicClient sql.NullBool   `json:"public_client"`
-	Enabled      sql.NullBool   `json:"enabled"`
-	CreatedAt    sql.NullTime   `json:"created_at"`
-	UpdatedAt    sql.NullTime   `json:"updated_at"`
+	ID           uuid.UUID       `json:"id"`
+	ClientID     string          `json:"client_id"`
+	Name         string          `json:"name"`
+	Description  sql.NullString  `json:"description"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	Icon         sql.NullString  `json:"icon"`
+	PublicClient bool            `json:"public_client"`
+	Enabled      bool            `json:"enabled"`
+	Attributes   json.RawMessage `json:"attributes"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
 }
 
 type ClientSecret struct {

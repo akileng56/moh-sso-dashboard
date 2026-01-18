@@ -8,6 +8,8 @@ package db
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -86,23 +88,25 @@ INSERT INTO client (
     base_url,
     icon,
     public_client,
-    enabled
+    enabled,
+    attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7,$8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id
 `
 
 type CreateClientParams struct {
-	ID           uuid.UUID      `json:"id"`
-	ClientID     string         `json:"client_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	BaseUrl      sql.NullString `json:"base_url"`
-	Icon         sql.NullString `json:"icon"`
-	PublicClient sql.NullBool   `json:"public_client"`
-	Enabled      sql.NullBool   `json:"enabled"`
+	ID           uuid.UUID       `json:"id"`
+	ClientID     string          `json:"client_id"`
+	Name         string          `json:"name"`
+	Description  sql.NullString  `json:"description"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	Icon         sql.NullString  `json:"icon"`
+	PublicClient bool            `json:"public_client"`
+	Enabled      bool            `json:"enabled"`
+	Attributes   json.RawMessage `json:"attributes"`
 }
 
 // =====================================================
@@ -118,6 +122,7 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) erro
 		arg.Icon,
 		arg.PublicClient,
 		arg.Enabled,
+		arg.Attributes,
 	)
 	return err
 }
@@ -133,7 +138,7 @@ func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
 }
 
 const getClientByClientID = `-- name: GetClientByClientID :one
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 WHERE client_id = $1
 `
@@ -150,6 +155,7 @@ func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Cli
 		&i.Icon,
 		&i.PublicClient,
 		&i.Enabled,
+		&i.Attributes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -157,7 +163,7 @@ func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Cli
 }
 
 const getClientByID = `-- name: GetClientByID :one
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 WHERE id = $1
 `
@@ -174,6 +180,7 @@ func (q *Queries) GetClientByID(ctx context.Context, id uuid.UUID) (Client, erro
 		&i.Icon,
 		&i.PublicClient,
 		&i.Enabled,
+		&i.Attributes,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -181,7 +188,7 @@ func (q *Queries) GetClientByID(ctx context.Context, id uuid.UUID) (Client, erro
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 ORDER BY name ASC
 `
@@ -204,6 +211,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -221,7 +229,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 }
 
 const listClientsPaged = `-- name: ListClientsPaged :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 ORDER BY name ASC
 LIMIT $2 OFFSET $1
@@ -250,6 +258,7 @@ func (q *Queries) ListClientsPaged(ctx context.Context, arg ListClientsPagedPara
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -267,7 +276,7 @@ func (q *Queries) ListClientsPaged(ctx context.Context, arg ListClientsPagedPara
 }
 
 const listEnabledClients = `-- name: ListEnabledClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 WHERE enabled = true
 ORDER BY name ASC
@@ -291,6 +300,7 @@ func (q *Queries) ListEnabledClients(ctx context.Context) ([]Client, error) {
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -317,6 +327,7 @@ SELECT
     icon,
     public_client,
     enabled,
+    attributes,
     created_at,
     updated_at
 FROM client
@@ -325,8 +336,8 @@ ORDER BY created_at DESC
 `
 
 type NewClientsInRangeParams struct {
-	StartTime sql.NullTime `json:"start_time"`
-	EndTime   sql.NullTime `json:"end_time"`
+	StartTime time.Time `json:"start_time"`
+	EndTime   time.Time `json:"end_time"`
 }
 
 func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]Client, error) {
@@ -347,6 +358,7 @@ func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangePa
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -373,6 +385,7 @@ SELECT
     icon,
     public_client,
     enabled,
+    attributes,
     created_at,
     updated_at
 FROM client
@@ -398,6 +411,7 @@ func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -415,7 +429,7 @@ func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([
 }
 
 const searchClients = `-- name: SearchClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, created_at, updated_at
+SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
 FROM client
 WHERE 
     (
@@ -444,6 +458,7 @@ func (q *Queries) SearchClients(ctx context.Context, query sql.NullString) ([]Cl
 			&i.Icon,
 			&i.PublicClient,
 			&i.Enabled,
+			&i.Attributes,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -481,8 +496,8 @@ type UpdateClientParams struct {
 	Description  sql.NullString `json:"description"`
 	BaseUrl      sql.NullString `json:"base_url"`
 	Icon         sql.NullString `json:"icon"`
-	PublicClient sql.NullBool   `json:"public_client"`
-	Enabled      sql.NullBool   `json:"enabled"`
+	PublicClient bool           `json:"public_client"`
+	Enabled      bool           `json:"enabled"`
 }
 
 func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) error {
@@ -508,29 +523,34 @@ INSERT INTO client (
     base_url,
     icon,
     public_client,
-    enabled
+    enabled,
+    attributes
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
 ON CONFLICT (client_id)
 DO UPDATE SET
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    base_url = EXCLUDED.base_url,
-    icon = EXCLUDED.icon,
+    name          = EXCLUDED.name,
+    description   = EXCLUDED.description,
+    base_url      = EXCLUDED.base_url,
+    icon          = EXCLUDED.icon,
     public_client = EXCLUDED.public_client,
-    enabled = EXCLUDED.enabled,
-    updated_at = NOW()
+    enabled       = EXCLUDED.enabled,
+    attributes    = EXCLUDED.attributes,
+    updated_at    = NOW()
 `
 
 type UpsertClientParams struct {
-	ID           uuid.UUID      `json:"id"`
-	ClientID     string         `json:"client_id"`
-	Name         string         `json:"name"`
-	Description  sql.NullString `json:"description"`
-	BaseUrl      sql.NullString `json:"base_url"`
-	Icon         sql.NullString `json:"icon"`
-	PublicClient sql.NullBool   `json:"public_client"`
-	Enabled      sql.NullBool   `json:"enabled"`
+	ID           uuid.UUID       `json:"id"`
+	ClientID     string          `json:"client_id"`
+	Name         string          `json:"name"`
+	Description  sql.NullString  `json:"description"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	Icon         sql.NullString  `json:"icon"`
+	PublicClient bool            `json:"public_client"`
+	Enabled      bool            `json:"enabled"`
+	Attributes   json.RawMessage `json:"attributes"`
 }
 
 func (q *Queries) UpsertClient(ctx context.Context, arg UpsertClientParams) error {
@@ -543,6 +563,7 @@ func (q *Queries) UpsertClient(ctx context.Context, arg UpsertClientParams) erro
 		arg.Icon,
 		arg.PublicClient,
 		arg.Enabled,
+		arg.Attributes,
 	)
 	return err
 }

@@ -11,12 +11,14 @@ INSERT INTO client (
     base_url,
     icon,
     public_client,
-    enabled
+    enabled,
+    attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7,$8
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id;
+
 
 -- name: UpsertClient :exec
 INSERT INTO client (
@@ -27,18 +29,22 @@ INSERT INTO client (
     base_url,
     icon,
     public_client,
-    enabled
+    enabled,
+    attributes
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9
+)
 ON CONFLICT (client_id)
 DO UPDATE SET
-    name = EXCLUDED.name,
-    description = EXCLUDED.description,
-    base_url = EXCLUDED.base_url,
-    icon = EXCLUDED.icon,
+    name          = EXCLUDED.name,
+    description   = EXCLUDED.description,
+    base_url      = EXCLUDED.base_url,
+    icon          = EXCLUDED.icon,
     public_client = EXCLUDED.public_client,
-    enabled = EXCLUDED.enabled,
-    updated_at = NOW();
+    enabled       = EXCLUDED.enabled,
+    attributes    = EXCLUDED.attributes,
+    updated_at    = NOW();
 
 
 
@@ -90,6 +96,7 @@ SELECT
     icon,
     public_client,
     enabled,
+    attributes,
     created_at,
     updated_at
 FROM client
@@ -127,6 +134,7 @@ SELECT
     icon,
     public_client,
     enabled,
+    attributes,
     created_at,
     updated_at
 FROM client
