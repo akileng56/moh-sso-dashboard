@@ -1,11 +1,5 @@
 import { Tile, Button, Tag, Stack, InlineLoading } from "@carbon/react";
-import {
-  Launch,
-  Add,
-  UserFollow,
-  Security,
-  Notification,
-} from "@carbon/icons-react";
+import { Add, UserFollow, Security, Notification } from "@carbon/icons-react";
 import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import "./home.css";
@@ -27,6 +21,7 @@ import { useHeaderPanel } from "../../../components/header-panel/header-panel.co
 import { ClientFormPanel } from "../../../components/panels/client-form-panel";
 import { UserFormPanel } from "../../../components/panels/create-user-panel";
 import { ApplicationTile } from "../../../components/home/app/ApplicationTile";
+import { UserClientRolesPanel } from "../../../components/panels/user-client-roles-panel";
 
 /* -----------------------------
  * Utils
@@ -273,6 +268,31 @@ export default function HomePage() {
               })
             }
             tone="warning"
+          />
+
+          {/* Manage user roles */}
+          <QuickAction
+            icon={<Security size={20} />}
+            label="Manage my roles"
+            description="View and manage your application roles"
+            tone="warning"
+            onClick={() => {
+              if (!user) return;
+
+              openPanel({
+                title: `Roles: ${user.username}`,
+                size: "lg",
+                content: (
+                  <Stack gap={6}>
+                    {/* User basic details */}
+                    <UserFormPanel mode="edit" initialUser={user} />
+
+                    {/* Client role assignment */}
+                    <UserClientRolesPanel userId={user.id} />
+                  </Stack>
+                ),
+              });
+            }}
           />
 
           {/* Create client */}

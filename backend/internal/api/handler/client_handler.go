@@ -124,7 +124,9 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
 		return
 	}
 
-	client, err := h.service.GetClient(id)
+	uid, _ := uuid.Parse(id)
+
+	client, err := h.service.GetClient(uid)
 	if err != nil {
 		h.audit(
 			c,
@@ -296,6 +298,116 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 }
 
 /* =========================================================
+ * CLIENT ROLES
+ * ========================================================= */
+
+// POST /clients/:id/roles
+func (h *ClientHandler) CreateClientRole(c *gin.Context) {
+	clientID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
+		return
+	}
+
+	var body struct {
+		Role string `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Role == "" {
+		response.Fail(c, http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Role is required",
+		)
+		return
+	}
+
+	adminID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.CreateClientRole(
+		c.Request.Context(),
+		clientID,
+		body.Role,
+		adminID,
+	); err != nil {
+		response.Fail(c, http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to create client role",
+		)
+		return
+	}
+
+	h.audit(c, "client.role_created", map[string]interface{}{
+		"client_id": clientID.String(),
+		"role":      body.Role,
+	})
+
+	c.Status(http.StatusCreated)
+}
+
+// GET /clients/:id/roles
+func (h *ClientHandler) ListClientRoles(c *gin.Context) {
+	clientID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
+		return
+	}
+
+	roles, err := h.service.ListClientRoles(clientID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to list client roles",
+		)
+		return
+	}
+
+	h.audit(c, "client.roles_listed", map[string]interface{}{
+		"client_id": clientID.String(),
+	})
+
+	response.OK(c, http.StatusOK, roles)
+}
+
+// DELETE /clients/:id/roles/:role
+func (h *ClientHandler) DeleteClientRole(c *gin.Context) {
+	clientID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
+		return
+	}
+
+	role := c.Param("role")
+	if role == "" {
+		response.Fail(c, http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Role is required",
+		)
+		return
+	}
+
+	adminID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.DeleteClientRole(
+		c.Request.Context(),
+		clientID,
+		role,
+		adminID,
+	); err != nil {
+		response.Fail(c, http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to delete client role",
+		)
+		return
+	}
+
+	h.audit(c, "client.role_deleted", map[string]interface{}{
+		"client_id": clientID.String(),
+		"role":      role,
+	})
+
+	c.Status(http.StatusNoContent)
+}
+
+/* =========================================================
  * Audit helper
  * ========================================================= */
 func (h *ClientHandler) audit(
@@ -316,4 +428,114 @@ func (h *ClientHandler) audit(
 		action,
 		meta,
 	)
+}
+
+/* =========================================================
+ * Assign client role to user (ADMIN)
+ * ========================================================= */
+func (h *ClientHandler) AssignClientRoleToUser(c *gin.Context) {
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid user ID")
+		return
+	}
+
+	clientID, err := uuid.Parse(c.Param("clientId"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
+		return
+	}
+
+	var body struct {
+		Role string `json:"role"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.Role == "" {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Role is required",
+		)
+		return
+	}
+
+	adminID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.AssignClientRoleToUser(
+		c.Request.Context(),
+		userID,
+		clientID,
+		body.Role,
+		adminID,
+	); err != nil {
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to assign role to user",
+		)
+		return
+	}
+
+	h.audit(c, "client.role_assigned", map[string]interface{}{
+		"user_id":   userID.String(),
+		"client_id": clientID.String(),
+		"role":      body.Role,
+	})
+
+	c.Status(http.StatusNoContent)
+}
+
+/* =========================================================
+ * Remove client role from user (ADMIN)
+ * ========================================================= */
+func (h *ClientHandler) RemoveClientRoleFromUser(c *gin.Context) {
+	userID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid user ID")
+		return
+	}
+
+	clientID, err := uuid.Parse(c.Param("clientId"))
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
+		return
+	}
+
+	role := c.Param("role")
+	if role == "" {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"Role is required",
+		)
+		return
+	}
+
+	adminID, _ := uuid.Parse(c.GetString("user_id"))
+
+	if err := h.service.RemoveClientRoleFromUser(
+		c.Request.Context(),
+		userID,
+		clientID,
+		role,
+		adminID,
+	); err != nil {
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to remove role from user",
+		)
+		return
+	}
+
+	h.audit(c, "client.role_removed", map[string]interface{}{
+		"user_id":   userID.String(),
+		"client_id": clientID.String(),
+		"role":      role,
+	})
+
+	c.Status(http.StatusNoContent)
 }

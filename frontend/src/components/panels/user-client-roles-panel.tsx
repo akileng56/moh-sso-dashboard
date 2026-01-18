@@ -1,0 +1,145 @@
+import { Stack, Tile, MultiSelect, InlineLoading, Button } from "@carbon/react";
+import { useEffect, useMemo, useState } from "react";
+
+import { useListClientsQuery } from "../../store/api/clients.api";
+import { useToast } from "../notifications/toast/useToast";
+import {
+  useGetUserClientRolesQuery,
+  useUpdateUserClientRolesMutation,
+} from "../../store/api/users.api";
+import { useListClientRolesQuery } from "../../store/api/clientRoles.api";
+
+type Props = {
+  userId: string;
+};
+
+export function UserClientRolesPanel({ userId }: Props) {
+  const toast = useToast();
+
+  const { data: clients = [], isLoading: loadingClients } =
+    useListClientsQuery();
+
+  const { data: assignments = [], isLoading: loadingAssignments } =
+    useGetUserClientRolesQuery(userId);
+
+  const [updateRoles, { isLoading: saving }] =
+    useUpdateUserClientRolesMutation();
+
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+
+  const selectedClient = clients.find((c) => c.clientId === selectedClientId);
+
+  const { data: clientRoles = [], isLoading: loadingRoles } =
+    useListClientRolesQuery(selectedClientId!, {
+      skip: !selectedClientId,
+    });
+
+  /* -----------------------------
+   * Sync selection
+   * ----------------------------- */
+  useEffect(() => {
+    if (!selectedClientId) return;
+
+    const existing = assignments.find((a) => a.clientId === selectedClientId);
+
+    setSelectedRoles(existing?.roles ?? []);
+  }, [selectedClientId, assignments]);
+
+  const roleItems = useMemo(
+    () =>
+      clientRoles.map((r) => ({
+        id: r.name,
+        text: r.name.replace(`${selectedClientId}:`, ""),
+      })),
+    [clientRoles, selectedClientId]
+  );
+
+  const handleSave = async () => {
+    if (!selectedClientId) return;
+
+    try {
+      await updateRoles({
+        userId,
+        clientId: selectedClientId,
+        roles: selectedRoles,
+      }).unwrap();
+
+      toast.success("Roles updated", "Client roles updated successfully");
+    } catch {
+      toast.error("Failed to save roles", "Please try again");
+    }
+  };
+
+  if (loadingClients || loadingAssignments) {
+    return <InlineLoading description="Loading client roles…" />;
+  }
+
+  return (
+    <Stack gap={5}>
+      {/* -----------------------------
+       * Client selector
+       * ----------------------------- */}
+      <Tile>
+        <Stack gap={4}>
+          <strong>Select application</strong>
+
+          <MultiSelect
+            id="client-selector"
+            titleText="Application"
+            items={clients.map((c) => ({
+              id: c.clientId,
+              text: c.name,
+            }))}
+            itemToString={(item) => item?.text ?? ""}
+            selectedItems={
+              selectedClient
+                ? [{ id: selectedClient.clientId, text: selectedClient.name }]
+                : []
+            }
+            onChange={({ selectedItems }) =>
+              setSelectedClientId(selectedItems[0]?.id ?? null)
+            }
+          />
+        </Stack>
+      </Tile>
+
+      {/* -----------------------------
+       * Role assignment
+       * ----------------------------- */}
+      {selectedClientId && (
+        <Tile>
+          <Stack gap={4}>
+            <strong>Roles for {selectedClient?.name}</strong>
+
+            {loadingRoles ? (
+              <InlineLoading description="Loading roles…" />
+            ) : (
+              <MultiSelect
+                id="client-roles"
+                titleText="Client roles"
+                items={roleItems}
+                itemToString={(item) => item?.text ?? ""}
+                selectedItems={roleItems.filter((r) =>
+                  selectedRoles.includes(r.id)
+                )}
+                onChange={({ selectedItems }) =>
+                  setSelectedRoles(selectedItems.map((r) => r.id))
+                }
+              />
+            )}
+
+            <Button
+              kind="primary"
+              size="sm"
+              disabled={saving}
+              onClick={handleSave}
+            >
+              {saving ? "Saving…" : "Save roles"}
+            </Button>
+          </Stack>
+        </Tile>
+      )}
+    </Stack>
+  );
+}

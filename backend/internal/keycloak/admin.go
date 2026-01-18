@@ -69,9 +69,68 @@ type CreateClientParams struct {
 	Attributes             map[string]string `json:"attributes"`
 }
 
-// -------------------------------------------------------------------
-// Realm Management
-// -------------------------------------------------------------------
+type UserInfo struct {
+	ID                  string              `json:"id"`
+	Username            string              `json:"username"`
+	Email               string              `json:"email"`
+	FirstName           string              `json:"firstName"`
+	LastName            string              `json:"lastName"`
+	Enabled             bool                `json:"enabled"`
+	EmailVerified       bool                `json:"emailVerified"`
+	RequiredActions     []string            `json:"requiredActions"`
+	AccountStatus       string              `json:"accountStatus"`
+	Roles               []string            `json:"roles"`
+	ClientRoles         map[string][]string `json:"clientRoles"`
+	LastLoginAt         *time.Time          `json:"lastLoginAt"`
+	LastLoginIP         string              `json:"lastLoginIp"`
+	FailedLoginAttempts int                 `json:"failedLoginAttempts"`
+	TemporarilyLocked   bool                `json:"temporarilyLocked"`
+	CreatedAt           time.Time           `json:"createdAt"`
+	UpdatedAt           time.Time           `json:"updatedAt"`
+	Source              string              `json:"source"`
+	ImportedAt          *time.Time          `json:"importedAt"`
+	Notes               string              `json:"notes"`
+	DisplayName         string              `json:"displayName"`
+	NeverLoggedIn       bool                `json:"neverLoggedIn"`
+}
+
+type CreateUserRequest struct {
+	Username      string `json:"username"`
+	Email         string `json:"email"`
+	FirstName     string `json:"firstName"`
+	LastName      string `json:"lastName"`
+	Enabled       bool   `json:"enabled"`
+	EmailVerified bool   `json:"emailVerified"`
+	Credentials   []struct {
+		Type      string `json:"type"`
+		Value     string `json:"value"`
+		Temporary bool   `json:"temporary"`
+	} `json:"credentials"`
+}
+
+type UserRep struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Enabled  bool   `json:"enabled"`
+}
+
+type CreateRoleRequest struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Composite   bool   `json:"composite"`
+	ClientRole  bool   `json:"clientRole"`
+}
+
+type ClientRoleRep struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type RoleRep struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
 
 func (c *Client) EnsureRealmExists(realmName string) error {
 	res, err := c.Get(fmt.Sprintf("admin/realms/%s", realmName))
@@ -100,10 +159,6 @@ func (c *Client) EnsureRealmExists(realmName string) error {
 	}
 	return nil
 }
-
-// -------------------------------------------------------------------
-// Client Management
-// -------------------------------------------------------------------
 
 // CreateClient with full configuration support
 func (c *Client) CreateClient(opts CreateClientParams) (string, error) {
@@ -249,61 +304,6 @@ func (c *Client) DeleteClient(id string) error {
 	}
 
 	return nil
-}
-
-// -------------------------------------------------------------------
-// User Management
-// -------------------------------------------------------------------
-
-type UserInfo struct {
-	ID                  string              `json:"id"`
-	Username            string              `json:"username"`
-	Email               string              `json:"email"`
-	FirstName           string              `json:"firstName"`
-	LastName            string              `json:"lastName"`
-	Enabled             bool                `json:"enabled"`
-	EmailVerified       bool                `json:"emailVerified"`
-	RequiredActions     []string            `json:"requiredActions"`
-	AccountStatus       string              `json:"accountStatus"`
-	Roles               []string            `json:"roles"`
-	ClientRoles         map[string][]string `json:"clientRoles"`
-	LastLoginAt         *time.Time          `json:"lastLoginAt"`
-	LastLoginIP         string              `json:"lastLoginIp"`
-	FailedLoginAttempts int                 `json:"failedLoginAttempts"`
-	TemporarilyLocked   bool                `json:"temporarilyLocked"`
-	CreatedAt           time.Time           `json:"createdAt"`
-	UpdatedAt           time.Time           `json:"updatedAt"`
-	Source              string              `json:"source"`
-	ImportedAt          *time.Time          `json:"importedAt"`
-	Notes               string              `json:"notes"`
-	DisplayName         string              `json:"displayName"`
-	NeverLoggedIn       bool                `json:"neverLoggedIn"`
-}
-
-type CreateUserRequest struct {
-	Username      string `json:"username"`
-	Email         string `json:"email"`
-	FirstName     string `json:"firstName"`
-	LastName      string `json:"lastName"`
-	Enabled       bool   `json:"enabled"`
-	EmailVerified bool   `json:"emailVerified"`
-	Credentials   []struct {
-		Type      string `json:"type"`
-		Value     string `json:"value"`
-		Temporary bool   `json:"temporary"`
-	} `json:"credentials"`
-}
-
-type UserRep struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Enabled  bool   `json:"enabled"`
-}
-
-type RoleRep struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
 }
 
 // -----------------------------------------
@@ -560,5 +560,322 @@ func (c *Client) SendUserOnboardingEmail(
 		return fmt.Errorf("failed to send email: %s", resp.Status)
 	}
 
+	return nil
+}
+
+// -------------------------------------------------------------------
+// ROLES: Realm roles
+// -------------------------------------------------------------------
+
+func (c *Client) CreateRealmRole(ctx context.Context, roleName, description string) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
+
+	payload := CreateRoleRequest{
+		Name:        roleName,
+		Description: description,
+		Composite:   false,
+		ClientRole:  false,
+	}
+
+	res, err := c.Post(u, payload)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	// 409 = already exists (safe for bootstrap)
+	if res.StatusCode == http.StatusConflict {
+		return nil
+	}
+
+	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("create realm role failed: %s", string(b))
+	}
+
+	return nil
+}
+
+func (c *Client) ListRealmRoles(ctx context.Context) ([]RoleRep, error) {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
+
+	res, err := c.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("list realm roles failed: %s", string(b))
+	}
+
+	var roles []RoleRep
+	return roles, json.NewDecoder(res.Body).Decode(&roles)
+}
+
+// -------------------------------------------------------------------
+// ROLES: Assign / Remove realm roles to user
+// -------------------------------------------------------------------
+
+func (c *Client) AddRealmRolesToUser(
+	ctx context.Context,
+	userID string,
+	roles []RoleRep,
+) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	if len(roles) == 0 {
+		return nil
+	}
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/users/%s/role-mappings/realm",
+		c.BaseURL,
+		c.Realm,
+		userID,
+	)
+
+	bs, _ := json.Marshal(roles)
+
+	res, err := c.Post(u, bytes.NewReader(bs))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("assign realm roles failed: %s", string(b))
+	}
+
+	return nil
+}
+
+func (c *Client) RemoveRealmRoleFromUser(
+	ctx context.Context,
+	userID string,
+	role RoleRep,
+) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/users/%s/role-mappings/realm",
+		c.BaseURL,
+		c.Realm,
+		userID,
+	)
+
+	bs, _ := json.Marshal([]RoleRep{role})
+
+	bytesData := bytes.NewReader(bs)
+
+	res, err := c.Post(u, bytesData)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("remove realm role failed: %s", string(b))
+	}
+
+	return nil
+}
+
+// -------------------------------------------------------------------
+// ROLES: Client roles
+// -------------------------------------------------------------------
+
+func (c *Client) CreateClientRole(
+	ctx context.Context,
+	clientID string,
+	roleName string,
+) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/clients/%s/roles",
+		c.BaseURL,
+		c.Realm,
+		clientID,
+	)
+
+	payload := CreateRoleRequest{
+		Name:       roleName,
+		ClientRole: true,
+	}
+
+	res, err := c.Post(u, payload)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode == http.StatusConflict {
+		return nil
+	}
+
+	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("create client role failed: %s", string(b))
+	}
+
+	return nil
+}
+
+func (c *Client) GetClientRoleByName(
+	ctx context.Context,
+	clientID string,
+	roleName string,
+) (*ClientRoleRep, error) {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/clients/%s/roles/%s",
+		c.BaseURL,
+		c.Realm,
+		clientID,
+		url.PathEscape(roleName),
+	)
+
+	res, err := c.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf("get client role failed: %s", string(b))
+	}
+
+	var out ClientRoleRep
+	return &out, json.NewDecoder(res.Body).Decode(&out)
+}
+
+func (c *Client) AddClientRoleToUser(
+	ctx context.Context,
+	userID string,
+	clientID string,
+	role ClientRoleRep,
+) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/users/%s/role-mappings/clients/%s",
+		c.BaseURL,
+		c.Realm,
+		userID,
+		clientID,
+	)
+
+	bs, _ := json.Marshal([]ClientRoleRep{role})
+
+	res, err := c.Post(u, bytes.NewReader(bs))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("assign client role failed: %s", string(b))
+	}
+
+	return nil
+}
+
+func (c *Client) RemoveClientRoleFromUser(
+	ctx context.Context,
+	userID, clientID string,
+	role ClientRoleRep,
+) error {
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/users/%s/role-mappings/clients/%s",
+		c.BaseURL, c.Realm, userID, clientID,
+	)
+
+	bs, _ := json.Marshal([]ClientRoleRep{role})
+
+	res, err := c.Post(u, bytes.NewReader(bs))
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("remove client role failed: %s", string(b))
+	}
+	return nil
+}
+
+// -------------------------------------------------------------------
+// ROLES: Bootstrap helper (call on startup)
+// -------------------------------------------------------------------
+
+func (c *Client) BootstrapRealmRoles(ctx context.Context) error {
+	roles := []string{
+		"admin",
+		"user",
+		"manager",
+	}
+
+	for _, r := range roles {
+		if err := c.CreateRealmRole(ctx, r, "system role"); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+/*
+|--------------------------------------------------------------------------
+| Client Roles (FULLY IMPLEMENTED)
+|--------------------------------------------------------------------------
+*/
+
+func (c *Client) ListClientRoles(ctx context.Context, clientID string) ([]ClientRoleRep, error) {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf("%s/admin/realms/%s/clients/%s/roles",
+		c.BaseURL, c.Realm, clientID)
+
+	res, err := c.Get(u)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	var roles []ClientRoleRep
+	return roles, json.NewDecoder(res.Body).Decode(&roles)
+}
+
+func (c *Client) DeleteClientRole(ctx context.Context, clientID, role string) error {
+	c.BaseURL = "http://keycloak:8080"
+
+	u := fmt.Sprintf(
+		"%s/admin/realms/%s/clients/%s/roles/%s",
+		c.BaseURL, c.Realm, clientID, url.PathEscape(role),
+	)
+
+	res, err := c.Delete(u)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		b, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("delete client role failed: %s", string(b))
+	}
 	return nil
 }

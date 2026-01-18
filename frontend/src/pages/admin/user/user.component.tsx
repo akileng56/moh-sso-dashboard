@@ -13,6 +13,7 @@ import {
   OverflowMenuItem,
   Tag,
   Pagination,
+  Stack,
 } from "@carbon/react";
 import { Add } from "@carbon/icons-react";
 
@@ -29,6 +30,7 @@ import type { User } from "../../../store/types/user.types";
 import { UserFormPanel } from "../../../components/panels/create-user-panel";
 import { useEnableUserModal } from "../../../components/user/useEnableUserModal";
 import { useResetPasswordModal } from "../../../components/user/useResetPasswordModal";
+import { UserClientRolesPanel } from "../../../components/panels/user-client-roles-panel";
 
 /* -----------------------------
  * Table headers (raw hidden)
@@ -261,6 +263,29 @@ export default function UsersPage() {
                                     />
 
                                     <OverflowMenuItem
+                                      itemText="Manage roles"
+                                      hasDivider
+                                      onClick={() =>
+                                        openPanel({
+                                          title: `Roles: ${user.username}`,
+                                          size: "lg",
+                                          content: (
+                                            <Stack gap={6}>
+                                              <UserFormPanel
+                                                mode="edit"
+                                                initialUser={user}
+                                                onSuccess={closePanel}
+                                              />
+                                              <UserClientRolesPanel
+                                                userId={user.id}
+                                              />
+                                            </Stack>
+                                          ),
+                                        })
+                                      }
+                                    />
+
+                                    <OverflowMenuItem
                                       itemText={
                                         user?.isActive
                                           ? "Disable user"
@@ -289,10 +314,6 @@ export default function UsersPage() {
                                           username: user.username,
                                           email: user.email,
                                           onConfirm: async () => {
-                                            // 🔐 call backend
-                                            // example:
-                                            // await resetUserPassword(user.id).unwrap();
-
                                             console.log(
                                               "Reset password for",
                                               user.username

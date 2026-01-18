@@ -27,7 +27,7 @@ func SetupRouter(
 	r.Use(gin.Recovery())
 
 	// --------------------------------------------------
-	// CORS (MUST be first)
+	// CORS
 	// --------------------------------------------------
 	r.Use(cors.New(cors.Config{
 		AllowOrigins: []string{
@@ -84,6 +84,9 @@ func SetupRouter(
 			clients.GET("/:id", clientHandler.GetClient)
 			clients.POST("", clientHandler.CreateClient)
 			clients.DELETE("/:id", clientHandler.DeleteClient)
+
+			// -------- Client roles (READ) --------
+			clients.GET("/:id/roles", clientHandler.ListClientRoles)
 		}
 
 		// ------------------
@@ -114,6 +117,20 @@ func SetupRouter(
 			admin.GET("/users/import/:jobId", importHandler.GetJob)
 			admin.GET("/users/import/:jobId/errors.csv", importHandler.DownloadErrorsCSV)
 			admin.GET("/users/import/template.csv", importHandler.DownloadTemplateCSV)
+
+			// -------- Client roles (ADMIN) --------
+			admin.POST("/clients/:id/roles", clientHandler.CreateClientRole)
+			admin.DELETE("/clients/:id/roles/:role", clientHandler.DeleteClientRole)
+
+			// -------- User ↔ Client role assignments (ADMIN) --------
+			admin.POST(
+				"/users/:id/clients/:clientId/roles",
+				clientHandler.AssignClientRoleToUser,
+			)
+			admin.DELETE(
+				"/users/:id/clients/:clientId/roles/:role",
+				clientHandler.RemoveClientRoleFromUser,
+			)
 
 			// -------- Metrics --------
 			metrics := admin.Group("/metrics")

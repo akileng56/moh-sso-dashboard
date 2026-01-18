@@ -3,25 +3,51 @@ export interface Client {
   clientId: string;
   name: string;
   description?: string;
+  icon?: string;
   enabled: boolean;
   publicClient: boolean;
+  rootUrl?: string;
   baseUrl?: string;
   redirectUris: string[];
+  webOrigins?: string[];
+  roles?: ClientRole[];
+  attributes?: ClientAttributes;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export interface ClientRole {
+  id: string;
+  name: string;
+  description?: string;
+  composite?: boolean;
+}
+
+export type ClientAttributes = {
+  [key: string]: string | undefined;
+};
 
 export interface CreateClientPayload {
   clientId: string;
   name: string;
   description?: string;
+  icon?: string;
   publicClient?: boolean;
+  enabled?: boolean;
+  rootUrl?: string;
+  baseUrl?: string;
   redirectUris?: string[];
+  webOrigins?: string[];
 }
 
 export interface UpdateClientPayload {
   name?: string;
   description?: string;
+  icon?: string;
   publicClient?: boolean;
+  enabled?: boolean;
+  rootUrl?: string;
+  baseUrl?: string;
   redirectUris?: string[];
+  webOrigins?: string[];
 }

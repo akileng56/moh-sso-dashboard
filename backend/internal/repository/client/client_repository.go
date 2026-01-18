@@ -6,9 +6,35 @@ import (
 )
 
 type ClientRepository interface {
+	// ------------------------------------------------
+	// Client lifecycle
+	// ------------------------------------------------
 	CreateClient(app *models.Client) (string, error)
-	GetClientByID(id string) (*models.Client, error)
+	GetClientByID(id uuid.UUID) (*models.Client, error)
+	GetClientByClientID(clientID string) (*models.Client, error)
 	ListClients() ([]models.Client, error)
 	UpdateClient(app *models.Client) error
 	DeleteClient(id uuid.UUID) error
+
+	// ------------------------------------------------
+	// Client roles / permissions
+	// ------------------------------------------------
+	CreateClientRole(clientID uuid.UUID, role string) error
+	ListClientRoles(clientID uuid.UUID) ([]string, error)
+	DeleteClientRole(clientID uuid.UUID, role string) error
+
+	// ------------------------------------------------
+	// User ↔ Client role mapping
+	// ------------------------------------------------
+	AssignClientRoleToUser(
+		userID uuid.UUID,
+		clientID uuid.UUID,
+		role string,
+	) error
+
+	RemoveClientRoleFromUser(
+		userID uuid.UUID,
+		clientID uuid.UUID,
+		role string,
+	) error
 }

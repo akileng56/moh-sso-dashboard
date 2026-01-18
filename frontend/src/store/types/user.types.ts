@@ -7,7 +7,7 @@ export interface User {
   enabled: boolean;
   emailVerified: boolean;
   isAdmin: boolean;
-  isActive: boolean;
+  isActive?: boolean;
   realmRoles: string[];
   clientRoles: Record<string, string[]>;
   lastLoginAt?: string;

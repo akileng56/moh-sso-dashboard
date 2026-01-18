@@ -30,7 +30,19 @@ export const API = {
     create: () => `${API_BASE}/clients`,
     delete: (id: string) => `${API_BASE}/clients/${id}`,
     update: (id: string) => `${API_BASE}/clients/${id}`,
-    toggerClient: (id: string) => `${API_BASE}/clients/${id}`,
+    toggle: (id: string) => `${API_BASE}/clients/${id}`,
+
+    // -------- Client roles --------
+    roles: {
+      // READ (authenticated)
+      list: (clientId: string) => `${API_BASE}/clients/${clientId}/roles`,
+
+      // WRITE (admin only)
+      create: (clientId: string) =>
+        `${API_BASE}/admin/clients/${clientId}/roles`,
+      delete: (clientId: string, role: string) =>
+        `${API_BASE}/admin/clients/${clientId}/roles/${role}`,
+    },
   },
 
   // --------------------------------------------------
@@ -43,7 +55,7 @@ export const API = {
     create: () => `${API_BASE}/users`,
     delete: (id: string) => `${API_BASE}/users/${id}`,
     update: (id: string) => `${API_BASE}/users/${id}`,
-    toggerUser: (id: string) => `${API_BASE}/users${id}`,
+    toggle: (id: string) => `${API_BASE}/users/${id}`,
     resetPassword: (id: string) => `${API_BASE}/users/${id}/reset-password`,
   },
 

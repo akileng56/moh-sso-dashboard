@@ -205,6 +205,13 @@ const (
 	PolicyViolation NotificationType = "POLICY_VIOLATION"
 )
 
+const (
+	ClientRoleCreated  NotificationType = "CLIENT_ROLE_CREATED"
+	ClientRoleDeleted  NotificationType = "CLIENT_ROLE_DELETED"
+	ClientRoleAssigned NotificationType = "CLIENT_ROLE_ASSIGNED"
+	ClientRoleRemoved  NotificationType = "CLIENT_ROLE_REMOVED"
+)
+
 func (t NotificationType) Severity() string {
 	switch t {
 

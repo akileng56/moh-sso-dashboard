@@ -7,6 +7,7 @@ import {
   InlineLoading,
   Form,
   FormGroup,
+  TextArea,
 } from "@carbon/react";
 import { useMemo, useState } from "react";
 
@@ -16,41 +17,88 @@ import {
 } from "../../store/api/clients.api";
 import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert";
 import { useToast } from "../notifications/toast/useToast";
+import { ClientRolesPanel } from "../client/roles/client-roles-panel";
 
 export type ClientFormMode = "create" | "edit";
 
-export type ClientFormPayload = {
+type ClientFormState = {
   clientId: string;
   name: string;
+  description?: string;
   publicClient: boolean;
   enabled: boolean;
+  rootUrl?: string;
+  baseUrl?: string;
+  redirectUrisText: string;
+  webOriginsText: string;
+  icon?: string;
 };
 
 type Props = {
   mode: ClientFormMode;
-  initialClient?: ClientFormPayload;
+  initialClient?: {
+    clientId: string;
+    name: string;
+    description?: string;
+    publicClient: boolean;
+    enabled: boolean;
+    rootUrl?: string;
+    baseUrl?: string;
+    redirectUris?: string[];
+    webOrigins?: string[];
+    icon?: string;
+  };
   onSuccess?: () => void;
 };
 
 export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   const toast = useToast();
 
-  const [form, setForm] = useState<ClientFormPayload>(
-    initialClient ?? {
-      clientId: "",
-      name: "",
-      publicClient: false,
-      enabled: true,
-    }
-  );
+  const [createdClientId, setCreatedClientId] = useState<string | null>(null);
+
+  const effectiveClientId =
+    mode === "edit" ? initialClient?.clientId : createdClientId;
+
+  const [form, setForm] = useState<ClientFormState>({
+    clientId: initialClient?.clientId ?? "",
+    name: initialClient?.name ?? "",
+    description: initialClient?.description ?? "",
+    publicClient: initialClient?.publicClient ?? false,
+    enabled: initialClient?.enabled ?? true,
+    rootUrl: initialClient?.rootUrl ?? "",
+    baseUrl: initialClient?.baseUrl ?? "",
+    redirectUrisText: (initialClient?.redirectUris ?? []).join("\n"),
+    webOriginsText: (initialClient?.webOrigins ?? []).join("\n"),
+    icon: initialClient?.icon ?? "",
+  });
 
   const [error, setError] = useState<string | null>(null);
 
   const [createClient, { isLoading: creating }] = useCreateClientMutation();
-
   const [updateClient, { isLoading: updating }] = useUpdateClientMutation();
 
   const submitting = creating || updating;
+
+  /* -----------------------------
+   * Helpers
+   * ----------------------------- */
+  const normalizeList = (value: string): string[] =>
+    value
+      .split("\n")
+      .map((v) => v.trim())
+      .filter(Boolean);
+
+  const buildPayload = () => ({
+    name: form.name.trim(),
+    description: form.description?.trim() || undefined,
+    icon: form.icon?.trim() || undefined,
+    publicClient: form.publicClient,
+    enabled: form.enabled,
+    rootUrl: form.rootUrl?.trim() || undefined,
+    baseUrl: form.baseUrl?.trim() || undefined,
+    redirectUris: normalizeList(form.redirectUrisText),
+    webOrigins: normalizeList(form.webOriginsText),
+  });
 
   /* -----------------------------
    * Validation
@@ -58,14 +106,17 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   const isClientIdValid = /^[a-z0-9-]+$/.test(form.clientId);
 
   const isValid = useMemo(() => {
-    if (!form.clientId || !form.name) return false;
-    if (mode === "create") return isClientIdValid;
+    if (!form.name.trim()) return false;
+    if (mode === "create") {
+      if (!form.clientId.trim()) return false;
+      if (!isClientIdValid) return false;
+    }
     return true;
   }, [form, mode, isClientIdValid]);
 
-  const handleChange = <K extends keyof ClientFormPayload>(
+  const handleChange = <K extends keyof ClientFormState>(
     field: K,
-    value: ClientFormPayload[K]
+    value: ClientFormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -80,22 +131,21 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
 
     try {
       if (mode === "create") {
-        await createClient(form).unwrap();
+        const created = await createClient({
+          clientId: form.clientId.toLowerCase().trim(),
+          ...buildPayload(),
+        }).unwrap();
 
-        toast.success(
-          "Client created",
-          `Client "${form.name}" was created successfully`
-        );
+        setCreatedClientId(created.clientId);
+
+        toast.success("Client created", `Client "${form.name}" was created`);
       } else {
         await updateClient({
           id: form.clientId,
-          data: {
-            name: form.name,
-            publicClient: form.publicClient,
-          },
+          data: buildPayload(),
         }).unwrap();
 
-        toast.success("Client updated", `Changes to "${form.name}" were saved`);
+        toast.success("Client updated", `Changes to "${form.name}" saved`);
       }
 
       onSuccess?.();
@@ -107,17 +157,13 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
           : "Failed to update client");
 
       setError(message);
-
       toast.error("Operation failed", "Please review the form and try again");
     }
   };
 
   return (
     <Form>
-      <Stack gap={5}>
-        {/* -----------------------------
-         * Inline form error
-         * ----------------------------- */}
+      <Stack gap={7}>
         {error && (
           <FormInlineAlert title="Unable to save client" subtitle={error} />
         )}
@@ -135,7 +181,6 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
                   ? "Lowercase letters, numbers, and dashes only"
                   : "Client ID cannot be changed"
               }
-              placeholder="moh-dashboard"
               required
               disabled={mode === "edit"}
               value={form.clientId}
@@ -144,17 +189,69 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
                 form.clientId.length > 0 &&
                 !isClientIdValid
               }
-              invalidText="Only lowercase letters, numbers, and dashes are allowed"
-              onChange={(e) => handleChange("clientId", e.target.value)}
+              invalidText="Only lowercase letters, numbers, and dashes allowed"
+              onChange={(e) =>
+                handleChange("clientId", e.target.value.toLowerCase())
+              }
             />
 
             <TextInput
               id="name"
               labelText="Client name"
-              placeholder="MOH SSO Dashboard"
               required
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
+            />
+
+            <TextArea
+              id="description"
+              labelText="Description"
+              value={form.description}
+              onChange={(e) => handleChange("description", e.target.value)}
+            />
+
+            <TextInput
+              id="icon"
+              labelText="Icon (optional)"
+              value={form.icon}
+              onChange={(e) => handleChange("icon", e.target.value)}
+            />
+          </Stack>
+        </FormGroup>
+
+        {/* -----------------------------
+         * URLs & Redirects
+         * ----------------------------- */}
+        <FormGroup legendText="URLs & redirects">
+          <Stack gap={4}>
+            <TextInput
+              id="rootUrl"
+              labelText="Root URL"
+              value={form.rootUrl}
+              onChange={(e) => handleChange("rootUrl", e.target.value)}
+            />
+
+            <TextInput
+              id="baseUrl"
+              labelText="Base URL"
+              value={form.baseUrl}
+              onChange={(e) => handleChange("baseUrl", e.target.value)}
+            />
+
+            <TextArea
+              id="redirectUris"
+              labelText="Redirect URIs"
+              helperText="One per line"
+              value={form.redirectUrisText}
+              onChange={(e) => handleChange("redirectUrisText", e.target.value)}
+            />
+
+            <TextArea
+              id="webOrigins"
+              labelText="Web origins"
+              helperText="One per line"
+              value={form.webOriginsText}
+              onChange={(e) => handleChange("webOriginsText", e.target.value)}
             />
           </Stack>
         </FormGroup>
@@ -204,6 +301,15 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
             )}
           </Button>
         </Stack>
+
+        {/* -----------------------------
+         * Client roles (post-create / edit)
+         * ----------------------------- */}
+        {effectiveClientId && (
+          <FormGroup legendText="Client roles">
+            <ClientRolesPanel clientId={effectiveClientId} />
+          </FormGroup>
+        )}
       </Stack>
     </Form>
   );

@@ -21,7 +21,10 @@ import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert
 
 export type UserFormMode = "create" | "edit";
 
-type UserFormPayload = {
+/**
+ * UI form state (NOT API payload)
+ */
+type UserFormState = {
   username: string;
   email: string;
   firstName: string;
@@ -31,6 +34,10 @@ type UserFormPayload = {
   emailVerified: boolean;
 };
 
+/**
+ * Temporary realm roles
+ * (replace with API-driven roles later)
+ */
 const REALM_ROLES = [
   { id: "admin", text: "Admin" },
   { id: "manager", text: "Manager" },
@@ -46,7 +53,7 @@ type Props = {
 export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
   const toast = useToast();
 
-  const [form, setForm] = useState<UserFormPayload>({
+  const [form, setForm] = useState<UserFormState>({
     username: initialUser?.username ?? "",
     email: initialUser?.email ?? "",
     firstName: initialUser?.firstName ?? "",
@@ -59,26 +66,39 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   const [createUser, { isLoading: creating }] = useCreateUserMutation();
-
   const [updateUser, { isLoading: updating }] = useUpdateUserMutation();
 
   const submitting = creating || updating;
 
   /* -----------------------------
+   * Helpers
+   * ----------------------------- */
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const buildPayload = () => ({
+    email: form.email.trim().toLowerCase(),
+    firstName: form.firstName.trim(),
+    lastName: form.lastName.trim(),
+    realmRoles: form.realmRoles,
+    enabled: form.enabled,
+    emailVerified: form.emailVerified,
+  });
+
+  /* -----------------------------
    * Validation
    * ----------------------------- */
   const isValid = useMemo(() => {
-    return (
-      Boolean(form.username) &&
-      Boolean(form.email) &&
-      Boolean(form.firstName) &&
-      Boolean(form.lastName)
-    );
+    if (!form.username.trim()) return false;
+    if (!form.firstName.trim()) return false;
+    if (!form.lastName.trim()) return false;
+    if (!isValidEmail(form.email)) return false;
+    return true;
   }, [form]);
 
-  const handleChange = <K extends keyof UserFormPayload>(
+  const handleChange = <K extends keyof UserFormState>(
     field: K,
-    value: UserFormPayload[K]
+    value: UserFormState[K]
   ) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -93,7 +113,10 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
 
     try {
       if (mode === "create") {
-        await createUser(form).unwrap();
+        await createUser({
+          username: form.username.trim().toLowerCase(),
+          ...buildPayload(),
+        }).unwrap();
 
         toast.success(
           "User created",
@@ -102,14 +125,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
       } else if (initialUser?.id) {
         await updateUser({
           id: initialUser.id,
-          data: {
-            email: form.email,
-            firstName: form.firstName,
-            lastName: form.lastName,
-            realmRoles: form.realmRoles,
-            enabled: form.enabled,
-            emailVerified: form.emailVerified,
-          },
+          data: buildPayload(),
         }).unwrap();
 
         toast.success(
@@ -125,17 +141,13 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
         (mode === "create" ? "Failed to create user" : "Failed to update user");
 
       setError(message);
-
       toast.error("Operation failed", "Please review the form and try again");
     }
   };
 
   return (
     <Form>
-      <Stack gap={5}>
-        {/* -----------------------------
-         * Inline form error
-         * ----------------------------- */}
+      <Stack gap={6}>
         {error && (
           <FormInlineAlert title="Unable to save user" subtitle={error} />
         )}
@@ -154,7 +166,9 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
                 mode === "edit" ? "Username cannot be changed" : undefined
               }
               value={form.username}
-              onChange={(e) => handleChange("username", e.target.value)}
+              onChange={(e) =>
+                handleChange("username", e.target.value.toLowerCase())
+              }
             />
 
             <TextInput
@@ -163,6 +177,8 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               type="email"
               required
               value={form.email}
+              invalid={Boolean(form.email) && !isValidEmail(form.email)}
+              invalidText="Enter a valid email address"
               onChange={(e) => handleChange("email", e.target.value)}
             />
 
@@ -190,9 +206,9 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
         <FormGroup legendText="Access control">
           <Stack gap={4}>
             <MultiSelect
-              label="Realm roles"
-              id="roles"
+              id="realmRoles"
               titleText="Realm roles"
+              label="Realm roles"
               items={REALM_ROLES}
               itemToString={(item) => item?.text ?? ""}
               selectedItems={REALM_ROLES.filter((r) =>
