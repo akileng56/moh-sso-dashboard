@@ -240,8 +240,9 @@
       ],
       "realmRoles": ["manager"],
       "clientRoles": {
-        "dashboard": ["dashboard_access"],
-        "moh-reports": ["moh-reports_access"]
+        "moh-reports": ["moh-reports_access"],
+
+        "hmis-web": ["hmis-web_access"]
       }
     },
     {
@@ -260,7 +261,9 @@
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "moh-reports": ["moh-reports_access"]
+        "moh-reports": ["moh-reports_access"],
+
+        "hmis-web": ["hmis-web_access"]
       }
     },
     {
@@ -298,7 +301,8 @@
       ],
       "realmRoles": ["user"],
       "clientRoles": {
-        "obulamu-web": ["obulamu-web_access"]
+        "obulamu-web": ["obulamu-web_access"],
+        "moh-reports": ["moh-reports_access"]
       }
     },
     {

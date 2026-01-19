@@ -29,8 +29,6 @@ const AppTile: React.FC<AppTileProps> = ({
 
     // 🧭 Navigate to route
     navigate(href);
-
-    console.log("clientId-->", clientId);
   };
 
   return (
