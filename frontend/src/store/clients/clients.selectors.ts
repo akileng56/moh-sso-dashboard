@@ -8,10 +8,10 @@ import type { RootState } from "..";
 
 export const selectClientsState = (state: RootState) => state.clients;
 
-export const selectClients = createSelector(
-  selectClientsState,
-  (s) => [defaultClient, ...s.items] // 👈 ALWAYS prepend
-);
+export const selectClients = createSelector(selectClientsState, (s) => [
+  defaultClient,
+  ...s.items,
+]);
 
 export const selectActiveClientId = createSelector(
   selectClientsState,

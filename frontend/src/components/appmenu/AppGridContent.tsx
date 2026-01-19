@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Grid, Column, InlineLoading, Tile } from "@carbon/react";
 import {
   Document,
@@ -8,9 +8,11 @@ import {
   User,
   App,
 } from "@carbon/icons-react";
+import { useDispatch } from "react-redux";
 
 import AppTile from "./AppMenuItem.component";
 import { useListClientsQuery } from "../../store/api/clients.api";
+import { setClients } from "../../store/clients/clients.slice";
 import type { Client } from "../../store/types/client.types";
 import "./AppMenu.css";
 
@@ -24,12 +26,23 @@ const ICON_MAP: Record<string, React.ElementType> = {
 };
 
 const AppGridContent: React.FC = () => {
+  const dispatch = useDispatch();
+
   const {
     data: clients = [],
     isLoading,
     isError,
     refetch,
   } = useListClientsQuery();
+
+  /* -----------------------------
+   * 🔑 Sync clients into Redux
+   * ----------------------------- */
+  useEffect(() => {
+    if (clients.length > 0) {
+      dispatch(setClients(clients));
+    }
+  }, [clients, dispatch]);
 
   /* -----------------------------
    * Loading state
@@ -76,7 +89,9 @@ const AppGridContent: React.FC = () => {
   return (
     <Grid narrow className="app-grid">
       {clients.map((client: Client) => {
-        const Icon = ICON_MAP[(client as any).attributes?.icon] ?? App;
+        // 🔑 Attribute-driven icon
+        const iconKey = client.attributes?.["ui.icon"];
+        const Icon = ICON_MAP[iconKey ?? ""] ?? App;
 
         return (
           <Column

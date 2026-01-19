@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 
 import { selectActiveClient } from "../../store/clients/clients.selectors";
 import { defaultClient } from "../../store/clients/defaultClient";
+import type { Client } from "../../store/types/client.types";
 
 type SideNavItem = {
   id: string;
@@ -12,7 +13,9 @@ type SideNavItem = {
   permission?: string;
 };
 
-function parseSideNav(client: any): SideNavItem[] {
+function parseSideNav(client: Client): SideNavItem[] {
+  console.log("clent-->", client);
+
   try {
     return JSON.parse(client.attributes?.["ui.sidenav"] ?? "[]");
   } catch {
@@ -28,8 +31,15 @@ export function ClientSideNav() {
   const defaultItems = parseSideNav(defaultClient);
   const activeItems =
     activeClient && activeClient.clientId !== "__default__"
+
       ? parseSideNav(activeClient)
       : [];
+
+  console.log("activeItems-->", activeItems);
+
+  console.log("defaultClients-> ", defaultItems);
+
+  // console.log("sidenav-->", parseSideNav(activeClient).join(""));
 
   return (
     <SideNav isFixedNav expanded aria-label="Application navigation">

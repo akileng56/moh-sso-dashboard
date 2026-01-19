@@ -5,7 +5,7 @@ export const DEFAULT_CLIENT_ID = "__default__";
 export const defaultClient: Client = {
   id: DEFAULT_CLIENT_ID,
   clientId: DEFAULT_CLIENT_ID,
-  name: "MOH Portal",
+  name: "MOH National Dataware house",
   enabled: true,
   publicClient: false,
   redirectUris: [],
