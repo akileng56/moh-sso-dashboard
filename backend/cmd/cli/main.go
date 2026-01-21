@@ -11,10 +11,10 @@ import (
 )
 
 var (
-	baseURL  string
-	realm    string
-	clientID string
-	secret   string
+	baseURL     string
+	realm       string
+	adminID     string
+	adminSecret string
 )
 
 func main() {
@@ -23,20 +23,49 @@ func main() {
 		Short: "MOH SSO Management CLI",
 		Long:  "CLI tool for managing Keycloak realms, clients, and users for the MOH SSO Dashboard",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if baseURL == "" || realm == "" || clientID == "" || secret == "" {
-				return fmt.Errorf("please provide all Keycloak connection details (base-url, realm, client-id, secret)")
+			if baseURL == "" || realm == "" || adminID == "" || adminSecret == "" {
+				return fmt.Errorf(
+					"please provide all Keycloak admin connection details (base-url, realm, admin-client-id, admin-client-secret)",
+				)
 			}
 			return nil
 		},
 	}
 
-	// global flags
-	rootCmd.PersistentFlags().StringVar(&baseURL, "base-url", os.Getenv("KEYCLOAK_BASE_URL"), "Keycloak base URL")
-	rootCmd.PersistentFlags().StringVar(&realm, "realm", os.Getenv("KEYCLOAK_REALM"), "Keycloak realm name")
-	rootCmd.PersistentFlags().StringVar(&clientID, "client-id", os.Getenv("KEYCLOAK_CLIENT_ID"), "Keycloak client ID")
-	rootCmd.PersistentFlags().StringVar(&secret, "secret", os.Getenv("KEYCLOAK_CLIENT_SECRET"), "Keycloak client secret")
+	// ------------------------------------------------------------------
+	// Global flags (ADMIN ONLY)
+	// ------------------------------------------------------------------
+	rootCmd.PersistentFlags().StringVar(
+		&baseURL,
+		"base-url",
+		os.Getenv("KEYCLOAK_BASE_URL"),
+		"Keycloak base URL (e.g. http://keycloak:8080)",
+	)
 
-	// add commands
+	rootCmd.PersistentFlags().StringVar(
+		&realm,
+		"realm",
+		os.Getenv("KEYCLOAK_REALM"),
+		"Keycloak realm name",
+	)
+
+	rootCmd.PersistentFlags().StringVar(
+		&adminID,
+		"admin-client-id",
+		os.Getenv("KEYCLOAK_ADMIN_CLIENT_ID"),
+		"Keycloak ADMIN client ID",
+	)
+
+	rootCmd.PersistentFlags().StringVar(
+		&adminSecret,
+		"admin-client-secret",
+		os.Getenv("KEYCLOAK_ADMIN_CLIENT_SECRET"),
+		"Keycloak ADMIN client secret",
+	)
+
+	// ------------------------------------------------------------------
+	// Commands
+	// ------------------------------------------------------------------
 	rootCmd.AddCommand(initRealmCmd)
 	rootCmd.AddCommand(createClientCmd)
 	rootCmd.AddCommand(listClientsCmd)
@@ -49,40 +78,57 @@ func main() {
 	}
 }
 
-// --- Commands ---
+// ------------------------------------------------------------------
+// Helpers
+// ------------------------------------------------------------------
+func newAdminKC() *keycloak.Client {
+	kc := keycloak.NewClient(
+		baseURL,
+		realm,
+		adminID,
+		adminSecret,
+		"", // web client id (unused)
+		"", // web client secret (unused)
+	)
 
-// Initialize Realm
+	if err := kc.Authenticate(); err != nil {
+		log.Fatalf("❌ Keycloak admin auth failed: %v", err)
+	}
+
+	return kc
+}
+
+// ------------------------------------------------------------------
+// Realm Commands
+// ------------------------------------------------------------------
 var initRealmCmd = &cobra.Command{
 	Use:   "init-realm",
-	Short: "Initialize the default Keycloak realm",
+	Short: "Initialize the Keycloak realm",
 	Run: func(cmd *cobra.Command, args []string) {
-		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
-		if err := kc.Authenticate(); err != nil {
-			log.Fatalf("❌ Auth failed: %v", err)
-		}
-		if err := kc.EnsureRealmExists("moh-realm"); err != nil {
+		kc := newAdminKC()
+
+		if err := kc.EnsureRealmExists(realm); err != nil {
 			log.Fatalf("❌ Failed to initialize realm: %v", err)
 		}
-		fmt.Println("✅ Realm 'moh-realm' is ready.")
+
+		fmt.Printf("✅ Realm '%s' is ready\n", realm)
 	},
 }
 
-// --- Client Commands ---
+// ------------------------------------------------------------------
+// Client Commands
+// ------------------------------------------------------------------
 var (
 	clientName    string
-	redirectUri   string
+	redirectURI   string
 	clientBaseURL string
 )
 
 var createClientCmd = &cobra.Command{
 	Use:   "create-client",
-	Short: "Create a new client in Keycloak",
+	Short: "Create a new Keycloak client",
 	Run: func(cmd *cobra.Command, args []string) {
-		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
-
-		if err := kc.Authenticate(); err != nil {
-			log.Fatalf("❌ Auth failed: %v", err)
-		}
+		kc := newAdminKC()
 
 		params := keycloak.CreateClientParams{
 			ClientID:               clientName,
@@ -90,7 +136,7 @@ var createClientCmd = &cobra.Command{
 			Description:            "Created via CLI",
 			BaseURL:                clientBaseURL,
 			RootURL:                clientBaseURL,
-			RedirectURIs:           []string{redirectUri},
+			RedirectURIs:           []string{redirectURI},
 			WebOrigins:             []string{clientBaseURL},
 			PublicClient:           true,
 			Protocol:               "openid-connect",
@@ -113,21 +159,22 @@ var listClientsCmd = &cobra.Command{
 	Use:   "list-clients",
 	Short: "List all Keycloak clients",
 	Run: func(cmd *cobra.Command, args []string) {
-		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
-		if err := kc.Authenticate(); err != nil {
-			log.Fatalf("❌ Auth failed: %v", err)
-		}
+		kc := newAdminKC()
+
 		clients, err := kc.ListClients()
 		if err != nil {
 			log.Fatalf("❌ Error fetching clients: %v", err)
 		}
+
 		for _, c := range clients {
 			fmt.Printf("• %s (%s)\n", c.ClientID, c.ID)
 		}
 	},
 }
 
-// --- User Commands ---
+// ------------------------------------------------------------------
+// User Commands
+// ------------------------------------------------------------------
 var (
 	username string
 	password string
@@ -138,10 +185,7 @@ var createUserCmd = &cobra.Command{
 	Use:   "create-user",
 	Short: "Create a new Keycloak user",
 	Run: func(cmd *cobra.Command, args []string) {
-		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
-		if err := kc.Authenticate(); err != nil {
-			log.Fatalf("❌ Auth failed: %v", err)
-		}
+		kc := newAdminKC()
 
 		user := model.User{
 			Username: username,
@@ -152,6 +196,7 @@ var createUserCmd = &cobra.Command{
 		if _, err := kc.CreateUser(&user); err != nil {
 			log.Fatalf("❌ Failed to create user: %v", err)
 		}
+
 		fmt.Printf("✅ User '%s' created successfully\n", username)
 	},
 }
@@ -160,14 +205,13 @@ var listUsersCmd = &cobra.Command{
 	Use:   "list-users",
 	Short: "List all Keycloak users",
 	Run: func(cmd *cobra.Command, args []string) {
-		kc := keycloak.NewClient(baseURL, realm, clientID, secret)
-		if err := kc.Authenticate(); err != nil {
-			log.Fatalf("❌ Auth failed: %v", err)
-		}
+		kc := newAdminKC()
+
 		users, err := kc.ListUsers()
 		if err != nil {
 			log.Fatalf("❌ Error fetching users: %v", err)
 		}
+
 		for _, u := range users {
 			fmt.Printf("• %s (%s)\n", u.Username, u.ID)
 		}
@@ -176,13 +220,12 @@ var listUsersCmd = &cobra.Command{
 
 func init() {
 	createClientCmd.Flags().StringVar(&clientName, "name", "", "Client name")
-	createClientCmd.Flags().StringVar(&redirectUri, "redirect-uri", "", "Redirect URI")
+	createClientCmd.Flags().StringVar(&redirectURI, "redirect-uri", "", "Redirect URI")
 	createClientCmd.Flags().StringVar(&clientBaseURL, "base-url", "", "Base URL")
 	_ = createClientCmd.MarkFlagRequired("name")
 
 	createUserCmd.Flags().StringVar(&username, "username", "", "Username")
-	createUserCmd.Flags().StringVar(&password, "password", "", "Password")
-	createUserCmd.Flags().StringVar(&role, "role", "user", "User role (default: user)")
+	createUserCmd.Flags().StringVar(&password, "password", "", "Password (ignored by Keycloak API)")
+	createUserCmd.Flags().StringVar(&role, "role", "user", "User role")
 	_ = createUserCmd.MarkFlagRequired("username")
-	_ = createUserCmd.MarkFlagRequired("password")
 }

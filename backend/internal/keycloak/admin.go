@@ -162,7 +162,6 @@ func (c *Client) EnsureRealmExists(realmName string) error {
 
 // CreateClient with full configuration support
 func (c *Client) CreateClient(opts CreateClientParams) (string, error) {
-	c.BaseURL = "http://keycloak:8080"
 	if opts.Protocol == "" {
 		opts.Protocol = "openid-connect"
 	}
@@ -198,7 +197,6 @@ func (c *Client) CreateClient(opts CreateClientParams) (string, error) {
 
 // GetClientByClientID using Keycloak's search API
 func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
-	c.BaseURL = "http://keycloak:8080"
 	query := url.Values{}
 	query.Set("clientId", clientID)
 
@@ -227,7 +225,6 @@ func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
 
 // GetClientByID retrieves the actual client object
 func (c *Client) GetClientByID(id string) (*ClientInfo, error) {
-	c.BaseURL = "http://keycloak:8080"
 	res, err := c.Get("clients/" + id)
 	if err != nil {
 		return nil, err
@@ -249,7 +246,6 @@ func (c *Client) GetClientByID(id string) (*ClientInfo, error) {
 
 // List all clients in the realm
 func (c *Client) ListClients() ([]ClientInfo, error) {
-	c.BaseURL = "http://keycloak:8080"
 	res, err := c.Get("clients")
 	if err != nil {
 		return nil, err
@@ -270,8 +266,6 @@ func (c *Client) ListClients() ([]ClientInfo, error) {
 }
 
 func (c *Client) UpdateClient(id string, payload *model.Client) error {
-	c.BaseURL = "http://keycloak:8080"
-
 	res, err := c.Put("clients/"+id, payload)
 	if err != nil {
 		return err
@@ -291,7 +285,6 @@ func (c *Client) UpdateClient(id string, payload *model.Client) error {
 }
 
 func (c *Client) DeleteClient(id string) error {
-	c.BaseURL = "http://keycloak:8080"
 	res, err := c.Delete("clients/" + id)
 	if err != nil {
 		return err
@@ -311,7 +304,6 @@ func (c *Client) DeleteClient(id string) error {
 // -----------------------------------------
 
 func (c *Client) CreateUser(user *model.User) (string, error) {
-	c.BaseURL = "http://keycloak:8080"
 	payload := map[string]any{
 		"username":      user.Username,
 		"email":         user.Email,
@@ -386,7 +378,6 @@ func (c *Client) FindUsers(ctx context.Context, q string, exact bool) ([]UserRep
 }
 
 func (c *Client) ListUsers() ([]UserInfo, error) {
-	c.BaseURL = "http://keycloak:8080"
 	res, err := c.Get("users")
 	if err != nil {
 		return nil, err
@@ -411,7 +402,6 @@ func (c *Client) ListUsers() ([]UserInfo, error) {
 // ---------------------------------------------------------
 
 func (c *Client) GetUser(userID string) (*UserInfo, error) {
-	c.BaseURL = "http://keycloak:8080"
 	res, err := c.Get("users/" + userID)
 	if err != nil {
 		return nil, err
@@ -435,7 +425,6 @@ func (c *Client) GetUser(userID string) (*UserInfo, error) {
 // Update User in Keycloak
 // -------------------------------------------------------------------
 func (c *Client) UpdateUser(user *model.User) error {
-	c.BaseURL = "http://keycloak:8080"
 	if user.ID == "" {
 		return fmt.Errorf("missing Keycloak user ID")
 	}
@@ -468,7 +457,6 @@ func (c *Client) UpdateUser(user *model.User) error {
 // Delete User in Keycloak
 // -------------------------------------------------------------------
 func (c *Client) DeleteUser(userID string) error {
-	c.BaseURL = "http://keycloak:8080"
 	if userID == "" {
 		return fmt.Errorf("invalid user ID")
 	}
@@ -490,7 +478,6 @@ func (c *Client) DeleteUser(userID string) error {
 
 // realm
 func (c *Client) GetRealmRoleByName(ctx context.Context, roleName string) (*RoleRep, error) {
-
 	res, err := c.Get(fmt.Sprintf("%s/admin/realms/%s/roles/%s", c.BaseURL, c.Realm, url.PathEscape(roleName)))
 	if err != nil {
 		return nil, err
@@ -510,7 +497,6 @@ func (c *Client) GetRealmRoleByName(ctx context.Context, roleName string) (*Role
 }
 
 func (c *Client) AddRealmRoleToUser(ctx context.Context, userID string, role RoleRep) error {
-
 	payload := []RoleRep{role}
 	bs, _ := json.Marshal(payload)
 
@@ -568,10 +554,7 @@ func (c *Client) SendUserOnboardingEmail(
 // -------------------------------------------------------------------
 
 func (c *Client) CreateRealmRole(ctx context.Context, roleName, description string) error {
-	c.BaseURL = "http://keycloak:8080"
-
 	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
-
 	payload := CreateRoleRequest{
 		Name:        roleName,
 		Description: description,
@@ -599,8 +582,6 @@ func (c *Client) CreateRealmRole(ctx context.Context, roleName, description stri
 }
 
 func (c *Client) ListRealmRoles(ctx context.Context) ([]RoleRep, error) {
-	c.BaseURL = "http://keycloak:8080"
-
 	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
 
 	res, err := c.Get(u)
@@ -627,7 +608,6 @@ func (c *Client) AddRealmRolesToUser(
 	userID string,
 	roles []RoleRep,
 ) error {
-	c.BaseURL = "http://keycloak:8080"
 
 	if len(roles) == 0 {
 		return nil
@@ -661,7 +641,6 @@ func (c *Client) RemoveRealmRoleFromUser(
 	userID string,
 	role RoleRep,
 ) error {
-	c.BaseURL = "http://keycloak:8080"
 
 	u := fmt.Sprintf(
 		"%s/admin/realms/%s/users/%s/role-mappings/realm",
@@ -697,8 +676,6 @@ func (c *Client) CreateClientRole(
 	clientID string,
 	roleName string,
 ) error {
-	c.BaseURL = "http://keycloak:8080"
-
 	u := fmt.Sprintf(
 		"%s/admin/realms/%s/clients/%s/roles",
 		c.BaseURL,
@@ -734,8 +711,6 @@ func (c *Client) GetClientRoleByName(
 	clientID string,
 	roleName string,
 ) (*ClientRoleRep, error) {
-	c.BaseURL = "http://keycloak:8080"
-
 	u := fmt.Sprintf(
 		"%s/admin/realms/%s/clients/%s/roles/%s",
 		c.BaseURL,
@@ -765,7 +740,6 @@ func (c *Client) AddClientRoleToUser(
 	clientID string,
 	role ClientRoleRep,
 ) error {
-	c.BaseURL = "http://keycloak:8080"
 
 	u := fmt.Sprintf(
 		"%s/admin/realms/%s/users/%s/role-mappings/clients/%s",
@@ -844,8 +818,6 @@ func (c *Client) BootstrapRealmRoles(ctx context.Context) error {
 */
 
 func (c *Client) ListClientRoles(ctx context.Context, clientID string) ([]ClientRoleRep, error) {
-	c.BaseURL = "http://keycloak:8080"
-
 	u := fmt.Sprintf("%s/admin/realms/%s/clients/%s/roles",
 		c.BaseURL, c.Realm, clientID)
 
@@ -860,7 +832,6 @@ func (c *Client) ListClientRoles(ctx context.Context, clientID string) ([]Client
 }
 
 func (c *Client) DeleteClientRole(ctx context.Context, clientID, role string) error {
-	c.BaseURL = "http://keycloak:8080"
 
 	u := fmt.Sprintf(
 		"%s/admin/realms/%s/clients/%s/roles/%s",

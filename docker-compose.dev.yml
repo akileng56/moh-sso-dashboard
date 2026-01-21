@@ -16,23 +16,30 @@ services:
       KC_DB_URL_DATABASE: ${KEYCLOAK_DB_NAME:-keycloak}
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-keycloak}
+
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
+
       KC_HTTP_ENABLED: "true"
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-http://localhost:8081}
       KC_HOSTNAME_STRICT_HTTPS: "false"
+
     volumes:
       - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
+
     ports:
       - "8081:8080"
+
     depends_on:
       keycloak-db:
         condition: service_healthy
+
     healthcheck:
       test: ["CMD", "curl", "-f", "http://keycloak:8080/realms/master"]
       interval: 10s
       timeout: 5s
       retries: 20
+
     networks:
       - sso_network
 
@@ -99,16 +106,31 @@ services:
       dockerfile: Dockerfile.dev
     container_name: sso-backend
     environment:
-      - SERVER_PORT=9000
-      - KEYCLOAK_BASE_URL=${KEYCLOAK_BASE_URL:-http://localhost:8081}
-      - KEYCLOAK_REALM=${KEYCLOAK_REALM:-moh-realm}
-      - KEYCLOAK_CLIENT_ID=${KEYCLOAK_CLIENT_ID:-dashboard}
-      - KEYCLOAK_REDIRECT_URI=${KEYCLOAK_REDIRECT_URI:-http://localhost:9000/api/v1/auth/callback}
-      - KEYCLOAK_CLIENT_SECRET=${KEYCLOAK_CLIENT_SECRET:-U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=}
-      - DB_HOST=${DB_HOST:-backend-db}
-      - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD:-postgres}
-      - DB_NAME=${DB_NAME:-sso_dashboard}
+      SERVER_PORT: 9000
+
+      # Keycloak (shared)
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://keycloak:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-moh-realm}
+      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI:-http://localhost:9000/api/v1/auth/callback}
+
+      # 🔐 Admin client (client_credentials)
+      KEYCLOAK_ADMIN_CLIENT_ID: ${KEYCLOAK_ADMIN_CLIENT_ID:-dashboard-admin}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${KEYCLOAK_ADMIN_CLIENT_SECRET:-dashboard-admin-secret}
+
+      # 🌍 Web client (authorization_code)
+      KEYCLOAK_WEB_CLIENT_ID: ${KEYCLOAK_WEB_CLIENT_ID:-dashboard-web}
+      KEYCLOAK_WEB_CLIENT_SECRET: ${KEYCLOAK_WEB_CLIENT_SECRET:-dashboard-web-secret}
+
+      # Database
+      DB_HOST: ${DB_HOST:-backend-db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      DB_NAME: ${DB_NAME:-sso_dashboard}
+
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+
     depends_on:
       keycloak:
         condition: service_healthy
@@ -116,10 +138,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+
     ports:
       - "9000:9000"
+
     volumes:
       - ./backend:/app
+
     command: sh -c "go run ./cmd/server"
     networks:
       - sso_network
@@ -136,18 +161,22 @@ services:
       VITE_API_BASE_URL: http://localhost:9000
       VITE_KEYCLOAK_URL: http://localhost:8081
       VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM:-moh-realm}
-      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID:-dashboard}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_WEB_CLIENT_ID:-dashboard-web}
       VITE_KEYCLOAK_REDIRECT_URI: ${VITE_KEYCLOAK_REDIRECT_URI:-http://localhost:9000/api/v1/auth/callback}
+
     ports:
       - "3000:3000"
+
     depends_on:
       backend:
         condition: service_started
       keycloak:
         condition: service_healthy
+
     volumes:
       - ./frontend:/app
       - /app/node_modules
+
     networks:
       - sso_network
 

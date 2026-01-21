@@ -12,7 +12,7 @@ import (
 )
 
 type AuthService interface {
-	ProcessAuthCode(code string) (*keycloak.TokenResponse, error)
+	ProcessAuthCode(code string, codeVerifier string) (*keycloak.TokenResponse, error)
 	GetAccessToken(refreshToken string) (*keycloak.TokenResponse, error)
 	GetMe(accessToken string) (*keycloak.AuthUser, error)
 	SaveSession(userID, access, refresh string, expires int) error
@@ -31,8 +31,11 @@ func NewAuthService(authRepo repository.AuthRepository, redisClient *redis.Clien
 	}
 }
 
-func (s *authService) ProcessAuthCode(code string) (*keycloak.TokenResponse, error) {
-	tokens, err := s.authRepo.ExchangeCode(code)
+func (s *authService) ProcessAuthCode(code string, codeVerifier string) (*keycloak.TokenResponse, error) {
+	if code == "" || codeVerifier == "" {
+		return nil, fmt.Errorf("missing auth code or pkce verifier")
+	}
+	tokens, err := s.authRepo.ExchangeCode(code, codeVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to exchange code: %w", err)
 	}

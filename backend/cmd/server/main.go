@@ -12,24 +12,27 @@ import (
 
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
-	config "github.com/moh-sso-dashboard/internal/config"
+	"github.com/moh-sso-dashboard/internal/cache"
+	"github.com/moh-sso-dashboard/internal/config"
+	store "github.com/moh-sso-dashboard/internal/db/sqlc"
 	kcClientPkg "github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	db "github.com/moh-sso-dashboard/internal/migrate"
+
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
 	metricsRepo "github.com/moh-sso-dashboard/internal/repository/metrics"
 	"github.com/moh-sso-dashboard/internal/repository/notifications"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
+
 	"github.com/moh-sso-dashboard/internal/service"
-
-	cache "github.com/moh-sso-dashboard/internal/cache"
-	store "github.com/moh-sso-dashboard/internal/db/sqlc"
-
 	"github.com/rs/zerolog"
 )
 
 func main() {
+	// ---------------------------------------------------------------------
+	// Load configuration
+	// ---------------------------------------------------------------------
 	cfg, err := config.LoadConfig(".")
 	if err != nil {
 		log.Fatalf("cannot load config: %v", err)
@@ -40,7 +43,7 @@ func main() {
 	appLogger.Info("Starting server in environment: %s", cfg.Environment)
 
 	// ---------------------------------------------------------------------
-	// Database setup
+	// Database
 	// ---------------------------------------------------------------------
 	conn, err := sql.Open(cfg.DbDriver, cfg.DbSource())
 	if err != nil {
@@ -58,19 +61,26 @@ func main() {
 	}
 
 	// ---------------------------------------------------------------------
-	// Keycloak
+	// Keycloak (ADMIN + WEB clients)
 	// ---------------------------------------------------------------------
 	keycloakClient := kcClientPkg.NewClient(
-		cfg.KeycloakBaseUrl,
+		cfg.KeycloakBaseUrl, // e.g. http://keycloak:8080
 		cfg.KeycloakRealm,
-		cfg.KeycloakClientID,
-		cfg.KeycloakClientSecret,
+		cfg.KeycloakAdminClientID,
+		cfg.KeycloakAdminClientSecret,
+		cfg.KeycloakWebClientID,
+		cfg.KeycloakWebClientSecret,
 	)
 
+	// Authenticate ADMIN service account
 	if err := keycloakClient.Authenticate(); err != nil {
-		appLogger.Fatal("Failed to authenticate Keycloak service account: %v", err)
+		appLogger.Fatal(
+			"Failed to authenticate Keycloak admin service account: %v",
+			err,
+		)
 	}
-	appLogger.Info("Successfully authenticated Keycloak service account")
+
+	appLogger.Info("Successfully authenticated Keycloak admin service account")
 
 	// ---------------------------------------------------------------------
 	// Infrastructure
@@ -87,7 +97,6 @@ func main() {
 		WriteTimeout: 3 * time.Second,
 	})
 
-	// 🔥 Fail fast if Redis is unavailable
 	cache.MustPing(context.Background(), rdb)
 	appLogger.Info("Successfully connected to Redis")
 
@@ -95,8 +104,19 @@ func main() {
 	// Repositories
 	// ---------------------------------------------------------------------
 	authRepository := authRepo.NewAuthRepository(keycloakClient, cfg)
-	clientRepository := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
-	userRepository := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
+	clientRepository := clientRepo.NewClientRepository(
+		keycloakClient,
+		cfg,
+		store,
+		*appLogger,
+	)
+	userRepository := userRepo.NewUserRepository(
+		keycloakClient,
+		cfg,
+		store,
+		*appLogger,
+	)
+
 	metricsRepository := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 	notificationsRepository := notifications.NewNotificationsRepository(store, *appLogger)
 
@@ -114,9 +134,15 @@ func main() {
 	// ---------------------------------------------------------------------
 	// Handlers
 	// ---------------------------------------------------------------------
+	authHandler := handler.NewAuthHandler(
+		authService,
+		auditService,
+		notificationsService,
+		cfg,
+	)
+
 	clientHandler := handler.NewClientHandler(clientService, auditService)
 	userHandler := handler.NewUserHandler(userService, auditService)
-	authHandler := handler.NewAuthHandler(authService, auditService, notificationsService, cfg)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
 	auditHandler := handler.NewAuditHandler(store)
@@ -137,7 +163,7 @@ func main() {
 	)
 
 	// ---------------------------------------------------------------------
-	// 🚀 Server start (FORCED IPv4 — FIXES ECONNREFUSED)
+	// 🚀 Server (FORCED IPv4)
 	// ---------------------------------------------------------------------
 	addr := ":" + cfg.ServerPort
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
@@ -30,10 +31,6 @@ func NewUserRepository(
 	log logger.Logger,
 ) UserRepository {
 
-	if err := keycloakClient.Authenticate(); err != nil {
-		panic(fmt.Sprintf("❌ Failed to authenticate Keycloak admin: %v", err))
-	}
-
 	return &userRepository{
 		keycloakClient: keycloakClient,
 		config:         config,
@@ -42,7 +39,9 @@ func NewUserRepository(
 	}
 }
 
+// ----------------------------------------------------
 // CREATE (Keycloak = Source of Truth)
+// ----------------------------------------------------
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
@@ -84,7 +83,9 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	return kcID, nil
 }
 
+// ----------------------------------------------------
 // GET BY ID (Keycloak authoritative)
+// ----------------------------------------------------
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	ctx := context.Background()
 
@@ -126,9 +127,12 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	}, nil
 }
 
+// ----------------------------------------------------
 // LIST (Keycloak primary)
+// ----------------------------------------------------
 func (r *userRepository) ListUsers() ([]models.User, error) {
 	ctx := context.Background()
+
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch keycloak users: %w", err)
@@ -186,9 +190,12 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 	return result, nil
 }
 
+// ----------------------------------------------------
 // UPDATE (Keycloak first)
+// ----------------------------------------------------
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
+
 	if err := r.keycloakClient.UpdateUser(&models.User{
 		ID:        user.ID,
 		Email:     user.Email,
@@ -226,7 +233,9 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 	return nil
 }
 
+// ----------------------------------------------------
 // DELETE (Keycloak authoritative)
+// ----------------------------------------------------
 func (r *userRepository) DeleteUser(id string) error {
 	ctx := context.Background()
 

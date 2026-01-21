@@ -38,18 +38,32 @@ func NewAuthHandler(
 }
 
 // ----------------------------------------------------
-// LOGIN (redirect → Keycloak)
+// LOGIN (redirect → Keycloak with PKCE)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 	_ = h.auditService.LoginInitiated(
 		c.Request.Context(),
 		c.ClientIP(),
 		c.Request.UserAgent(),
-		h.config.KeycloakClientID,
+		h.config.KeycloakWebClientID,
 	)
 
+	// 🔐 PKCE
+	codeVerifier := utils.GenerateCodeVerifier()
+	codeChallenge := utils.GenerateCodeChallenge(codeVerifier)
+
+	// Store verifier securely (env-agnostic)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "pkce_verifier",
+		Value:    codeVerifier,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // set true when TLS is enabled
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	authURL, err := url.Parse(
-		h.config.KeycloakBaseUrl +
+		h.config.KeycloakHostname +
 			"/realms/" + h.config.KeycloakRealm +
 			"/protocol/openid-connect/auth",
 	)
@@ -60,10 +74,14 @@ func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 	}
 
 	q := authURL.Query()
-	q.Set("client_id", h.config.KeycloakClientID)
+	q.Set("client_id", h.config.KeycloakWebClientID)
 	q.Set("response_type", "code")
 	q.Set("scope", "openid")
 	q.Set("redirect_uri", h.config.KeycloakRedirectUri)
+
+	// 🔐 PKCE params
+	q.Set("code_challenge", codeChallenge)
+	q.Set("code_challenge_method", "S256")
 
 	authURL.RawQuery = q.Encode()
 	c.Redirect(http.StatusTemporaryRedirect, authURL.String())
@@ -75,7 +93,8 @@ func (h *AuthHandler) HandleAuthLogin(c *gin.Context) {
 func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 	accessToken, err := c.Cookie("access_token")
 	if err != nil || accessToken == "" {
-		response.Fail(c,
+		response.Fail(
+			c,
 			http.StatusUnauthorized,
 			apierror.ErrUnauthorized.Code,
 			apierror.ErrUnauthorized.Message,
@@ -85,7 +104,8 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 
 	user, err := h.authService.GetMe(accessToken)
 	if err != nil {
-		response.Fail(c,
+		response.Fail(
+			c,
 			http.StatusUnauthorized,
 			apierror.ErrTokenInvalid.Code,
 			"Invalid or expired token",
@@ -111,24 +131,33 @@ func (h *AuthHandler) HandleAuthGetMe(c *gin.Context) {
 }
 
 // ----------------------------------------------------
-// OIDC CALLBACK (redirect + cookies)
+// OIDC CALLBACK (PKCE verification)
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 		h.auditLoginFailure(c)
-
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": "missing authorization code",
 		})
 		return
 	}
 
-	tokens, err := h.authService.ProcessAuthCode(code)
+	// 🔐 Read PKCE verifier
+	codeVerifier, err := c.Cookie("pkce_verifier")
+	if err != nil || codeVerifier == "" {
+		h.auditLoginFailure(c)
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": "missing pkce verifier",
+		})
+		return
+	}
+
+	tokens, err := h.authService.ProcessAuthCode(code, codeVerifier)
 	if err != nil {
 		h.notificationService.NotifyLoginFailed(
 			c.Request.Context(),
-			h.config.KeycloakClientID,
+			h.config.KeycloakWebClientID,
 			c.ClientIP(),
 			c.Request.UserAgent(),
 			err,
@@ -143,13 +172,23 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 		return
 	}
 
+	// Clear PKCE verifier (one-time use)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "pkce_verifier",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
 
 	_ = h.auditService.LoginResult(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
 		true,
-		h.config.KeycloakClientID,
+		h.config.KeycloakWebClientID,
 		c.ClientIP(),
 		c.Request.UserAgent(),
 		"",
@@ -183,6 +222,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 			c.ClientIP(),
 			c.Request.UserAgent(),
 		)
+
 		response.Fail(
 			c,
 			http.StatusUnauthorized,
@@ -207,6 +247,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 			c.ClientIP(),
 			c.Request.UserAgent(),
 		)
+
 		h.setSecureRefreshTokenCookie(c, "", -1)
 
 		response.Fail(
@@ -219,6 +260,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 	}
 
 	userID := utils.ExtractUserIDFromJWT(tokens.AccessToken)
+
 	_ = h.auditService.TokenRefresh(
 		c.Request.Context(),
 		utils.ToNullUUID(userID),
@@ -226,6 +268,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 		c.ClientIP(),
 		c.Request.UserAgent(),
 	)
+
 	h.setSecureAccessTokenCookie(c, tokens.AccessToken, tokens.ExpiresIn)
 	h.setSecureRefreshTokenCookie(c, tokens.RefreshToken, tokens.RefreshExpiresIn)
 
@@ -236,7 +279,7 @@ func (h *AuthHandler) HandleAuthRefreshToken(c *gin.Context) {
 }
 
 // ----------------------------------------------------
-// LOGOUT (redirect)
+// LOGOUT
 // ----------------------------------------------------
 func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 	userID := utils.ToNullUUID(c.GetString("user_id"))
@@ -270,7 +313,7 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 
 	c.Redirect(
 		http.StatusTemporaryRedirect,
-		"http://localhost:9000/api/v1/auth/login",
+		h.config.KeycloakRedirectUri,
 	)
 }
 
@@ -282,7 +325,7 @@ func (h *AuthHandler) auditLoginFailure(c *gin.Context) {
 		c.Request.Context(),
 		uuid.NullUUID{},
 		false,
-		h.config.KeycloakClientID,
+		h.config.KeycloakWebClientID,
 		c.ClientIP(),
 		c.Request.UserAgent(),
 		"",

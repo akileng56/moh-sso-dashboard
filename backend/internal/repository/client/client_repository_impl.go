@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
@@ -28,10 +29,6 @@ func NewClientRepository(
 	db db.Store,
 	log logger.Logger,
 ) ClientRepository {
-
-	if err := keycloakClient.Authenticate(); err != nil {
-		panic(fmt.Sprintf("Keycloak authentication failed: %v", err))
-	}
 
 	return &sqlcClientRepository{
 		keycloakClient: keycloakClient,
@@ -164,7 +161,7 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 		return nil, err
 	}
 
-	var out []models.Client
+	out := make([]models.Client, 0, len(kcClients))
 	for _, kc := range kcClients {
 		out = append(out, models.Client{
 			ID:           kc.ID,
@@ -188,6 +185,8 @@ func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 		return err
 	}
 
+	attrsJSON, _ := json.Marshal(client.Attributes)
+
 	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
 		ClientID: client.ClientID,
 		Name:     client.Name,
@@ -201,9 +200,10 @@ func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 		},
 		PublicClient: client.PublicClient,
 		Enabled:      client.Enabled,
-		Attributes:   json.RawMessage(client.Attributes[""]),
+		Attributes:   attrsJSON,
 	}); err != nil {
-		r.logger.Warn("client updated in keycloak but db sync failed",
+		r.logger.Warn(
+			"client updated in keycloak but db sync failed",
 			"clientId", client.ClientID,
 			"error", err,
 		)
@@ -232,7 +232,7 @@ func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
 
 //
 // -------------------------------------------------------------------
-// Client roles / permissions
+// Client roles / permissions (ADMIN ONLY)
 // -------------------------------------------------------------------
 //
 
@@ -270,7 +270,7 @@ func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string)
 
 //
 // -------------------------------------------------------------------
-// User ↔ Client role mapping
+// User ↔ Client role mapping (ADMIN ONLY)
 // -------------------------------------------------------------------
 //
 
