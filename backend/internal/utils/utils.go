@@ -14,7 +14,7 @@ import (
 )
 
 func GenerateClientID() string {
-	return "app-" + uuid.New().String()
+	return uuid.New().String()
 }
 
 // helper

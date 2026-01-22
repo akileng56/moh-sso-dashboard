@@ -146,7 +146,7 @@ export default function ClientsPage() {
    * Rows (raw preserved)
    * ----------------------------- */
   const rows = paginatedClients.map((c) => ({
-    id: c.clientId,
+    id: c.id,
     name: c.name,
     clientId: c.clientId,
     type: c.publicClient ? "Public" : "Confidential",

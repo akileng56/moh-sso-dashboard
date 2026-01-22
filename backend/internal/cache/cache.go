@@ -1,0 +1,50 @@
+package cache
+
+import (
+	"context"
+	"encoding/json"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+// RedisCache implements keycloak.Cache
+type RedisCache struct {
+	client *redis.Client
+}
+
+func NewRedisCache(client *redis.Client) *RedisCache {
+	return &RedisCache{client: client}
+}
+
+// Get retrieves a cached value and unmarshals it into dest.
+// Returns (false, nil) if key does not exist.
+func (r *RedisCache) Get(ctx context.Context, key string, dest any) (bool, error) {
+	val, err := r.client.Get(ctx, key).Result()
+	if err == redis.Nil {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+
+	if err := json.Unmarshal([]byte(val), dest); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// Set stores a value in cache with TTL.
+func (r *RedisCache) Set(ctx context.Context, key string, value any, ttl time.Duration) error {
+	b, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+
+	return r.client.Set(ctx, key, b, ttl).Err()
+}
+
+func (r *RedisCache) Del(ctx context.Context, key string) error {
+	return r.client.Del(ctx, key).Err()
+}

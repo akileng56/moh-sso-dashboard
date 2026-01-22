@@ -145,6 +145,11 @@ type parsedRow struct {
 	}
 }
 
+type CreateClientRoleRequest struct {
+	Role        string `json: role`
+	Description string `json: description`
+}
+
 type Notification struct {
 	ID         uuid.UUID       `json:"id"`
 	Type       string          `json:"type"`

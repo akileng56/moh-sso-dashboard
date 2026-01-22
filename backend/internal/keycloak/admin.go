@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -123,13 +124,15 @@ type CreateRoleRequest struct {
 }
 
 type ClientRoleRep struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type RoleRep struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"descritpion"`
 }
 
 func (c *Client) EnsureRealmExists(realmName string) error {
@@ -673,22 +676,32 @@ func (c *Client) RemoveRealmRoleFromUser(
 
 func (c *Client) CreateClientRole(
 	ctx context.Context,
-	clientID string,
-	roleName string,
+	clientId string,
+	req *model.CreateClientRoleRequest,
 ) error {
-	u := fmt.Sprintf(
-		"%s/admin/realms/%s/clients/%s/roles",
-		c.BaseURL,
-		c.Realm,
-		clientID,
-	)
-
-	payload := CreateRoleRequest{
-		Name:       roleName,
-		ClientRole: true,
+	clientUUID, err := c.resolveClientUUID(ctx, clientId)
+	if err != nil {
+		return fmt.Errorf("failed to resolve client UUID: %w", err)
 	}
 
-	res, err := c.Post(u, payload)
+	path := fmt.Sprintf(
+		"clients/%s/roles",
+		clientUUID,
+	)
+
+	log.Printf("[KEYCLOAK] create client role | clientId=%s uuid=%s role=%s",
+		clientId,
+		clientUUID,
+		req.Role,
+	)
+
+	payload := map[string]any{
+		"name":        req.Role,
+		"description": req.Description,
+		"clientRole":  true,
+	}
+
+	res, err := c.Post(path, payload)
 	if err != nil {
 		return err
 	}
@@ -700,7 +713,11 @@ func (c *Client) CreateClientRole(
 
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("create client role failed: %s", string(b))
+		return fmt.Errorf(
+			"create client role failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
 	}
 
 	return nil
@@ -817,28 +834,64 @@ func (c *Client) BootstrapRealmRoles(ctx context.Context) error {
 |--------------------------------------------------------------------------
 */
 
-func (c *Client) ListClientRoles(ctx context.Context, clientID string) ([]ClientRoleRep, error) {
-	u := fmt.Sprintf("%s/admin/realms/%s/clients/%s/roles",
-		c.BaseURL, c.Realm, clientID)
+func (c *Client) ListClientRoles(
+	ctx context.Context,
+	clientUUID string, // MUST be Keycloak client UUID
+) ([]ClientRoleRep, error) {
 
-	res, err := c.Get(u)
+	path := fmt.Sprintf(
+		"clients/%s/roles",
+		clientUUID,
+	)
+
+	res, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
 	defer res.Body.Close()
 
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf(
+			"list client roles failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
+	}
+
 	var roles []ClientRoleRep
-	return roles, json.NewDecoder(res.Body).Decode(&roles)
+	if err := json.NewDecoder(res.Body).Decode(&roles); err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
 
-func (c *Client) DeleteClientRole(ctx context.Context, clientID, role string) error {
+func (c *Client) DeleteClientRole(
+	ctx context.Context,
+	clientId string, // logical clientId e.g. "dashboard-web"
+	role string,
+) error {
 
-	u := fmt.Sprintf(
-		"%s/admin/realms/%s/clients/%s/roles/%s",
-		c.BaseURL, c.Realm, clientID, url.PathEscape(role),
+	clientUUID, err := c.resolveClientUUID(ctx, clientId)
+	if err != nil {
+		return fmt.Errorf("failed to resolve client UUID: %w", err)
+	}
+
+	path := fmt.Sprintf(
+		"clients/%s/roles/%s",
+		clientUUID,
+		url.PathEscape(role),
 	)
 
-	res, err := c.Delete(u)
+	log.Printf(
+		"[KEYCLOAK] delete client role | clientId=%s uuid=%s role=%s",
+		clientId,
+		clientUUID,
+		role,
+	)
+
+	res, err := c.Delete(path)
 	if err != nil {
 		return err
 	}
@@ -846,7 +899,50 @@ func (c *Client) DeleteClientRole(ctx context.Context, clientID, role string) er
 
 	if res.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("delete client role failed: %s", string(b))
+		return fmt.Errorf(
+			"delete client role failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
 	}
+
 	return nil
+}
+
+func (c *Client) resolveClientUUID(
+	ctx context.Context,
+	clientId string,
+) (string, error) {
+
+	path := "clients?clientId=" + url.QueryEscape(clientId)
+
+	res, err := c.Get(path)
+	if err != nil {
+		return "", err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(res.Body)
+		return "", fmt.Errorf(
+			"failed to resolve client UUID [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
+	}
+
+	var clients []struct {
+		ID       string `json:"id"`
+		ClientID string `json:"clientId"`
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&clients); err != nil {
+		return "", err
+	}
+
+	if len(clients) == 0 {
+		return "", fmt.Errorf("client not found in keycloak: %s", clientId)
+	}
+
+	return clients[0].ID, nil
 }

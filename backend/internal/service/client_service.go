@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	models "github.com/moh-sso-dashboard/internal/model"
 	repository "github.com/moh-sso-dashboard/internal/repository/client"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -150,18 +152,21 @@ func (s *ClientService) DeleteClient(
 func (s *ClientService) CreateClientRole(
 	ctx context.Context,
 	clientID uuid.UUID,
-	role string,
+	payload *models.CreateClientRoleRequest,
 	adminID uuid.UUID,
 ) error {
 
-	if role == "" {
+	// 1️⃣ Defensive validation
+	if strings.TrimSpace(payload.Role) == "" {
 		return errors.New("role name is required")
 	}
 
-	if err := s.repo.CreateClientRole(clientID, role); err != nil {
+	// 2️⃣ Persist role
+	if err := s.repo.CreateClientRole(clientID, payload); err != nil {
 		return err
 	}
 
+	// 3️⃣ Notify
 	nt := models.ClientRoleCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
@@ -171,7 +176,7 @@ func (s *ClientService) CreateClientRole(
 		TargetRole: "admin",
 		Metadata: utils.MustJSON(map[string]any{
 			"client_id": clientID.String(),
-			"role":      role,
+			"role":      payload.Role,
 			"admin_id":  adminID.String(),
 		}),
 	})
@@ -182,7 +187,7 @@ func (s *ClientService) CreateClientRole(
 // LIST CLIENT ROLES
 func (s *ClientService) ListClientRoles(
 	clientID uuid.UUID,
-) ([]string, error) {
+) ([]keycloak.ClientRoleRep, error) {
 	return s.repo.ListClientRoles(clientID)
 }
 

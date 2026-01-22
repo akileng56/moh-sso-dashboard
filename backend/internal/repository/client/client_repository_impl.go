@@ -236,15 +236,18 @@ func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
 // -------------------------------------------------------------------
 //
 
-func (r *sqlcClientRepository) CreateClientRole(clientID uuid.UUID, role string) error {
+func (r *sqlcClientRepository) CreateClientRole(clientID uuid.UUID, payload *models.CreateClientRoleRequest) error {
 	return r.keycloakClient.CreateClientRole(
 		context.Background(),
 		clientID.String(),
-		role,
+		payload,
 	)
 }
 
-func (r *sqlcClientRepository) ListClientRoles(clientID uuid.UUID) ([]string, error) {
+func (r *sqlcClientRepository) ListClientRoles(
+	clientID uuid.UUID,
+) ([]keycloak.ClientRoleRep, error) {
+
 	roles, err := r.keycloakClient.ListClientRoles(
 		context.Background(),
 		clientID.String(),
@@ -253,11 +256,7 @@ func (r *sqlcClientRepository) ListClientRoles(clientID uuid.UUID) ([]string, er
 		return nil, err
 	}
 
-	out := make([]string, 0, len(roles))
-	for _, r := range roles {
-		out = append(out, r.Name)
-	}
-	return out, nil
+	return roles, nil
 }
 
 func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string) error {

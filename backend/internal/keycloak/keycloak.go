@@ -2,6 +2,7 @@ package keycloak
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,21 +17,19 @@ import (
 // - Admin operations use dashboard-admin (client_credentials)
 // - Web auth/refresh/logout use dashboard-web (authorization_code + refresh_token)
 type Client struct {
-	BaseURL string
-	Realm   string
-
+	BaseURL           string
+	Realm             string
 	AdminClientID     string
 	AdminClientSecret string
-
-	WebClientID     string
-	WebClientSecret string
-
-	AdminToken string // access token for admin API calls
-	httpClient *http.Client
+	WebClientID       string
+	WebClientSecret   string
+	AdminToken        string
+	httpClient        *http.Client
+	cache             Cache
 }
 
 type KCUserInfo struct {
-	Sub               string `json:"sub"`
+	UserID            string `json:"sub"`
 	PreferredUsername string `json:"preferred_username"`
 	Email             string `json:"email"`
 	EmailVerified     bool   `json:"email_verified"`
@@ -63,6 +62,14 @@ type AuthUser struct {
 	LastLoginAt   *time.Time          `json:"lastLoginAt"`
 }
 
+// Cache
+// ----------------------------------------------------
+type Cache interface {
+	Get(ctx context.Context, key string, dest any) (bool, error)
+	Set(ctx context.Context, key string, value any, ttl time.Duration) error
+	Del(ctx context.Context, key string) error
+}
+
 // ----------------------------------------------------
 // CLIENT
 // ----------------------------------------------------
@@ -73,6 +80,7 @@ func NewClient(
 	adminClientSecret string,
 	webClientID string,
 	webClientSecret string,
+	cache Cache,
 ) *Client {
 
 	baseURL = strings.TrimSuffix(baseURL, "/")
@@ -85,6 +93,7 @@ func NewClient(
 		WebClientID:       webClientID,
 		WebClientSecret:   webClientSecret,
 		httpClient:        &http.Client{Timeout: 10 * time.Second},
+		cache:             cache,
 	}
 }
 
@@ -242,23 +251,32 @@ func (c *Client) LogOut(refreshToken string) error {
 // ----------------------------------------------------
 // TOKEN → FULL USER PROFILE (ADMIN API)
 // ----------------------------------------------------
+// ----------------------------------------------------
+// Me (PROFILE + CACHE)
+// ----------------------------------------------------
 func (c *Client) Me(accessToken string) (*AuthUser, error) {
-	// ------------------------------------------------
-	// 1) Resolve identity via OIDC UserInfo (CORRECT)
-	// ------------------------------------------------
+	ctx := context.Background()
+
+	// 1) Resolve identity
 	ui, err := c.getUserInfo(accessToken)
 	if err != nil {
 		return nil, err
 	}
 
-	userID := ui.Sub
+	userID := ui.UserID
 	if userID == "" {
-		return nil, errors.New("userinfo missing sub")
+		return nil, errors.New("userinfo missing user_id")
 	}
 
-	// ------------------------------------------------
-	// 2) Fetch REALM roles from Admin API
-	// ------------------------------------------------
+	// 2) Cache lookup
+	cacheKey := "auth:user:" + userID
+
+	var cached AuthUser
+	if ok, err := c.cache.Get(ctx, cacheKey, &cached); err == nil && ok {
+		return &cached, nil
+	}
+
+	// 3) Realm roles
 	realmRoles := []string{}
 	isAdmin := false
 
@@ -272,11 +290,9 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		var roles []struct {
 			Name string `json:"name"`
 		}
-
 		if err := json.NewDecoder(res.Body).Decode(&roles); err != nil {
 			return nil, err
 		}
-
 		for _, r := range roles {
 			realmRoles = append(realmRoles, r.Name)
 			if r.Name == "admin" {
@@ -285,11 +301,8 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// ------------------------------------------------
-	// 3) Fetch CLIENT roles from Admin API
-	// ------------------------------------------------
+	// 4) Client roles
 	clientRoles := map[string][]string{}
-
 	clients, err := c.ListClients()
 	if err != nil {
 		return nil, err
@@ -297,11 +310,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 
 	for _, client := range clients {
 		res, err := c.Get(
-			fmt.Sprintf(
-				"users/%s/role-mappings/clients/%s",
-				userID,
-				client.ID,
-			),
+			fmt.Sprintf("users/%s/role-mappings/clients/%s", userID, client.ID),
 		)
 		if err != nil || res.StatusCode != http.StatusOK {
 			continue
@@ -310,7 +319,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		var roles []struct {
 			Name string `json:"name"`
 		}
-
 		if err := json.NewDecoder(res.Body).Decode(&roles); err != nil {
 			res.Body.Close()
 			continue
@@ -322,9 +330,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// ------------------------------------------------
-	// 4) Fetch FULL user profile from Admin API
-	// ------------------------------------------------
+	// 5) Full profile
 	res, err = c.Get("users/" + userID)
 	if err != nil {
 		return nil, err
@@ -333,11 +339,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 
 	if res.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf(
-			"failed to fetch user profile [%d]: %s",
-			res.StatusCode,
-			string(body),
-		)
+		return nil, fmt.Errorf("failed to fetch user profile [%d]: %s", res.StatusCode, string(body))
 	}
 
 	var kcUser map[string]any
@@ -345,27 +347,21 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		return nil, err
 	}
 
-	getKCString := func(key string) string {
-		if v, ok := kcUser[key].(string); ok {
+	get := func(k string) string {
+		if v, ok := kcUser[k].(string); ok {
 			return v
 		}
 		return ""
 	}
 
-	firstName := getKCString("firstName")
-	lastName := getKCString("lastName")
-
+	firstName := get("firstName")
+	lastName := get("lastName")
 	fullName := strings.TrimSpace(firstName + " " + lastName)
 	if fullName == "" {
 		fullName = ui.Name
 	}
 
-	enabled := false
-	if v, ok := kcUser["enabled"].(bool); ok {
-		enabled = v
-	}
-
-	emailVerified := ui.EmailVerified
+	enabled, _ := kcUser["enabled"].(bool)
 
 	var createdAt *time.Time
 	if v, ok := kcUser["createdTimestamp"].(float64); ok {
@@ -373,10 +369,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		createdAt = &t
 	}
 
-	// ------------------------------------------------
-	// 5) Return merged result
-	// ------------------------------------------------
-	return &AuthUser{
+	user := &AuthUser{
 		ID:            userID,
 		Username:      ui.PreferredUsername,
 		Email:         ui.Email,
@@ -387,11 +380,19 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		RealmRoles:    realmRoles,
 		ClientRoles:   clientRoles,
 		Enabled:       enabled,
-		EmailVerified: emailVerified,
+		EmailVerified: ui.EmailVerified,
 		LastLoginAt:   createdAt,
-	}, nil
+	}
+
+	// 6) Cache store
+	_ = c.cache.Set(ctx, cacheKey, user, 10*time.Minute)
+
+	return user, nil
 }
 
+// ----------------------------------------------------
+// UserInfo
+// ----------------------------------------------------
 func (c *Client) getUserInfo(accessToken string) (*KCUserInfo, error) {
 	url := fmt.Sprintf(
 		"%s/realms/%s/protocol/openid-connect/userinfo",
@@ -403,7 +404,6 @@ func (c *Client) getUserInfo(accessToken string) (*KCUserInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	res, err := c.httpClient.Do(req)
@@ -414,11 +414,7 @@ func (c *Client) getUserInfo(accessToken string) (*KCUserInfo, error) {
 
 	if res.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf(
-			"userinfo failed [%d]: %s",
-			res.StatusCode,
-			string(body),
-		)
+		return nil, fmt.Errorf("userinfo failed [%d]: %s", res.StatusCode, string(body))
 	}
 
 	var ui KCUserInfo
@@ -426,8 +422,8 @@ func (c *Client) getUserInfo(accessToken string) (*KCUserInfo, error) {
 		return nil, err
 	}
 
-	if ui.Sub == "" {
-		return nil, errors.New("userinfo response missing sub")
+	if ui.UserID == "" {
+		return nil, errors.New("userinfo response missing user_id")
 	}
 
 	return &ui, nil

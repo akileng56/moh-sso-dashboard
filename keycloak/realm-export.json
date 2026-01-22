@@ -34,6 +34,21 @@
       ]
     },
     {
+      "name": "user id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "id",
+        "claim.name": "user_id",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true",
+        "introspection.token.claim": "true"
+      }
+    },
+    {
       "name": "email",
       "protocol": "openid-connect"
     },

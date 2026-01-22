@@ -23,8 +23,8 @@ export function CreateClientRoleForm({ clientId, onSuccess }: Props) {
     try {
       await createRole({
         clientId,
-        data: {
-          name: name.trim(),
+        payload: {
+          role: name.trim(),
           description: description.trim() || undefined,
         },
       }).unwrap();
@@ -33,7 +33,7 @@ export function CreateClientRoleForm({ clientId, onSuccess }: Props) {
       setName("");
       setDescription("");
       onSuccess?.();
-    } catch {
+    } catch (error) {
       toast.error("Failed to create role", "Please try again");
     }
   };

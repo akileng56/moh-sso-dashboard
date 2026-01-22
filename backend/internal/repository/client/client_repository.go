@@ -2,6 +2,7 @@ package client
 
 import (
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	models "github.com/moh-sso-dashboard/internal/model"
 )
 
@@ -19,8 +20,8 @@ type ClientRepository interface {
 	// ------------------------------------------------
 	// Client roles / permissions
 	// ------------------------------------------------
-	CreateClientRole(clientID uuid.UUID, role string) error
-	ListClientRoles(clientID uuid.UUID) ([]string, error)
+	CreateClientRole(clientID uuid.UUID, payload *models.CreateClientRoleRequest) error
+	ListClientRoles(clientID uuid.UUID) ([]keycloak.ClientRoleRep, error)
 	DeleteClientRole(clientID uuid.UUID, role string) error
 
 	// ------------------------------------------------

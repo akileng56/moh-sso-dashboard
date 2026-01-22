@@ -7,11 +7,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	service "github.com/moh-sso-dashboard/internal/service"
 )
 
 func SetupRouter(
+	kcClient *keycloak.Client, // ✅ ADD THIS
 	importHandler *handler.ImportHandler,
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
@@ -66,11 +68,11 @@ func SetupRouter(
 	}
 
 	// --------------------------------------------------
-	// Protected (AUTH REQUIRED)
+	// Protected (AUTH REQUIRED, CACHE-BACKED)
 	// --------------------------------------------------
 	protected := api.Group("")
+	protected.Use(middleware.ExtractAuthContext(kcClient)) // ✅ NEW
 	protected.Use(middleware.RequireAuth())
-	protected.Use(middleware.ExtractTokenClaims())
 	protected.Use(middleware.AuditMiddleware(auditSvc))
 	{
 		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
@@ -85,7 +87,6 @@ func SetupRouter(
 			clients.POST("", clientHandler.CreateClient)
 			clients.DELETE("/:id", clientHandler.DeleteClient)
 
-			// -------- Client roles (READ) --------
 			clients.GET("/:id/roles", clientHandler.ListClientRoles)
 		}
 
@@ -106,7 +107,6 @@ func SetupRouter(
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireAdmin())
 		{
-			// -------- Users Admin --------
 			admin.GET("/users", userHandler.ListUsers)
 			admin.GET("/users/:id", userHandler.GetUser)
 			admin.POST("/users", userHandler.CreateUser)
@@ -118,26 +118,19 @@ func SetupRouter(
 			admin.GET("/users/import/:jobId/errors.csv", importHandler.DownloadErrorsCSV)
 			admin.GET("/users/import/template.csv", importHandler.DownloadTemplateCSV)
 
-			// -------- Client roles (ADMIN) --------
+			// -------- Client roles --------
 			admin.POST("/clients/:id/roles", clientHandler.CreateClientRole)
 			admin.DELETE("/clients/:id/roles/:role", clientHandler.DeleteClientRole)
 
-			// -------- User ↔ Client role assignments (ADMIN) --------
-			admin.POST(
-				"/users/:id/clients/:clientId/roles",
-				clientHandler.AssignClientRoleToUser,
-			)
-			admin.DELETE(
-				"/users/:id/clients/:clientId/roles/:role",
-				clientHandler.RemoveClientRoleFromUser,
-			)
+			// -------- User ↔ Client roles --------
+			admin.POST("/users/:id/clients/:clientId/roles", clientHandler.AssignClientRoleToUser)
+			admin.DELETE("/users/:id/clients/:clientId/roles/:role", clientHandler.RemoveClientRoleFromUser)
 
 			// -------- Metrics --------
 			metrics := admin.Group("/metrics")
 			{
 				metrics.GET("/overview", metricsHandler.Overview)
 
-				// System
 				metrics.GET("/system/count-users", metricsHandler.CountUsers)
 				metrics.GET("/system/count-disabled-users", metricsHandler.CountDisabledUsers)
 				metrics.GET("/system/active-today", metricsHandler.ActiveUsersToday)
@@ -145,18 +138,15 @@ func SetupRouter(
 				metrics.GET("/system/login-trend", metricsHandler.LoginTrend)
 				metrics.GET("/system/login-trend-range", metricsHandler.LoginTrendByDay)
 
-				// Security
 				metrics.GET("/security/failed-logins", metricsHandler.CountFailedLogins)
 				metrics.GET("/security/failed-logins-range", metricsHandler.CountFailedLoginsInRange)
 				metrics.GET("/security/suspicious-logins", metricsHandler.SuspiciousLogins)
 
-				// Clients
 				metrics.GET("/clients/count", metricsHandler.CountClients)
 				metrics.GET("/clients/most-accessed", metricsHandler.MostAccessedClients)
 				metrics.GET("/clients/login-count", metricsHandler.LoginCountForClient)
 				metrics.GET("/clients/active-today", metricsHandler.ActiveUsersPerClientToday)
 
-				// Users
 				metrics.GET("/users/new-range", metricsHandler.NewUsersInRange)
 				metrics.GET("/users/new-trend", metricsHandler.NewUsersTrend)
 				metrics.GET("/users/never-logged-in", metricsHandler.NeverLoggedInUsers)

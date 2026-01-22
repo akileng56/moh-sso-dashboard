@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/moh-sso-dashboard/internal/http/apierror"
 	"github.com/moh-sso-dashboard/internal/http/response"
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -303,41 +305,81 @@ func (h *ClientHandler) DeleteClient(c *gin.Context) {
 
 // POST /clients/:id/roles
 func (h *ClientHandler) CreateClientRole(c *gin.Context) {
-	clientID, err := uuid.Parse(c.Param("id"))
+	// ------------------------------------------------
+	// 1) Parse client ID
+	// ------------------------------------------------
+	clientIDStr := c.Param("id")
+	clientID, err := uuid.Parse(clientIDStr)
 	if err != nil {
 		response.Fail(c, http.StatusBadRequest, "INVALID_UUID", "Invalid client ID")
 		return
 	}
 
-	var body struct {
-		Role string `json:"role"`
-	}
+	// ------------------------------------------------
+	// 2) Bind request body (FIXED)
+	// ------------------------------------------------
+	var body *model.CreateClientRoleRequest
 	if err := c.ShouldBindJSON(&body); err != nil || body.Role == "" {
-		response.Fail(c, http.StatusBadRequest,
+		response.Fail(
+			c,
+			http.StatusBadRequest,
 			"VALIDATION_FAILED",
 			"Role is required",
 		)
 		return
 	}
 
-	adminID, _ := uuid.Parse(c.GetString("user_id"))
-
-	if err := h.service.CreateClientRole(
-		c.Request.Context(),
-		clientID,
-		body.Role,
-		adminID,
-	); err != nil {
-		response.Fail(c, http.StatusInternalServerError,
-			"INTERNAL_ERROR",
-			"Failed to create client role",
-		)
+	// ------------------------------------------------
+	// 3) Get cached user from context (SOURCE OF TRUTH)
+	// ------------------------------------------------
+	userAny, exists := c.Get("user")
+	if !exists {
+		response.Fail(c, http.StatusUnauthorized, "UNAUTHORIZED", "Missing user context")
 		return
 	}
 
+	user, ok := userAny.(*keycloak.AuthUser)
+	if !ok {
+		response.Fail(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user context")
+		return
+	}
+
+	// ------------------------------------------------
+	// 4) Extract admin ID from cached profile
+	// ------------------------------------------------
+	adminID, err := uuid.Parse(user.ID)
+	if err != nil {
+		response.Fail(c, http.StatusUnauthorized, "UNAUTHORIZED", "Invalid user identity")
+		return
+	}
+
+	// ------------------------------------------------
+	// 5) Create role
+	// ------------------------------------------------
+	if err := h.service.CreateClientRole(
+		c.Request.Context(),
+		clientID,
+		body,
+		adminID,
+	); err != nil {
+		response.Fail(
+			c,
+			http.StatusInternalServerError,
+			"INTERNAL_ERROR",
+			"Failed to create client role",
+		)
+		log.Printf("err", err)
+
+		return
+	}
+
+	// ------------------------------------------------
+	// 6) Audit
+	// ------------------------------------------------
 	h.audit(c, "client.role_created", map[string]interface{}{
 		"client_id": clientID.String(),
 		"role":      body.Role,
+		"admin_id":  user.ID,
 	})
 
 	c.Status(http.StatusCreated)
@@ -396,6 +438,7 @@ func (h *ClientHandler) DeleteClientRole(c *gin.Context) {
 			"INTERNAL_ERROR",
 			"Failed to delete client role",
 		)
+
 		return
 	}
 

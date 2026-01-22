@@ -30,7 +30,7 @@ export const API = {
     create: () => `${API_BASE}/clients`,
     delete: (id: string) => `${API_BASE}/clients/${id}`,
     update: (id: string) => `${API_BASE}/clients/${id}`,
-    toggle: (id: string) => `${API_BASE}/clients/${id}`,
+    toggleClient: (id: string) => `${API_BASE}/clients/${id}`,
 
     // -------- Client roles --------
     roles: {

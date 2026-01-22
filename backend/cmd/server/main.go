@@ -61,32 +61,8 @@ func main() {
 	}
 
 	// ---------------------------------------------------------------------
-	// Keycloak (ADMIN + WEB clients)
+	// Redis (CACHE)
 	// ---------------------------------------------------------------------
-	keycloakClient := kcClientPkg.NewClient(
-		cfg.KeycloakBaseUrl, // e.g. http://keycloak:8080
-		cfg.KeycloakRealm,
-		cfg.KeycloakAdminClientID,
-		cfg.KeycloakAdminClientSecret,
-		cfg.KeycloakWebClientID,
-		cfg.KeycloakWebClientSecret,
-	)
-
-	// Authenticate ADMIN service account
-	if err := keycloakClient.Authenticate(); err != nil {
-		appLogger.Fatal(
-			"Failed to authenticate Keycloak admin service account: %v",
-			err,
-		)
-	}
-
-	appLogger.Info("Successfully authenticated Keycloak admin service account")
-
-	// ---------------------------------------------------------------------
-	// Infrastructure
-	// ---------------------------------------------------------------------
-	store := store.NewStore(conn)
-
 	rdb := cache.NewRedisClient(cache.RedisConfig{
 		Host:         cfg.RedisHost,
 		Port:         cfg.RedisPort,
@@ -99,6 +75,36 @@ func main() {
 
 	cache.MustPing(context.Background(), rdb)
 	appLogger.Info("Successfully connected to Redis")
+
+	// Adapter that satisfies keycloak.Cache
+	cacheAdapter := cache.NewRedisCache(rdb)
+
+	// ---------------------------------------------------------------------
+	// Keycloak (ADMIN + WEB clients, CACHE-AWARE)
+	// ---------------------------------------------------------------------
+	keycloakClient := kcClientPkg.NewClient(
+		cfg.KeycloakBaseUrl,
+		cfg.KeycloakRealm,
+		cfg.KeycloakAdminClientID,
+		cfg.KeycloakAdminClientSecret,
+		cfg.KeycloakWebClientID,
+		cfg.KeycloakWebClientSecret,
+		cacheAdapter, // ✅ NEW
+	)
+
+	// Authenticate ADMIN service account
+	if err := keycloakClient.Authenticate(); err != nil {
+		appLogger.Fatal(
+			"Failed to authenticate Keycloak admin service account: %v",
+			err,
+		)
+	}
+	appLogger.Info("Successfully authenticated Keycloak admin service account")
+
+	// ---------------------------------------------------------------------
+	// Infrastructure
+	// ---------------------------------------------------------------------
+	store := store.NewStore(conn)
 
 	// ---------------------------------------------------------------------
 	// Repositories
@@ -149,9 +155,10 @@ func main() {
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
 	// ---------------------------------------------------------------------
-	// Router
+	// Router (CACHE-BACKED AUTH)
 	// ---------------------------------------------------------------------
 	r := router.SetupRouter(
+		keycloakClient, // ✅ NEW
 		importHandler,
 		authHandler,
 		clientHandler,

@@ -110,7 +110,7 @@ export const clientsApi = baseApi.injectEndpoints({
      * -------------------------------- */
     toggleClient: builder.mutation<void, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
-        url: API.clients.toggerClient(id),
+        url: API.clients.toggleClient(id),
         method: enabled ? "POST" : "DELETE",
         credentials: "include",
       }),
