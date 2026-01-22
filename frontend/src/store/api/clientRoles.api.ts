@@ -6,6 +6,7 @@ type ApiEnvelope<T> = {
   success: boolean;
   data: T;
 };
+
 export type RoleRequest = {
   role: string;
   description?: string;

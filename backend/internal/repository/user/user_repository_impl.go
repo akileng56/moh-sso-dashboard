@@ -39,9 +39,6 @@ func NewUserRepository(
 	}
 }
 
-// ----------------------------------------------------
-// CREATE (Keycloak = Source of Truth)
-// ----------------------------------------------------
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
@@ -83,9 +80,6 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	return kcID, nil
 }
 
-// ----------------------------------------------------
-// GET BY ID (Keycloak authoritative)
-// ----------------------------------------------------
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	ctx := context.Background()
 
@@ -127,9 +121,6 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	}, nil
 }
 
-// ----------------------------------------------------
-// LIST (Keycloak primary)
-// ----------------------------------------------------
 func (r *userRepository) ListUsers() ([]models.User, error) {
 	ctx := context.Background()
 
@@ -190,9 +181,6 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 	return result, nil
 }
 
-// ----------------------------------------------------
-// UPDATE (Keycloak first)
-// ----------------------------------------------------
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
 
@@ -233,9 +221,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 	return nil
 }
 
-// ----------------------------------------------------
-// DELETE (Keycloak authoritative)
-// ----------------------------------------------------
 func (r *userRepository) DeleteUser(id string) error {
 	ctx := context.Background()
 
@@ -264,4 +249,134 @@ func pickTime(db sql.NullTime, kc *time.Time) *time.Time {
 		return &db.Time
 	}
 	return kc
+}
+
+func (r *userRepository) ToggleUserEnabled(
+	ctx context.Context,
+	userID string,
+	enabled bool,
+) error {
+
+	if err := r.keycloakClient.UpdateUser(&models.User{
+		ID:      userID,
+		Enabled: enabled,
+	}); err != nil {
+		return fmt.Errorf("keycloak toggle user failed: %w", err)
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	if err := r.db.UpdateUserEnabled(ctx, db.UpdateUserEnabledParams{
+		ID:      uid,
+		Enabled: sql.NullBool{Bool: enabled, Valid: true},
+	}); err != nil {
+		r.logger.Warn(
+			"user enabled toggled in keycloak but db sync failed",
+			"userId", userID,
+			"enabled", enabled,
+			"error", err,
+		)
+	}
+
+	return nil
+}
+
+func (r *userRepository) ResetUserPassword(
+	ctx context.Context,
+	userID string,
+) error {
+
+	if err := r.keycloakClient.ResetUserPassword(ctx, userID); err != nil {
+		return fmt.Errorf("reset password failed: %w", err)
+	}
+
+	r.logger.Info(
+		"user password reset",
+		"userId", userID,
+	)
+
+	return nil
+}
+
+func (r *userRepository) GetUserClientRoles(
+	ctx context.Context,
+	userID string,
+) ([]keycloak.UserClientRoleAssignment, error) {
+
+	clients, err := r.keycloakClient.ListClients()
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]keycloak.UserClientRoleAssignment, 0)
+
+	for _, client := range clients {
+		roles, err := r.keycloakClient.GetUserClientRoles(
+			ctx,
+			userID,
+			client.ID, // internal UUID
+		)
+		if err != nil || len(roles) == 0 {
+			continue
+		}
+
+		names := make([]string, 0, len(roles))
+		for _, r := range roles {
+			names = append(names, r.Name)
+		}
+
+		out = append(out, keycloak.UserClientRoleAssignment{
+			ClientID:   client.ClientID,
+			ClientName: client.Name,
+			Roles:      names,
+		})
+	}
+
+	return out, nil
+}
+
+func (r *userRepository) AddUserClientRoles(
+	ctx context.Context,
+	userID string,
+	clientUUID string,
+	roles []string,
+) error {
+
+	return r.keycloakClient.AssignClientRolesToUser(
+		ctx,
+		userID,
+		clientUUID,
+		roles,
+	)
+}
+
+func (r *userRepository) RemoveUserClientRoles(
+	ctx context.Context,
+	userID string,
+	clientUUID string,
+	roles []string,
+) error {
+
+	return r.keycloakClient.RemoveClientRolesFromUser(
+		ctx,
+		userID,
+		clientUUID,
+		roles,
+	)
+}
+
+func (r *userRepository) GetUserClientRolesForClient(
+	ctx context.Context,
+	userID string,
+	clientUUID string,
+) ([]keycloak.ClientRoleRep, error) {
+
+	return r.keycloakClient.GetUserClientRoles(
+		ctx,
+		userID,
+		clientUUID,
+	)
 }

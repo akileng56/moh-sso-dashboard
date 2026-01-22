@@ -2,12 +2,12 @@ import { Stack, Tile, MultiSelect, InlineLoading, Button } from "@carbon/react";
 import { useEffect, useMemo, useState } from "react";
 
 import { useListClientsQuery } from "../../store/api/clients.api";
-import { useToast } from "../notifications/toast/useToast";
 import {
   useGetUserClientRolesQuery,
   useUpdateUserClientRolesMutation,
 } from "../../store/api/users.api";
 import { useListClientRolesQuery } from "../../store/api/clientRoles.api";
+import { useToast } from "../notifications/toast/useToast";
 
 type Props = {
   userId: string;
@@ -16,6 +16,9 @@ type Props = {
 export function UserClientRolesPanel({ userId }: Props) {
   const toast = useToast();
 
+  /* ------------------------------------------------
+   * Data
+   * ------------------------------------------------ */
   const { data: clients = [], isLoading: loadingClients } =
     useListClientsQuery();
 
@@ -25,36 +28,51 @@ export function UserClientRolesPanel({ userId }: Props) {
   const [updateRoles, { isLoading: saving }] =
     useUpdateUserClientRolesMutation();
 
+  /* ------------------------------------------------
+   * Local state
+   * ------------------------------------------------ */
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
-  const selectedClient = clients.find((c) => c.clientId === selectedClientId);
+  const selectedClient = useMemo(
+    () => clients.find((c) => c.clientId === selectedClientId),
+    [clients, selectedClientId]
+  );
 
+  /* ------------------------------------------------
+   * Client roles
+   * ------------------------------------------------ */
   const { data: clientRoles = [], isLoading: loadingRoles } =
     useListClientRolesQuery(selectedClientId!, {
       skip: !selectedClientId,
     });
 
-  /* -----------------------------
-   * Sync selection
-   * ----------------------------- */
+  /* ------------------------------------------------
+   * Sync current assignments → UI state
+   * ------------------------------------------------ */
   useEffect(() => {
     if (!selectedClientId) return;
 
-    const existing = assignments.find((a) => a.clientId === selectedClientId);
+    const assignment = assignments.find((a) => a.clientId === selectedClientId);
 
-    setSelectedRoles(existing?.roles ?? []);
+    setSelectedRoles(assignment?.roles ?? []);
   }, [selectedClientId, assignments]);
 
+  /* ------------------------------------------------
+   * Role items
+   * ------------------------------------------------ */
   const roleItems = useMemo(
     () =>
       clientRoles.map((r) => ({
         id: r.name,
-        text: r.name.replace(`${selectedClientId}:`, ""),
+        text: r.name,
       })),
-    [clientRoles, selectedClientId]
+    [clientRoles]
   );
 
+  /* ------------------------------------------------
+   * Save (FULL REPLACEMENT)
+   * ------------------------------------------------ */
   const handleSave = async () => {
     if (!selectedClientId) return;
 
@@ -65,27 +83,38 @@ export function UserClientRolesPanel({ userId }: Props) {
         roles: selectedRoles,
       }).unwrap();
 
-      toast.success("Roles updated", "Client roles updated successfully");
-    } catch {
-      toast.error("Failed to save roles", "Please try again");
+      toast.success(
+        "Roles updated",
+        "User client roles were updated successfully"
+      );
+    } catch (err) {
+      toast.error("Update failed", "Unable to update client roles");
     }
   };
 
+  /* ------------------------------------------------
+   * Loading
+   * ------------------------------------------------ */
   if (loadingClients || loadingAssignments) {
     return <InlineLoading description="Loading client roles…" />;
   }
 
+  /* ------------------------------------------------
+   * Render
+   * ------------------------------------------------ */
   return (
     <Stack gap={5}>
-      {/* -----------------------------
+      {/* --------------------------------
        * Client selector
-       * ----------------------------- */}
+       * -------------------------------- */}
       <Tile>
         <Stack gap={4}>
           <strong>Select application</strong>
 
           <MultiSelect
             id="client-selector"
+            label=""
+            hideLabel
             titleText="Application"
             items={clients.map((c) => ({
               id: c.clientId,
@@ -104,9 +133,9 @@ export function UserClientRolesPanel({ userId }: Props) {
         </Stack>
       </Tile>
 
-      {/* -----------------------------
+      {/* --------------------------------
        * Role assignment
-       * ----------------------------- */}
+       * -------------------------------- */}
       {selectedClientId && (
         <Tile>
           <Stack gap={4}>
@@ -117,6 +146,8 @@ export function UserClientRolesPanel({ userId }: Props) {
             ) : (
               <MultiSelect
                 id="client-roles"
+                label=""
+                hideLabel
                 titleText="Client roles"
                 items={roleItems}
                 itemToString={(item) => item?.text ?? ""}

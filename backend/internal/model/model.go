@@ -146,8 +146,8 @@ type parsedRow struct {
 }
 
 type CreateClientRoleRequest struct {
-	Role        string `json: role`
-	Description string `json: description`
+	Role        string `json: "role"`
+	Description string `json: "description"`
 }
 
 type Notification struct {
@@ -169,6 +169,7 @@ const (
 	TokenRefreshFailed     NotificationType = "TOKEN_REFRESH_FAILED"
 	LoginSucceeded         NotificationType = "LOGIN_SUCCEEDED"
 	SuspiciousLogin        NotificationType = "SUSPICIOUS_LOGIN"
+	UserPasswordReset      NotificationType = "USER_PASSWORD_RESET"
 	PasswordResetRequested NotificationType = "PASSWORD_RESET_REQUESTED"
 	PasswordResetCompleted NotificationType = "PASSWORD_RESET_COMPLETED"
 	AccountLocked          NotificationType = "ACCOUNT_LOCKED"
@@ -214,6 +215,7 @@ const (
 	ClientRoleCreated  NotificationType = "CLIENT_ROLE_CREATED"
 	ClientRoleDeleted  NotificationType = "CLIENT_ROLE_DELETED"
 	ClientRoleAssigned NotificationType = "CLIENT_ROLE_ASSIGNED"
+	ClientRolesUpdated NotificationType = "CLIENT_TOLE_UPDATED"
 	ClientRoleRemoved  NotificationType = "CLIENT_ROLE_REMOVED"
 )
 

@@ -514,6 +514,22 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) erro
 	return err
 }
 
+const updateClientEnabled = `-- name: UpdateClientEnabled :exec
+UPDATE client
+SET enabled = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateClientEnabledParams struct {
+	ID      uuid.UUID `json:"id"`
+	Enabled bool      `json:"enabled"`
+}
+
+func (q *Queries) UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, updateClientEnabled, arg.ID, arg.Enabled)
+	return err
+}
+
 const upsertClient = `-- name: UpsertClient :exec
 INSERT INTO client (
     id,

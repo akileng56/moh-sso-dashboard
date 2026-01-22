@@ -87,6 +87,12 @@ UPDATE users
 SET last_login_at = NOW()
 WHERE id = $1;
 
+-- name: UpdateUserEnabled :exec
+UPDATE users
+SET enabled = $2, updated_at = now()
+WHERE id = $1;
+
+
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;

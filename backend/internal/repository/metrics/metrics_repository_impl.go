@@ -17,7 +17,6 @@ type metricsRepository struct {
 	logger *logger.Logger
 }
 
-// Constructor
 func NewMetricsRepository(
 	cfg *config.Config,
 	store db.Store,

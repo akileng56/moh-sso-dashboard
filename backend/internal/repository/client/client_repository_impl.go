@@ -38,13 +38,6 @@ func NewClientRepository(
 	}
 }
 
-//
-// -------------------------------------------------------------------
-// Client lifecycle
-// -------------------------------------------------------------------
-//
-
-// CREATE (Keycloak authoritative)
 func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, error) {
 	ctx := context.Background()
 
@@ -109,7 +102,6 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 	return kcID, nil
 }
 
-// GET by DB UUID
 func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, error) {
 	ctx := context.Background()
 
@@ -135,7 +127,6 @@ func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, erro
 	}, nil
 }
 
-// GET by clientId
 func (r *sqlcClientRepository) GetClientByClientID(clientID string) (*models.Client, error) {
 	kc, err := r.keycloakClient.GetClientByClientID(clientID)
 	if err != nil || kc == nil {
@@ -154,7 +145,6 @@ func (r *sqlcClientRepository) GetClientByClientID(clientID string) (*models.Cli
 	}, nil
 }
 
-// LIST (Keycloak primary)
 func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	kcClients, err := r.keycloakClient.ListClients()
 	if err != nil {
@@ -230,13 +220,7 @@ func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
 	return r.db.DeleteClient(ctx, id)
 }
 
-//
-// -------------------------------------------------------------------
-// Client roles / permissions (ADMIN ONLY)
-// -------------------------------------------------------------------
-//
-
-func (r *sqlcClientRepository) CreateClientRole(clientID uuid.UUID, payload *models.CreateClientRoleRequest) error {
+func (r *sqlcClientRepository) CreateClientRole(ctx context.Context, clientID uuid.UUID, payload *models.CreateClientRoleRequest) error {
 	return r.keycloakClient.CreateClientRole(
 		context.Background(),
 		clientID.String(),
@@ -245,6 +229,7 @@ func (r *sqlcClientRepository) CreateClientRole(clientID uuid.UUID, payload *mod
 }
 
 func (r *sqlcClientRepository) ListClientRoles(
+	ctx context.Context,
 	clientID uuid.UUID,
 ) ([]keycloak.ClientRoleRep, error) {
 
@@ -259,7 +244,7 @@ func (r *sqlcClientRepository) ListClientRoles(
 	return roles, nil
 }
 
-func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string) error {
+func (r *sqlcClientRepository) DeleteClientRole(ctx context.Context, clientID uuid.UUID, role string) error {
 	return r.keycloakClient.DeleteClientRole(
 		context.Background(),
 		clientID.String(),
@@ -267,54 +252,48 @@ func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string)
 	)
 }
 
-//
-// -------------------------------------------------------------------
-// User ↔ Client role mapping (ADMIN ONLY)
-// -------------------------------------------------------------------
-//
-
-func (r *sqlcClientRepository) AssignClientRoleToUser(
-	userID uuid.UUID,
+func (r *sqlcClientRepository) ToggleClientEnabled(
+	ctx context.Context,
 	clientID uuid.UUID,
-	role string,
+	enabled bool,
 ) error {
 
-	cr, err := r.keycloakClient.GetClientRoleByName(
-		context.Background(),
-		clientID.String(),
-		role,
-	)
+	dbClient, err := r.db.GetClientByID(ctx, clientID)
 	if err != nil {
 		return err
 	}
 
-	return r.keycloakClient.AddClientRoleToUser(
-		context.Background(),
-		userID.String(),
-		clientID.String(),
-		*cr,
-	)
+	if err := r.keycloakClient.UpdateClientEnabled(ctx,
+		dbClient.ClientID,
+		enabled,
+	); err != nil {
+		return fmt.Errorf("keycloak toggle client failed: %w", err)
+	}
+
+	if err := r.db.UpdateClientEnabled(ctx, db.UpdateClientEnabledParams{
+		ID:      clientID,
+		Enabled: enabled,
+	}); err != nil {
+		r.logger.Warn(
+			"client enabled toggled in keycloak but db sync failed",
+			"clientId", dbClient.ClientID,
+			"enabled", enabled,
+			"error", err,
+		)
+	}
+
+	return nil
 }
 
-func (r *sqlcClientRepository) RemoveClientRoleFromUser(
-	userID uuid.UUID,
+func (r *sqlcClientRepository) GetClientRoleByName(
+	ctx context.Context,
 	clientID uuid.UUID,
 	role string,
-) error {
+) (*keycloak.ClientRoleRep, error) {
 
-	cr, err := r.keycloakClient.GetClientRoleByName(
-		context.Background(),
+	return r.keycloakClient.GetClientRoleByName(
+		ctx,
 		clientID.String(),
 		role,
-	)
-	if err != nil {
-		return err
-	}
-
-	return r.keycloakClient.RemoveClientRoleFromUser(
-		context.Background(),
-		userID.String(),
-		clientID.String(),
-		*cr,
 	)
 }

@@ -53,16 +53,13 @@ func NewClientService(
 	}
 }
 
-// ----------------------------------------------------
-// CREATE CLIENT
-// ----------------------------------------------------
 func (s *ClientService) CreateClient(
 	ctx context.Context,
 	req CreateClientRequest,
 	adminID uuid.UUID,
 ) (*models.Client, error) {
 
-	if req.Name == "" {
+	if strings.TrimSpace(req.Name) == "" {
 		return nil, errors.New("client name is required")
 	}
 
@@ -71,20 +68,20 @@ func (s *ClientService) CreateClient(
 		clientID = utils.GenerateClientID()
 	}
 
-	newClient := &models.Client{
+	client := &models.Client{
 		ClientID:     clientID,
 		Name:         req.Name,
 		Description:  req.Description,
 		BaseURL:      req.BaseURL,
 		PublicClient: req.PublicClient,
 		Enabled:      true,
+		Attributes:   req.Attributes,
 	}
 
-	if _, err := s.repo.CreateClient(newClient); err != nil {
+	if _, err := s.repo.CreateClient(client); err != nil {
 		return nil, err
 	}
 
-	// 🔔 Notify admins
 	nt := models.ClientCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
@@ -92,14 +89,14 @@ func (s *ClientService) CreateClient(
 		Severity:   nt.Severity(),
 		Message:    "New client application created",
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
-			"client_id": newClient.ClientID,
-			"name":      newClient.Name,
+		Metadata: utils.MustJSON(map[string]any{
+			"client_id": client.ClientID,
+			"name":      client.Name,
 			"admin_id":  adminID.String(),
 		}),
 	})
 
-	return newClient, nil
+	return client, nil
 }
 
 func (s *ClientService) GetClient(id uuid.UUID) (*models.Client, error) {
@@ -132,7 +129,7 @@ func (s *ClientService) DeleteClient(
 		Severity:   nt.Severity(),
 		Message:    "Client application deleted",
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
+		Metadata: utils.MustJSON(map[string]any{
 			"client_id": client.ClientID,
 			"name":      client.Name,
 			"admin_id":  adminID.String(),
@@ -142,13 +139,45 @@ func (s *ClientService) DeleteClient(
 	return nil
 }
 
-/*
-|--------------------------------------------------------------------------
-| Client roles / permissions
-|--------------------------------------------------------------------------
-*/
+func (s *ClientService) ToggleClientEnabled(
+	ctx context.Context,
+	clientID uuid.UUID,
+	enabled bool,
+	adminID uuid.UUID,
+) error {
 
-// CREATE CLIENT ROLE
+	if err := s.repo.ToggleClientEnabled(ctx, clientID, enabled); err != nil {
+		return err
+	}
+
+	var nt models.NotificationType
+	msg := "Client updated"
+
+	if enabled {
+		nt = models.ClientEnabled
+		msg = "Client enabled"
+	} else {
+		nt = models.ClientDisabled
+		msg = "Client disabled"
+	}
+
+	s.notifications.Notify(ctx, models.Notification{
+		Type:       string(nt),
+		Title:      nt.Title(),
+		Severity:   nt.Severity(),
+		Message:    msg,
+		TargetRole: "admin",
+		Metadata: utils.MustJSON(map[string]any{
+			"client_id": clientID.String(),
+			"enabled":   enabled,
+			"admin_id":  adminID.String(),
+		}),
+	})
+
+	return nil
+}
+
+// CREATE ROLE
 func (s *ClientService) CreateClientRole(
 	ctx context.Context,
 	clientID uuid.UUID,
@@ -156,17 +185,14 @@ func (s *ClientService) CreateClientRole(
 	adminID uuid.UUID,
 ) error {
 
-	// 1️⃣ Defensive validation
 	if strings.TrimSpace(payload.Role) == "" {
 		return errors.New("role name is required")
 	}
 
-	// 2️⃣ Persist role
-	if err := s.repo.CreateClientRole(clientID, payload); err != nil {
+	if err := s.repo.CreateClientRole(ctx, clientID, payload); err != nil {
 		return err
 	}
 
-	// 3️⃣ Notify
 	nt := models.ClientRoleCreated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
@@ -184,14 +210,16 @@ func (s *ClientService) CreateClientRole(
 	return nil
 }
 
-// LIST CLIENT ROLES
+// LIST ROLES
 func (s *ClientService) ListClientRoles(
+	ctx context.Context,
 	clientID uuid.UUID,
 ) ([]keycloak.ClientRoleRep, error) {
-	return s.repo.ListClientRoles(clientID)
+
+	return s.repo.ListClientRoles(ctx, clientID)
 }
 
-// DELETE CLIENT ROLE
+// DELETE ROLE
 func (s *ClientService) DeleteClientRole(
 	ctx context.Context,
 	clientID uuid.UUID,
@@ -199,7 +227,7 @@ func (s *ClientService) DeleteClientRole(
 	adminID uuid.UUID,
 ) error {
 
-	if err := s.repo.DeleteClientRole(clientID, role); err != nil {
+	if err := s.repo.DeleteClientRole(ctx, clientID, role); err != nil {
 		return err
 	}
 
@@ -211,74 +239,6 @@ func (s *ClientService) DeleteClientRole(
 		Message:    "Client role deleted",
 		TargetRole: "admin",
 		Metadata: utils.MustJSON(map[string]any{
-			"client_id": clientID.String(),
-			"role":      role,
-			"admin_id":  adminID.String(),
-		}),
-	})
-
-	return nil
-}
-
-/*
-|--------------------------------------------------------------------------
-| User ↔ Client role mapping
-|--------------------------------------------------------------------------
-*/
-
-// ASSIGN ROLE TO USER
-func (s *ClientService) AssignClientRoleToUser(
-	ctx context.Context,
-	userID uuid.UUID,
-	clientID uuid.UUID,
-	role string,
-	adminID uuid.UUID,
-) error {
-
-	if err := s.repo.AssignClientRoleToUser(userID, clientID, role); err != nil {
-		return err
-	}
-
-	nt := models.ClientRoleAssigned
-	s.notifications.Notify(ctx, models.Notification{
-		Type:       string(nt),
-		Title:      nt.Title(),
-		Severity:   nt.Severity(),
-		Message:    "Client role assigned to user",
-		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]any{
-			"user_id":   userID.String(),
-			"client_id": clientID.String(),
-			"role":      role,
-			"admin_id":  adminID.String(),
-		}),
-	})
-
-	return nil
-}
-
-// REMOVE ROLE FROM USER
-func (s *ClientService) RemoveClientRoleFromUser(
-	ctx context.Context,
-	userID uuid.UUID,
-	clientID uuid.UUID,
-	role string,
-	adminID uuid.UUID,
-) error {
-
-	if err := s.repo.RemoveClientRoleFromUser(userID, clientID, role); err != nil {
-		return err
-	}
-
-	nt := models.ClientRoleRemoved
-	s.notifications.Notify(ctx, models.Notification{
-		Type:       string(nt),
-		Title:      nt.Title(),
-		Severity:   nt.Severity(),
-		Message:    "Client role removed from user",
-		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]any{
-			"user_id":   userID.String(),
 			"client_id": clientID.String(),
 			"role":      role,
 			"admin_id":  adminID.String(),

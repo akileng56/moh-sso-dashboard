@@ -190,6 +190,24 @@
       }
     },
     {
+      "username": "testuser",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "email": "user@moh.go.ug",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "User@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    },
+    {
       "username": "service-account-dashboard-admin",
       "enabled": true,
       "serviceAccountClientId": "dashboard-admin",

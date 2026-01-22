@@ -13,7 +13,7 @@ import (
 )
 
 func SetupRouter(
-	kcClient *keycloak.Client, // ✅ ADD THIS
+	kcClient *keycloak.Client,
 	importHandler *handler.ImportHandler,
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
@@ -36,7 +36,7 @@ func SetupRouter(
 			"http://localhost:3000",
 		},
 		AllowMethods: []string{
-			"GET", "POST", "PUT", "DELETE", "OPTIONS",
+			"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
 		},
 		AllowHeaders: []string{
 			"Origin",
@@ -68,10 +68,10 @@ func SetupRouter(
 	}
 
 	// --------------------------------------------------
-	// Protected (AUTH REQUIRED, CACHE-BACKED)
+	// Protected (AUTH REQUIRED)
 	// --------------------------------------------------
 	protected := api.Group("")
-	protected.Use(middleware.ExtractAuthContext(kcClient)) // ✅ NEW
+	protected.Use(middleware.ExtractAuthContext(kcClient))
 	protected.Use(middleware.RequireAuth())
 	protected.Use(middleware.AuditMiddleware(auditSvc))
 	{
@@ -85,8 +85,8 @@ func SetupRouter(
 			clients.GET("", clientHandler.ListClients)
 			clients.GET("/:id", clientHandler.GetClient)
 			clients.POST("", clientHandler.CreateClient)
+			clients.PATCH("/:id/toggle", clientHandler.ToggleClientEnabled)
 			clients.DELETE("/:id", clientHandler.DeleteClient)
-
 			clients.GET("/:id/roles", clientHandler.ListClientRoles)
 		}
 
@@ -99,6 +99,7 @@ func SetupRouter(
 			users.GET("/:id", userHandler.GetUser)
 			users.POST("", userHandler.CreateUser)
 			users.DELETE("/:id", userHandler.DeleteUser)
+			users.PATCH("/:id/toggle", userHandler.SetUserEnabled)
 		}
 
 		// --------------------------------------------------
@@ -107,24 +108,27 @@ func SetupRouter(
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireAdmin())
 		{
+			// -------- Users --------
 			admin.GET("/users", userHandler.ListUsers)
 			admin.GET("/users/:id", userHandler.GetUser)
 			admin.POST("/users", userHandler.CreateUser)
 			admin.DELETE("/users/:id", userHandler.DeleteUser)
 
+			// User ↔ Client roles (NEW, CORRECT)
+			admin.GET("/users/:id/client-roles", userHandler.GetUserClientRoles)
+			admin.PUT("/users/:id/client-roles", userHandler.UpdateUserClientRoles)
+			admin.POST("/users/:id/reset-password", userHandler.ResetUserPassword)
+
+			// -------- User Import --------
 			admin.POST("/users/import/preview", importHandler.Preview)
 			admin.POST("/users/import/execute", importHandler.Execute)
 			admin.GET("/users/import/:jobId", importHandler.GetJob)
 			admin.GET("/users/import/:jobId/errors.csv", importHandler.DownloadErrorsCSV)
 			admin.GET("/users/import/template.csv", importHandler.DownloadTemplateCSV)
 
-			// -------- Client roles --------
+			// -------- Client Roles --------
 			admin.POST("/clients/:id/roles", clientHandler.CreateClientRole)
 			admin.DELETE("/clients/:id/roles/:role", clientHandler.DeleteClientRole)
-
-			// -------- User ↔ Client roles --------
-			admin.POST("/users/:id/clients/:clientId/roles", clientHandler.AssignClientRoleToUser)
-			admin.DELETE("/users/:id/clients/:clientId/roles/:role", clientHandler.RemoveClientRoleFromUser)
 
 			// -------- Metrics --------
 			metrics := admin.Group("/metrics")
@@ -168,7 +172,7 @@ func SetupRouter(
 				audit.GET("/export", auditHandler.ExportAuditLogs)
 			}
 
-			// -------- Notifications ----------
+			// -------- Notifications --------
 			notifications := admin.Group("/notifications")
 			{
 				notifications.POST("", notificationsHandler.Notify)

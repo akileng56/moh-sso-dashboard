@@ -106,10 +106,12 @@ type Querier interface {
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
+	UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error
 	UpdateImportJobCounts(ctx context.Context, arg UpdateImportJobCountsParams) error
 	UpdateImportJobItemStatus(ctx context.Context, arg UpdateImportJobItemStatusParams) error
 	UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpdateUserEnabled(ctx context.Context, arg UpdateUserEnabledParams) error
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
 	UpsertClient(ctx context.Context, arg UpsertClientParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) error

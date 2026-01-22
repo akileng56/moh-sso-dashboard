@@ -30,14 +30,13 @@ export const API = {
     create: () => `${API_BASE}/clients`,
     delete: (id: string) => `${API_BASE}/clients/${id}`,
     update: (id: string) => `${API_BASE}/clients/${id}`,
-    toggleClient: (id: string) => `${API_BASE}/clients/${id}`,
 
     // -------- Client roles --------
     roles: {
       // READ (authenticated)
       list: (clientId: string) => `${API_BASE}/clients/${clientId}/roles`,
 
-      // WRITE (admin only)
+      // WRITE (admin)
       create: (clientId: string) =>
         `${API_BASE}/admin/clients/${clientId}/roles`,
       delete: (clientId: string, role: string) =>
@@ -46,7 +45,7 @@ export const API = {
   },
 
   // --------------------------------------------------
-  // Users
+  // Users (authenticated)
   // --------------------------------------------------
   users: {
     base: `${API_BASE}/users`,
@@ -55,7 +54,6 @@ export const API = {
     create: () => `${API_BASE}/users`,
     delete: (id: string) => `${API_BASE}/users/${id}`,
     update: (id: string) => `${API_BASE}/users/${id}`,
-    toggle: (id: string) => `${API_BASE}/users/${id}`,
     resetPassword: (id: string) => `${API_BASE}/users/${id}/reset-password`,
   },
 
@@ -65,6 +63,7 @@ export const API = {
   admin: {
     base: `${API_BASE}/admin`,
 
+    // -------- Users --------
     users: {
       list: () => `${API_BASE}/admin/users`,
       byId: (id: string) => `${API_BASE}/admin/users/${id}`,
@@ -79,8 +78,28 @@ export const API = {
           `${API_BASE}/admin/users/import/${jobId}/errors.csv`,
         templateCsv: () => `${API_BASE}/admin/users/import/template.csv`,
       },
+
+      // -------- User ↔ Client roles --------
+      clientRoles: {
+        // GET roles user has for a client
+        list: (userId: string, clientId: string) =>
+          `${API_BASE}/admin/users/${userId}/clients/${clientId}/roles`,
+
+        // PUT diff-based update
+        update: (userId: string) =>
+          `${API_BASE}/admin/users/${userId}/client-roles`,
+
+        // POST single role
+        assign: (userId: string, clientId: string) =>
+          `${API_BASE}/admin/users/${userId}/clients/${clientId}/roles`,
+
+        // DELETE single role
+        remove: (userId: string, clientId: string, role: string) =>
+          `${API_BASE}/admin/users/${userId}/clients/${clientId}/roles/${role}`,
+      },
     },
 
+    // -------- Metrics --------
     metrics: {
       overview: () => `${API_BASE}/admin/metrics/overview`,
 
@@ -122,6 +141,7 @@ export const API = {
       },
     },
 
+    // -------- Audit --------
     audit: {
       base: `${API_BASE}/admin/audit-logs`,
       list: () => `${API_BASE}/admin/audit-logs`,
@@ -139,6 +159,7 @@ export const API = {
       export: () => `${API_BASE}/admin/audit-logs/export`,
     },
 
+    // -------- Notifications --------
     notifications: {
       base: `${API_BASE}/admin/notifications`,
       notify: () => `${API_BASE}/admin/notifications`,

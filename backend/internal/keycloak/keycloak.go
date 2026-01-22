@@ -251,13 +251,9 @@ func (c *Client) LogOut(refreshToken string) error {
 // ----------------------------------------------------
 // TOKEN → FULL USER PROFILE (ADMIN API)
 // ----------------------------------------------------
-// ----------------------------------------------------
-// Me (PROFILE + CACHE)
-// ----------------------------------------------------
 func (c *Client) Me(accessToken string) (*AuthUser, error) {
 	ctx := context.Background()
 
-	// 1) Resolve identity
 	ui, err := c.getUserInfo(accessToken)
 	if err != nil {
 		return nil, err
@@ -268,7 +264,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		return nil, errors.New("userinfo missing user_id")
 	}
 
-	// 2) Cache lookup
 	cacheKey := "auth:user:" + userID
 
 	var cached AuthUser
@@ -276,7 +271,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		return &cached, nil
 	}
 
-	// 3) Realm roles
 	realmRoles := []string{}
 	isAdmin := false
 
@@ -301,7 +295,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// 4) Client roles
 	clientRoles := map[string][]string{}
 	clients, err := c.ListClients()
 	if err != nil {
@@ -330,7 +323,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		}
 	}
 
-	// 5) Full profile
 	res, err = c.Get("users/" + userID)
 	if err != nil {
 		return nil, err
@@ -384,7 +376,6 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		LastLoginAt:   createdAt,
 	}
 
-	// 6) Cache store
 	_ = c.cache.Set(ctx, cacheKey, user, 10*time.Minute)
 
 	return user, nil
@@ -432,11 +423,26 @@ func (c *Client) getUserInfo(accessToken string) (*KCUserInfo, error) {
 // ----------------------------------------------------
 // ADMIN API HELPERS
 // ----------------------------------------------------
-func (c *Client) doRequest(method, path string, body any) (*http.Response, error) {
-	adminURL := fmt.Sprintf("%s/admin/realms/%s/%s", c.BaseURL, c.Realm, path)
+
+func (c *Client) doRequest(
+	method string,
+	path string,
+	body any,
+	rawBody io.Reader,
+) (*http.Response, error) {
+
+	adminURL := fmt.Sprintf(
+		"%s/admin/realms/%s/%s",
+		c.BaseURL,
+		c.Realm,
+		path,
+	)
 
 	var reqBody io.Reader
-	if body != nil {
+
+	if rawBody != nil {
+		reqBody = rawBody
+	} else if body != nil {
 		jsonBody, err := json.Marshal(body)
 		if err != nil {
 			return nil, err
@@ -455,15 +461,31 @@ func (c *Client) doRequest(method, path string, body any) (*http.Response, error
 	return c.httpClient.Do(req)
 }
 
+func (c *Client) DeleteWithBody(
+	path string,
+	body io.Reader,
+) (*http.Response, error) {
+
+	return c.doRequest(
+		http.MethodDelete,
+		path,
+		nil,
+		body,
+	)
+}
+
 func (c *Client) Get(path string) (*http.Response, error) {
-	return c.doRequest(http.MethodGet, path, nil)
+	return c.doRequest(http.MethodGet, path, nil, nil)
 }
+
 func (c *Client) Post(path string, body any) (*http.Response, error) {
-	return c.doRequest(http.MethodPost, path, body)
+	return c.doRequest(http.MethodPost, path, body, nil)
 }
+
 func (c *Client) Put(path string, body any) (*http.Response, error) {
-	return c.doRequest(http.MethodPut, path, body)
+	return c.doRequest(http.MethodPut, path, body, nil)
 }
+
 func (c *Client) Delete(path string) (*http.Response, error) {
-	return c.doRequest(http.MethodDelete, path, nil)
+	return c.doRequest(http.MethodDelete, path, nil, nil)
 }
