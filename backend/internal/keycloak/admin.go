@@ -481,7 +481,7 @@ func (c *Client) DeleteUser(userID string) error {
 
 // realm
 func (c *Client) GetRealmRoleByName(ctx context.Context, roleName string) (*RoleRep, error) {
-	res, err := c.Get(fmt.Sprintf("%s/admin/realms/%s/roles/%s", c.BaseURL, c.Realm, url.PathEscape(roleName)))
+	res, err := c.Get(fmt.Sprintf("roles/%s", url.PathEscape(roleName)))
 	if err != nil {
 		return nil, err
 	}
@@ -505,7 +505,7 @@ func (c *Client) AddRealmRoleToUser(ctx context.Context, userID string, role Rol
 
 	bytesData := bytes.NewReader(bs)
 
-	u := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/realm", c.BaseURL, c.Realm, userID)
+	u := fmt.Sprintf("users/%s/role-mappings/realm", userID)
 
 	res, err := c.Post(u, bytesData)
 	if err != nil {
@@ -531,9 +531,7 @@ func (c *Client) SendUserOnboardingEmail(
 	}
 
 	url := fmt.Sprintf(
-		"%s/admin/realms/%s/users/%s/execute-actions-email",
-		c.BaseURL,
-		c.Realm,
+		"users/%s/execute-actions-email",
 		userID,
 	)
 
@@ -557,7 +555,7 @@ func (c *Client) SendUserOnboardingEmail(
 // -------------------------------------------------------------------
 
 func (c *Client) CreateRealmRole(ctx context.Context, roleName, description string) error {
-	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
+	u := fmt.Sprintf("roles")
 	payload := CreateRoleRequest{
 		Name:        roleName,
 		Description: description,
@@ -585,7 +583,7 @@ func (c *Client) CreateRealmRole(ctx context.Context, roleName, description stri
 }
 
 func (c *Client) ListRealmRoles(ctx context.Context) ([]RoleRep, error) {
-	u := fmt.Sprintf("%s/admin/realms/%s/roles", c.BaseURL, c.Realm)
+	u := fmt.Sprintf("roles")
 
 	res, err := c.Get(u)
 	if err != nil {
@@ -617,9 +615,7 @@ func (c *Client) AddRealmRolesToUser(
 	}
 
 	u := fmt.Sprintf(
-		"%s/admin/realms/%s/users/%s/role-mappings/realm",
-		c.BaseURL,
-		c.Realm,
+		"users/%s/role-mappings/realm",
 		userID,
 	)
 
@@ -646,9 +642,7 @@ func (c *Client) RemoveRealmRoleFromUser(
 ) error {
 
 	u := fmt.Sprintf(
-		"%s/admin/realms/%s/users/%s/role-mappings/realm",
-		c.BaseURL,
-		c.Realm,
+		"users/%s/role-mappings/realm",
 		userID,
 	)
 
@@ -729,9 +723,7 @@ func (c *Client) GetClientRoleByName(
 	roleName string,
 ) (*ClientRoleRep, error) {
 	u := fmt.Sprintf(
-		"%s/admin/realms/%s/clients/%s/roles/%s",
-		c.BaseURL,
-		c.Realm,
+		"clients/%s/roles/%s",
 		clientID,
 		url.PathEscape(roleName),
 	)
@@ -759,9 +751,7 @@ func (c *Client) AddClientRoleToUser(
 ) error {
 
 	u := fmt.Sprintf(
-		"%s/admin/realms/%s/users/%s/role-mappings/clients/%s",
-		c.BaseURL,
-		c.Realm,
+		"users/%s/role-mappings/clients/%s",
 		userID,
 		clientID,
 	)
@@ -789,8 +779,8 @@ func (c *Client) RemoveClientRoleFromUser(
 ) error {
 
 	u := fmt.Sprintf(
-		"%s/admin/realms/%s/users/%s/role-mappings/clients/%s",
-		c.BaseURL, c.Realm, userID, clientID,
+		"users/%s/role-mappings/clients/%s",
+		userID, clientID,
 	)
 
 	bs, _ := json.Marshal([]ClientRoleRep{role})
