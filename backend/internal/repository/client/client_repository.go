@@ -34,6 +34,7 @@ type ClientRepository interface {
 	GetClientRoleByName(
 		ctx context.Context,
 		clientID uuid.UUID,
+		clientUUID uuid.UUID,
 		role string,
 	) (*keycloak.ClientRoleRep, error)
 

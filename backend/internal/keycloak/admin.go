@@ -125,6 +125,7 @@ type CreateRoleRequest struct {
 }
 
 type UserClientRoleAssignment struct {
+	Id         string   `json:"id"`
 	ClientID   string   `json:"clientId"`
 	ClientName string   `json:"clientName"`
 	Roles      []string `json:"roles"`
@@ -134,6 +135,11 @@ type ClientRoleRep struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+}
+
+type ClientRoleRequest struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 type RoleRep struct {
@@ -708,15 +714,24 @@ func (c *Client) CreateClientRole(
 func (c *Client) GetClientRoleByName(
 	ctx context.Context,
 	clientID string,
+	clientUUID string,
 	roleName string,
 ) (*ClientRoleRep, error) {
-	u := fmt.Sprintf(
+
+	if clientID == "" || clientUUID == "" {
+		return nil, fmt.Errorf("clientID and clientUUID is required")
+	}
+	if roleName == "" {
+		return nil, fmt.Errorf("roleName is required")
+	}
+
+	path := fmt.Sprintf(
 		"clients/%s/roles/%s",
-		clientID,
+		clientUUID,
 		url.PathEscape(roleName),
 	)
 
-	res, err := c.Get(u)
+	res, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -724,26 +739,39 @@ func (c *Client) GetClientRoleByName(
 
 	if res.StatusCode != http.StatusOK {
 		b, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("get client role failed: %s", string(b))
+		return nil, fmt.Errorf(
+			"get client role failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
 	}
 
-	var out ClientRoleRep
-	return &out, json.NewDecoder(res.Body).Decode(&out)
+	var role ClientRoleRep
+	if err := json.NewDecoder(res.Body).Decode(&role); err != nil {
+		return nil, err
+	}
+
+	return &role, nil
 }
 
 func (c *Client) GetUserClientRoles(
 	ctx context.Context,
 	userID string,
-	clientUUID string,
+	clientId string,
+	clientUuid string,
 ) ([]ClientRoleRep, error) {
 
-	u := fmt.Sprintf(
+	if clientId == "" || clientUuid == "" {
+		return nil, fmt.Errorf("clientId  and clientUuid are required")
+	}
+
+	path := fmt.Sprintf(
 		"users/%s/role-mappings/clients/%s",
 		userID,
-		clientUUID,
+		clientUuid,
 	)
 
-	res, err := c.Get(u)
+	res, err := c.Get(path)
 	if err != nil {
 		return nil, err
 	}
@@ -758,40 +786,57 @@ func (c *Client) GetUserClientRoles(
 		)
 	}
 
-	var out []ClientRoleRep
-	return out, json.NewDecoder(res.Body).Decode(&out)
+	var roles []ClientRoleRep
+	if err := json.NewDecoder(res.Body).Decode(&roles); err != nil {
+		return nil, err
+	}
+
+	return roles, nil
 }
 
 func (c *Client) AssignClientRolesToUser(
 	ctx context.Context,
 	userID string,
+	clientID string,
 	clientUUID string,
 	roles []string,
 ) error {
+
+	if clientID == "" || clientUUID == "" {
+		return fmt.Errorf("clientId and clientUuid are required")
+	}
 
 	if len(roles) == 0 {
 		return nil
 	}
 
-	var payload []ClientRoleRep
+	payload := make([]ClientRoleRequest, 0, len(roles))
 
 	for _, roleName := range roles {
-		role, err := c.GetClientRoleByName(ctx, clientUUID, roleName)
+		role, err := c.GetClientRoleByName(ctx, clientID, clientUUID, roleName)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"failed to resolve role %q for client %q: %w",
+				roleName,
+				clientID,
+				clientUUID,
+				err,
+			)
 		}
-		payload = append(payload, *role)
+
+		payload = append(payload, ClientRoleRequest{
+			ID:   role.ID,
+			Name: role.Name,
+		})
 	}
 
-	u := fmt.Sprintf(
+	path := fmt.Sprintf(
 		"users/%s/role-mappings/clients/%s",
 		userID,
 		clientUUID,
 	)
 
-	bs, _ := json.Marshal(payload)
-
-	res, err := c.Post(u, bytes.NewReader(bs))
+	res, err := c.Post(path, payload)
 	if err != nil {
 		return err
 	}
@@ -799,7 +844,11 @@ func (c *Client) AssignClientRolesToUser(
 
 	if res.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("assign client roles failed: %s", string(b))
+		return fmt.Errorf(
+			"assign client roles failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
 	}
 
 	return nil
@@ -834,39 +883,51 @@ func (c *Client) RemoveClientRoleFromUser(
 func (c *Client) RemoveClientRolesFromUser(
 	ctx context.Context,
 	userID string,
-	clientUUID string,
+	clientId string,
+	clientUuid string,
 	roles []string,
 ) error {
+
+	if clientId == "" || clientUuid == "" {
+		return fmt.Errorf("clientId and clientUuid is required")
+	}
 
 	if len(roles) == 0 {
 		return nil
 	}
 
+	clientUUID, err := c.resolveClientUUID(ctx, clientId)
+	if err != nil {
+		return fmt.Errorf("failed to resolve client UUID: %w", err)
+	}
+
 	payload := make([]ClientRoleRep, 0, len(roles))
 
 	for _, roleName := range roles {
-		role, err := c.GetClientRoleByName(ctx, clientUUID, roleName)
+		role, err := c.GetClientRoleByName(ctx, clientId, clientUuid, roleName)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"failed to resolve role %q for client %q: %w",
+				roleName,
+				clientId,
+				err,
+			)
 		}
 		payload = append(payload, *role)
 	}
 
-	u := fmt.Sprintf(
+	path := fmt.Sprintf(
 		"users/%s/role-mappings/clients/%s",
 		userID,
 		clientUUID,
 	)
 
-	bs, err := json.Marshal(payload)
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	res, err := c.DeleteWithBody(
-		u,
-		bytes.NewReader(bs),
-	)
+	res, err := c.DeleteWithBody(path, bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -874,7 +935,11 @@ func (c *Client) RemoveClientRolesFromUser(
 
 	if res.StatusCode != http.StatusNoContent {
 		b, _ := io.ReadAll(res.Body)
-		return fmt.Errorf("remove client roles failed [%d]: %s", res.StatusCode, string(b))
+		return fmt.Errorf(
+			"remove client roles failed [%d]: %s",
+			res.StatusCode,
+			string(b),
+		)
 	}
 
 	return nil
@@ -882,7 +947,7 @@ func (c *Client) RemoveClientRolesFromUser(
 
 func (c *Client) ListClientRoles(
 	ctx context.Context,
-	clientId string, // logical clientId (e.g. "dashboard")
+	clientId string,
 ) ([]ClientRoleRep, error) {
 
 	clientUUID, err := c.resolveClientUUID(ctx, clientId)
@@ -962,6 +1027,10 @@ func (c *Client) resolveClientUUID(
 	clientId string,
 ) (string, error) {
 
+	if clientId == "" {
+		return "", fmt.Errorf("resolveClientUUID: clientId is required")
+	}
+
 	path := "clients?clientId=" + url.QueryEscape(clientId)
 
 	res, err := c.Get(path)
@@ -970,12 +1039,12 @@ func (c *Client) resolveClientUUID(
 	}
 	defer res.Body.Close()
 
+	body, _ := io.ReadAll(res.Body)
 	if res.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(res.Body)
 		return "", fmt.Errorf(
-			"failed to resolve client UUID [%d]: %s",
+			"resolveClientUUID: failed [%d]: %s",
 			res.StatusCode,
-			string(b),
+			string(body),
 		)
 	}
 
@@ -984,12 +1053,15 @@ func (c *Client) resolveClientUUID(
 		ClientID string `json:"clientId"`
 	}
 
-	if err := json.NewDecoder(res.Body).Decode(&clients); err != nil {
+	if err := json.Unmarshal(body, &clients); err != nil {
 		return "", err
 	}
 
 	if len(clients) == 0 {
-		return "", fmt.Errorf("client not found in keycloak: %s", clientId)
+		return "", fmt.Errorf(
+			"client not found in keycloak: %s",
+			clientId,
+		)
 	}
 
 	return clients[0].ID, nil

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -247,6 +248,9 @@ func (h *UserHandler) GetUserClientRoles(c *gin.Context) {
  * ========================================================= */
 func (h *UserHandler) GetUserClientRolesForClient(c *gin.Context) {
 
+	// -----------------------------
+	// User ID (path param)
+	// -----------------------------
 	userID, err := uuid.Parse(c.Param("id"))
 	if err != nil {
 		response.Fail(
@@ -258,7 +262,42 @@ func (h *UserHandler) GetUserClientRolesForClient(c *gin.Context) {
 		return
 	}
 
-	clientID, err := uuid.Parse(c.Param("clientId"))
+	// -----------------------------
+	// Request body
+	// -----------------------------
+	var body struct {
+		ClientID   string `json:"clientId"`
+		ClientUUID string `json:"clientUuid"`
+	}
+
+	if err := c.ShouldBindJSON(&body); err != nil ||
+		body.ClientID == "" ||
+		body.ClientUUID == "" {
+
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"VALIDATION_FAILED",
+			"clientId and clientUuid are required",
+		)
+		return
+	}
+
+	// -----------------------------
+	// Parse internal UUID
+	// -----------------------------
+	clientUUID, err := uuid.Parse(body.ClientUUID)
+	if err != nil {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid client UUID",
+		)
+		return
+	}
+
+	clientID, err := uuid.Parse(body.ClientID)
 	if err != nil {
 		response.Fail(
 			c,
@@ -269,19 +308,24 @@ func (h *UserHandler) GetUserClientRolesForClient(c *gin.Context) {
 		return
 	}
 
+	// -----------------------------
+	// Service call (INTERNAL UUID ONLY)
+	// -----------------------------
 	roles, err := h.service.GetUserClientRolesForClient(
 		c.Request.Context(),
 		userID,
 		clientID,
+		clientUUID,
 	)
 	if err != nil {
 		h.audit(
 			c,
 			"user.client_roles_get_failed",
 			map[string]interface{}{
-				"user_id":   userID.String(),
-				"client_id": clientID.String(),
-				"reason":    err.Error(),
+				"user_id":     userID.String(),
+				"client_id":   body.ClientID,
+				"client_uuid": body.ClientUUID,
+				"reason":      err.Error(),
 			},
 		)
 
@@ -294,15 +338,20 @@ func (h *UserHandler) GetUserClientRolesForClient(c *gin.Context) {
 		return
 	}
 
+	// -----------------------------
+	// Audit success
+	// -----------------------------
 	h.audit(
 		c,
 		"user.client_roles_get_success",
 		map[string]interface{}{
-			"user_id":   userID.String(),
-			"client_id": clientID.String(),
-			"count":     len(roles),
+			"user_id":     userID.String(),
+			"client_id":   body.ClientID,
+			"client_uuid": body.ClientUUID,
+			"count":       len(roles),
 		},
 	)
+
 	response.OK(c, http.StatusOK, roles)
 }
 
@@ -324,16 +373,17 @@ func (h *UserHandler) UpdateUserClientRoles(c *gin.Context) {
 	}
 
 	var body struct {
-		ClientID string   `json:"clientId"`
-		Roles    []string `json:"roles"`
+		ClientID   string   `json:"clientId"`
+		ClientUUID string   `json:"clientUuid"`
+		Roles      []string `json:"roles"`
 	}
 
-	if err := c.ShouldBindJSON(&body); err != nil || body.ClientID == "" {
+	if err := c.ShouldBindJSON(&body); err != nil || body.ClientUUID == "" || body.ClientID == "" {
 		response.Fail(
 			c,
 			http.StatusBadRequest,
 			"VALIDATION_FAILED",
-			"clientId and roles are required",
+			"clientId , clientUuid and roles are required",
 		)
 		return
 	}
@@ -349,21 +399,34 @@ func (h *UserHandler) UpdateUserClientRoles(c *gin.Context) {
 		return
 	}
 
+	clientUUID, err := uuid.Parse(body.ClientUUID)
+	if err != nil {
+		response.Fail(
+			c,
+			http.StatusBadRequest,
+			"INVALID_UUID",
+			"Invalid client UUID",
+		)
+		return
+	}
+
 	adminID, _ := uuid.Parse(c.GetString("user_id"))
 
 	if err := h.service.UpdateUserClientRoles(
 		c.Request.Context(),
 		userID,
 		clientID,
+		clientUUID,
 		body.Roles,
 		adminID,
 	); err != nil {
 
 		h.audit(c, "user.client_roles_update_failed", map[string]interface{}{
-			"user_id":   userID.String(),
-			"client_id": clientID.String(),
-			"roles":     body.Roles,
-			"reason":    err.Error(),
+			"user_id":     userID.String(),
+			"client_id":   clientID.String(),
+			"client_uuid": clientUUID.String(),
+			"roles":       body.Roles,
+			"reason":      err.Error(),
 		})
 
 		response.Fail(
@@ -376,9 +439,10 @@ func (h *UserHandler) UpdateUserClientRoles(c *gin.Context) {
 	}
 
 	h.audit(c, "user.client_roles_updated", map[string]interface{}{
-		"user_id":   userID.String(),
-		"client_id": clientID.String(),
-		"roles":     body.Roles,
+		"user_id":     userID.String(),
+		"client_id":   clientID.String(),
+		"client_uuid": clientUUID.String(),
+		"roles":       body.Roles,
 	})
 
 	c.Status(http.StatusNoContent)

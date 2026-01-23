@@ -2,6 +2,7 @@ import { baseApi } from "./baseApi";
 import type { CreateUserPayload, User } from "../types/user.types";
 import type { ClientRole } from "../types/client-role.types";
 import { API } from "../../lib/constants/api.constants";
+import type { UserClientRoleAssignment } from "../types/user-role.types";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -125,25 +126,21 @@ export const usersApi = baseApi.injectEndpoints({
      * Get user client roles (ADMIN)
      * GET /admin/users/:id/client-roles
      * -------------------------------- */
-    getUserClientRoles: builder.query<
-      { clientId: string; roles: string[] }[],
-      string
-    >({
+    getUserClientRoles: builder.query<UserClientRoleAssignment[], string>({
       query: (userId) => ({
         url: `${API.admin.base}/users/${userId}/client-roles`,
         credentials: "include",
       }),
 
-      transformResponse: (
-        res: ApiEnvelope<{ clientId: string; roles: string[] }[]>
-      ) => res.data,
+      transformResponse: (res: ApiEnvelope<UserClientRoleAssignment[]>) =>
+        res.data,
 
       providesTags: (result, _, userId) =>
         result
           ? [
               ...result.map((r) => ({
                 type: "UserClientRole" as const,
-                id: `${userId}-${r.clientId}`,
+                id: `${userId}-${r.id}`,
               })),
               { type: "UserClientRole", id: `LIST-${userId}` },
             ]
@@ -172,16 +169,24 @@ export const usersApi = baseApi.injectEndpoints({
      * -------------------------------- */
     updateUserClientRoles: builder.mutation<
       void,
-      { userId: string; clientId: string; roles: string[] }
+      { userId: string; clientId: string; clientUuid: string; roles: string[] }
     >({
-      query: ({ userId, clientId, roles }) => ({
+      query: ({ userId, clientId, clientUuid, roles }) => ({
         url: API.admin.users.clientRoles.update(userId),
         method: "PUT",
-        body: { clientId, roles },
+        body: {
+          clientId,
+          clientUuid,
+          roles,
+        },
         credentials: "include",
       }),
-      invalidatesTags: (_r, _e, { userId, clientId }) => [
-        { type: "UserClientRole", id: `${userId}-${clientId}` },
+
+      invalidatesTags: (_r, _e, { userId, clientUuid }) => [
+        {
+          type: "UserClientRole",
+          id: `${userId}-${clientUuid}`,
+        },
       ],
     }),
   }),

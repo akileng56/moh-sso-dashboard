@@ -176,12 +176,14 @@ func (s *UserService) GetUserClientRolesForClient(
 	ctx context.Context,
 	userID uuid.UUID,
 	clientID uuid.UUID,
+	clientUUID uuid.UUID,
 ) ([]keycloak.ClientRoleRep, error) {
 
 	return s.repo.GetUserClientRolesForClient(
 		ctx,
 		userID.String(),
 		clientID.String(),
+		clientUUID.String(),
 	)
 }
 
@@ -189,14 +191,15 @@ func (s *UserService) UpdateUserClientRoles(
 	ctx context.Context,
 	userID uuid.UUID,
 	clientID uuid.UUID,
+	clientUUID uuid.UUID,
 	roles []string,
 	adminID uuid.UUID,
 ) error {
-
 	current, err := s.repo.GetUserClientRolesForClient(
 		ctx,
 		userID.String(),
 		clientID.String(),
+		clientUUID.String(),
 	)
 	if err != nil {
 		return err
@@ -231,6 +234,7 @@ func (s *UserService) UpdateUserClientRoles(
 			ctx,
 			userID.String(),
 			clientID.String(),
+			clientUUID.String(),
 			toAdd,
 		); err != nil {
 			return err
@@ -242,6 +246,7 @@ func (s *UserService) UpdateUserClientRoles(
 			ctx,
 			userID.String(),
 			clientID.String(),
+			clientUUID.String(),
 			toRemove,
 		); err != nil {
 			return err

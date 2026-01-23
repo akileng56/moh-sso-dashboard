@@ -16,9 +16,6 @@ type Props = {
 export function UserClientRolesPanel({ userId }: Props) {
   const toast = useToast();
 
-  /* ------------------------------------------------
-   * Data
-   * ------------------------------------------------ */
   const { data: clients = [], isLoading: loadingClients } =
     useListClientsQuery();
 
@@ -28,39 +25,33 @@ export function UserClientRolesPanel({ userId }: Props) {
   const [updateRoles, { isLoading: saving }] =
     useUpdateUserClientRolesMutation();
 
-  /* ------------------------------------------------
-   * Local state
-   * ------------------------------------------------ */
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+
+  const [selectedClientUuid, setSelectedClientUuid] = useState<string | null>(
+    null
+  );
+
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   const selectedClient = useMemo(
     () => clients.find((c) => c.clientId === selectedClientId),
     [clients, selectedClientId]
   );
-
-  /* ------------------------------------------------
-   * Client roles
-   * ------------------------------------------------ */
   const { data: clientRoles = [], isLoading: loadingRoles } =
     useListClientRolesQuery(selectedClientId!, {
       skip: !selectedClientId,
     });
 
-  /* ------------------------------------------------
-   * Sync current assignments → UI state
-   * ------------------------------------------------ */
   useEffect(() => {
     if (!selectedClientId) return;
 
     const assignment = assignments.find((a) => a.clientId === selectedClientId);
 
+    const client = clients.find((c) => c.clientId === selectedClientId);
+    setSelectedClientUuid(assignment?.id ?? client?.id ?? null);
     setSelectedRoles(assignment?.roles ?? []);
-  }, [selectedClientId, assignments]);
+  }, [selectedClientId, assignments, clients]);
 
-  /* ------------------------------------------------
-   * Role items
-   * ------------------------------------------------ */
   const roleItems = useMemo(
     () =>
       clientRoles.map((r) => ({
@@ -74,12 +65,13 @@ export function UserClientRolesPanel({ userId }: Props) {
    * Save (FULL REPLACEMENT)
    * ------------------------------------------------ */
   const handleSave = async () => {
-    if (!selectedClientId) return;
+    if (!selectedClientId || !selectedClientUuid) return;
 
     try {
       await updateRoles({
         userId,
         clientId: selectedClientId,
+        clientUuid: selectedClientUuid,
         roles: selectedRoles,
       }).unwrap();
 
@@ -104,9 +96,6 @@ export function UserClientRolesPanel({ userId }: Props) {
    * ------------------------------------------------ */
   return (
     <Stack gap={5}>
-      {/* --------------------------------
-       * Client selector
-       * -------------------------------- */}
       <Tile>
         <Stack gap={4}>
           <strong>Select application</strong>
@@ -163,7 +152,7 @@ export function UserClientRolesPanel({ userId }: Props) {
             <Button
               kind="primary"
               size="sm"
-              disabled={saving}
+              disabled={saving || !selectedClientId}
               onClick={handleSave}
             >
               {saving ? "Saving…" : "Save roles"}

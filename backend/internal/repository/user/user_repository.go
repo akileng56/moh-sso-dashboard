@@ -28,6 +28,7 @@ type UserRepository interface {
 	GetUserClientRolesForClient(
 		ctx context.Context,
 		userID string,
+		clientID string,
 		clientUUID string,
 	) ([]keycloak.ClientRoleRep, error)
 
@@ -39,6 +40,7 @@ type UserRepository interface {
 	AddUserClientRoles(
 		ctx context.Context,
 		userID string,
+		clientID string,
 		clientUUID string,
 		roles []string,
 	) error
@@ -46,6 +48,7 @@ type UserRepository interface {
 	RemoveUserClientRoles(
 		ctx context.Context,
 		userID string,
+		clientID string,
 		clientUUID string,
 		roles []string,
 	) error

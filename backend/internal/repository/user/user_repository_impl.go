@@ -317,6 +317,7 @@ func (r *userRepository) GetUserClientRoles(
 		roles, err := r.keycloakClient.GetUserClientRoles(
 			ctx,
 			userID,
+			"",
 			client.ID, // internal UUID
 		)
 		if err != nil || len(roles) == 0 {
@@ -329,6 +330,7 @@ func (r *userRepository) GetUserClientRoles(
 		}
 
 		out = append(out, keycloak.UserClientRoleAssignment{
+			Id:         client.ID,
 			ClientID:   client.ClientID,
 			ClientName: client.Name,
 			Roles:      names,
@@ -341,6 +343,7 @@ func (r *userRepository) GetUserClientRoles(
 func (r *userRepository) AddUserClientRoles(
 	ctx context.Context,
 	userID string,
+	clientID string,
 	clientUUID string,
 	roles []string,
 ) error {
@@ -348,6 +351,7 @@ func (r *userRepository) AddUserClientRoles(
 	return r.keycloakClient.AssignClientRolesToUser(
 		ctx,
 		userID,
+		clientID,
 		clientUUID,
 		roles,
 	)
@@ -356,6 +360,7 @@ func (r *userRepository) AddUserClientRoles(
 func (r *userRepository) RemoveUserClientRoles(
 	ctx context.Context,
 	userID string,
+	clientID string,
 	clientUUID string,
 	roles []string,
 ) error {
@@ -363,6 +368,7 @@ func (r *userRepository) RemoveUserClientRoles(
 	return r.keycloakClient.RemoveClientRolesFromUser(
 		ctx,
 		userID,
+		clientID,
 		clientUUID,
 		roles,
 	)
@@ -371,12 +377,14 @@ func (r *userRepository) RemoveUserClientRoles(
 func (r *userRepository) GetUserClientRolesForClient(
 	ctx context.Context,
 	userID string,
+	clientID string,
 	clientUUID string,
 ) ([]keycloak.ClientRoleRep, error) {
 
 	return r.keycloakClient.GetUserClientRoles(
 		ctx,
 		userID,
+		clientID,
 		clientUUID,
 	)
 }

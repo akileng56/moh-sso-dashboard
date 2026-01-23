@@ -288,12 +288,14 @@ func (r *sqlcClientRepository) ToggleClientEnabled(
 func (r *sqlcClientRepository) GetClientRoleByName(
 	ctx context.Context,
 	clientID uuid.UUID,
+	clientUuid uuid.UUID,
 	role string,
 ) (*keycloak.ClientRoleRep, error) {
 
 	return r.keycloakClient.GetClientRoleByName(
 		ctx,
 		clientID.String(),
+		clientUuid.String(),
 		role,
 	)
 }
