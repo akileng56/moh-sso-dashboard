@@ -73,8 +73,11 @@ func (s *ClientService) CreateClient(
 		Name:         req.Name,
 		Description:  req.Description,
 		BaseURL:      req.BaseURL,
+		RootURL:      req.RootURL,
+		RedirectUris: req.RedirectURIs,
+		WebOrigins:   req.WebOrigins,
 		PublicClient: req.PublicClient,
-		Enabled:      true,
+		Enabled:      req.Enabled,
 		Attributes:   req.Attributes,
 	}
 

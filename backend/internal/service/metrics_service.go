@@ -102,11 +102,11 @@ func (s *MetricsService) ActiveUsersPerClientToday(ctx context.Context) ([]db.Ac
 	return s.repo.ActiveUsersPerClientToday(ctx)
 }
 
-func (s *MetricsService) NewClientsInRange(ctx context.Context, start, end time.Time) ([]db.Client, error) {
+func (s *MetricsService) NewClientsInRange(ctx context.Context, start, end time.Time) ([]db.NewClientsInRangeRow, error) {
 	return s.repo.NewClientsInRange(ctx, start, end)
 }
 
-func (s *MetricsService) RecentlyCreatedClients(ctx context.Context, limit int32) ([]db.Client, error) {
+func (s *MetricsService) RecentlyCreatedClients(ctx context.Context, limit int32) ([]db.RecentlyCreatedClientsRow, error) {
 	return s.repo.RecentlyCreatedClients(ctx, limit)
 }
 

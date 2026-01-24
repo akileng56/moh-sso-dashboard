@@ -8,16 +8,33 @@ INSERT INTO client (
     client_id,
     name,
     description,
-    base_url,
     icon,
+    base_url,
+    root_url,
+    admin_url,
     public_client,
+    redirect_uris,
+    web_origins,
     enabled,
     attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, 
+    $2,  
+    $3, 
+    $4, 
+    $5, 
+    $6, 
+    $7, 
+    $8, 
+    $9, 
+    $10,
+    $11, 
+    $12,
+    $13 
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id;
+
 
 
 -- name: UpsertClient :exec
@@ -26,27 +43,45 @@ INSERT INTO client (
     client_id,
     name,
     description,
-    base_url,
     icon,
+    base_url,
+    root_url,
+    admin_url,
     public_client,
+    redirect_uris,
+    web_origins,
     enabled,
     attributes
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, 
+    $2, 
+    $3, 
+    $4,  
+    $5,  
+    $6, 
+    $7, 
+    $8, 
+    $9,  
+    $10, 
+    $11, 
+    $12,
+    $13  
 )
 ON CONFLICT (client_id)
 DO UPDATE SET
     name          = EXCLUDED.name,
     description   = EXCLUDED.description,
-    base_url      = EXCLUDED.base_url,
     icon          = EXCLUDED.icon,
+    base_url      = EXCLUDED.base_url,
+    root_url      = EXCLUDED.root_url,
+    admin_url     = EXCLUDED.admin_url,
     public_client = EXCLUDED.public_client,
+    redirect_uris = EXCLUDED.redirect_uris,
+    web_origins   = EXCLUDED.web_origins,
     enabled       = EXCLUDED.enabled,
     attributes    = EXCLUDED.attributes,
     updated_at    = NOW();
-
-
 
 -- name: GetClientByID :one
 SELECT *

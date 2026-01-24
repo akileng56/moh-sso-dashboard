@@ -198,14 +198,20 @@ func (r *metricsRepository) ActiveUsersPerClientToday(ctx context.Context) ([]db
 	return r.db.ActiveUsersPerClientToday(ctx)
 }
 
-func (r *metricsRepository) NewClientsInRange(ctx context.Context, start, end time.Time) ([]db.Client, error) {
+func (r *metricsRepository) NewClientsInRange(
+	ctx context.Context,
+	start, end time.Time,
+) ([]db.NewClientsInRangeRow, error) {
 	return r.db.NewClientsInRange(ctx, db.NewClientsInRangeParams{
 		StartTime: start,
 		EndTime:   end,
 	})
 }
 
-func (r *metricsRepository) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]db.Client, error) {
+func (r *metricsRepository) RecentlyCreatedClients(
+	ctx context.Context,
+	rowLimit int32,
+) ([]db.RecentlyCreatedClientsRow, error) {
 	return r.db.RecentlyCreatedClients(ctx, rowLimit)
 }
 

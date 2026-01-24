@@ -13,7 +13,6 @@ import (
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	models "github.com/moh-sso-dashboard/internal/model"
-	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 type sqlcClientRepository struct {
@@ -41,19 +40,25 @@ func NewClientRepository(
 func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, error) {
 	ctx := context.Background()
 
-	attributes := utils.DefaultClientAttributes(client.ClientID)
-
 	kcID, err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
 		ClientID:     client.ClientID,
 		Name:         client.Name,
 		Description:  client.Description,
 		BaseURL:      client.BaseURL,
-		PublicClient: client.PublicClient,
+		RootURL:      client.RootURL,
 		Protocol:     "openid-connect",
-		RedirectURIs: []string{},
-		WebOrigins:   []string{},
-		Attributes:   attributes,
+		PublicClient: client.PublicClient,
+		RedirectURIs: client.RedirectUris,
+		WebOrigins:   client.WebOrigins,
+		Enabled:      client.Enabled,
+		Attributes: map[string]string{
+			// UI
+			"ui.icon":    "applications",
+			"ui.home":    "/admin",
+			"ui.sidenav": client.Attributes["ui.sidenav"],
+		},
 	})
+
 	if err != nil {
 		return "", fmt.Errorf("keycloak create failed: %w", err)
 	}
@@ -83,12 +88,22 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 			String: kcClient.Description,
 			Valid:  kcClient.Description != "",
 		},
+		Icon: icon,
 		BaseUrl: sql.NullString{
 			String: kcClient.BaseURL,
 			Valid:  kcClient.BaseURL != "",
 		},
-		Icon:         icon,
+		RootUrl: sql.NullString{
+			String: kcClient.RootURL,
+			Valid:  kcClient.RootURL != "",
+		},
+		AdminUrl: sql.NullString{
+			String: kcClient.AdminURL,
+			Valid:  kcClient.AdminURL != "",
+		},
 		PublicClient: kcClient.PublicClient,
+		RedirectUris: kcClient.RedirectURIs,
+		WebOrigins:   kcClient.WebOrigins,
 		Enabled:      kcClient.Enabled,
 		Attributes:   attrsJSON,
 	}); err != nil {
@@ -121,6 +136,10 @@ func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, erro
 		Name:         kcClient.Name,
 		Description:  kcClient.Description,
 		BaseURL:      kcClient.BaseURL,
+		RootURL:      kcClient.RootURL,
+		AdminURL:     kcClient.AdminURL,
+		RedirectUris: kcClient.RedirectURIs,
+		WebOrigins:   kcClient.WebOrigins,
 		PublicClient: kcClient.PublicClient,
 		Enabled:      kcClient.Enabled,
 		Attributes:   kcClient.Attributes,
@@ -133,16 +152,22 @@ func (r *sqlcClientRepository) GetClientByClientID(clientID string) (*models.Cli
 		return nil, err
 	}
 
-	return &models.Client{
+	client := &models.Client{
 		ID:           kc.ID,
 		ClientID:     kc.ClientID,
 		Name:         kc.Name,
 		Description:  kc.Description,
 		BaseURL:      kc.BaseURL,
+		RootURL:      kc.RootURL,
+		AdminURL:     kc.AdminURL,
+		RedirectUris: kc.RedirectURIs,
+		WebOrigins:   kc.WebOrigins,
 		PublicClient: kc.PublicClient,
 		Enabled:      kc.Enabled,
 		Attributes:   kc.Attributes,
-	}, nil
+	}
+
+	return client, nil
 }
 
 func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
@@ -152,18 +177,26 @@ func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	}
 
 	out := make([]models.Client, 0, len(kcClients))
+
 	for _, kc := range kcClients {
-		out = append(out, models.Client{
+		client := models.Client{
 			ID:           kc.ID,
 			ClientID:     kc.ClientID,
 			Name:         kc.Name,
 			Description:  kc.Description,
 			BaseURL:      kc.BaseURL,
+			RootURL:      kc.RootURL,
+			AdminURL:     kc.AdminURL,
+			RedirectUris: kc.RedirectURIs,
+			WebOrigins:   kc.WebOrigins,
 			PublicClient: kc.PublicClient,
 			Enabled:      kc.Enabled,
 			Attributes:   kc.Attributes,
-		})
+		}
+
+		out = append(out, client)
 	}
+
 	return out, nil
 }
 
