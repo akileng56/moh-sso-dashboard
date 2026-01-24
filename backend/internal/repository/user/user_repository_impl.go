@@ -110,9 +110,9 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 		FirstName:     kcUser.FirstName,
 		LastName:      kcUser.LastName,
 		FullName:      strings.TrimSpace(kcUser.FirstName + " " + kcUser.LastName),
-		RealmRoles:    kcUser.Roles,
+		RealmRoles:    kcUser.RealmRoles,
 		ClientRoles:   kcUser.ClientRoles,
-		IsAdmin:       slices.Contains(kcUser.Roles, "admin"),
+		IsAdmin:       slices.Contains(kcUser.RealmRoles, "admin"),
 		Enabled:       kcUser.Enabled,
 		EmailVerified: kcUser.EmailVerified,
 		LastLoginAt:   kcUser.LastLoginAt,
@@ -149,14 +149,13 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 				FirstName:     kc.FirstName,
 				LastName:      kc.LastName,
 				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
-				RealmRoles:    kc.Roles,
+				RealmRoles:    kc.RealmRoles,
 				ClientRoles:   kc.ClientRoles,
-				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				IsAdmin:       slices.Contains(kc.RealmRoles, "admin"),
 				Enabled:       kc.Enabled,
 				EmailVerified: kc.EmailVerified,
 				LastLoginAt:   pickTime(entry.LastLoginAt, kc.LastLoginAt),
 				CreatedAt:     kc.CreatedAt,
-				UpdatedAt:     kc.UpdatedAt,
 			})
 		} else {
 			result = append(result, models.User{
@@ -166,14 +165,13 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 				FirstName:     kc.FirstName,
 				LastName:      kc.LastName,
 				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
-				RealmRoles:    kc.Roles,
+				RealmRoles:    kc.RealmRoles,
 				ClientRoles:   kc.ClientRoles,
-				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				IsAdmin:       slices.Contains(kc.RealmRoles, "admin"),
 				Enabled:       kc.Enabled,
 				EmailVerified: kc.EmailVerified,
 				LastLoginAt:   kc.LastLoginAt,
 				CreatedAt:     kc.CreatedAt,
-				UpdatedAt:     kc.UpdatedAt,
 			})
 		}
 	}
@@ -318,7 +316,7 @@ func (r *userRepository) GetUserClientRoles(
 			ctx,
 			userID,
 			"",
-			client.ID, // internal UUID
+			client.ID,
 		)
 		if err != nil || len(roles) == 0 {
 			continue

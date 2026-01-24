@@ -52,42 +52,58 @@ type ProtocolMapper struct {
 }
 
 type CreateClientParams struct {
-	ClientID     string            `json:"clientId"`
-	Name         string            `json:"name"`
-	Description  string            `json:"description"`
-	BaseURL      string            `json:"baseUrl"`
-	RootURL      string            `json:"rootUrl"`
-	RedirectURIs []string          `json:"redirectUris"`
-	WebOrigins   []string          `json:"webOrigins"`
-	PublicClient bool              `json:"publicClient"`
-	Protocol     string            `json:"protocol"`
-	Enabled      bool              `json:"enabled"`
-	Attributes   map[string]string `json:"attributes"`
+	ClientID                  string            `json:"clientId"`
+	Name                      string            `json:"name"`
+	Description               string            `json:"description,omitempty"`
+	BaseURL                   string            `json:"baseUrl,omitempty"`
+	RootURL                   string            `json:"rootUrl,omitempty"`
+	RedirectURIs              []string          `json:"redirectUris,omitempty"`
+	WebOrigins                []string          `json:"webOrigins,omitempty"`
+	PublicClient              bool              `json:"publicClient"`
+	Protocol                  string            `json:"protocol"`
+	StandardFlowEnabled       bool              `json:"standardFlowEnabled"`
+	ImplicitFlowEnabled       bool              `json:"implicitFlowEnabled"`
+	DirectAccessGrantsEnabled bool              `json:"directAccessGrantsEnabled"`
+	ServiceAccountsEnabled    bool              `json:"serviceAccountsEnabled"`
+	Enabled                   bool              `json:"enabled"`
+	Attributes                map[string]string `json:"attributes,omitempty"`
+}
+
+type KeycloakUser struct {
+	ID               string              `json:"id"`
+	Username         string              `json:"username"`
+	Email            string              `json:"email"`
+	FirstName        string              `json:"firstName"`
+	LastName         string              `json:"lastName"`
+	Enabled          bool                `json:"enabled"`
+	EmailVerified    bool                `json:"emailVerified"`
+	RequiredActions  []string            `json:"requiredActions"`
+	CreatedTimestamp int64               `json:"createdTimestamp"`
+	Attributes       map[string][]string `json:"attributes"`
 }
 
 type UserInfo struct {
 	ID                  string              `json:"id"`
 	Username            string              `json:"username"`
 	Email               string              `json:"email"`
+	DisplayName         string              `json:"displayName"`
 	FirstName           string              `json:"firstName"`
 	LastName            string              `json:"lastName"`
 	Enabled             bool                `json:"enabled"`
-	EmailVerified       bool                `json:"emailVerified"`
-	RequiredActions     []string            `json:"requiredActions"`
 	AccountStatus       string              `json:"accountStatus"`
-	Roles               []string            `json:"roles"`
+	EmailVerified       bool                `json:"emailVerified"`
+	NeverLoggedIn       bool                `json:"neverLoggedIn"`
+	RealmRoles          []string            `json:"realmRoles"`
 	ClientRoles         map[string][]string `json:"clientRoles"`
-	LastLoginAt         *time.Time          `json:"lastLoginAt"`
-	LastLoginIP         string              `json:"lastLoginIp"`
+	RequiredActions     []string            `json:"requiredActions"`
 	FailedLoginAttempts int                 `json:"failedLoginAttempts"`
 	TemporarilyLocked   bool                `json:"temporarilyLocked"`
-	CreatedAt           time.Time           `json:"createdAt"`
-	UpdatedAt           time.Time           `json:"updatedAt"`
+	LastLoginAt         *time.Time          `json:"lastLoginAt"`
+	LastLoginIP         string              `json:"lastLoginIp"`
 	Source              string              `json:"source"`
 	ImportedAt          *time.Time          `json:"importedAt"`
 	Notes               string              `json:"notes"`
-	DisplayName         string              `json:"displayName"`
-	NeverLoggedIn       bool                `json:"neverLoggedIn"`
+	CreatedAt           time.Time           `json:"createdAt"`
 }
 
 type CreateUserRequest struct {
@@ -142,6 +158,26 @@ type RoleRep struct {
 	Description string `json:"descritpion"`
 }
 
+type ClientScope struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Protocol string `json:"protocol"`
+}
+
+type ClientTemplate string
+
+const (
+	WebClient     ClientTemplate = "web"
+	ServiceClient ClientTemplate = "service"
+	AdminClient   ClientTemplate = "admin"
+)
+
+var defaultClientScopes = []string{
+	"profile",
+	"email",
+	"roles",
+}
+
 func (c *Client) EnsureRealmExists(realmName string) error {
 	res, err := c.Get(fmt.Sprintf("admin/realms/%s", realmName))
 	if err == nil && res.StatusCode == http.StatusOK {
@@ -175,11 +211,39 @@ func (c *Client) EnsureRealmExists(realmName string) error {
 //------------------------------------------
 
 func (c *Client) CreateClient(opts CreateClientParams) (string, error) {
+
 	if opts.Protocol == "" {
 		opts.Protocol = "openid-connect"
 	}
-	if !opts.Enabled {
-		opts.Enabled = true
+
+	opts.Enabled = true
+	opts.StandardFlowEnabled = true
+	opts.ImplicitFlowEnabled = false
+	opts.DirectAccessGrantsEnabled = false
+	opts.ServiceAccountsEnabled = false
+
+	if opts.RedirectURIs == nil {
+		opts.RedirectURIs = []string{}
+	}
+	if opts.WebOrigins == nil {
+		opts.WebOrigins = []string{}
+	}
+	if opts.Attributes == nil {
+		opts.Attributes = map[string]string{}
+	}
+
+	opts.Attributes["realm_client"] = "false"
+	opts.Attributes["created_by"] = "admin"
+
+	if _, ok := opts.Attributes["ui.icon"]; !ok {
+		opts.Attributes["ui.icon"] = "applications"
+	}
+	if _, ok := opts.Attributes["ui.home"]; !ok {
+		opts.Attributes["ui.home"] = "/admin"
+	}
+
+	if err := utils.ValidateRedirectURIs(opts.RedirectURIs); err != nil {
+		return "", err
 	}
 
 	res, err := c.Post("clients", opts)
@@ -199,13 +263,16 @@ func (c *Client) CreateClient(opts CreateClientParams) (string, error) {
 	}
 
 	parts := strings.Split(strings.TrimSpace(location), "/")
-	kcID := parts[len(parts)-1]
-
-	if kcID == "" {
-		return "", fmt.Errorf("failed to parse Keycloak user ID from Location header")
+	clientUUID := parts[len(parts)-1]
+	if clientUUID == "" {
+		return "", fmt.Errorf("failed to parse Keycloak client ID from Location header")
 	}
 
-	return kcID, nil
+	if err := c.EnsureClientBaseline(context.Background(), clientUUID); err != nil {
+		return "", err
+	}
+
+	return clientUUID, nil
 }
 
 func (c *Client) GetClientByClientID(clientID string) (*ClientInfo, error) {
@@ -275,6 +342,26 @@ func (c *Client) ListClients() ([]ClientInfo, error) {
 	return clients, nil
 }
 
+func (c *Client) ListClientsWithBaselineCheck() ([]ClientInfo, error) {
+	ctx := context.Background()
+	clients, err := c.ListClients()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, client := range clients {
+		if err := c.EnsureClientBaseline(ctx, client.ID); err != nil {
+			return nil, fmt.Errorf(
+				"client baseline check (clientId %d) with (error %d): %s %s",
+				client.ClientID,
+				err)
+
+		}
+	}
+
+	return clients, nil
+}
+
 func (c *Client) UpdateClient(id string, payload *model.Client) error {
 	res, err := c.Put("clients/"+id, payload)
 	if err != nil {
@@ -296,7 +383,7 @@ func (c *Client) UpdateClient(id string, payload *model.Client) error {
 
 func (c *Client) UpdateClientEnabled(
 	ctx context.Context,
-	clientId string, // this is Keycloak "clientId" (e.g. dashboard), NOT UUID
+	clientId string,
 	enabled bool,
 ) error {
 
@@ -362,9 +449,9 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 	payload := map[string]any{
 		"username":      user.Username,
 		"email":         user.Email,
+		"enabled":       user.Enabled,
 		"firstName":     user.FirstName,
 		"lastName":      user.LastName,
-		"enabled":       user.Enabled,
 		"emailVerified": user.EmailVerified,
 		"credentials": []map[string]any{
 			{
@@ -372,6 +459,14 @@ func (c *Client) CreateUser(user *model.User) (string, error) {
 				"value":     uuid.NewString(),
 				"temporary": true,
 			},
+		},
+		"requiredActions": []string{
+			"UPDATE_PASSWORD",
+			"VERIFY_EMAIL",
+		},
+		"attributes": map[string][]string{
+			"created_by": {"admin"},
+			"user_type":  {"human"},
 		},
 	}
 
@@ -507,8 +602,6 @@ func (c *Client) DeleteUser(userID string) error {
 		return fmt.Errorf("keycloak delete request failed: %w", err)
 	}
 	defer res.Body.Close()
-
-	// Keycloak returns 204 No Content on success
 	if res.StatusCode != http.StatusNoContent {
 		body, _ := io.ReadAll(res.Body)
 		return fmt.Errorf("failed to delete user in keycloak: %s", string(body))
@@ -1084,7 +1177,7 @@ func (c *Client) SendUserOnboardingEmail(
 
 func (c *Client) ResetUserPassword(
 	ctx context.Context,
-	userID string, // Keycloak user UUID
+	userID string,
 ) error {
 
 	tmpPassword := generateTemporaryPassword()
@@ -1138,4 +1231,302 @@ func (c *Client) ResetUserPassword(
 
 func generateTemporaryPassword() string {
 	return utils.RandomString(16) + "!A1"
+}
+
+func (c *Client) attachDefaultClientScopes(
+	ctx context.Context,
+	clientUUID string,
+) error {
+
+	scopes, err := c.ListClientScopes(ctx)
+	if err != nil {
+		return err
+	}
+
+	scopeByName := map[string]string{}
+	for _, s := range scopes {
+		scopeByName[s.Name] = s.ID
+	}
+
+	for _, name := range defaultClientScopes {
+		scopeID, ok := scopeByName[name]
+		if !ok {
+			return fmt.Errorf("required client scope %q not found", name)
+		}
+
+		if _, err := c.Put(
+			fmt.Sprintf(
+				"clients/%s/default-client-scopes/%s",
+				clientUUID,
+				scopeID,
+			),
+			nil,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) ListClientScopes(ctx context.Context) ([]ClientScope, error) {
+	res, err := c.Get("client-scopes")
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(res.Body)
+		return nil, fmt.Errorf(
+			"failed to list client scopes: %s",
+			string(body),
+		)
+	}
+
+	var scopes []ClientScope
+	if err := json.NewDecoder(res.Body).Decode(&scopes); err != nil {
+		return nil, err
+	}
+
+	return scopes, nil
+}
+
+func (c *Client) EnsureClientScopes(
+	ctx context.Context,
+	required []string,
+) (map[string]string, error) {
+
+	existing, err := c.ListClientScopes(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scopeByName := map[string]string{}
+	for _, s := range existing {
+		scopeByName[s.Name] = s.ID
+	}
+
+	for _, name := range required {
+		if _, ok := scopeByName[name]; ok {
+			continue
+		}
+
+		payload := map[string]any{
+			"name":     name,
+			"protocol": "openid-connect",
+		}
+
+		res, err := c.Post("client-scopes", payload)
+		if err != nil {
+			return nil, err
+		}
+		res.Body.Close()
+
+		if res.StatusCode != http.StatusCreated {
+			return nil, fmt.Errorf("failed to create client scope %q", name)
+		}
+
+		// refresh scopes
+		existing, err = c.ListClientScopes(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range existing {
+			scopeByName[s.Name] = s.ID
+		}
+	}
+
+	return scopeByName, nil
+}
+
+func (c *Client) DetectMissingClientScopes(
+	ctx context.Context,
+	clientUUID string,
+	required map[string]string,
+) ([]string, error) {
+
+	res, err := c.Get(fmt.Sprintf(
+		"clients/%s/default-client-scopes",
+		clientUUID,
+	))
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch client scopes")
+	}
+
+	var attached []ClientScope
+	if err := json.NewDecoder(res.Body).Decode(&attached); err != nil {
+		return nil, err
+	}
+
+	attachedNames := map[string]bool{}
+	for _, s := range attached {
+		attachedNames[s.Name] = true
+	}
+
+	var missing []string
+	for name := range required {
+		if !attachedNames[name] {
+			missing = append(missing, name)
+		}
+	}
+
+	return missing, nil
+}
+
+func ApplyClientTemplate(
+	opts *CreateClientParams,
+	template ClientTemplate,
+) {
+	switch template {
+
+	case WebClient:
+		opts.PublicClient = false
+		opts.StandardFlowEnabled = true
+		opts.DirectAccessGrantsEnabled = false
+		opts.ServiceAccountsEnabled = false
+
+	case ServiceClient:
+		opts.PublicClient = false
+		opts.StandardFlowEnabled = false
+		opts.DirectAccessGrantsEnabled = true
+		opts.ServiceAccountsEnabled = true
+
+	case AdminClient:
+		opts.PublicClient = false
+		opts.StandardFlowEnabled = true
+		opts.DirectAccessGrantsEnabled = true
+		opts.ServiceAccountsEnabled = true
+	}
+}
+
+func (c *Client) CreateClientWithTemplate(
+	ctx context.Context,
+	opts CreateClientParams,
+	template ClientTemplate,
+) (string, error) {
+
+	ApplyClientTemplate(&opts, template)
+
+	// Validate redirects
+	if err := utils.ValidateRedirectURIs(opts.RedirectURIs); err != nil {
+		return "", err
+	}
+
+	// Ensure scopes exist
+	requiredScopes := []string{"profile", "email", "roles"}
+	scopeIDs, err := c.EnsureClientScopes(ctx, requiredScopes)
+	if err != nil {
+		return "", err
+	}
+
+	// Create client
+	clientUUID, err := c.CreateClient(opts)
+	if err != nil {
+		return "", err
+	}
+
+	// Detect drift
+	missing, err := c.DetectMissingClientScopes(
+		ctx,
+		clientUUID,
+		scopeIDs,
+	)
+	if err != nil {
+		return "", err
+	}
+
+	// Fix drift
+	if len(missing) > 0 {
+		if err := c.FixClientScopeDrift(
+			ctx,
+			clientUUID,
+			scopeIDs,
+			missing,
+		); err != nil {
+			return "", err
+		}
+	}
+
+	return clientUUID, nil
+}
+
+func (c *Client) FixClientScopeDrift(
+	ctx context.Context,
+	clientUUID string,
+	scopeIDs map[string]string,
+	missing []string,
+) error {
+
+	for _, name := range missing {
+		scopeID, ok := scopeIDs[name]
+		if !ok || scopeID == "" {
+			return fmt.Errorf("cannot fix drift: scope %q not found", name)
+		}
+
+		res, err := c.Put(
+			fmt.Sprintf("clients/%s/default-client-scopes/%s", clientUUID, scopeID),
+			nil,
+		)
+		if err != nil {
+			return fmt.Errorf("failed to attach client scope %q: %w", name, err)
+		}
+		defer res.Body.Close()
+
+		// Keycloak typically returns 204 No Content
+		if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(res.Body)
+			return fmt.Errorf(
+				"failed to attach client scope %q: %s",
+				name,
+				string(body),
+			)
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) EnsureClientBaseline(
+	ctx context.Context,
+	clientUUID string,
+) error {
+
+	// 1. Ensure required scopes exist in the realm
+	scopeIDs, err := c.EnsureClientScopes(
+		ctx,
+		[]string{"profile", "email", "roles"},
+	)
+	if err != nil {
+		return err
+	}
+
+	// 2. Detect drift on this client
+	missing, err := c.DetectMissingClientScopes(
+		ctx,
+		clientUUID,
+		scopeIDs,
+	)
+	if err != nil {
+		return err
+	}
+
+	// 3. Heal drift (attach missing scopes)
+	if len(missing) > 0 {
+		if err := c.FixClientScopeDrift(
+			ctx,
+			clientUUID,
+			scopeIDs,
+			missing,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
