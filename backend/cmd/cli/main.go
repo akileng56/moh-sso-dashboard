@@ -89,6 +89,8 @@ func newAdminKC() *keycloak.Client {
 		adminSecret,
 		"", // web client id (unused)
 		"", // web client secret (unused)
+		"",
+		"",
 	)
 
 	if err := kc.Authenticate(); err != nil {

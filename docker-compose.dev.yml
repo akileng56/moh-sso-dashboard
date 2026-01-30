@@ -21,6 +21,7 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
 
       KC_HTTP_ENABLED: "true"
+      KC_PROXY: "edge"
       KC_HOSTNAME: ${KEYCLOAK_HOSTNAME:-http://localhost:8081}
       KC_HOSTNAME_STRICT_HTTPS: "false"
 
@@ -193,3 +194,4 @@ volumes:
 networks:
   sso_network:
     driver: bridge
+    external: true

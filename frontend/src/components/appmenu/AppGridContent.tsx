@@ -92,7 +92,6 @@ const AppGridContent: React.FC = () => {
         // 🔑 Attribute-driven icon
         const iconKey = client.attributes?.["ui.icon"];
         const Icon = ICON_MAP[iconKey ?? ""] ?? App;
-
         return (
           <Column
             key={client.clientId}
@@ -105,7 +104,7 @@ const AppGridContent: React.FC = () => {
               <AppTile
                 icon={Icon}
                 name={client.name}
-                href={client.attributes?.["ui.home"] ?? "/"}
+                href={client.baseUrl ?? ""}
                 clientId={client.clientId}
               />
             </div>
