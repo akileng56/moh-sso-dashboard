@@ -8,7 +8,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// RedisCache implements keycloak.Cache
 type RedisCache struct {
 	client *redis.Client
 }
@@ -16,9 +15,6 @@ type RedisCache struct {
 func NewRedisCache(client *redis.Client) *RedisCache {
 	return &RedisCache{client: client}
 }
-
-// Get retrieves a cached value and unmarshals it into dest.
-// Returns (false, nil) if key does not exist.
 func (r *RedisCache) Get(ctx context.Context, key string, dest any) (bool, error) {
 	val, err := r.client.Get(ctx, key).Result()
 	if err == redis.Nil {

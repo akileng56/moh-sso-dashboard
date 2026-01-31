@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/model"
 	repository "github.com/moh-sso-dashboard/internal/repository/notifications"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -41,13 +42,16 @@ type NotificationsService interface {
 
 type notificationsService struct {
 	notificationsRepo repository.NotificationsRepository
+	publisher         *cache.NotificationPublisher
 }
 
 func NewNotificationsService(
 	notificationsRepo repository.NotificationsRepository,
+	publisher *cache.NotificationPublisher,
 ) NotificationsService {
 	return &notificationsService{
 		notificationsRepo: notificationsRepo,
+		publisher:         publisher,
 	}
 }
 
@@ -63,6 +67,21 @@ func (s *notificationsService) Notify(
 	if err != nil {
 		log.Printf("error creating notification: %v", err)
 		return nil, err
+	}
+
+	if s.publisher != nil {
+		go func(saved model.Notification) {
+			channel := cache.ResolveNotificationChannel(saved)
+
+			if err := s.publisher.Publish(ctx, channel, saved); err != nil {
+				log.Printf(
+					"notification publish failed (channel=%s, id=%s): %v",
+					channel,
+					saved.ID,
+					err,
+				)
+			}
+		}(*n)
 	}
 
 	return n, nil

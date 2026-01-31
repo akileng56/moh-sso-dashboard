@@ -3,10 +3,12 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/http/apierror"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/model"
@@ -17,15 +19,18 @@ import (
 type ClientHandler struct {
 	service      *service.ClientService
 	auditService *service.AuditService
+	cache        *cache.RedisCache
 }
 
 func NewClientHandler(
 	s *service.ClientService,
 	audit *service.AuditService,
+	cache *cache.RedisCache,
 ) *ClientHandler {
 	return &ClientHandler{
 		service:      s,
 		auditService: audit,
+		cache:        cache,
 	}
 }
 
@@ -138,15 +143,42 @@ func (h *ClientHandler) GetClient(c *gin.Context) {
  * List Clients
  * ========================================================= */
 func (h *ClientHandler) ListClients(c *gin.Context) {
-	clients, err := h.service.ListClients()
-	if err != nil {
-		response.Fail(
-			c,
-			http.StatusInternalServerError,
-			"INTERNAL_ERROR",
-			"Failed to list clients",
-		)
-		return
+
+	var (
+		clients   []model.Client
+		fromCache bool
+	)
+
+	cacheKey := listClientsCacheKey()
+
+	if h.cache != nil {
+		if ok, _ := h.cache.Get(c.Request.Context(), cacheKey, &clients); ok {
+			fromCache = true
+		}
+	}
+
+	if !fromCache {
+		var err error
+		clients, err = h.service.ListClients()
+		if err != nil {
+			response.Fail(
+				c,
+				http.StatusInternalServerError,
+				"INTERNAL_ERROR",
+				"Failed to list clients",
+			)
+			return
+		}
+
+		// store in Redis
+		if h.cache != nil {
+			_ = h.cache.Set(
+				c.Request.Context(),
+				cacheKey,
+				clients,
+				60*time.Second,
+			)
+		}
 	}
 
 	clientRoles := c.MustGet("client_roles").(map[string][]string)
@@ -400,4 +432,8 @@ func (h *ClientHandler) audit(
 		action,
 		meta,
 	)
+}
+
+func listClientsCacheKey() string {
+	return "clients:all"
 }

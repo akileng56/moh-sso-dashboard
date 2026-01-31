@@ -4,10 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/http/apierror"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	models "github.com/moh-sso-dashboard/internal/model"
@@ -39,15 +41,18 @@ func toUserResponse(u *models.User) models.UserResponse {
 type UserHandler struct {
 	service      *service.UserService
 	auditService *service.AuditService
+	cache        *cache.RedisCache
 }
 
 func NewUserHandler(
 	s *service.UserService,
 	audit *service.AuditService,
+	cache *cache.RedisCache,
 ) *UserHandler {
 	return &UserHandler{
 		service:      s,
 		auditService: audit,
+		cache:        cache,
 	}
 }
 
@@ -145,12 +150,41 @@ func (h *UserHandler) GetUser(c *gin.Context) {
 func (h *UserHandler) ListUsers(c *gin.Context) {
 	h.audit(c, "user.list", nil)
 
-	users, err := h.service.ListUsers()
-	if err != nil {
-		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list users")
-		return
+	var (
+		users     []models.User
+		fromCache bool
+	)
+
+	cacheKey := listUsersCacheKey()
+
+	if h.cache != nil {
+		if ok, _ := h.cache.Get(c.Request.Context(), cacheKey, &users); ok {
+			fromCache = true
+		}
 	}
 
+	if !fromCache {
+		var err error
+		users, err = h.service.ListUsers()
+		if err != nil {
+			response.Fail(
+				c,
+				http.StatusInternalServerError,
+				"INTERNAL_ERROR",
+				"Failed to list users",
+			)
+			return
+		}
+
+		if h.cache != nil {
+			_ = h.cache.Set(
+				c.Request.Context(),
+				cacheKey,
+				users,
+				45*time.Second,
+			)
+		}
+	}
 	out := make([]models.UserResponse, len(users))
 	for i := range users {
 		out[i] = toUserResponse(&users[i])
@@ -566,4 +600,8 @@ func (h *UserHandler) audit(
 		action,
 		meta,
 	)
+}
+
+func listUsersCacheKey() string {
+	return "users:all"
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
 
+	"github.com/moh-sso-dashboard/internal/cache"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/http/response"
 )
@@ -24,10 +26,12 @@ import (
 
 type AuditHandler struct {
 	store db.Store
+	cache *cache.RedisCache
 }
 
-func NewAuditHandler(store db.Store) *AuditHandler {
-	return &AuditHandler{store: store}
+func NewAuditHandler(store db.Store, cache *cache.RedisCache) *AuditHandler {
+	return &AuditHandler{store: store,
+		cache: cache}
 }
 
 /* =========================================================
@@ -71,6 +75,16 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 	to, ok := mustParseTimeRFC3339(c, "to")
 	if !ok {
 		return
+	}
+
+	cacheKey := auditLogsCacheKey(c)
+
+	if h.cache != nil {
+		var cached gin.H
+		if ok, _ := h.cache.Get(c.Request.Context(), cacheKey, &cached); ok {
+			response.OK(c, http.StatusOK, cached)
+			return
+		}
 	}
 
 	// filters
@@ -162,14 +176,25 @@ func (h *AuditHandler) ListAuditLogs(c *gin.Context) {
 		nextID = &id
 	}
 
-	response.OK(c, http.StatusOK, gin.H{
+	resp := gin.H{
 		"items": rows,
 		"next_cursor": gin.H{
 			"cursor_created_at": nextCreatedAt,
 			"cursor_id":         nextID,
 		},
 		"has_more": hasMore,
-	})
+	}
+
+	if h.cache != nil {
+		_ = h.cache.Set(
+			c.Request.Context(),
+			cacheKey,
+			resp,
+			20*time.Second, // perfect for audit logs
+		)
+	}
+
+	response.OK(c, http.StatusOK, resp)
 }
 
 /* =========================================================
@@ -464,4 +489,11 @@ func extractAuditMetadata(r pqtype.NullRawMessage) map[string]any {
 		return nil
 	}
 	return meta
+}
+
+func auditLogsCacheKey(c *gin.Context) string {
+	return fmt.Sprintf(
+		"audit_logs:%s",
+		c.Request.URL.RawQuery,
+	)
 }

@@ -133,7 +133,8 @@ func main() {
 	metricsService := service.NewMetricsService(metricsRepository)
 	auditService := service.NewAuditService(store)
 	importService := service.NewImportService(store, keycloakClient)
-	notificationsService := service.NewNotificationsService(notificationsRepository)
+	publisher := cache.NewNotificationPublisher(rdb)
+	notificationsService := service.NewNotificationsService(notificationsRepository, publisher)
 	clientService := service.NewClientService(clientRepository, notificationsService)
 	userService := service.NewUserService(userRepository, notificationsService)
 
@@ -147,18 +148,15 @@ func main() {
 		cfg,
 	)
 
-	clientHandler := handler.NewClientHandler(clientService, auditService)
-	userHandler := handler.NewUserHandler(userService, auditService)
+	clientHandler := handler.NewClientHandler(clientService, auditService, cacheAdapter)
+	userHandler := handler.NewUserHandler(userService, auditService, cacheAdapter)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
-	auditHandler := handler.NewAuditHandler(store)
+	auditHandler := handler.NewAuditHandler(store, cacheAdapter)
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
-	// ---------------------------------------------------------------------
-	// Router (CACHE-BACKED AUTH)
-	// ---------------------------------------------------------------------
 	r := router.SetupRouter(
-		keycloakClient, // ✅ NEW
+		keycloakClient,
 		importHandler,
 		authHandler,
 		clientHandler,
@@ -169,9 +167,6 @@ func main() {
 		notificationsHandler,
 	)
 
-	// ---------------------------------------------------------------------
-	// 🚀 Server (FORCED IPv4)
-	// ---------------------------------------------------------------------
 	addr := ":" + cfg.ServerPort
 
 	ln, err := net.Listen("tcp4", addr)
