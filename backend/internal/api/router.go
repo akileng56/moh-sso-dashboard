@@ -9,17 +9,19 @@ import (
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/ratelimit"
 	service "github.com/moh-sso-dashboard/internal/service"
 )
 
 func SetupRouter(
-	kcClient *keycloak.Client,
+	keycloakClient *keycloak.Client,
+	limiter *ratelimit.Limiter,
 	importHandler *handler.ImportHandler,
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
 	metricsHandler *handler.MetricsHandler,
-	auditSvc *service.AuditService,
+	auditService *service.AuditService,
 	auditHandler *handler.AuditHandler,
 	notificationsHandler *handler.NotificationsHandler,
 ) *gin.Engine {
@@ -57,13 +59,43 @@ func SetupRouter(
 	api := r.Group("/api/v1")
 
 	// --------------------------------------------------
-	// Auth (PUBLIC)
+	// Auth (PUBLIC + RATE LIMITED)
 	// --------------------------------------------------
 	auth := api.Group("/auth")
 	{
-		auth.GET("/login", authHandler.HandleAuthLogin)
-		auth.GET("/callback", authHandler.HandleAuthCallback)
-		auth.POST("/refresh", authHandler.HandleAuthRefreshToken)
+		auth.GET(
+			"/login",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				20,
+				time.Minute,
+			),
+			authHandler.HandleAuthLogin,
+		)
+
+		auth.GET(
+			"/callback",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				30,
+				time.Minute,
+			),
+			authHandler.HandleAuthCallback,
+		)
+
+		auth.POST(
+			"/refresh",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				10,
+				time.Minute,
+			),
+			authHandler.HandleAuthRefreshToken,
+		)
+
 		auth.GET("/logout", authHandler.HandleAuthLogout)
 	}
 
@@ -71,9 +103,20 @@ func SetupRouter(
 	// Protected (AUTH REQUIRED)
 	// --------------------------------------------------
 	protected := api.Group("")
-	protected.Use(middleware.ExtractAuthContext(kcClient))
+	protected.Use(middleware.ExtractAuthContext(keycloakClient))
 	protected.Use(middleware.RequireAuth())
-	protected.Use(middleware.AuditMiddleware(auditSvc))
+	protected.Use(middleware.AuditMiddleware(auditService))
+
+	// moderate user-based rate limit
+	protected.Use(
+		ratelimit.Middleware(
+			limiter,
+			ratelimit.ByUser,
+			120,
+			time.Minute,
+		),
+	)
+
 	{
 		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
 
@@ -103,10 +146,21 @@ func SetupRouter(
 		}
 
 		// --------------------------------------------------
-		// Admin (ADMIN ONLY)
+		// Admin (ADMIN ONLY + STRICTER LIMITS)
 		// --------------------------------------------------
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireAdmin())
+
+		// stricter admin rate limit
+		admin.Use(
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByUser,
+				60,
+				time.Minute,
+			),
+		)
+
 		{
 			// -------- Users --------
 			admin.GET("/users", userHandler.ListUsers)
@@ -114,7 +168,6 @@ func SetupRouter(
 			admin.POST("/users", userHandler.CreateUser)
 			admin.DELETE("/users/:id", userHandler.DeleteUser)
 
-			// User ↔ Client roles (NEW, CORRECT)
 			admin.GET("/users/:id/client-roles", userHandler.GetUserClientRoles)
 			admin.PUT("/users/:id/client-roles", userHandler.UpdateUserClientRoles)
 			admin.POST("/users/:id/reset-password", userHandler.ResetUserPassword)
@@ -134,7 +187,6 @@ func SetupRouter(
 			metrics := admin.Group("/metrics")
 			{
 				metrics.GET("/overview", metricsHandler.Overview)
-
 				metrics.GET("/system/count-users", metricsHandler.CountUsers)
 				metrics.GET("/system/count-disabled-users", metricsHandler.CountDisabledUsers)
 				metrics.GET("/system/active-today", metricsHandler.ActiveUsersToday)
@@ -158,8 +210,16 @@ func SetupRouter(
 				metrics.GET("/users/client-usage/:userID", metricsHandler.UserClientUsage)
 			}
 
-			// -------- Audit Logs --------
+			// -------- Audit Logs (rate-limit tighter) --------
 			audit := admin.Group("/audit-logs")
+			audit.Use(
+				ratelimit.Middleware(
+					limiter,
+					ratelimit.ByUser,
+					30,
+					time.Minute,
+				),
+			)
 			{
 				audit.GET("", auditHandler.ListAuditLogs)
 				audit.GET("/actions", auditHandler.ListAuditActions)

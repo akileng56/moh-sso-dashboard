@@ -25,7 +25,9 @@ import (
 	"github.com/moh-sso-dashboard/internal/repository/notifications"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 
+	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/internal/service"
+
 	"github.com/rs/zerolog"
 )
 
@@ -61,7 +63,7 @@ func main() {
 	}
 
 	// ---------------------------------------------------------------------
-	// Redis (CACHE)
+	// Redis (CACHE + RATELIMIT)
 	// ---------------------------------------------------------------------
 	rdb := cache.NewRedisClient(cache.RedisConfig{
 		Host:         cfg.RedisHost,
@@ -76,8 +78,12 @@ func main() {
 	cache.MustPing(context.Background(), rdb)
 	appLogger.Info("Successfully connected to Redis")
 
-	// Adapter that satisfies keycloak.Cache
 	cacheAdapter := cache.NewRedisCache(rdb)
+
+	// ---------------------------------------------------------------------
+	// Rate Limiter (Redis-backed)
+	// ---------------------------------------------------------------------
+	rateLimiter := ratelimit.New(rdb)
 
 	// ---------------------------------------------------------------------
 	// Keycloak (ADMIN + WEB clients, CACHE-AWARE)
@@ -89,10 +95,9 @@ func main() {
 		cfg.KeycloakAdminClientSecret,
 		cfg.KeycloakWebClientID,
 		cfg.KeycloakWebClientSecret,
-		cacheAdapter, // ✅ NEW
+		cacheAdapter,
 	)
 
-	// Authenticate ADMIN service account
 	if err := keycloakClient.Authenticate(); err != nil {
 		appLogger.Fatal(
 			"Failed to authenticate Keycloak admin service account: %v",
@@ -122,7 +127,6 @@ func main() {
 		store,
 		*appLogger,
 	)
-
 	metricsRepository := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 	notificationsRepository := notifications.NewNotificationsRepository(store, *appLogger)
 
@@ -133,8 +137,10 @@ func main() {
 	metricsService := service.NewMetricsService(metricsRepository)
 	auditService := service.NewAuditService(store)
 	importService := service.NewImportService(store, keycloakClient)
+
 	publisher := cache.NewNotificationPublisher(rdb)
 	notificationsService := service.NewNotificationsService(notificationsRepository, publisher)
+
 	clientService := service.NewClientService(clientRepository, notificationsService)
 	userService := service.NewUserService(userRepository, notificationsService)
 
@@ -155,8 +161,12 @@ func main() {
 	auditHandler := handler.NewAuditHandler(store, cacheAdapter)
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
+	// ---------------------------------------------------------------------
+	// Router (RATE-LIMIT AWARE)
+	// ---------------------------------------------------------------------
 	r := router.SetupRouter(
 		keycloakClient,
+		rateLimiter,
 		importHandler,
 		authHandler,
 		clientHandler,
