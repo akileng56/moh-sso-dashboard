@@ -20,21 +20,34 @@
       "protocol": "openid-connect",
       "protocolMappers": [
         {
-          "name": "full name",
+          "name": "full_name",
           "protocol": "openid-connect",
           "protocolMapper": "oidc-full-name-mapper",
           "consentRequired": false,
           "config": {
             "id.token.claim": "true",
             "access.token.claim": "true",
-            "userinfo.token.claim": "true",
-            "introspection.token.claim": "true"
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
           }
         }
       ]
     },
     {
-      "name": "user id",
+      "name": "user_id",
       "protocol": "openid-connect",
       "protocolMapper": "oidc-usermodel-property-mapper",
       "consentRequired": false,
@@ -44,13 +57,42 @@
         "jsonType.label": "String",
         "id.token.claim": "true",
         "access.token.claim": "true",
-        "userinfo.token.claim": "true",
-        "introspection.token.claim": "true"
+        "userinfo.token.claim": "true"
       }
     },
     {
       "name": "email",
-      "protocol": "openid-connect"
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
       "name": "roles",
@@ -66,7 +108,6 @@
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true",
-            "introspection.token.claim": "true",
             "claim.name": "realm_access.roles",
             "jsonType.label": "String"
           }
@@ -81,7 +122,6 @@
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true",
-            "introspection.token.claim": "true",
             "claim.name": "resource_access.${client_id}.roles",
             "jsonType.label": "String"
           }
@@ -107,16 +147,52 @@
     "client": {
       "dashboard-web": [
         {
-          "name": "dashboard_access",
+          "name": "dashboard-web_access",
           "description": "Access MOH Dashboard"
+        },
+        {
+          "name": "integrated-outbreak-system_access",
+          "description": "Can open IOS from the dashboard"
+        }
+      ],
+      "integrated-outbreak-system": [
+        {
+          "name": "super_admin",
+          "description": "Super Administrator with full system access"
+        },
+        {
+          "name": "admin",
+          "description": "Administrator with management access"
+        },
+        {
+          "name": "manager",
+          "description": "Department manager with oversight access"
+        },
+        {
+          "name": "viewer",
+          "description": "Read-only access to reports and data"
+        },
+        {
+          "name": "data_entry",
+          "description": "Data entry personnel"
+        },
+        {
+          "name": "lab_technician",
+          "description": "Laboratory technician with lab-specific access"
+        },
+        {
+          "name": "surveillance_officer",
+          "description": "Surveillance officer with monitoring access"
         }
       ]
+      
     }
   },
   "clients": [
     {
       "clientId": "dashboard-admin",
       "name": "MOH Dashboard Admin Client",
+      "description": "MOH Dashboard Admin Client",
       "enabled": true,
       "secret": "dashboard-admin-secret",
       "publicClient": false,
@@ -127,8 +203,24 @@
       "authorizationServicesEnabled": false
     },
     {
+      "clientId": "integrated-outbreak-system-admin",
+      "name": "Integrated Outbreak System Admin Client",
+      "description": "Admin client for managing Integrated Outbreak System",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "ios-admin-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false
+    },
+    {
       "clientId": "dashboard-web",
       "name": "MOH SSO Dashboard Web",
+      "description": "MOH SSO Dashboard Web",
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
       "enabled": true,
       "secret": "dashboard-web-secret",
       "publicClient": false,
@@ -163,6 +255,38 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "integrated-outbreak-system",
+      "name": "Integrated Outbreak System",
+      "description": "Integrated Outbreak System Backend API",
+      "rootUrl": "http://localhost:3001",
+      "baseUrl": "http://localhost:3001",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "ios-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "access.token.lifespan": "1800",
+        "ui.icon": "user",
+        "ui.home": "/dashboard"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
     }
   ],
   "users": [
@@ -185,7 +309,12 @@
       ],
       "clientRoles": {
         "dashboard-web": [
-          "dashboard_access"
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin"
         ]
       }
     },
@@ -205,7 +334,102 @@
       ],
       "realmRoles": [
         "user"
-      ]
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "viewer"
+        ]
+      }
+    },
+    {
+      "username": "pwaiswa",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "System",
+      "lastName": "Admin",
+      "email": "admin@system.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin",
+          "admin"
+        ]
+      }
+    },
+    {
+      "username": "pmbaka",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Mbaka",
+      "lastName": "Paul",
+      "email": "paul.mbaka@gmail.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "123456789=p",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin",
+          "admin"
+        ]
+      }
+    },
+    {
+      "username": "outbreak_viewer@example.com",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Outbreak",
+      "lastName": "Viewer",
+      "email": "outbreak_viewer@example.com",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Viewer@123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "viewer"
+        ]
+      }
     },
     {
       "username": "service-account-dashboard-admin",
@@ -219,6 +443,21 @@
           "manage-users",
           "view-realm"
         ]
+      }
+    },
+    {
+      "username": "service-account-integrated-outbreak-system-admin",
+      "enabled": true,
+      "serviceAccountClientId": "integrated-outbreak-system-admin",
+      "clientRoles": {
+        "realm-management": [
+          "realm-admin",
+          "view-users",
+          "manage-users",
+          "view-clients",
+          "manage-clients",
+          "view-realm"
+        ]     
       }
     }
   ]

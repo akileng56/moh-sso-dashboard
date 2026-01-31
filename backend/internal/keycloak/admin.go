@@ -155,7 +155,7 @@ type ClientRoleRequest struct {
 type RoleRep struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
-	Description string `json:"descritpion"`
+	Description string `json:"description"`
 }
 
 type ClientScope struct {
