@@ -135,7 +135,7 @@ func main() {
 	// ---------------------------------------------------------------------
 	authService := service.NewAuthService(authRepository, rdb)
 	metricsService := service.NewMetricsService(metricsRepository)
-	auditService := service.NewAuditService(store)
+	auditService := service.NewAuditService(store, cacheAdapter)
 	importService := service.NewImportService(store, keycloakClient)
 
 	publisher := cache.NewNotificationPublisher(rdb)
