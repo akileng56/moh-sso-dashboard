@@ -7,19 +7,15 @@ import {
   TableHeader,
   TableBody,
   TableCell,
+  TableSelectRow,
+  TableSelectAll,
   InlineLoading,
   Tile,
   Tag,
-  Pagination,
-  OverflowMenu,
-  OverflowMenuItem,
+  Pagination, // ✅ FIX 1
 } from "@carbon/react";
-import { Add } from "@carbon/icons-react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
-import { EmptyState } from "../../../components/emptystate/EmptyState";
-import { ErrorState } from "../../../components/errorstate/ErrorState";
-
 import {
   useListClientsQuery,
   useToggleClientMutation,
@@ -28,6 +24,10 @@ import type { Client } from "../../../store/types/client.types";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 import { ClientFormPanel } from "../../../components/panels/client-form-panel";
 import { useEnableClientModal } from "../../../components/client/useEnableClientModal";
+import { ErrorState } from "../../../components/errorstate/ErrorState";
+import { ClientBulkActions } from "./client-bulk-actions.component";
+import { ClientActionsMenu } from "./client-actions-menu.component";
+import { useToast } from "../../../components/notifications/toast/useToast";
 
 /* -----------------------------
  * Filters
@@ -49,21 +49,24 @@ const TYPE_OPTIONS = [
 
 /* -----------------------------
  * Table headers
- * NOTE: raw is hidden but preserved
  * ----------------------------- */
 const headers = [
   { key: "name", header: "Name" },
   { key: "clientId", header: "Client ID" },
   { key: "type", header: "Type" },
   { key: "status", header: "Status" },
-  { key: "actions", header: "Actions" },
-
-  { key: "raw", header: "" },
+  { key: "actions", header: "" },
+  { key: "raw", header: "" }, // hidden
 ];
 
 export default function ClientsPage() {
   const { openPanel, closePanel } = useHeaderPanel();
   const { openEnableClientModal } = useEnableClientModal();
+  const toast = useToast();
+
+  const [bulkAction, setBulkAction] = useState<"enable" | "disable" | null>(
+    null
+  );
 
   /* -----------------------------
    * Filters
@@ -119,31 +122,7 @@ export default function ClientsPage() {
   }, [filteredClients, page, pageSize]);
 
   /* -----------------------------
-   * Loading
-   * ----------------------------- */
-  if (isLoading) {
-    return (
-      <div style={{ padding: "2rem" }}>
-        <InlineLoading description="Loading clients…" />
-      </div>
-    );
-  }
-
-  /* -----------------------------
-   * Error
-   * ----------------------------- */
-  if (isError) {
-    return (
-      <ErrorState
-        title="Failed to load clients"
-        description={(error as any)?.data?.message ?? "Failed to load clients"}
-        primaryAction={{ label: "Retry", onClick: refetch }}
-      />
-    );
-  }
-
-  /* -----------------------------
-   * Rows (raw preserved)
+   * Rows
    * ----------------------------- */
   const rows = paginatedClients.map((c) => ({
     id: c.id,
@@ -154,6 +133,27 @@ export default function ClientsPage() {
     actions: "",
     raw: c,
   }));
+
+  /* -----------------------------
+   * Loading / Error
+   * ----------------------------- */
+  if (isLoading) {
+    return (
+      <div style={{ padding: "2rem" }}>
+        <InlineLoading description="Loading clients…" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ErrorState
+        title="Failed to load clients"
+        description={(error as any)?.data?.message ?? "Failed to load clients"}
+        primaryAction={{ label: "Retry", onClick: refetch }}
+      />
+    );
+  }
 
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
@@ -179,44 +179,90 @@ export default function ClientsPage() {
 
       {/* Table */}
       <Tile>
-        {filteredClients.length === 0 ? (
-          <EmptyState
-            title="No clients registered"
-            description="Start by registering an application to make it available in the platform."
-            primaryAction={{
-              label: "Register application",
-              icon: Add,
-              onClick: () =>
-                openPanel({
-                  title: "Create client",
-                  content: (
-                    <ClientFormPanel mode="create" onSuccess={closePanel} />
-                  ),
-                  size: "md",
-                }),
-            }}
-          />
-        ) : (
-          <>
-            <DataTable rows={rows} headers={headers}>
-              {({
-                rows,
-                headers,
-                getHeaderProps,
-                getRowProps,
-                getTableProps,
-              }) => (
-                <Table {...getTableProps()}>
+        <DataTable rows={rows} headers={headers}>
+          {({
+            rows,
+            headers,
+            getHeaderProps,
+            getRowProps,
+            getSelectionProps,
+            selectedRows,
+          }) => {
+            const selectedClients = selectedRows.map(
+              (r) =>
+                r.cells.find((c) => c.info.header === "raw")?.value as Client
+            );
+
+            return (
+              <>
+                <ClientBulkActions
+                  clients={selectedClients}
+                  loadingAction={bulkAction}
+                  onEnable={async () => {
+                    try {
+                      setBulkAction("enable");
+
+                      await Promise.all(
+                        selectedClients.map((c) =>
+                          toggleClient({
+                            id: c.clientId,
+                            enabled: true,
+                          }).unwrap()
+                        )
+                      );
+
+                      toast.success({
+                        title: "Clients enabled",
+                        subtitle: `${selectedClients.length} client(s) enabled.`,
+                      });
+                    } catch {
+                      toast.error({
+                        title: "Enable failed",
+                        subtitle: "Some clients could not be enabled.",
+                      });
+                    } finally {
+                      setBulkAction(null);
+                    }
+                  }}
+                  onDisable={async () => {
+                    try {
+                      setBulkAction("disable");
+
+                      await Promise.all(
+                        selectedClients.map((c) =>
+                          toggleClient({
+                            id: c.clientId,
+                            enabled: false,
+                          }).unwrap()
+                        )
+                      );
+
+                      toast.warning({
+                        title: "Clients disabled",
+                        subtitle: `${selectedClients.length} client(s) disabled.`,
+                      });
+                    } catch {
+                      toast.error({
+                        title: "Disable failed",
+                        subtitle: "Some clients could not be disabled.",
+                      });
+                    } finally {
+                      setBulkAction(null);
+                    }
+                  }}
+                />
+
+                <Table>
                   <TableHead>
                     <TableRow>
-                      {headers.map(
-                        (h) =>
-                          h.key !== "raw" && (
-                            <TableHeader {...getHeaderProps({ header: h })}>
-                              {h.header}
-                            </TableHeader>
-                          )
-                      )}
+                      <TableSelectAll {...getSelectionProps()} />
+                      {headers
+                        .filter((h) => h.key !== "raw")
+                        .map((h) => (
+                          <TableHeader {...getHeaderProps({ header: h })}>
+                            {h.header}
+                          </TableHeader>
+                        ))}
                     </TableRow>
                   </TableHead>
 
@@ -228,13 +274,15 @@ export default function ClientsPage() {
 
                       return (
                         <TableRow {...getRowProps({ row })}>
+                          <TableSelectRow {...getSelectionProps({ row })} />
+
                           {row.cells.map((cell) => {
                             if (cell.info.header === "raw") return null;
 
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={client?.enabled ? "green" : "red"}>
+                                  <Tag type={client.enabled ? "green" : "red"}>
                                     {cell.value}
                                   </Tag>
                                 </TableCell>
@@ -244,11 +292,10 @@ export default function ClientsPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <OverflowMenu size="sm" flipped>
-                                    <OverflowMenuItem
-                                      itemText="Edit client"
-                                      hasDivider
-                                      onClick={() =>
+                                  {row.isSelected && (
+                                    <ClientActionsMenu
+                                      client={client}
+                                      onEdit={() =>
                                         openPanel({
                                           title: "Edit client",
                                           content: (
@@ -261,29 +308,32 @@ export default function ClientsPage() {
                                           size: "md",
                                         })
                                       }
-                                    />
-
-                                    <OverflowMenuItem
-                                      itemText={
-                                        client?.enabled
-                                          ? "Disable client"
-                                          : "Enable client"
-                                      }
-                                      isDelete={client?.enabled}
-                                      onClick={() =>
+                                      onToggleStatus={() =>
                                         openEnableClientModal({
                                           clientName: client.name,
-                                          enabled: client?.enabled,
+                                          enabled: client.enabled,
                                           onConfirm: async () => {
-                                            await toggleClient({
-                                              id: client.clientId,
-                                              enabled: !client?.enabled,
-                                            }).unwrap();
+                                            try {
+                                              await toggleClient({
+                                                id: client.clientId,
+                                                enabled: !client.enabled,
+                                              }).unwrap();
+
+                                              toast.success({
+                                                title: "Client updated",
+                                                subtitle: `${client.name} updated successfully.`,
+                                              });
+                                            } catch {
+                                              toast.error({
+                                                title: "Update failed",
+                                                subtitle: `Failed to update ${client.name}.`,
+                                              });
+                                            }
                                           },
                                         })
                                       }
                                     />
-                                  </OverflowMenu>
+                                  )}
                                 </TableCell>
                               );
                             }
@@ -297,21 +347,22 @@ export default function ClientsPage() {
                     })}
                   </TableBody>
                 </Table>
-              )}
-            </DataTable>
+              </>
+            );
+          }}
+        </DataTable>
 
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              pageSizes={[10, 20, 30, 50]}
-              totalItems={filteredClients.length}
-              onChange={({ page, pageSize }) => {
-                setPage(page);
-                setPageSize(pageSize);
-              }}
-            />
-          </>
-        )}
+        {/* ================= PAGINATION ================= */}
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          pageSizes={[10, 20, 30, 50]}
+          totalItems={filteredClients.length}
+          onChange={({ page, pageSize }) => {
+            setPage(page);
+            setPageSize(pageSize);
+          }}
+        />
       </Tile>
     </div>
   );
