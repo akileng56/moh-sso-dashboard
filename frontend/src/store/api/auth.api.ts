@@ -65,7 +65,7 @@ export const authApi = baseApi.injectEndpoints({
           dispatch(logoutAction());
           window.location.replace(API.auth.login());
         } finally {
-          dispatch(authLoaded());
+          // dispatch(authLoaded());
         }
       },
     }),

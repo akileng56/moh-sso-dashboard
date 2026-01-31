@@ -12,7 +12,7 @@ import {
   InlineLoading,
   Tile,
   Tag,
-  Pagination, // ✅ FIX 1
+  Pagination,
 } from "@carbon/react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
