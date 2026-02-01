@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { HeaderGlobalAction } from "@carbon/react";
-import { Menu as MenuIcon } from "@carbon/icons-react";
+import {HeaderGlobalAction} from "@carbon/react";
+import { Switcher } from "@carbon/icons-react";
 import AppGridContent from "./AppGridContent";
 import "./AppMenu.css";
 
@@ -66,7 +66,7 @@ const AppMenuAction: React.FC = () => {
         isActive={expanded}
         onClick={() => setExpanded((prev) => !prev)}
       >
-        <MenuIcon size={20} />
+        <Switcher size={20} />
       </HeaderGlobalAction>
 
       {expanded && (

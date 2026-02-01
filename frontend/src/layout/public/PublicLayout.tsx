@@ -30,8 +30,9 @@ export default function PublicLayout() {
         <Content
           id="main-content"
           style={{
-            paddingTop: "3rem", // Carbon header offset
+            marginTop: "3rem", // Carbon header offset
             flex: 1,
+            background: "#f9fafb"
           }}
         >
           <Outlet />

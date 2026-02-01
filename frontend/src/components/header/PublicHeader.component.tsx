@@ -38,7 +38,7 @@ const PublicHeader: React.FC = () => {
       {/* Global Actions */}
       <HeaderGlobalBar>
         {/* 🌱 Environment */}
-        <EnvironmentBadge />
+        {/*<EnvironmentBadge />*/}
         {/* App Launcher */}
         <AppMenuAction />
         {/* User indicator */}

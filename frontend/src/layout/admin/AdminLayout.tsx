@@ -46,7 +46,7 @@ function HeaderActions() {
   return (
     <HeaderGlobalBar>
       {/* 🌱 Environment */}
-      <EnvironmentBadge />
+      {/*<EnvironmentBadge />*/}
       {/* 🔔 Notifications */}
       <HeaderGlobalAction
         aria-label="Notifications"

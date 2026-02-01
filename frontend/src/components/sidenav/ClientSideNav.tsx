@@ -36,7 +36,7 @@ export function ClientSideNav() {
     <SideNav isFixedNav expanded aria-label="Application navigation">
       <SideNavItems>
         {/* 🌍 Global / Default */}
-        <SideNavMenu title="National Dataware house">
+        <SideNavMenu title="National Data WareHouse">
           {defaultItems.map((item) => (
             <SideNavLink
               key={item.id}

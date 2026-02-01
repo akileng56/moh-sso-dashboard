@@ -7,7 +7,7 @@ export function PublicFooter() {
     <footer className="public-footer">
       <div className="footer-bottom">
         © {new Date().getFullYear()} Ministry of Health – Uganda
-        <BuildMeta />
+        {/*<BuildMeta />*/}
       </div>
     </footer>
   );
