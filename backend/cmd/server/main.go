@@ -42,24 +42,24 @@ func main() {
 
 	appLogger := logger.NewLogger()
 	appLogger.SetLevel(zerolog.InfoLevel)
-	appLogger.Info("Starting server in environment: %s", cfg.Environment)
+	appLogger.Info("Starting server in environment:", cfg.Environment)
 
 	// ---------------------------------------------------------------------
 	// Database
 	// ---------------------------------------------------------------------
 	conn, err := sql.Open(cfg.DbDriver, cfg.DbSource())
 	if err != nil {
-		appLogger.Fatal("Cannot open database connection: %v", err)
+		appLogger.Fatal("Cannot open database connection:", err)
 	}
 	defer conn.Close()
 
 	if err := conn.Ping(); err != nil {
-		appLogger.Fatal("Cannot connect to database: %v", err)
+		appLogger.Fatal("Cannot connect to database: ", err)
 	}
 	appLogger.Info("Successfully connected to database")
 
 	if err := db.MigrateDB(conn, "file://internal/db/migrations"); err != nil {
-		appLogger.Fatal("Cannot migrate db: %v", err)
+		appLogger.Fatal("Cannot migrate db:", err)
 	}
 
 	// ---------------------------------------------------------------------
@@ -100,7 +100,7 @@ func main() {
 
 	if err := keycloakClient.Authenticate(); err != nil {
 		appLogger.Fatal(
-			"Failed to authenticate Keycloak admin service account: %v",
+			"Failed to authenticate Keycloak admin service account: ",
 			err,
 		)
 	}
@@ -181,16 +181,16 @@ func main() {
 
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
-		appLogger.Fatal("Failed to bind IPv4 listener: %v", err)
+		appLogger.Fatal("Failed to bind IPv4 listener: ", err)
 	}
 
-	appLogger.Info("Gin server listening on IPv4 %s", addr)
+	appLogger.Info("Gin server listening on IPv4 ", addr)
 
 	server := &http.Server{
 		Handler: r,
 	}
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-		appLogger.Fatal("Gin server failed: %v", err)
+		appLogger.Fatal("Gin server failed: ", err)
 	}
 }

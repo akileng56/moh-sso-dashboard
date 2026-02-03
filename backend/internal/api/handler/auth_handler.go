@@ -313,7 +313,7 @@ func (h *AuthHandler) HandleAuthLogout(c *gin.Context) {
 
 	c.Redirect(
 		http.StatusTemporaryRedirect,
-		h.config.KeycloakRedirectUri,
+		"http://localhost:9000/api/v1/auth/login",
 	)
 }
 

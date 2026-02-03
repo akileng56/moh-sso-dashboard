@@ -611,11 +611,11 @@ func (c *Client) DeleteUser(userID string) error {
 }
 
 // -------------------------------------------------------------------
-// Realm roles Managemet
+// Realm roles Management
 // -------------------------------------------------------------------
 
 func (c *Client) CreateRealmRole(ctx context.Context, roleName, description string) error {
-	u := fmt.Sprintf("roles")
+	u := "roles"
 	payload := CreateRoleRequest{
 		Name:        roleName,
 		Description: description,
@@ -643,7 +643,7 @@ func (c *Client) CreateRealmRole(ctx context.Context, roleName, description stri
 }
 
 func (c *Client) ListRealmRoles(ctx context.Context) ([]RoleRep, error) {
-	u := fmt.Sprintf("roles")
+	u := "roles"
 
 	res, err := c.Get(u)
 	if err != nil {
