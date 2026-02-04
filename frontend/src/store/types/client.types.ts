@@ -1,3 +1,5 @@
+import type { ClientRole } from "./client-role.types";
+
 export interface Client {
   id: string;
   clientId: string;
@@ -14,13 +16,6 @@ export interface Client {
   attributes?: ClientAttributes;
   createdAt?: string;
   updatedAt?: string;
-}
-
-export interface ClientRole {
-  id: string;
-  name: string;
-  description?: string;
-  composite?: boolean;
 }
 
 export type ClientAttributes = {

@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useRefreshMutation } from "../api/auth.api";
-import { authLoaded } from "./auth.slice";
 import { selectAuthLoaded } from "./auth.selectors";
+import { authLoaded } from "./auth.slice";
 
 export default function AuthBootstrap() {
   const dispatch = useDispatch();

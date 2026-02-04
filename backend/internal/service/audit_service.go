@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/internal/cache"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/utils"
 	"github.com/sqlc-dev/pqtype"
@@ -11,10 +12,11 @@ import (
 
 type AuditService struct {
 	store db.Store
+	cache *cache.RedisCache
 }
 
-func NewAuditService(store db.Store) *AuditService {
-	return &AuditService{store: store}
+func NewAuditService(store db.Store, cache *cache.RedisCache) *AuditService {
+	return &AuditService{store: store, cache: cache}
 }
 
 //
@@ -52,14 +54,24 @@ func (a *AuditService) write(
 
 	safeID := a.safeUserID(ctx, userID)
 
-	return a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
+	if err := a.store.CreateAuditLog(ctx, db.CreateAuditLogParams{
 		UserID: safeID,
 		Action: action,
 		Metadata: pqtype.NullRawMessage{
 			RawMessage: utils.Encode(metadata),
 			Valid:      metadata != nil,
 		},
-	})
+	}); err != nil {
+		return err
+	}
+
+	if a.cache != nil {
+		_ = a.cache.DeletePattern(ctx, "audit_logs:*")
+		_ = a.cache.DeletePattern(ctx, "audit_actions:*")
+		_ = a.cache.DeletePattern(ctx, "audit_metrics:*")
+	}
+
+	return nil
 }
 
 //

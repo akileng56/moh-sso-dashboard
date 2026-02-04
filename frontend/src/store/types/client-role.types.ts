@@ -4,3 +4,4 @@ export interface ClientRole {
   description?: string;
   composite?: boolean;
 }
+

@@ -5,52 +5,33 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
+	"github.com/moh-sso-dashboard/internal/keycloak"
 )
 
-func ExtractTokenClaims() gin.HandlerFunc {
+func ExtractAuthContext(kc *keycloak.Client) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		auth := c.GetHeader("Authorization")
 		if auth == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "missing token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "missing token",
+			})
 			return
 		}
 
-		tokenStr := strings.TrimPrefix(auth, "Bearer ")
+		accessToken := strings.TrimPrefix(auth, "Bearer ")
 
-		token, _, err := new(jwt.Parser).ParseUnverified(tokenStr, jwt.MapClaims{})
+		user, err := kc.Me(accessToken)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid user session",
+			})
 			return
 		}
 
-		claims := token.Claims.(jwt.MapClaims)
-
-		clientRoles := map[string][]string{}
-
-		if resAccess, ok := claims["resource_access"].(map[string]interface{}); ok {
-			for clientID, val := range resAccess {
-				roleBlock := val.(map[string]interface{})
-				if roles, ok := roleBlock["roles"].([]interface{}); ok {
-					for _, r := range roles {
-						clientRoles[clientID] = append(clientRoles[clientID], r.(string))
-					}
-				}
-			}
-		}
-
-		c.Set("client_roles", clientRoles)
-
-		// Is admin?
-		if ra, ok := claims["realm_access"].(map[string]interface{}); ok {
-			if roles, ok := ra["roles"].([]interface{}); ok {
-				for _, r := range roles {
-					if r.(string) == "admin" {
-						c.Set("is_admin", true)
-					}
-				}
-			}
-		}
+		c.Set("user", user)
+		c.Set("user_id", user.ID)
+		c.Set("client_roles", user.ClientRoles)
+		c.Set("is_admin", user.IsAdmin)
 
 		c.Next()
 	}
@@ -58,9 +39,10 @@ func ExtractTokenClaims() gin.HandlerFunc {
 
 func RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		auth := c.GetHeader("Authorization")
-		if auth == "" {
-			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+		if _, exists := c.Get("user_id"); !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "unauthorized",
+			})
 			return
 		}
 		c.Next()
@@ -69,9 +51,7 @@ func RequireAuth() gin.HandlerFunc {
 
 func RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// ExtractTokenClaims MUST have run before this middleware
 		isAdmin, exists := c.Get("is_admin")
-
 		if !exists || isAdmin != true {
 			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
 				"error": "admin access required",

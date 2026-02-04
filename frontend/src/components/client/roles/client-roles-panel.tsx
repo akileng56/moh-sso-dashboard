@@ -21,6 +21,7 @@ import {
 import { useToast } from "../../notifications/toast/useToast";
 
 type Props = {
+  id: string;
   clientId: string;
 };
 
@@ -30,10 +31,10 @@ const headers = [
   { key: "actions", header: "" },
 ];
 
-export function ClientRolesPanel({ clientId }: Props) {
+export function ClientRolesPanel({ id, clientId }: Props) {
   const toast = useToast();
 
-  const { data: roles = [], isLoading } = useListClientRolesQuery(clientId);
+  const { data: roles = [], isLoading } = useListClientRolesQuery(id);
 
   const [deleteRole] = useDeleteClientRoleMutation();
 

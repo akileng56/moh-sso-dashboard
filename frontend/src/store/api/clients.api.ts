@@ -22,9 +22,7 @@ export const clientsApi = baseApi.injectEndpoints({
         url: API.clients.list(),
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<Client[]>) => res.data,
-
       providesTags: (result) =>
         result
           ? [
@@ -45,10 +43,8 @@ export const clientsApi = baseApi.injectEndpoints({
         url: API.clients.byId(id),
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<Client>) => res.data,
-
-      providesTags: (_result, _error, id) => [{ type: "Client", id }],
+      providesTags: (_r, _e, id) => [{ type: "Client", id }],
     }),
 
     /* --------------------------------
@@ -61,25 +57,39 @@ export const clientsApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<Client>) => res.data,
-
       invalidatesTags: [{ type: "Client", id: "LIST" }],
     }),
 
     /* --------------------------------
-     * Update client
+     * Update client (general update)
      * -------------------------------- */
     updateClient: builder.mutation<Client, UpdateClientPayload>({
       query: ({ id, data }) => ({
         url: API.clients.update(id),
-        method: "PATCH",
+        method: "PUT",
         body: data,
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<Client>) => res.data,
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: "Client", id },
+        { type: "Client", id: "LIST" },
+      ],
+    }),
 
+    /* --------------------------------
+     * Enable / Disable client
+     * PATCH /clients/:id/toggle
+     * -------------------------------- */
+    toggleClient: builder.mutation<void, { id: string; enabled: boolean }>({
+      query: ({ id, enabled }) => ({
+        url: `${API.clients.byId(id)}/toggle`,
+        method: "PATCH",
+        body: { enabled },
+        credentials: "include",
+      }),
+      transformResponse: () => undefined,
       invalidatesTags: (_r, _e, { id }) => [
         { type: "Client", id },
         { type: "Client", id: "LIST" },
@@ -95,29 +105,8 @@ export const clientsApi = baseApi.injectEndpoints({
         method: "DELETE",
         credentials: "include",
       }),
-
-      // backend returns { success: true, data: null }
       transformResponse: () => undefined,
-
       invalidatesTags: (_r, _e, id) => [
-        { type: "Client", id },
-        { type: "Client", id: "LIST" },
-      ],
-    }),
-
-    /* --------------------------------
-     * Enable / Disable client
-     * -------------------------------- */
-    toggleClient: builder.mutation<void, { id: string; enabled: boolean }>({
-      query: ({ id, enabled }) => ({
-        url: API.clients.toggerClient(id),
-        method: enabled ? "POST" : "DELETE",
-        credentials: "include",
-      }),
-
-      transformResponse: () => undefined,
-
-      invalidatesTags: (_r, _e, { id }) => [
         { type: "Client", id },
         { type: "Client", id: "LIST" },
       ],
@@ -130,6 +119,6 @@ export const {
   useGetClientQuery,
   useCreateClientMutation,
   useUpdateClientMutation,
-  useDeleteClientMutation,
   useToggleClientMutation,
+  useDeleteClientMutation,
 } = clientsApi;

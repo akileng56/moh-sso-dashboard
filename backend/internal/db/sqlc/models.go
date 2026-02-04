@@ -72,9 +72,13 @@ type Client struct {
 	ClientID     string          `json:"client_id"`
 	Name         string          `json:"name"`
 	Description  sql.NullString  `json:"description"`
-	BaseUrl      sql.NullString  `json:"base_url"`
 	Icon         sql.NullString  `json:"icon"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	RootUrl      sql.NullString  `json:"root_url"`
+	AdminUrl     sql.NullString  `json:"admin_url"`
 	PublicClient bool            `json:"public_client"`
+	RedirectUris []string        `json:"redirect_uris"`
+	WebOrigins   []string        `json:"web_origins"`
 	Enabled      bool            `json:"enabled"`
 	Attributes   json.RawMessage `json:"attributes"`
 	CreatedAt    time.Time       `json:"created_at"`

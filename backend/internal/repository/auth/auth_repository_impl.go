@@ -20,12 +20,13 @@ func NewAuthRepository(kcClient *keycloak.Client, config *config.Config) AuthRep
 	}
 }
 
-func (r *keycloakAuthRepository) ExchangeCode(code string) (*keycloak.TokenResponse, error) {
+func (r *keycloakAuthRepository) ExchangeCode(code string,
+	codeVerifier string) (*keycloak.TokenResponse, error) {
 	if r.redirectURI == "" {
 		return nil, errors.New("KEYCLOAK_REDIRECT_URI environment variable is not set")
 	}
 
-	tokens, err := r.keycloakClient.ExchangeCodeForToken(code, r.redirectURI)
+	tokens, err := r.keycloakClient.ExchangeCodeForToken(code, r.redirectURI, codeVerifier)
 	if err != nil {
 		return nil, fmt.Errorf("keycloak exchange failed: %w", err)
 	}

@@ -12,24 +12,29 @@ import (
 
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
-	config "github.com/moh-sso-dashboard/internal/config"
+	"github.com/moh-sso-dashboard/internal/cache"
+	"github.com/moh-sso-dashboard/internal/config"
+	store "github.com/moh-sso-dashboard/internal/db/sqlc"
 	kcClientPkg "github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	db "github.com/moh-sso-dashboard/internal/migrate"
+
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	clientRepo "github.com/moh-sso-dashboard/internal/repository/client"
 	metricsRepo "github.com/moh-sso-dashboard/internal/repository/metrics"
 	"github.com/moh-sso-dashboard/internal/repository/notifications"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
-	"github.com/moh-sso-dashboard/internal/service"
 
-	cache "github.com/moh-sso-dashboard/internal/cache"
-	store "github.com/moh-sso-dashboard/internal/db/sqlc"
+	"github.com/moh-sso-dashboard/internal/ratelimit"
+	"github.com/moh-sso-dashboard/internal/service"
 
 	"github.com/rs/zerolog"
 )
 
 func main() {
+	// ---------------------------------------------------------------------
+	// Load configuration
+	// ---------------------------------------------------------------------
 	cfg, err := config.LoadConfig(".")
 	if err != nil {
 		log.Fatalf("cannot load config: %v", err)
@@ -37,46 +42,29 @@ func main() {
 
 	appLogger := logger.NewLogger()
 	appLogger.SetLevel(zerolog.InfoLevel)
-	appLogger.Info("Starting server in environment: %s", cfg.Environment)
+	appLogger.Info("Starting server in environment:", cfg.Environment)
 
 	// ---------------------------------------------------------------------
-	// Database setup
+	// Database
 	// ---------------------------------------------------------------------
 	conn, err := sql.Open(cfg.DbDriver, cfg.DbSource())
 	if err != nil {
-		appLogger.Fatal("Cannot open database connection: %v", err)
+		appLogger.Fatal("Cannot open database connection:", err)
 	}
 	defer conn.Close()
 
 	if err := conn.Ping(); err != nil {
-		appLogger.Fatal("Cannot connect to database: %v", err)
+		appLogger.Fatal("Cannot connect to database: ", err)
 	}
 	appLogger.Info("Successfully connected to database")
 
 	if err := db.MigrateDB(conn, "file://internal/db/migrations"); err != nil {
-		appLogger.Fatal("Cannot migrate db: %v", err)
+		appLogger.Fatal("Cannot migrate db:", err)
 	}
 
 	// ---------------------------------------------------------------------
-	// Keycloak
+	// Redis (CACHE + RATELIMIT)
 	// ---------------------------------------------------------------------
-	keycloakClient := kcClientPkg.NewClient(
-		cfg.KeycloakBaseUrl,
-		cfg.KeycloakRealm,
-		cfg.KeycloakClientID,
-		cfg.KeycloakClientSecret,
-	)
-
-	if err := keycloakClient.Authenticate(); err != nil {
-		appLogger.Fatal("Failed to authenticate Keycloak service account: %v", err)
-	}
-	appLogger.Info("Successfully authenticated Keycloak service account")
-
-	// ---------------------------------------------------------------------
-	// Infrastructure
-	// ---------------------------------------------------------------------
-	store := store.NewStore(conn)
-
 	rdb := cache.NewRedisClient(cache.RedisConfig{
 		Host:         cfg.RedisHost,
 		Port:         cfg.RedisPort,
@@ -87,16 +75,58 @@ func main() {
 		WriteTimeout: 3 * time.Second,
 	})
 
-	// 🔥 Fail fast if Redis is unavailable
 	cache.MustPing(context.Background(), rdb)
 	appLogger.Info("Successfully connected to Redis")
+
+	cacheAdapter := cache.NewRedisCache(rdb)
+
+	// ---------------------------------------------------------------------
+	// Rate Limiter (Redis-backed)
+	// ---------------------------------------------------------------------
+	rateLimiter := ratelimit.New(rdb)
+
+	// ---------------------------------------------------------------------
+	// Keycloak (ADMIN + WEB clients, CACHE-AWARE)
+	// ---------------------------------------------------------------------
+	keycloakClient := kcClientPkg.NewClient(
+		cfg.KeycloakBaseUrl,
+		cfg.KeycloakRealm,
+		cfg.KeycloakAdminClientID,
+		cfg.KeycloakAdminClientSecret,
+		cfg.KeycloakWebClientID,
+		cfg.KeycloakWebClientSecret,
+		cacheAdapter,
+	)
+
+	if err := keycloakClient.Authenticate(); err != nil {
+		appLogger.Fatal(
+			"Failed to authenticate Keycloak admin service account: ",
+			err,
+		)
+	}
+	appLogger.Info("Successfully authenticated Keycloak admin service account")
+
+	// ---------------------------------------------------------------------
+	// Infrastructure
+	// ---------------------------------------------------------------------
+	store := store.NewStore(conn)
 
 	// ---------------------------------------------------------------------
 	// Repositories
 	// ---------------------------------------------------------------------
 	authRepository := authRepo.NewAuthRepository(keycloakClient, cfg)
-	clientRepository := clientRepo.NewClientRepository(keycloakClient, cfg, store, *appLogger)
-	userRepository := userRepo.NewUserRepository(keycloakClient, cfg, store, *appLogger)
+	clientRepository := clientRepo.NewClientRepository(
+		keycloakClient,
+		cfg,
+		store,
+		*appLogger,
+	)
+	userRepository := userRepo.NewUserRepository(
+		keycloakClient,
+		cfg,
+		store,
+		*appLogger,
+	)
 	metricsRepository := metricsRepo.NewMetricsRepository(cfg, store, *appLogger)
 	notificationsRepository := notifications.NewNotificationsRepository(store, *appLogger)
 
@@ -105,27 +135,38 @@ func main() {
 	// ---------------------------------------------------------------------
 	authService := service.NewAuthService(authRepository, rdb)
 	metricsService := service.NewMetricsService(metricsRepository)
-	auditService := service.NewAuditService(store)
+	auditService := service.NewAuditService(store, cacheAdapter)
 	importService := service.NewImportService(store, keycloakClient)
-	notificationsService := service.NewNotificationsService(notificationsRepository)
+
+	publisher := cache.NewNotificationPublisher(rdb)
+	notificationsService := service.NewNotificationsService(notificationsRepository, publisher)
+
 	clientService := service.NewClientService(clientRepository, notificationsService)
 	userService := service.NewUserService(userRepository, notificationsService)
 
 	// ---------------------------------------------------------------------
 	// Handlers
 	// ---------------------------------------------------------------------
-	clientHandler := handler.NewClientHandler(clientService, auditService)
-	userHandler := handler.NewUserHandler(userService, auditService)
-	authHandler := handler.NewAuthHandler(authService, auditService, notificationsService, cfg)
+	authHandler := handler.NewAuthHandler(
+		authService,
+		auditService,
+		notificationsService,
+		cfg,
+	)
+
+	clientHandler := handler.NewClientHandler(clientService, auditService, cacheAdapter)
+	userHandler := handler.NewUserHandler(userService, auditService, cacheAdapter)
 	metricsHandler := handler.NewMetricsHandler(metricsService)
 	importHandler := handler.NewImportHandler(importService, cfg)
-	auditHandler := handler.NewAuditHandler(store)
+	auditHandler := handler.NewAuditHandler(store, cacheAdapter)
 	notificationsHandler := handler.NewNotificationsHandler(notificationsService)
 
 	// ---------------------------------------------------------------------
-	// Router
+	// Router (RATE-LIMIT AWARE)
 	// ---------------------------------------------------------------------
 	r := router.SetupRouter(
+		keycloakClient,
+		rateLimiter,
 		importHandler,
 		authHandler,
 		clientHandler,
@@ -136,23 +177,20 @@ func main() {
 		notificationsHandler,
 	)
 
-	// ---------------------------------------------------------------------
-	// 🚀 Server start (FORCED IPv4 — FIXES ECONNREFUSED)
-	// ---------------------------------------------------------------------
 	addr := ":" + cfg.ServerPort
 
 	ln, err := net.Listen("tcp4", addr)
 	if err != nil {
-		appLogger.Fatal("Failed to bind IPv4 listener: %v", err)
+		appLogger.Fatal("Failed to bind IPv4 listener: ", err)
 	}
 
-	appLogger.Info("Gin server listening on IPv4 %s", addr)
+	appLogger.Info("Gin server listening on IPv4 ", addr)
 
 	server := &http.Server{
 		Handler: r,
 	}
 
 	if err := server.Serve(ln); err != nil && err != http.ErrServerClosed {
-		appLogger.Fatal("Gin server failed: %v", err)
+		appLogger.Fatal("Gin server failed: ", err)
 	}
 }

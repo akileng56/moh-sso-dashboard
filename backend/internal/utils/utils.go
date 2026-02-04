@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,7 +15,7 @@ import (
 )
 
 func GenerateClientID() string {
-	return "app-" + uuid.New().String()
+	return uuid.New().String()
 }
 
 // helper
@@ -184,4 +185,42 @@ func DefaultClientAttributes(clientID string) map[string]string {
 		"ui.home":    "/dashboard",
 		"ui.icon":    "applications",
 	}
+}
+
+func ValidateRedirectURIs(uris []string) error {
+	for _, uri := range uris {
+		uri = strings.TrimSpace(uri)
+		if uri == "" {
+			return fmt.Errorf("redirect URI cannot be empty")
+		}
+
+		if uri == "*" {
+			return fmt.Errorf("wildcard redirect URI '*' is not allowed")
+		}
+
+		parsed, err := url.Parse(uri)
+		if err != nil {
+			return fmt.Errorf("invalid redirect URI %q: %w", uri, err)
+		}
+
+		if parsed.Scheme == "" {
+			return fmt.Errorf("redirect URI %q must include a scheme", uri)
+		}
+
+		if parsed.Scheme == "http" && parsed.Host != "localhost" {
+			return fmt.Errorf(
+				"insecure redirect URI %q: only localhost may use http",
+				uri,
+			)
+		}
+
+		if parsed.Scheme != "http" && parsed.Scheme != "https" {
+			return fmt.Errorf(
+				"unsupported redirect URI scheme %q",
+				parsed.Scheme,
+			)
+		}
+	}
+
+	return nil
 }

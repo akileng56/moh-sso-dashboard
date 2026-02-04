@@ -1,5 +1,4 @@
 {
-  "id": "moh-realm",
   "realm": "moh-realm",
   "enabled": true,
   "sslRequired": "none",
@@ -10,125 +9,156 @@
   "resetPasswordAllowed": true,
   "editUsernameAllowed": false,
   "bruteForceProtected": true,
-  "clients": [
+  "accessTokenLifespan": 1800,
+  "clientScopes": [
     {
-      "id": "dashboard",
-      "clientId": "dashboard",
-      "name": "MOH SSO Dashboard",
-      "description": "Frontend dashboard client for MOH applications",
-      "rootUrl": "http://localhost:3000",
-      "adminUrl": "http://localhost:3000",
-      "baseUrl": "/",
-      "redirectUris": [
-        "http://localhost:9000/api/v1/auth/callback",
-        "http://localhost:3000/*"
-      ],
-      "webOrigins": ["http://localhost:3000", "http://localhost:9000"],
+      "name": "openid",
+      "protocol": "openid-connect"
+    },
+    {
+      "name": "health-context",
       "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "U2FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zEe+yTig=",
-      "standardFlowEnabled": true,
-      "serviceAccountsEnabled": true,
-      "attributes": {
-        "ui.icon": "applications",
-        "ui.home": "/admin",
-        "ui.sidenav": "[{\"id\":\"overview\",\"label\":\"Overview\",\"path\":\"/admin\",\"permission\":\"dashboard.overview.view\"},{\"id\":\"clients\",\"label\":\"Clients\",\"path\":\"/admin/clients\",\"permission\":\"dashboard.clients.manage\"},{\"id\":\"users\",\"label\":\"Users\",\"path\":\"/admin/users\",\"permission\":\"dashboard.users.manage\"},{\"id\":\"audit\",\"label\":\"Audit Logs\",\"path\":\"/admin/audit\",\"permission\":\"dashboard.audit.view\"},{\"id\":\"settings\",\"label\":\"Settings\",\"path\":\"/admin/settings\",\"permission\":\"dashboard.settings.manage\"}]",
-        "access.token.lifespan": "1800",
-        "refresh.token.lifespan": "3600",
-        "use.refresh.tokens": "true",
-        "refresh.token.max.reuse": "0"
+      "protocolMappers": [
+        {
+          "name": "district-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "district",
+            "claim.name": "district",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "facility-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "config": {
+            "user.attribute": "facility",
+            "claim.name": "facility",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "profile",
+      "protocol": "openid-connect",
+      "protocolMappers": [
+        {
+          "name": "full_name",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-full-name-mapper",
+          "consentRequired": false,
+          "config": {
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "username",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "username",
+            "claim.name": "preferred_username",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "name": "user_id",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usermodel-property-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.attribute": "id",
+        "claim.name": "user_id",
+        "jsonType.label": "String",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "true"
       }
     },
     {
-      "id": "moh-reports",
-      "clientId": "moh-reports",
-      "name": "MOH Reports Portal",
-      "description": "Analytics and reporting dashboard",
-      "rootUrl": "http://localhost:4001",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4001/*"],
-      "webOrigins": ["http://localhost:4001"],
+      "name": "email",
       "protocol": "openid-connect",
-      "publicClient": true,
-      "standardFlowEnabled": true,
-      "attributes": {
-        "ui.icon": "document",
-        "ui.home": "/reports",
-        "ui.sidenav": "[{\"id\":\"reports\",\"label\":\"Reports\",\"path\":\"/reports\",\"permission\":\"moh-reports.reports.view\"},{\"id\":\"exports\",\"label\":\"Exports\",\"path\":\"/exports\",\"permission\":\"moh-reports.exports.view\"}]"
-      }
+      "protocolMappers": [
+        {
+          "name": "email",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "email",
+            "claim.name": "email",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "email verified",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-property-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "emailVerified",
+            "claim.name": "email_verified",
+            "jsonType.label": "boolean",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
     },
     {
-      "id": "hmis-web",
-      "clientId": "hmis-web",
-      "name": "HMIS Web Portal",
-      "description": "Health Management Information System Web",
-      "rootUrl": "http://localhost:4002",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4002/*"],
-      "webOrigins": ["http://localhost:4002"],
+      "name": "roles",
       "protocol": "openid-connect",
-      "publicClient": true,
-      "standardFlowEnabled": true,
-      "attributes": {
-        "ui.icon": "calendar",
-        "ui.home": "/dashboard",
-        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"hmis.dashboard.view\"},{\"id\":\"patients\",\"label\":\"Patients\",\"path\":\"/patients\",\"permission\":\"hmis.patients.view\"},{\"id\":\"reports\",\"label\":\"Reports\",\"path\":\"/reports\",\"permission\":\"hmis.reports.view\"}]"
-      }
-    },
-    {
-      "id": "obulamu-web",
-      "clientId": "obulamu-web",
-      "name": "ObulamuCare Web Portal",
-      "description": "Community support platform",
-      "rootUrl": "http://localhost:4003",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4003/*"],
-      "webOrigins": ["http://localhost:4003"],
-      "protocol": "openid-connect",
-      "publicClient": true,
-      "standardFlowEnabled": true,
-      "attributes": {
-        "ui.icon": "email",
-        "ui.home": "/home",
-        "ui.sidenav": "[{\"id\":\"home\",\"label\":\"Home\",\"path\":\"/home\",\"permission\":\"obulamu.home.view\"},{\"id\":\"groups\",\"label\":\"Support Groups\",\"path\":\"/groups\",\"permission\":\"obulamu.groups.view\"},{\"id\":\"messages\",\"label\":\"Messages\",\"path\":\"/messages\",\"permission\":\"obulamu.messages.view\"}]"
-      }
-    },
-    {
-      "id": "ndwh-dashboard",
-      "clientId": "ndwh-dashboard",
-      "name": "NDWH Dashboard",
-      "description": "NDWH",
-      "rootUrl": "http://localhost:4004",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4004/*"],
-      "webOrigins": ["http://localhost:4004"],
-      "protocol": "openid-connect",
-      "publicClient": true,
-      "standardFlowEnabled": true,
-      "attributes": {
-        "ui.icon": "user",
-        "ui.home": "/dashboard",
-        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"ndwh.dashboard.view\"},{\"id\":\"datasets\",\"label\":\"Datasets\",\"path\":\"/datasets\",\"permission\":\"ndwh.datasets.view\"}]"
-      }
-    },
-    {
-      "id": "survellience-dashboard",
-      "clientId": "survellience-dashboard",
-      "name": "Surveillance Dashboard",
-      "description": "Surveillance Dashboard",
-      "rootUrl": "http://localhost:4004",
-      "baseUrl": "/",
-      "redirectUris": ["http://localhost:4004/*"],
-      "webOrigins": ["http://localhost:4004"],
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "secret": "U$FsdGVkX19T2cV2PfUkkEIwdGnJICQXma6zXe+yTig=",
-      "standardFlowEnabled": true,
-      "attributes": {
-        "ui.icon": "user",
-        "ui.home": "/dashboard",
-        "ui.sidenav": "[{\"id\":\"dashboard\",\"label\":\"Dashboard\",\"path\":\"/dashboard\",\"permission\":\"survellience.dashboard.view\"},{\"id\":\"alerts\",\"label\":\"Alerts\",\"path\":\"/alerts\",\"permission\":\"survellience.alerts.view\"}]"
-      }
+      "protocolMappers": [
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        },
+        {
+          "name": "client roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-client-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true",
+            "claim.name": "resource_access.${client_id}.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ]
     }
   ],
   "roles": {
@@ -147,59 +177,155 @@
       }
     ],
     "client": {
-      "dashboard": [
+      "dashboard-web": [
         {
-          "name": "dashboard_access",
+          "name": "dashboard-web_access",
           "description": "Access MOH Dashboard"
+        },
+        {
+          "name": "integrated-outbreak-system_access",
+          "description": "Can open IOS from the dashboard"
         }
       ],
-      "moh-reports": [
+      "integrated-outbreak-system": [
+         {
+          "name": "integrated-outbreak-system_access",
+          "description": "Base access to Integrated Outbreak System"
+        },
         {
-          "name": "moh-reports_access",
-          "description": "Access MOH Reports Portal"
-        }
-      ],
-      "hmis-web": [
+          "name": "super_admin",
+          "description": "Super Administrator with full system access"
+        },
         {
-          "name": "hmis-web_access",
-          "description": "Access HMIS Web Portal"
-        }
-      ],
-      "obulamu-web": [
+          "name": "admin",
+          "description": "Administrator with management access"
+        },
         {
-          "name": "obulamu-web_access",
-          "description": "Access ObulamuCare Web Portal"
-        }
-      ],
-      "ndwh-dashboard": [
+          "name": "manager",
+          "description": "Department manager with oversight access"
+        },
         {
-          "name": "ndwh-dashboard_access",
-          "description": "Access NDWH Dashboard"
-        }
-      ],
-      "survellience-dashboard": [
+          "name": "viewer",
+          "description": "Read-only access to reports and data"
+        },
         {
-          "name": "survellience-dashboard_access",
-          "description": "Access Surveillance Dashboard"
+          "name": "data_entry",
+          "description": "Data entry personnel"
+        },
+        {
+          "name": "lab_technician",
+          "description": "Laboratory technician with lab-specific access"
+        },
+        {
+          "name": "surveillance_officer",
+          "description": "Surveillance officer with monitoring access"
         }
       ]
+      
     }
   },
-  "users": [
+  "clients": [
     {
-      "username": "service-account-dashboard",
+      "clientId": "dashboard-admin",
+      "name": "MOH Dashboard Admin Client",
+      "description": "MOH Dashboard Admin Client",
       "enabled": true,
-      "serviceAccountClientId": "dashboard",
-      "clientRoles": {
-        "realm-management": [
-          "view-clients",
-          "manage-clients",
-          "view-users",
-          "manage-users",
-          "view-realm"
-        ]
-      }
+      "secret": "dashboard-admin-secret",
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false
     },
+    {
+      "clientId": "integrated-outbreak-system-admin",
+      "name": "Integrated Outbreak System Admin Client",
+      "description": "Admin client for managing Integrated Outbreak System",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "ios-admin-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "authorizationServicesEnabled": false
+    },
+    {
+      "clientId": "dashboard-web",
+      "name": "MOH SSO Dashboard Web",
+      "description": "MOH SSO Dashboard Web",
+      "rootUrl": "http://localhost:3000",
+      "baseUrl": "http://localhost:3000",
+      "enabled": true,
+      "secret": "dashboard-web-secret",
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:9000/api/v1/auth/callback",
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "http://localhost:9000"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ],
+      "protocolMappers": [
+        {
+          "name": "audience-mapper",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "dashboard-web",
+            "id.token.claim": "true",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "integrated-outbreak-system",
+      "name": "Integrated Outbreak System",
+      "description": "Integrated Outbreak System Backend API",
+      "rootUrl": "http://localhost:3001",
+      "baseUrl": "http://localhost:3001",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "ios-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "access.token.lifespan": "1800",
+        "ui.icon": "user",
+        "ui.home": "/dashboard"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
+    }
+  ],
+  "users": [
     {
       "username": "admin",
       "enabled": true,
@@ -214,142 +340,139 @@
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"],
-      "clientRoles": {
-        "dashboard": ["dashboard_access"],
-        "moh-reports": ["moh-reports_access"],
-        "hmis-web": ["hmis-web_access"],
-        "obulamu-web": ["obulamu-web_access"],
-        "ndwh-dashboard": ["ndwh-dashboard_access"],
-        "survellience-dashboard": ["survellience-dashboard_access"]
-      }
-    },
-    {
-      "username": "clientadmin",
-      "enabled": true,
-      "emailVerified": true,
-      "firstName": "Client",
-      "lastName": "Administrator",
-      "email": "client.admin@moh.go.ug",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "ClientAdmin@123",
-          "temporary": false
-        }
+      "realmRoles": [
+        "admin"
       ],
-      "realmRoles": ["manager"],
       "clientRoles": {
-        "moh-reports": ["moh-reports_access"],
-
-        "hmis-web": ["hmis-web_access"]
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin"
+        ]
       }
     },
     {
-      "username": "reportuser",
+      "username": "testuser",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Reports",
+      "firstName": "Test",
       "lastName": "User",
-      "email": "report.user@moh.go.ug",
+      "email": "user@moh.go.ug",
       "credentials": [
         {
           "type": "password",
-          "value": "ReportUser@123",
+          "value": "User@123",
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
+      "realmRoles": [
+        "user"
+      ],
       "clientRoles": {
-        "moh-reports": ["moh-reports_access"],
-
-        "hmis-web": ["hmis-web_access"]
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "viewer"
+        ]
       }
     },
     {
-      "username": "hmisuser",
+      "username": "pwaiswa",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "HMIS",
-      "lastName": "User",
-      "email": "hmis.user@moh.go.ug",
+      "firstName": "System",
+      "lastName": "Admin",
+      "email": "admin@system.local",
       "credentials": [
         {
           "type": "password",
-          "value": "HmisUser@123",
+          "value": "password123",
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
+      "realmRoles": [
+        "user"
+      ],
       "clientRoles": {
-        "hmis-web": ["hmis-web_access"]
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin",
+          "admin"
+        ]
       }
     },
     {
-      "username": "obulamuuser",
+      "username": "pmbaka",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "Obulamu",
-      "lastName": "User",
-      "email": "obulamu.user@moh.go.ug",
+      "firstName": "Mbaka",
+      "lastName": "Paul",
+      "email": "paul.mbaka@gmail.com",
       "credentials": [
         {
           "type": "password",
-          "value": "ObulamuUser@123",
+          "value": "123456789=p",
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
+      "realmRoles": [
+        "user"
+      ],
       "clientRoles": {
-        "obulamu-web": ["obulamu-web_access"],
-        "moh-reports": ["moh-reports_access"]
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "integrated-outbreak-system_access",
+          "super_admin",
+          "admin"
+        ]
       }
     },
     {
-      "username": "ndwhuser",
+      "username": "outbreak_viewer@example.com",
       "enabled": true,
       "emailVerified": true,
-      "firstName": "ndwh",
-      "lastName": "User",
-      "email": "ndwh.user@moh.go.ug",
+      "firstName": "Outbreak",
+      "lastName": "Viewer",
+      "email": "outbreak_viewer@example.com",
       "credentials": [
         {
           "type": "password",
-          "value": "ndwhUser@123",
+          "value": "Viewer@123",
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
+      "realmRoles": [
+        "user"
+      ],
       "clientRoles": {
-        "ndwh-dashboard": ["ndwh-dashboard_access"]
+        "dashboard-web": [
+          "dashboard-web_access",
+          "integrated-outbreak-system_access"
+        ],
+        "integrated-outbreak-system": [
+          "viewer"
+        ]
       }
     },
     {
-      "username": "survellienceuser",
+      "username": "service-account-dashboard-admin",
       "enabled": true,
-      "emailVerified": true,
-      "firstName": "survellienceuser",
-      "lastName": "User",
-      "email": "survillence.user@moh.go.ug",
-      "credentials": [
-        {
-          "type": "password",
-          "value": "survellienceUser@123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["user"],
+      "serviceAccountClientId": "dashboard-admin",
       "clientRoles": {
-        "survellience-dashboard": ["survellience-dashboard_access"]
-      }
-    }
-  ],
-  "defaultRoles": ["user"],
-  "clientScopeMappings": {
-    "dashboard": [
-      {
-        "client": "realm-management",
-        "roles": [
+        "realm-management": [
           "view-clients",
           "manage-clients",
           "view-users",
@@ -357,6 +480,21 @@
           "view-realm"
         ]
       }
-    ]
-  }
+    },
+    {
+      "username": "service-account-integrated-outbreak-system-admin",
+      "enabled": true,
+      "serviceAccountClientId": "integrated-outbreak-system-admin",
+      "clientRoles": {
+        "realm-management": [
+          "realm-admin",
+          "view-users",
+          "manage-users",
+          "view-clients",
+          "manage-clients",
+          "view-realm"
+        ]     
+      }
+    }
+  ]
 }

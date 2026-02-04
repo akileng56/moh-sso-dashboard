@@ -45,18 +45,23 @@ CREATE TABLE user_roles (
 --  CLIENTS (Registered Applications)
 -- ============================================================
 CREATE TABLE client (
-    id            UUID PRIMARY KEY,
-    client_id     TEXT NOT NULL UNIQUE,
-    name          TEXT NOT NULL,
-    description   TEXT,
-    base_url      TEXT,
-    icon          TEXT,
-    public_client BOOLEAN NOT NULL DEFAULT false,
-    enabled       BOOLEAN NOT NULL DEFAULT true,
-    attributes    JSONB NOT NULL DEFAULT '{}',
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    id              UUID PRIMARY KEY,           
+    client_id       TEXT NOT NULL UNIQUE,
+    name            TEXT NOT NULL,
+    description     TEXT,
+    icon            TEXT,
+    base_url        TEXT,
+    root_url        TEXT,
+    admin_url       TEXT,
+    public_client   BOOLEAN NOT NULL DEFAULT false,
+    redirect_uris   TEXT[] NOT NULL DEFAULT '{}',
+    web_origins     TEXT[] NOT NULL DEFAULT '{}',
+    enabled         BOOLEAN NOT NULL DEFAULT true,
+    attributes      JSONB NOT NULL DEFAULT '{}',
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
 
 
 -- ============================================================

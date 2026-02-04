@@ -7,12 +7,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	models "github.com/moh-sso-dashboard/internal/model"
-	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 type sqlcClientRepository struct {
@@ -29,10 +29,6 @@ func NewClientRepository(
 	log logger.Logger,
 ) ClientRepository {
 
-	if err := keycloakClient.Authenticate(); err != nil {
-		panic(fmt.Sprintf("Keycloak authentication failed: %v", err))
-	}
-
 	return &sqlcClientRepository{
 		keycloakClient: keycloakClient,
 		config:         config,
@@ -41,29 +37,28 @@ func NewClientRepository(
 	}
 }
 
-//
-// -------------------------------------------------------------------
-// Client lifecycle
-// -------------------------------------------------------------------
-//
-
-// CREATE (Keycloak authoritative)
 func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, error) {
 	ctx := context.Background()
-
-	attributes := utils.DefaultClientAttributes(client.ClientID)
 
 	kcID, err := r.keycloakClient.CreateClient(keycloak.CreateClientParams{
 		ClientID:     client.ClientID,
 		Name:         client.Name,
 		Description:  client.Description,
 		BaseURL:      client.BaseURL,
-		PublicClient: client.PublicClient,
+		RootURL:      client.RootURL,
 		Protocol:     "openid-connect",
-		RedirectURIs: []string{},
-		WebOrigins:   []string{},
-		Attributes:   attributes,
+		PublicClient: client.PublicClient,
+		RedirectURIs: client.RedirectUris,
+		WebOrigins:   client.WebOrigins,
+		Enabled:      client.Enabled,
+		Attributes: map[string]string{
+			// UI
+			"ui.icon":    "applications",
+			"ui.home":    "/admin",
+			"ui.sidenav": client.Attributes["ui.sidenav"],
+		},
 	})
+
 	if err != nil {
 		return "", fmt.Errorf("keycloak create failed: %w", err)
 	}
@@ -93,12 +88,22 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 			String: kcClient.Description,
 			Valid:  kcClient.Description != "",
 		},
+		Icon: icon,
 		BaseUrl: sql.NullString{
 			String: kcClient.BaseURL,
 			Valid:  kcClient.BaseURL != "",
 		},
-		Icon:         icon,
+		RootUrl: sql.NullString{
+			String: kcClient.RootURL,
+			Valid:  kcClient.RootURL != "",
+		},
+		AdminUrl: sql.NullString{
+			String: kcClient.AdminURL,
+			Valid:  kcClient.AdminURL != "",
+		},
 		PublicClient: kcClient.PublicClient,
+		RedirectUris: kcClient.RedirectURIs,
+		WebOrigins:   kcClient.WebOrigins,
 		Enabled:      kcClient.Enabled,
 		Attributes:   attrsJSON,
 	}); err != nil {
@@ -112,7 +117,6 @@ func (r *sqlcClientRepository) CreateClient(client *models.Client) (string, erro
 	return kcID, nil
 }
 
-// GET by DB UUID
 func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, error) {
 	ctx := context.Background()
 
@@ -132,51 +136,67 @@ func (r *sqlcClientRepository) GetClientByID(id uuid.UUID) (*models.Client, erro
 		Name:         kcClient.Name,
 		Description:  kcClient.Description,
 		BaseURL:      kcClient.BaseURL,
+		RootURL:      kcClient.RootURL,
+		AdminURL:     kcClient.AdminURL,
+		RedirectUris: kcClient.RedirectURIs,
+		WebOrigins:   kcClient.WebOrigins,
 		PublicClient: kcClient.PublicClient,
 		Enabled:      kcClient.Enabled,
 		Attributes:   kcClient.Attributes,
 	}, nil
 }
 
-// GET by clientId
 func (r *sqlcClientRepository) GetClientByClientID(clientID string) (*models.Client, error) {
 	kc, err := r.keycloakClient.GetClientByClientID(clientID)
 	if err != nil || kc == nil {
 		return nil, err
 	}
 
-	return &models.Client{
+	client := &models.Client{
 		ID:           kc.ID,
 		ClientID:     kc.ClientID,
 		Name:         kc.Name,
 		Description:  kc.Description,
 		BaseURL:      kc.BaseURL,
+		RootURL:      kc.RootURL,
+		AdminURL:     kc.AdminURL,
+		RedirectUris: kc.RedirectURIs,
+		WebOrigins:   kc.WebOrigins,
 		PublicClient: kc.PublicClient,
 		Enabled:      kc.Enabled,
 		Attributes:   kc.Attributes,
-	}, nil
+	}
+
+	return client, nil
 }
 
-// LIST (Keycloak primary)
 func (r *sqlcClientRepository) ListClients() ([]models.Client, error) {
 	kcClients, err := r.keycloakClient.ListClients()
 	if err != nil {
 		return nil, err
 	}
 
-	var out []models.Client
+	out := make([]models.Client, 0, len(kcClients))
+
 	for _, kc := range kcClients {
-		out = append(out, models.Client{
+		client := models.Client{
 			ID:           kc.ID,
 			ClientID:     kc.ClientID,
 			Name:         kc.Name,
 			Description:  kc.Description,
 			BaseURL:      kc.BaseURL,
+			RootURL:      kc.RootURL,
+			AdminURL:     kc.AdminURL,
+			RedirectUris: kc.RedirectURIs,
+			WebOrigins:   kc.WebOrigins,
 			PublicClient: kc.PublicClient,
 			Enabled:      kc.Enabled,
 			Attributes:   kc.Attributes,
-		})
+		}
+
+		out = append(out, client)
 	}
+
 	return out, nil
 }
 
@@ -187,6 +207,8 @@ func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 	if err := r.keycloakClient.UpdateClient(client.ID, client); err != nil {
 		return err
 	}
+
+	attrsJSON, _ := json.Marshal(client.Attributes)
 
 	if err := r.db.UpsertClient(ctx, db.UpsertClientParams{
 		ClientID: client.ClientID,
@@ -201,9 +223,10 @@ func (r *sqlcClientRepository) UpdateClient(client *models.Client) error {
 		},
 		PublicClient: client.PublicClient,
 		Enabled:      client.Enabled,
-		Attributes:   json.RawMessage(client.Attributes[""]),
+		Attributes:   attrsJSON,
 	}); err != nil {
-		r.logger.Warn("client updated in keycloak but db sync failed",
+		r.logger.Warn(
+			"client updated in keycloak but db sync failed",
 			"clientId", client.ClientID,
 			"error", err,
 		)
@@ -230,21 +253,19 @@ func (r *sqlcClientRepository) DeleteClient(id uuid.UUID) error {
 	return r.db.DeleteClient(ctx, id)
 }
 
-//
-// -------------------------------------------------------------------
-// Client roles / permissions
-// -------------------------------------------------------------------
-//
-
-func (r *sqlcClientRepository) CreateClientRole(clientID uuid.UUID, role string) error {
+func (r *sqlcClientRepository) CreateClientRole(ctx context.Context, clientID uuid.UUID, payload *models.CreateClientRoleRequest) error {
 	return r.keycloakClient.CreateClientRole(
 		context.Background(),
 		clientID.String(),
-		role,
+		payload,
 	)
 }
 
-func (r *sqlcClientRepository) ListClientRoles(clientID uuid.UUID) ([]string, error) {
+func (r *sqlcClientRepository) ListClientRoles(
+	ctx context.Context,
+	clientID uuid.UUID,
+) ([]keycloak.ClientRoleRep, error) {
+
 	roles, err := r.keycloakClient.ListClientRoles(
 		context.Background(),
 		clientID.String(),
@@ -253,14 +274,10 @@ func (r *sqlcClientRepository) ListClientRoles(clientID uuid.UUID) ([]string, er
 		return nil, err
 	}
 
-	out := make([]string, 0, len(roles))
-	for _, r := range roles {
-		out = append(out, r.Name)
-	}
-	return out, nil
+	return roles, nil
 }
 
-func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string) error {
+func (r *sqlcClientRepository) DeleteClientRole(ctx context.Context, clientID uuid.UUID, role string) error {
 	return r.keycloakClient.DeleteClientRole(
 		context.Background(),
 		clientID.String(),
@@ -268,54 +285,50 @@ func (r *sqlcClientRepository) DeleteClientRole(clientID uuid.UUID, role string)
 	)
 }
 
-//
-// -------------------------------------------------------------------
-// User ↔ Client role mapping
-// -------------------------------------------------------------------
-//
-
-func (r *sqlcClientRepository) AssignClientRoleToUser(
-	userID uuid.UUID,
+func (r *sqlcClientRepository) ToggleClientEnabled(
+	ctx context.Context,
 	clientID uuid.UUID,
-	role string,
+	enabled bool,
 ) error {
 
-	cr, err := r.keycloakClient.GetClientRoleByName(
-		context.Background(),
-		clientID.String(),
-		role,
-	)
+	dbClient, err := r.db.GetClientByID(ctx, clientID)
 	if err != nil {
 		return err
 	}
 
-	return r.keycloakClient.AddClientRoleToUser(
-		context.Background(),
-		userID.String(),
-		clientID.String(),
-		*cr,
-	)
+	if err := r.keycloakClient.UpdateClientEnabled(ctx,
+		dbClient.ClientID,
+		enabled,
+	); err != nil {
+		return fmt.Errorf("keycloak toggle client failed: %w", err)
+	}
+
+	if err := r.db.UpdateClientEnabled(ctx, db.UpdateClientEnabledParams{
+		ID:      clientID,
+		Enabled: enabled,
+	}); err != nil {
+		r.logger.Warn(
+			"client enabled toggled in keycloak but db sync failed",
+			"clientId", dbClient.ClientID,
+			"enabled", enabled,
+			"error", err,
+		)
+	}
+
+	return nil
 }
 
-func (r *sqlcClientRepository) RemoveClientRoleFromUser(
-	userID uuid.UUID,
+func (r *sqlcClientRepository) GetClientRoleByName(
+	ctx context.Context,
 	clientID uuid.UUID,
+	clientUuid uuid.UUID,
 	role string,
-) error {
+) (*keycloak.ClientRoleRep, error) {
 
-	cr, err := r.keycloakClient.GetClientRoleByName(
-		context.Background(),
+	return r.keycloakClient.GetClientRoleByName(
+		ctx,
 		clientID.String(),
+		clientUuid.String(),
 		role,
-	)
-	if err != nil {
-		return err
-	}
-
-	return r.keycloakClient.RemoveClientRoleFromUser(
-		context.Background(),
-		userID.String(),
-		clientID.String(),
-		*cr,
 	)
 }

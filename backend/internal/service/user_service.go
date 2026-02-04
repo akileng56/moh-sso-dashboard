@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	models "github.com/moh-sso-dashboard/internal/model"
 	repository "github.com/moh-sso-dashboard/internal/repository/user"
 	"github.com/moh-sso-dashboard/internal/utils"
@@ -39,6 +40,12 @@ func NewUserService(
 		notifications: notifications,
 	}
 }
+
+//
+// ----------------------------------------------------
+// USER LIFECYCLE
+// ----------------------------------------------------
+//
 
 func (s *UserService) CreateUser(
 	ctx context.Context,
@@ -74,7 +81,7 @@ func (s *UserService) CreateUser(
 		Severity:   nt.Severity(),
 		Message:    "New user account created",
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
+		Metadata: utils.MustJSON(map[string]any{
 			"user_id":  user.ID,
 			"username": user.Username,
 			"email":    user.Email,
@@ -98,12 +105,10 @@ func (s *UserService) SetUserEnabled(
 	}
 
 	if user.Enabled == enabled {
-		return nil // no-op
+		return nil
 	}
 
-	user.Enabled = enabled
-
-	if err := s.repo.UpdateUser(user); err != nil {
+	if err := s.repo.ToggleUserEnabled(ctx, userID.String(), enabled); err != nil {
 		return err
 	}
 
@@ -124,7 +129,7 @@ func (s *UserService) SetUserEnabled(
 		Severity:   nt.Severity(),
 		Message:    msg,
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
+		Metadata: utils.MustJSON(map[string]any{
 			"user_id":  user.ID,
 			"username": user.Username,
 			"admin_id": adminID.String(),
@@ -134,36 +139,132 @@ func (s *UserService) SetUserEnabled(
 	return nil
 }
 
-func (s *UserService) ChangeUserRole(
+func (s *UserService) ResetUserPassword(
 	ctx context.Context,
 	userID uuid.UUID,
-	newRoles []string,
 	adminID uuid.UUID,
 ) error {
 
-	user, err := s.repo.GetUserByID(userID)
+	if err := s.repo.ResetUserPassword(ctx, userID.String()); err != nil {
+		return err
+	}
+
+	nt := models.UserPasswordReset
+	s.notifications.Notify(ctx, models.Notification{
+		Type:       string(nt),
+		Title:      nt.Title(),
+		Severity:   nt.Severity(),
+		Message:    "User password reset",
+		TargetRole: "admin",
+		Metadata: utils.MustJSON(map[string]any{
+			"user_id":  userID.String(),
+			"admin_id": adminID.String(),
+		}),
+	})
+
+	return nil
+}
+
+func (s *UserService) GetUserClientRoles(
+	ctx context.Context,
+	userID uuid.UUID,
+) ([]keycloak.UserClientRoleAssignment, error) {
+
+	return s.repo.GetUserClientRoles(ctx, userID.String())
+}
+func (s *UserService) GetUserClientRolesForClient(
+	ctx context.Context,
+	userID uuid.UUID,
+	clientID uuid.UUID,
+	clientUUID uuid.UUID,
+) ([]keycloak.ClientRoleRep, error) {
+
+	return s.repo.GetUserClientRolesForClient(
+		ctx,
+		userID.String(),
+		clientID.String(),
+		clientUUID.String(),
+	)
+}
+
+func (s *UserService) UpdateUserClientRoles(
+	ctx context.Context,
+	userID uuid.UUID,
+	clientID uuid.UUID,
+	clientUUID uuid.UUID,
+	roles []string,
+	adminID uuid.UUID,
+) error {
+	current, err := s.repo.GetUserClientRolesForClient(
+		ctx,
+		userID.String(),
+		clientID.String(),
+		clientUUID.String(),
+	)
 	if err != nil {
 		return err
 	}
 
-	oldRoles := user.RealmRoles
-	user.RealmRoles = newRoles
-
-	if err := s.repo.UpdateUser(user); err != nil {
-		return err
+	currentSet := make(map[string]bool)
+	for _, r := range current {
+		currentSet[r.Name] = true
 	}
 
-	nt := models.UserRoleChanged
+	desiredSet := make(map[string]bool)
+	for _, r := range roles {
+		desiredSet[r] = true
+	}
+
+	var toAdd, toRemove []string
+
+	for r := range desiredSet {
+		if !currentSet[r] {
+			toAdd = append(toAdd, r)
+		}
+	}
+
+	for r := range currentSet {
+		if !desiredSet[r] {
+			toRemove = append(toRemove, r)
+		}
+	}
+
+	if len(toAdd) > 0 {
+		if err := s.repo.AddUserClientRoles(
+			ctx,
+			userID.String(),
+			clientID.String(),
+			clientUUID.String(),
+			toAdd,
+		); err != nil {
+			return err
+		}
+	}
+
+	if len(toRemove) > 0 {
+		if err := s.repo.RemoveUserClientRoles(
+			ctx,
+			userID.String(),
+			clientID.String(),
+			clientUUID.String(),
+			toRemove,
+		); err != nil {
+			return err
+		}
+	}
+
+	nt := models.ClientRolesUpdated
 	s.notifications.Notify(ctx, models.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
-		Severity:   nt.Severity(), // critical
-		Message:    "User roles changed",
+		Severity:   nt.Severity(),
+		Message:    "User client roles updated",
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
-			"user_id":   user.ID,
-			"old_roles": oldRoles,
-			"new_roles": newRoles,
+		Metadata: utils.MustJSON(map[string]any{
+			"user_id":   userID.String(),
+			"client_id": clientID.String(),
+			"added":     toAdd,
+			"removed":   toRemove,
 			"admin_id":  adminID.String(),
 		}),
 	})
@@ -201,7 +302,7 @@ func (s *UserService) DeleteUser(
 		Severity:   nt.Severity(),
 		Message:    "User account deleted",
 		TargetRole: "admin",
-		Metadata: utils.MustJSON(map[string]interface{}{
+		Metadata: utils.MustJSON(map[string]any{
 			"user_id":  user.ID,
 			"username": user.Username,
 			"admin_id": adminID.String(),

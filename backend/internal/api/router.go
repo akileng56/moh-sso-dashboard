@@ -7,17 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	"github.com/moh-sso-dashboard/internal/keycloak"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/ratelimit"
 	service "github.com/moh-sso-dashboard/internal/service"
 )
 
 func SetupRouter(
+	keycloakClient *keycloak.Client,
+	limiter *ratelimit.Limiter,
 	importHandler *handler.ImportHandler,
 	authHandler *handler.AuthHandler,
 	clientHandler *handler.ClientHandler,
 	userHandler *handler.UserHandler,
 	metricsHandler *handler.MetricsHandler,
-	auditSvc *service.AuditService,
+	auditService *service.AuditService,
 	auditHandler *handler.AuditHandler,
 	notificationsHandler *handler.NotificationsHandler,
 ) *gin.Engine {
@@ -34,7 +38,7 @@ func SetupRouter(
 			"http://localhost:3000",
 		},
 		AllowMethods: []string{
-			"GET", "POST", "PUT", "DELETE", "OPTIONS",
+			"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS",
 		},
 		AllowHeaders: []string{
 			"Origin",
@@ -55,13 +59,43 @@ func SetupRouter(
 	api := r.Group("/api/v1")
 
 	// --------------------------------------------------
-	// Auth (PUBLIC)
+	// Auth (PUBLIC + RATE LIMITED)
 	// --------------------------------------------------
 	auth := api.Group("/auth")
 	{
-		auth.GET("/login", authHandler.HandleAuthLogin)
-		auth.GET("/callback", authHandler.HandleAuthCallback)
-		auth.POST("/refresh", authHandler.HandleAuthRefreshToken)
+		auth.GET(
+			"/login",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				20,
+				time.Minute,
+			),
+			authHandler.HandleAuthLogin,
+		)
+
+		auth.GET(
+			"/callback",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				30,
+				time.Minute,
+			),
+			authHandler.HandleAuthCallback,
+		)
+
+		auth.POST(
+			"/refresh",
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByIP,
+				10,
+				time.Minute,
+			),
+			authHandler.HandleAuthRefreshToken,
+		)
+
 		auth.GET("/logout", authHandler.HandleAuthLogout)
 	}
 
@@ -69,9 +103,20 @@ func SetupRouter(
 	// Protected (AUTH REQUIRED)
 	// --------------------------------------------------
 	protected := api.Group("")
+	protected.Use(middleware.ExtractAuthContext(keycloakClient))
 	protected.Use(middleware.RequireAuth())
-	protected.Use(middleware.ExtractTokenClaims())
-	protected.Use(middleware.AuditMiddleware(auditSvc))
+	protected.Use(middleware.AuditMiddleware(auditService))
+
+	// moderate user-based rate limit
+	protected.Use(
+		ratelimit.Middleware(
+			limiter,
+			ratelimit.ByUser,
+			120,
+			time.Minute,
+		),
+	)
+
 	{
 		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
 
@@ -83,9 +128,8 @@ func SetupRouter(
 			clients.GET("", clientHandler.ListClients)
 			clients.GET("/:id", clientHandler.GetClient)
 			clients.POST("", clientHandler.CreateClient)
+			clients.PATCH("/:id/toggle", clientHandler.ToggleClientEnabled)
 			clients.DELETE("/:id", clientHandler.DeleteClient)
-
-			// -------- Client roles (READ) --------
 			clients.GET("/:id/roles", clientHandler.ListClientRoles)
 		}
 
@@ -98,46 +142,51 @@ func SetupRouter(
 			users.GET("/:id", userHandler.GetUser)
 			users.POST("", userHandler.CreateUser)
 			users.DELETE("/:id", userHandler.DeleteUser)
+			users.PATCH("/:id/toggle", userHandler.SetUserEnabled)
 		}
 
 		// --------------------------------------------------
-		// Admin (ADMIN ONLY)
+		// Admin (ADMIN ONLY + STRICTER LIMITS)
 		// --------------------------------------------------
 		admin := protected.Group("/admin")
 		admin.Use(middleware.RequireAdmin())
+
+		// stricter admin rate limit
+		admin.Use(
+			ratelimit.Middleware(
+				limiter,
+				ratelimit.ByUser,
+				60,
+				time.Minute,
+			),
+		)
+
 		{
-			// -------- Users Admin --------
+			// -------- Users --------
 			admin.GET("/users", userHandler.ListUsers)
 			admin.GET("/users/:id", userHandler.GetUser)
 			admin.POST("/users", userHandler.CreateUser)
 			admin.DELETE("/users/:id", userHandler.DeleteUser)
 
+			admin.GET("/users/:id/client-roles", userHandler.GetUserClientRoles)
+			admin.PUT("/users/:id/client-roles", userHandler.UpdateUserClientRoles)
+			admin.POST("/users/:id/reset-password", userHandler.ResetUserPassword)
+
+			// -------- User Import --------
 			admin.POST("/users/import/preview", importHandler.Preview)
 			admin.POST("/users/import/execute", importHandler.Execute)
 			admin.GET("/users/import/:jobId", importHandler.GetJob)
 			admin.GET("/users/import/:jobId/errors.csv", importHandler.DownloadErrorsCSV)
 			admin.GET("/users/import/template.csv", importHandler.DownloadTemplateCSV)
 
-			// -------- Client roles (ADMIN) --------
+			// -------- Client Roles --------
 			admin.POST("/clients/:id/roles", clientHandler.CreateClientRole)
 			admin.DELETE("/clients/:id/roles/:role", clientHandler.DeleteClientRole)
-
-			// -------- User ↔ Client role assignments (ADMIN) --------
-			admin.POST(
-				"/users/:id/clients/:clientId/roles",
-				clientHandler.AssignClientRoleToUser,
-			)
-			admin.DELETE(
-				"/users/:id/clients/:clientId/roles/:role",
-				clientHandler.RemoveClientRoleFromUser,
-			)
 
 			// -------- Metrics --------
 			metrics := admin.Group("/metrics")
 			{
 				metrics.GET("/overview", metricsHandler.Overview)
-
-				// System
 				metrics.GET("/system/count-users", metricsHandler.CountUsers)
 				metrics.GET("/system/count-disabled-users", metricsHandler.CountDisabledUsers)
 				metrics.GET("/system/active-today", metricsHandler.ActiveUsersToday)
@@ -145,18 +194,15 @@ func SetupRouter(
 				metrics.GET("/system/login-trend", metricsHandler.LoginTrend)
 				metrics.GET("/system/login-trend-range", metricsHandler.LoginTrendByDay)
 
-				// Security
 				metrics.GET("/security/failed-logins", metricsHandler.CountFailedLogins)
 				metrics.GET("/security/failed-logins-range", metricsHandler.CountFailedLoginsInRange)
 				metrics.GET("/security/suspicious-logins", metricsHandler.SuspiciousLogins)
 
-				// Clients
 				metrics.GET("/clients/count", metricsHandler.CountClients)
 				metrics.GET("/clients/most-accessed", metricsHandler.MostAccessedClients)
 				metrics.GET("/clients/login-count", metricsHandler.LoginCountForClient)
 				metrics.GET("/clients/active-today", metricsHandler.ActiveUsersPerClientToday)
 
-				// Users
 				metrics.GET("/users/new-range", metricsHandler.NewUsersInRange)
 				metrics.GET("/users/new-trend", metricsHandler.NewUsersTrend)
 				metrics.GET("/users/never-logged-in", metricsHandler.NeverLoggedInUsers)
@@ -164,8 +210,16 @@ func SetupRouter(
 				metrics.GET("/users/client-usage/:userID", metricsHandler.UserClientUsage)
 			}
 
-			// -------- Audit Logs --------
+			// -------- Audit Logs (rate-limit tighter) --------
 			audit := admin.Group("/audit-logs")
+			audit.Use(
+				ratelimit.Middleware(
+					limiter,
+					ratelimit.ByUser,
+					30,
+					time.Minute,
+				),
+			)
 			{
 				audit.GET("", auditHandler.ListAuditLogs)
 				audit.GET("/actions", auditHandler.ListAuditActions)
@@ -178,7 +232,7 @@ func SetupRouter(
 				audit.GET("/export", auditHandler.ExportAuditLogs)
 			}
 
-			// -------- Notifications ----------
+			// -------- Notifications --------
 			notifications := admin.Group("/notifications")
 			{
 				notifications.POST("", notificationsHandler.Notify)

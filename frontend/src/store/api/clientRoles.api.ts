@@ -2,6 +2,16 @@ import { baseApi } from "./baseApi";
 import type { ClientRole } from "../types/client-role.types";
 import { API } from "../../lib/constants/api.constants";
 
+type ApiEnvelope<T> = {
+  success: boolean;
+  data: T;
+};
+
+export type RoleRequest = {
+  role: string;
+  description?: string;
+};
+
 export const clientRolesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     /* --------------------------------
@@ -13,6 +23,8 @@ export const clientRolesApi = baseApi.injectEndpoints({
         url: API.clients.roles.list(clientId),
         credentials: "include",
       }),
+
+      transformResponse: (res: ApiEnvelope<ClientRole[]>) => res.data,
 
       providesTags: (result, _, clientId) =>
         result
@@ -32,12 +44,12 @@ export const clientRolesApi = baseApi.injectEndpoints({
      * -------------------------------- */
     createClientRole: builder.mutation<
       void,
-      { clientId: string; role: string }
+      { clientId: string; payload: RoleRequest }
     >({
-      query: ({ clientId, role }) => ({
+      query: ({ clientId, payload }) => ({
         url: API.clients.roles.create(clientId),
         method: "POST",
-        body: { role },
+        body: payload,
         credentials: "include",
       }),
 

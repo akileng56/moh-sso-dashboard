@@ -7,21 +7,16 @@ import {
   TableHeader,
   TableBody,
   TableCell,
+  TableSelectRow,
+  TableSelectAll,
   InlineLoading,
   Tile,
-  OverflowMenu,
-  OverflowMenuItem,
   Tag,
   Pagination,
-  Stack,
 } from "@carbon/react";
-import { Add } from "@carbon/icons-react";
 
-import { EmptyState } from "../../../components/emptystate/EmptyState";
-import { ErrorState } from "../../../components/errorstate/ErrorState";
 import { UserFilters } from "../../../components/user/UserFilters";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
-
 import {
   useListUsersQuery,
   useToggleUserMutation,
@@ -31,9 +26,13 @@ import { UserFormPanel } from "../../../components/panels/create-user-panel";
 import { useEnableUserModal } from "../../../components/user/useEnableUserModal";
 import { useResetPasswordModal } from "../../../components/user/useResetPasswordModal";
 import { UserClientRolesPanel } from "../../../components/panels/user-client-roles-panel";
+import { UserActionsMenu } from "./user-actions-menu.component";
+import { UserBulkActions } from "./user-bulk-actions.component";
+import { ErrorState } from "../../../components/errorstate/ErrorState";
+import { useToast } from "../../../components/notifications/toast/useToast";
 
 /* -----------------------------
- * Table headers (raw hidden)
+ * Table headers
  * ----------------------------- */
 const headers = [
   { key: "username", header: "Username" },
@@ -42,15 +41,18 @@ const headers = [
   { key: "verified", header: "Email verified" },
   { key: "lastLogin", header: "Last login" },
   { key: "actions", header: "" },
-
-  // hidden technical column
   { key: "raw", header: "" },
 ];
+
+type BulkAction = "enable" | "disable" | "roles" | null;
 
 export default function UsersPage() {
   const { openPanel, closePanel } = useHeaderPanel();
   const { openEnableUserModal } = useEnableUserModal();
   const { openResetPasswordModal } = useResetPasswordModal();
+  const toast = useToast();
+
+  const [bulkAction, setBulkAction] = useState<BulkAction>(null);
 
   /* -----------------------------
    * Filters
@@ -78,19 +80,16 @@ export default function UsersPage() {
 
   const [toggleUser] = useToggleUserMutation();
 
-  /* -----------------------------
-   * Reset page on filter change
-   * ----------------------------- */
   useEffect(() => {
     setPage(1);
   }, [statusFilter, roleFilter, neverLoggedIn]);
 
   /* -----------------------------
-   * Derived roles
+   * Roles
    * ----------------------------- */
   const roles = useMemo(() => {
     const set = new Set<string>();
-    users.forEach((u) => u?.realmRoles?.forEach((r) => set.add(r)));
+    users.forEach((u) => u.realmRoles?.forEach((r) => set.add(r)));
     return ["all", ...Array.from(set)];
   }, [users]);
 
@@ -102,14 +101,14 @@ export default function UsersPage() {
       if (statusFilter === "active" && !u.isActive) return false;
       if (statusFilter === "disabled" && u.isActive) return false;
       if (neverLoggedIn && u.lastLoginAt) return false;
-      if (roleFilter !== "all" && !u?.realmRoles?.includes(roleFilter))
+      if (roleFilter !== "all" && !u.realmRoles?.includes(roleFilter))
         return false;
       return true;
     });
   }, [users, statusFilter, roleFilter, neverLoggedIn]);
 
   /* -----------------------------
-   * Pagination slice
+   * Pagination
    * ----------------------------- */
   const paginatedUsers = useMemo(() => {
     const start = (page - 1) * pageSize;
@@ -117,8 +116,21 @@ export default function UsersPage() {
   }, [filteredUsers, page, pageSize]);
 
   /* -----------------------------
-   * Loading / Error
+   * Rows
    * ----------------------------- */
+  const rows = paginatedUsers.map((u) => ({
+    id: u.id,
+    username: u.username,
+    email: u.email ?? "—",
+    status: u.isActive ? "Active" : "Disabled",
+    verified: u.emailVerified ? "Verified" : "Not verified",
+    lastLogin: u.lastLoginAt
+      ? new Date(u.lastLoginAt).toLocaleString()
+      : "Never",
+    actions: "",
+    raw: u,
+  }));
+
   if (isLoading) {
     return (
       <div style={{ padding: "2rem" }}>
@@ -137,25 +149,8 @@ export default function UsersPage() {
     );
   }
 
-  /* -----------------------------
-   * Rows (raw preserved)
-   * ----------------------------- */
-  const rows = paginatedUsers.map((u) => ({
-    id: u.id,
-    username: u.username,
-    email: u.email ?? "—",
-    status: u.isActive ? "Active" : "Disabled",
-    verified: u.emailVerified ? "Verified" : "Not verified",
-    lastLogin: u.lastLoginAt
-      ? new Date(u.lastLoginAt).toLocaleString()
-      : "Never",
-    actions: "",
-    raw: u,
-  }));
-
   return (
     <div style={{ padding: 16, display: "grid", gap: 16 }}>
-      {/* Header */}
       <div>
         <h3 style={{ margin: 0 }}>Users</h3>
         <p style={{ marginTop: 6, opacity: 0.8 }}>
@@ -163,7 +158,6 @@ export default function UsersPage() {
         </p>
       </div>
 
-      {/* Filters */}
       <Tile>
         <UserFilters
           status={statusFilter}
@@ -176,46 +170,101 @@ export default function UsersPage() {
         />
       </Tile>
 
-      {/* Table */}
       <Tile>
-        {filteredUsers.length === 0 ? (
-          <EmptyState
-            title="No users found"
-            description="No users match the selected filters."
-            primaryAction={{
-              label: "Create user",
-              icon: Add,
-              onClick: () =>
-                openPanel({
-                  title: "Create user",
-                  content: (
-                    <UserFormPanel mode="create" onSuccess={closePanel} />
-                  ),
-                  size: "md",
-                }),
-            }}
-          />
-        ) : (
-          <>
-            <DataTable rows={rows} headers={headers}>
-              {({
-                rows,
-                headers,
-                getHeaderProps,
-                getRowProps,
-                getTableProps,
-              }) => (
-                <Table {...getTableProps()}>
+        <DataTable rows={rows} headers={headers}>
+          {({
+            rows,
+            headers,
+            getHeaderProps,
+            getRowProps,
+            getSelectionProps,
+            selectedRows,
+          }) => {
+            const selectedUsers = selectedRows.map(
+              (r) => r.cells.find((c) => c.info.header === "raw")?.value as User
+            );
+
+            return (
+              <>
+                {/* ================= BULK ACTIONS ================= */}
+                <UserBulkActions
+                  users={selectedUsers}
+                  loadingAction={bulkAction}
+                  onEnable={async () => {
+                    try {
+                      setBulkAction("enable");
+
+                      await Promise.all(
+                        selectedUsers.map((u) =>
+                          toggleUser({ id: u.id, enabled: true }).unwrap()
+                        )
+                      );
+
+                      toast.success({
+                        title: "Users enabled",
+                        subtitle: `${selectedUsers.length} user(s) enabled.`,
+                      });
+                    } catch {
+                      toast.error({
+                        title: "Enable failed",
+                        subtitle: "Some users could not be enabled.",
+                      });
+                    } finally {
+                      setBulkAction(null);
+                    }
+                  }}
+                  onDisable={async () => {
+                    try {
+                      setBulkAction("disable");
+
+                      await Promise.all(
+                        selectedUsers.map((u) =>
+                          toggleUser({ id: u.id, enabled: false }).unwrap()
+                        )
+                      );
+
+                      toast.warning({
+                        title: "Users disabled",
+                        subtitle: `${selectedUsers.length} user(s) disabled.`,
+                      });
+                    } catch {
+                      toast.error({
+                        title: "Disable failed",
+                        subtitle: "Some users could not be disabled.",
+                      });
+                    } finally {
+                      setBulkAction(null);
+                    }
+                  }}
+                  onAssignRoles={async () => {
+                    setBulkAction("roles");
+
+                    openPanel({
+                      title: `Assign roles (${selectedUsers.length})`,
+                      size: "lg",
+                      content: (
+                        <UserClientRolesPanel
+                          userId={selectedUsers.map((u) => u.id).join(",")}
+                        />
+                      ),
+                    });
+
+                    setBulkAction(null);
+                  }}
+                />
+
+                {/* ================= TABLE ================= */}
+                <Table>
                   <TableHead>
                     <TableRow>
-                      {headers.map(
-                        (h) =>
-                          h.key !== "raw" && (
-                            <TableHeader {...getHeaderProps({ header: h })}>
-                              {h.header}
-                            </TableHeader>
-                          )
-                      )}
+                      <TableSelectAll {...getSelectionProps()} />
+                      {headers
+                        .filter((h) => h.key !== "raw")
+                        .map((h) => (
+                          <TableHeader {...getHeaderProps({ header: h })}>
+                            {h.header}
+                          </TableHeader>
+                        ))}
                     </TableRow>
                   </TableHead>
 
@@ -227,13 +276,15 @@ export default function UsersPage() {
 
                       return (
                         <TableRow {...getRowProps({ row })}>
+                          <TableSelectRow {...getSelectionProps({ row })} />
+
                           {row.cells.map((cell) => {
                             if (cell.info.header === "raw") return null;
 
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={!user?.isAdmin ? "green" : "red"}>
+                                  <Tag type={!user.isAdmin ? "green" : "red"}>
                                     {cell.value}
                                   </Tag>
                                 </TableCell>
@@ -243,11 +294,10 @@ export default function UsersPage() {
                             if (cell.info.header === "actions") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <OverflowMenu size="sm" flipped>
-                                    <OverflowMenuItem
-                                      itemText="Edit user"
-                                      hasDivider
-                                      onClick={() =>
+                                  {row.isSelected && (
+                                    <UserActionsMenu
+                                      user={user}
+                                      onEdit={() =>
                                         openPanel({
                                           title: "Edit user",
                                           content: (
@@ -260,69 +310,59 @@ export default function UsersPage() {
                                           size: "md",
                                         })
                                       }
-                                    />
-
-                                    <OverflowMenuItem
-                                      itemText="Manage roles"
-                                      hasDivider
-                                      onClick={() =>
+                                      onManageRoles={() =>
                                         openPanel({
                                           title: `Roles: ${user.username}`,
                                           size: "lg",
                                           content: (
-                                            <Stack gap={6}>
-                                              <UserFormPanel
-                                                mode="edit"
-                                                initialUser={user}
-                                                onSuccess={closePanel}
-                                              />
-                                              <UserClientRolesPanel
-                                                userId={user.id}
-                                              />
-                                            </Stack>
+                                            <UserClientRolesPanel
+                                              userId={user.id}
+                                            />
                                           ),
                                         })
                                       }
-                                    />
-
-                                    <OverflowMenuItem
-                                      itemText={
-                                        user?.isActive
-                                          ? "Disable user"
-                                          : "Enable user"
-                                      }
-                                      isDelete={user.enabled}
-                                      onClick={() =>
+                                      onToggleStatus={() =>
                                         openEnableUserModal({
                                           username: user.username,
-                                          enabled: user?.isActive,
+                                          enabled: user.isActive ?? false,
                                           onConfirm: async () => {
-                                            await toggleUser({
-                                              id: user.id,
-                                              enabled: !user?.isActive,
-                                            }).unwrap();
+                                            try {
+                                              await toggleUser({
+                                                id: user.id,
+                                                enabled: !user.isActive,
+                                              }).unwrap();
+
+                                              toast.success({
+                                                title: "User updated",
+                                                subtitle: `${user.username} ${
+                                                  user.isActive
+                                                    ? "disabled"
+                                                    : "enabled"
+                                                }.`,
+                                              });
+                                            } catch {
+                                              toast.error({
+                                                title: "Update failed",
+                                                subtitle: `Failed to update ${user.username}.`,
+                                              });
+                                            }
                                           },
                                         })
                                       }
-                                    />
-
-                                    <OverflowMenuItem
-                                      itemText="Reset password"
-                                      hasDivider
-                                      onClick={() =>
+                                      onResetPassword={() =>
                                         openResetPasswordModal({
                                           username: user.username,
                                           email: user.email,
-                                          onConfirm: async () => {
-                                            console.log(
-                                              "Reset password for",
-                                              user.username
-                                            );
+                                          onConfirm: () => {
+                                            toast.info({
+                                              title: "Password reset",
+                                              subtitle: `Reset email sent to ${user.email}`,
+                                            });
                                           },
                                         })
                                       }
                                     />
-                                  </OverflowMenu>
+                                  )}
                                 </TableCell>
                               );
                             }
@@ -336,21 +376,21 @@ export default function UsersPage() {
                     })}
                   </TableBody>
                 </Table>
-              )}
-            </DataTable>
 
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              pageSizes={[10, 20, 30, 50]}
-              totalItems={filteredUsers.length}
-              onChange={({ page, pageSize }) => {
-                setPage(page);
-                setPageSize(pageSize);
-              }}
-            />
-          </>
-        )}
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  pageSizes={[10, 20, 30, 50]}
+                  totalItems={filteredUsers.length}
+                  onChange={({ page, pageSize }) => {
+                    setPage(page);
+                    setPageSize(pageSize);
+                  }}
+                />
+              </>
+            );
+          }}
+        </DataTable>
       </Tile>
     </div>
   );

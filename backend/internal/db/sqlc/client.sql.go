@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const countClients = `-- name: CountClients :one
@@ -85,13 +86,29 @@ INSERT INTO client (
     client_id,
     name,
     description,
-    base_url,
     icon,
+    base_url,
+    root_url,
+    admin_url,
     public_client,
+    redirect_uris,
+    web_origins,
     enabled,
     attributes
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, 
+    $2,  
+    $3, 
+    $4, 
+    $5, 
+    $6, 
+    $7, 
+    $8, 
+    $9, 
+    $10,
+    $11, 
+    $12,
+    $13 
 )
 ON CONFLICT (client_id) DO NOTHING
 RETURNING id
@@ -102,9 +119,13 @@ type CreateClientParams struct {
 	ClientID     string          `json:"client_id"`
 	Name         string          `json:"name"`
 	Description  sql.NullString  `json:"description"`
-	BaseUrl      sql.NullString  `json:"base_url"`
 	Icon         sql.NullString  `json:"icon"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	RootUrl      sql.NullString  `json:"root_url"`
+	AdminUrl     sql.NullString  `json:"admin_url"`
 	PublicClient bool            `json:"public_client"`
+	RedirectUris []string        `json:"redirect_uris"`
+	WebOrigins   []string        `json:"web_origins"`
 	Enabled      bool            `json:"enabled"`
 	Attributes   json.RawMessage `json:"attributes"`
 }
@@ -118,9 +139,13 @@ func (q *Queries) CreateClient(ctx context.Context, arg CreateClientParams) erro
 		arg.ClientID,
 		arg.Name,
 		arg.Description,
-		arg.BaseUrl,
 		arg.Icon,
+		arg.BaseUrl,
+		arg.RootUrl,
+		arg.AdminUrl,
 		arg.PublicClient,
+		pq.Array(arg.RedirectUris),
+		pq.Array(arg.WebOrigins),
 		arg.Enabled,
 		arg.Attributes,
 	)
@@ -138,7 +163,7 @@ func (q *Queries) DeleteClient(ctx context.Context, id uuid.UUID) error {
 }
 
 const getClientByClientID = `-- name: GetClientByClientID :one
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 WHERE client_id = $1
 `
@@ -151,9 +176,13 @@ func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Cli
 		&i.ClientID,
 		&i.Name,
 		&i.Description,
-		&i.BaseUrl,
 		&i.Icon,
+		&i.BaseUrl,
+		&i.RootUrl,
+		&i.AdminUrl,
 		&i.PublicClient,
+		pq.Array(&i.RedirectUris),
+		pq.Array(&i.WebOrigins),
 		&i.Enabled,
 		&i.Attributes,
 		&i.CreatedAt,
@@ -163,7 +192,7 @@ func (q *Queries) GetClientByClientID(ctx context.Context, clientID string) (Cli
 }
 
 const getClientByID = `-- name: GetClientByID :one
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 WHERE id = $1
 `
@@ -176,9 +205,13 @@ func (q *Queries) GetClientByID(ctx context.Context, id uuid.UUID) (Client, erro
 		&i.ClientID,
 		&i.Name,
 		&i.Description,
-		&i.BaseUrl,
 		&i.Icon,
+		&i.BaseUrl,
+		&i.RootUrl,
+		&i.AdminUrl,
 		&i.PublicClient,
+		pq.Array(&i.RedirectUris),
+		pq.Array(&i.WebOrigins),
 		&i.Enabled,
 		&i.Attributes,
 		&i.CreatedAt,
@@ -188,7 +221,7 @@ func (q *Queries) GetClientByID(ctx context.Context, id uuid.UUID) (Client, erro
 }
 
 const listClients = `-- name: ListClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 ORDER BY name ASC
 `
@@ -207,9 +240,13 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 			&i.ClientID,
 			&i.Name,
 			&i.Description,
-			&i.BaseUrl,
 			&i.Icon,
+			&i.BaseUrl,
+			&i.RootUrl,
+			&i.AdminUrl,
 			&i.PublicClient,
+			pq.Array(&i.RedirectUris),
+			pq.Array(&i.WebOrigins),
 			&i.Enabled,
 			&i.Attributes,
 			&i.CreatedAt,
@@ -229,7 +266,7 @@ func (q *Queries) ListClients(ctx context.Context) ([]Client, error) {
 }
 
 const listClientsPaged = `-- name: ListClientsPaged :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 ORDER BY name ASC
 LIMIT $2 OFFSET $1
@@ -254,9 +291,13 @@ func (q *Queries) ListClientsPaged(ctx context.Context, arg ListClientsPagedPara
 			&i.ClientID,
 			&i.Name,
 			&i.Description,
-			&i.BaseUrl,
 			&i.Icon,
+			&i.BaseUrl,
+			&i.RootUrl,
+			&i.AdminUrl,
 			&i.PublicClient,
+			pq.Array(&i.RedirectUris),
+			pq.Array(&i.WebOrigins),
 			&i.Enabled,
 			&i.Attributes,
 			&i.CreatedAt,
@@ -276,7 +317,7 @@ func (q *Queries) ListClientsPaged(ctx context.Context, arg ListClientsPagedPara
 }
 
 const listEnabledClients = `-- name: ListEnabledClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 WHERE enabled = true
 ORDER BY name ASC
@@ -296,9 +337,13 @@ func (q *Queries) ListEnabledClients(ctx context.Context) ([]Client, error) {
 			&i.ClientID,
 			&i.Name,
 			&i.Description,
-			&i.BaseUrl,
 			&i.Icon,
+			&i.BaseUrl,
+			&i.RootUrl,
+			&i.AdminUrl,
 			&i.PublicClient,
+			pq.Array(&i.RedirectUris),
+			pq.Array(&i.WebOrigins),
 			&i.Enabled,
 			&i.Attributes,
 			&i.CreatedAt,
@@ -340,15 +385,29 @@ type NewClientsInRangeParams struct {
 	EndTime   time.Time `json:"end_time"`
 }
 
-func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]Client, error) {
+type NewClientsInRangeRow struct {
+	ID           uuid.UUID       `json:"id"`
+	ClientID     string          `json:"client_id"`
+	Name         string          `json:"name"`
+	Description  sql.NullString  `json:"description"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	Icon         sql.NullString  `json:"icon"`
+	PublicClient bool            `json:"public_client"`
+	Enabled      bool            `json:"enabled"`
+	Attributes   json.RawMessage `json:"attributes"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
+func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]NewClientsInRangeRow, error) {
 	rows, err := q.db.QueryContext(ctx, newClientsInRange, arg.StartTime, arg.EndTime)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Client{}
+	items := []NewClientsInRangeRow{}
 	for rows.Next() {
-		var i Client
+		var i NewClientsInRangeRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ClientID,
@@ -393,15 +452,29 @@ ORDER BY created_at DESC
 LIMIT $1
 `
 
-func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]Client, error) {
+type RecentlyCreatedClientsRow struct {
+	ID           uuid.UUID       `json:"id"`
+	ClientID     string          `json:"client_id"`
+	Name         string          `json:"name"`
+	Description  sql.NullString  `json:"description"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	Icon         sql.NullString  `json:"icon"`
+	PublicClient bool            `json:"public_client"`
+	Enabled      bool            `json:"enabled"`
+	Attributes   json.RawMessage `json:"attributes"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
+func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]RecentlyCreatedClientsRow, error) {
 	rows, err := q.db.QueryContext(ctx, recentlyCreatedClients, rowLimit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Client{}
+	items := []RecentlyCreatedClientsRow{}
 	for rows.Next() {
-		var i Client
+		var i RecentlyCreatedClientsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ClientID,
@@ -429,7 +502,7 @@ func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([
 }
 
 const searchClients = `-- name: SearchClients :many
-SELECT id, client_id, name, description, base_url, icon, public_client, enabled, attributes, created_at, updated_at
+SELECT id, client_id, name, description, icon, base_url, root_url, admin_url, public_client, redirect_uris, web_origins, enabled, attributes, created_at, updated_at
 FROM client
 WHERE 
     (
@@ -454,9 +527,13 @@ func (q *Queries) SearchClients(ctx context.Context, query sql.NullString) ([]Cl
 			&i.ClientID,
 			&i.Name,
 			&i.Description,
-			&i.BaseUrl,
 			&i.Icon,
+			&i.BaseUrl,
+			&i.RootUrl,
+			&i.AdminUrl,
 			&i.PublicClient,
+			pq.Array(&i.RedirectUris),
+			pq.Array(&i.WebOrigins),
 			&i.Enabled,
 			&i.Attributes,
 			&i.CreatedAt,
@@ -514,28 +591,64 @@ func (q *Queries) UpdateClient(ctx context.Context, arg UpdateClientParams) erro
 	return err
 }
 
+const updateClientEnabled = `-- name: UpdateClientEnabled :exec
+UPDATE client
+SET enabled = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateClientEnabledParams struct {
+	ID      uuid.UUID `json:"id"`
+	Enabled bool      `json:"enabled"`
+}
+
+func (q *Queries) UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, updateClientEnabled, arg.ID, arg.Enabled)
+	return err
+}
+
 const upsertClient = `-- name: UpsertClient :exec
 INSERT INTO client (
     id,
     client_id,
     name,
     description,
-    base_url,
     icon,
+    base_url,
+    root_url,
+    admin_url,
     public_client,
+    redirect_uris,
+    web_origins,
     enabled,
     attributes
 )
 VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9
+    $1, 
+    $2, 
+    $3, 
+    $4,  
+    $5,  
+    $6, 
+    $7, 
+    $8, 
+    $9,  
+    $10, 
+    $11, 
+    $12,
+    $13  
 )
 ON CONFLICT (client_id)
 DO UPDATE SET
     name          = EXCLUDED.name,
     description   = EXCLUDED.description,
-    base_url      = EXCLUDED.base_url,
     icon          = EXCLUDED.icon,
+    base_url      = EXCLUDED.base_url,
+    root_url      = EXCLUDED.root_url,
+    admin_url     = EXCLUDED.admin_url,
     public_client = EXCLUDED.public_client,
+    redirect_uris = EXCLUDED.redirect_uris,
+    web_origins   = EXCLUDED.web_origins,
     enabled       = EXCLUDED.enabled,
     attributes    = EXCLUDED.attributes,
     updated_at    = NOW()
@@ -546,9 +659,13 @@ type UpsertClientParams struct {
 	ClientID     string          `json:"client_id"`
 	Name         string          `json:"name"`
 	Description  sql.NullString  `json:"description"`
-	BaseUrl      sql.NullString  `json:"base_url"`
 	Icon         sql.NullString  `json:"icon"`
+	BaseUrl      sql.NullString  `json:"base_url"`
+	RootUrl      sql.NullString  `json:"root_url"`
+	AdminUrl     sql.NullString  `json:"admin_url"`
 	PublicClient bool            `json:"public_client"`
+	RedirectUris []string        `json:"redirect_uris"`
+	WebOrigins   []string        `json:"web_origins"`
 	Enabled      bool            `json:"enabled"`
 	Attributes   json.RawMessage `json:"attributes"`
 }
@@ -559,9 +676,13 @@ func (q *Queries) UpsertClient(ctx context.Context, arg UpsertClientParams) erro
 		arg.ClientID,
 		arg.Name,
 		arg.Description,
-		arg.BaseUrl,
 		arg.Icon,
+		arg.BaseUrl,
+		arg.RootUrl,
+		arg.AdminUrl,
 		arg.PublicClient,
+		pq.Array(arg.RedirectUris),
+		pq.Array(arg.WebOrigins),
 		arg.Enabled,
 		arg.Attributes,
 	)

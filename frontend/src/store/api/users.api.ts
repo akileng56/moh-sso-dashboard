@@ -1,7 +1,8 @@
 import { baseApi } from "./baseApi";
 import type { CreateUserPayload, User } from "../types/user.types";
-import type { UserClientRoleAssignment } from "../types/user-role.types";
+import type { ClientRole } from "../types/client-role.types";
 import { API } from "../../lib/constants/api.constants";
+import type { UserClientRoleAssignment } from "../types/user-role.types";
 
 type ApiEnvelope<T> = {
   success: boolean;
@@ -23,9 +24,7 @@ export const usersApi = baseApi.injectEndpoints({
         url: API.users.list(),
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<User[]>) => res.data,
-
       providesTags: (result) =>
         result
           ? [
@@ -43,9 +42,7 @@ export const usersApi = baseApi.injectEndpoints({
         url: API.users.byId(id),
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<User>) => res.data,
-
       providesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
@@ -59,9 +56,7 @@ export const usersApi = baseApi.injectEndpoints({
         body,
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<User>) => res.data,
-
       invalidatesTags: [{ type: "User", id: "LIST" }],
     }),
 
@@ -75,9 +70,7 @@ export const usersApi = baseApi.injectEndpoints({
         body: data,
         credentials: "include",
       }),
-
       transformResponse: (res: ApiEnvelope<User>) => res.data,
-
       invalidatesTags: (_r, _e, { id }) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
@@ -93,9 +86,7 @@ export const usersApi = baseApi.injectEndpoints({
         method: "POST",
         credentials: "include",
       }),
-
       transformResponse: () => undefined,
-
       invalidatesTags: (_r, _e, id) => [{ type: "User", id }],
     }),
 
@@ -108,9 +99,7 @@ export const usersApi = baseApi.injectEndpoints({
         method: "DELETE",
         credentials: "include",
       }),
-
       transformResponse: () => undefined,
-
       invalidatesTags: (_r, _e, id) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
@@ -122,13 +111,11 @@ export const usersApi = baseApi.injectEndpoints({
      * -------------------------------- */
     toggleUser: builder.mutation<void, { id: string; enabled: boolean }>({
       query: ({ id, enabled }) => ({
-        url: API.users.toggle(id),
+        url: `${API.users.byId(id)}/toggle`,
         method: enabled ? "POST" : "DELETE",
         credentials: "include",
       }),
-
       transformResponse: () => undefined,
-
       invalidatesTags: (_r, _e, { id }) => [
         { type: "User", id },
         { type: "User", id: "LIST" },
@@ -137,6 +124,7 @@ export const usersApi = baseApi.injectEndpoints({
 
     /* --------------------------------
      * Get user client roles (ADMIN)
+     * GET /admin/users/:id/client-roles
      * -------------------------------- */
     getUserClientRoles: builder.query<UserClientRoleAssignment[], string>({
       query: (userId) => ({
@@ -152,7 +140,7 @@ export const usersApi = baseApi.injectEndpoints({
           ? [
               ...result.map((r) => ({
                 type: "UserClientRole" as const,
-                id: `${userId}-${r.clientId}`,
+                id: `${userId}-${r.id}`,
               })),
               { type: "UserClientRole", id: `LIST-${userId}` },
             ]
@@ -160,25 +148,45 @@ export const usersApi = baseApi.injectEndpoints({
     }),
 
     /* --------------------------------
-     * Update user client roles (ADMIN)
+     * Get user client roles for a client (ADMIN)
+     * -------------------------------- */
+    getUserClientRolesForClient: builder.query<
+      ClientRole[],
+      { userId: string; clientId: string }
+    >({
+      query: ({ userId, clientId }) => ({
+        url: API.admin.users.clientRoles.list(userId, clientId),
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<ClientRole[]>) => res.data,
+      providesTags: (_r, _e, { userId, clientId }) => [
+        { type: "UserClientRole", id: `${userId}-${clientId}` },
+      ],
+    }),
+
+    /* --------------------------------
+     * Update user client roles (ADMIN – bulk)
      * -------------------------------- */
     updateUserClientRoles: builder.mutation<
       void,
-      { userId: string; clientId: string; roles: string[] }
+      { userId: string; clientId: string; clientUuid: string; roles: string[] }
     >({
-      query: ({ userId, clientId, roles }) => ({
-        url: `${API.admin.base}/users/${userId}/client-roles`,
+      query: ({ userId, clientId, clientUuid, roles }) => ({
+        url: API.admin.users.clientRoles.update(userId),
         method: "PUT",
         body: {
           clientId,
+          clientUuid,
           roles,
         },
         credentials: "include",
       }),
 
-      invalidatesTags: (_r, _e, { userId, clientId }) => [
-        { type: "UserClientRole", id: `${userId}-${clientId}` },
-        { type: "UserClientRole", id: `LIST-${userId}` },
+      invalidatesTags: (_r, _e, { userId, clientUuid }) => [
+        {
+          type: "UserClientRole",
+          id: `${userId}-${clientUuid}`,
+        },
       ],
     }),
   }),
@@ -193,5 +201,6 @@ export const {
   useDeleteUserMutation,
   useToggleUserMutation,
   useGetUserClientRolesQuery,
+  useGetUserClientRolesForClientQuery,
   useUpdateUserClientRolesMutation,
 } = usersApi;

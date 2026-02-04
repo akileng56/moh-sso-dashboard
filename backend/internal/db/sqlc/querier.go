@@ -94,10 +94,10 @@ type Querier interface {
 	MostAccessedClients(ctx context.Context, arg MostAccessedClientsParams) ([]MostAccessedClientsRow, error)
 	MostActiveClients(ctx context.Context) ([]MostActiveClientsRow, error)
 	NeverLoggedInUsers(ctx context.Context) ([]User, error)
-	NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]Client, error)
+	NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]NewClientsInRangeRow, error)
 	NewUsersInRange(ctx context.Context, arg NewUsersInRangeParams) ([]User, error)
 	NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([]NewUsersTrendRow, error)
-	RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]Client, error)
+	RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]RecentlyCreatedClientsRow, error)
 	RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error)
 	SearchClients(ctx context.Context, query sql.NullString) ([]Client, error)
 	SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error)
@@ -106,10 +106,12 @@ type Querier interface {
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
+	UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error
 	UpdateImportJobCounts(ctx context.Context, arg UpdateImportJobCountsParams) error
 	UpdateImportJobItemStatus(ctx context.Context, arg UpdateImportJobItemStatusParams) error
 	UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) error
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
+	UpdateUserEnabled(ctx context.Context, arg UpdateUserEnabledParams) error
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
 	UpsertClient(ctx context.Context, arg UpsertClientParams) error
 	UpsertUser(ctx context.Context, arg UpsertUserParams) error

@@ -22,6 +22,7 @@ import { ClientRolesPanel } from "../client/roles/client-roles-panel";
 export type ClientFormMode = "create" | "edit";
 
 type ClientFormState = {
+  id: string;
   clientId: string;
   name: string;
   description?: string;
@@ -37,6 +38,7 @@ type ClientFormState = {
 type Props = {
   mode: ClientFormMode;
   initialClient?: {
+    id: string;
     clientId: string;
     name: string;
     description?: string;
@@ -60,6 +62,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
     mode === "edit" ? initialClient?.clientId : createdClientId;
 
   const [form, setForm] = useState<ClientFormState>({
+    id: initialClient?.id ?? "",
     clientId: initialClient?.clientId ?? "",
     name: initialClient?.name ?? "",
     description: initialClient?.description ?? "",
@@ -307,7 +310,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
          * ----------------------------- */}
         {effectiveClientId && (
           <FormGroup legendText="Client roles">
-            <ClientRolesPanel clientId={effectiveClientId} />
+            <ClientRolesPanel clientId={effectiveClientId} id={form.id} />
           </FormGroup>
         )}
       </Stack>

@@ -1,19 +1,75 @@
 import { useToastContext } from "./ToastProvider";
 
+/* -----------------------------
+ * Toast types
+ * ----------------------------- */
+export type ToastKind = "success" | "error" | "info" | "warning";
+
+export type ToastAction = {
+  label: string;
+  onClick: () => void;
+};
+
+export type ToastOptions = {
+  title: string;
+  subtitle?: string;
+  kind?: ToastKind;
+  timeout?: number;
+  dismissible?: boolean;
+  actions?: ToastAction[];
+};
+
+/* -----------------------------
+ * Defaults
+ * ----------------------------- */
+const DEFAULT_TIMEOUT = 5000;
+
+/* -----------------------------
+ * Hook
+ * ----------------------------- */
 export function useToast() {
   const { push } = useToastContext();
 
+  const show = (options: ToastOptions) => {
+    push({
+      kind: options.kind ?? "info",
+      title: options.title,
+      subtitle: options.subtitle,
+      timeout: options.timeout ?? DEFAULT_TIMEOUT,
+      dismissible: options.dismissible ?? true,
+      actions: options.actions,
+    });
+  };
+
   return {
-    success: (title: string, subtitle?: string) =>
-      push({ kind: "success", title, subtitle }),
+    /* Generic */
+    show,
 
-    error: (title: string, subtitle?: string) =>
-      push({ kind: "error", title, subtitle }),
+    /* Shorthands (non-breaking) */
+    success: (
+      options: Omit<ToastOptions, "kind"> | string,
+      subtitle?: string
+    ) =>
+      typeof options === "string"
+        ? show({ kind: "success", title: options, subtitle })
+        : show({ ...options, kind: "success" }),
 
-    info: (title: string, subtitle?: string) =>
-      push({ kind: "info", title, subtitle }),
+    error: (options: Omit<ToastOptions, "kind"> | string, subtitle?: string) =>
+      typeof options === "string"
+        ? show({ kind: "error", title: options, subtitle })
+        : show({ ...options, kind: "error" }),
 
-    warning: (title: string, subtitle?: string) =>
-      push({ kind: "warning", title, subtitle }),
+    info: (options: Omit<ToastOptions, "kind"> | string, subtitle?: string) =>
+      typeof options === "string"
+        ? show({ kind: "info", title: options, subtitle })
+        : show({ ...options, kind: "info" }),
+
+    warning: (
+      options: Omit<ToastOptions, "kind"> | string,
+      subtitle?: string
+    ) =>
+      typeof options === "string"
+        ? show({ kind: "warning", title: options, subtitle })
+        : show({ ...options, kind: "warning" }),
   };
 }

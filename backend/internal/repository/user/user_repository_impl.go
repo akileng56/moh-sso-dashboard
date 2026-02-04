@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/keycloak"
@@ -30,10 +31,6 @@ func NewUserRepository(
 	log logger.Logger,
 ) UserRepository {
 
-	if err := keycloakClient.Authenticate(); err != nil {
-		panic(fmt.Sprintf("❌ Failed to authenticate Keycloak admin: %v", err))
-	}
-
 	return &userRepository{
 		keycloakClient: keycloakClient,
 		config:         config,
@@ -42,7 +39,6 @@ func NewUserRepository(
 	}
 }
 
-// CREATE (Keycloak = Source of Truth)
 func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	ctx := context.Background()
 
@@ -84,7 +80,6 @@ func (r *userRepository) CreateUser(user *models.User) (string, error) {
 	return kcID, nil
 }
 
-// GET BY ID (Keycloak authoritative)
 func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	ctx := context.Background()
 
@@ -115,9 +110,9 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 		FirstName:     kcUser.FirstName,
 		LastName:      kcUser.LastName,
 		FullName:      strings.TrimSpace(kcUser.FirstName + " " + kcUser.LastName),
-		RealmRoles:    kcUser.Roles,
+		RealmRoles:    kcUser.RealmRoles,
 		ClientRoles:   kcUser.ClientRoles,
-		IsAdmin:       slices.Contains(kcUser.Roles, "admin"),
+		IsAdmin:       slices.Contains(kcUser.RealmRoles, "admin"),
 		Enabled:       kcUser.Enabled,
 		EmailVerified: kcUser.EmailVerified,
 		LastLoginAt:   kcUser.LastLoginAt,
@@ -126,9 +121,9 @@ func (r *userRepository) GetUserByID(id uuid.UUID) (*models.User, error) {
 	}, nil
 }
 
-// LIST (Keycloak primary)
 func (r *userRepository) ListUsers() ([]models.User, error) {
 	ctx := context.Background()
+
 	kcUsers, err := r.keycloakClient.ListUsers()
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch keycloak users: %w", err)
@@ -154,14 +149,13 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 				FirstName:     kc.FirstName,
 				LastName:      kc.LastName,
 				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
-				RealmRoles:    kc.Roles,
+				RealmRoles:    kc.RealmRoles,
 				ClientRoles:   kc.ClientRoles,
-				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				IsAdmin:       slices.Contains(kc.RealmRoles, "admin"),
 				Enabled:       kc.Enabled,
 				EmailVerified: kc.EmailVerified,
 				LastLoginAt:   pickTime(entry.LastLoginAt, kc.LastLoginAt),
 				CreatedAt:     kc.CreatedAt,
-				UpdatedAt:     kc.UpdatedAt,
 			})
 		} else {
 			result = append(result, models.User{
@@ -171,14 +165,13 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 				FirstName:     kc.FirstName,
 				LastName:      kc.LastName,
 				FullName:      strings.TrimSpace(kc.FirstName + " " + kc.LastName),
-				RealmRoles:    kc.Roles,
+				RealmRoles:    kc.RealmRoles,
 				ClientRoles:   kc.ClientRoles,
-				IsAdmin:       slices.Contains(kc.Roles, "admin"),
+				IsAdmin:       slices.Contains(kc.RealmRoles, "admin"),
 				Enabled:       kc.Enabled,
 				EmailVerified: kc.EmailVerified,
 				LastLoginAt:   kc.LastLoginAt,
 				CreatedAt:     kc.CreatedAt,
-				UpdatedAt:     kc.UpdatedAt,
 			})
 		}
 	}
@@ -186,9 +179,9 @@ func (r *userRepository) ListUsers() ([]models.User, error) {
 	return result, nil
 }
 
-// UPDATE (Keycloak first)
 func (r *userRepository) UpdateUser(user *models.User) error {
 	ctx := context.Background()
+
 	if err := r.keycloakClient.UpdateUser(&models.User{
 		ID:        user.ID,
 		Email:     user.Email,
@@ -226,7 +219,6 @@ func (r *userRepository) UpdateUser(user *models.User) error {
 	return nil
 }
 
-// DELETE (Keycloak authoritative)
 func (r *userRepository) DeleteUser(id string) error {
 	ctx := context.Background()
 
@@ -255,4 +247,142 @@ func pickTime(db sql.NullTime, kc *time.Time) *time.Time {
 		return &db.Time
 	}
 	return kc
+}
+
+func (r *userRepository) ToggleUserEnabled(
+	ctx context.Context,
+	userID string,
+	enabled bool,
+) error {
+
+	if err := r.keycloakClient.UpdateUser(&models.User{
+		ID:      userID,
+		Enabled: enabled,
+	}); err != nil {
+		return fmt.Errorf("keycloak toggle user failed: %w", err)
+	}
+
+	uid, err := uuid.Parse(userID)
+	if err != nil {
+		return fmt.Errorf("invalid UUID: %w", err)
+	}
+
+	if err := r.db.UpdateUserEnabled(ctx, db.UpdateUserEnabledParams{
+		ID:      uid,
+		Enabled: sql.NullBool{Bool: enabled, Valid: true},
+	}); err != nil {
+		r.logger.Warn(
+			"user enabled toggled in keycloak but db sync failed",
+			"userId", userID,
+			"enabled", enabled,
+			"error", err,
+		)
+	}
+
+	return nil
+}
+
+func (r *userRepository) ResetUserPassword(
+	ctx context.Context,
+	userID string,
+) error {
+
+	if err := r.keycloakClient.ResetUserPassword(ctx, userID); err != nil {
+		return fmt.Errorf("reset password failed: %w", err)
+	}
+
+	r.logger.Info(
+		"user password reset",
+		"userId", userID,
+	)
+
+	return nil
+}
+
+func (r *userRepository) GetUserClientRoles(
+	ctx context.Context,
+	userID string,
+) ([]keycloak.UserClientRoleAssignment, error) {
+
+	clients, err := r.keycloakClient.ListClients()
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]keycloak.UserClientRoleAssignment, 0)
+
+	for _, client := range clients {
+		roles, err := r.keycloakClient.GetUserClientRoles(
+			ctx,
+			userID,
+			"",
+			client.ID,
+		)
+		if err != nil || len(roles) == 0 {
+			continue
+		}
+
+		names := make([]string, 0, len(roles))
+		for _, r := range roles {
+			names = append(names, r.Name)
+		}
+
+		out = append(out, keycloak.UserClientRoleAssignment{
+			Id:         client.ID,
+			ClientID:   client.ClientID,
+			ClientName: client.Name,
+			Roles:      names,
+		})
+	}
+
+	return out, nil
+}
+
+func (r *userRepository) AddUserClientRoles(
+	ctx context.Context,
+	userID string,
+	clientID string,
+	clientUUID string,
+	roles []string,
+) error {
+
+	return r.keycloakClient.AssignClientRolesToUser(
+		ctx,
+		userID,
+		clientID,
+		clientUUID,
+		roles,
+	)
+}
+
+func (r *userRepository) RemoveUserClientRoles(
+	ctx context.Context,
+	userID string,
+	clientID string,
+	clientUUID string,
+	roles []string,
+) error {
+
+	return r.keycloakClient.RemoveClientRolesFromUser(
+		ctx,
+		userID,
+		clientID,
+		clientUUID,
+		roles,
+	)
+}
+
+func (r *userRepository) GetUserClientRolesForClient(
+	ctx context.Context,
+	userID string,
+	clientID string,
+	clientUUID string,
+) ([]keycloak.ClientRoleRep, error) {
+
+	return r.keycloakClient.GetUserClientRoles(
+		ctx,
+		userID,
+		clientID,
+		clientUUID,
+	)
 }

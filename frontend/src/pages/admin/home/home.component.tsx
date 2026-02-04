@@ -111,10 +111,10 @@ export default function HomePage() {
           <InlineLoading description="Loading user…" />
         ) : (
           <Stack gap={3}>
-            <h3 style={{ margin: 0 }}>Welcome back, {user.username}</h3>
+            <h3 style={{ margin: 0 }}>Welcome back, {user.lastName}</h3>
 
             <Stack orientation="horizontal" gap={3}>
-              <Tag type="blue">{user.realmRoles.join(", ")}</Tag>
+              <Tag type="blue">{user?.realmRoles.join(", ")}</Tag>
               <span>{user.email}</span>
               <span className="muted">
                 Last login:{" "}

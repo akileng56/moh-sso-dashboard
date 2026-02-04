@@ -553,6 +553,22 @@ func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) error {
 	return err
 }
 
+const updateUserEnabled = `-- name: UpdateUserEnabled :exec
+UPDATE users
+SET enabled = $2, updated_at = now()
+WHERE id = $1
+`
+
+type UpdateUserEnabledParams struct {
+	ID      uuid.UUID    `json:"id"`
+	Enabled sql.NullBool `json:"enabled"`
+}
+
+func (q *Queries) UpdateUserEnabled(ctx context.Context, arg UpdateUserEnabledParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserEnabled, arg.ID, arg.Enabled)
+	return err
+}
+
 const updateUserLastLogin = `-- name: UpdateUserLastLogin :exec
 UPDATE users
 SET last_login_at = NOW()

@@ -10,90 +10,90 @@ import (
 type Client struct {
 	ID                                 string            `json:"id"`
 	ClientID                           string            `json:"clientId"`
-	Name                               string            `json:"name,omitempty"`
-	Description                        string            `json:"description,omitempty"`
-	RootURL                            string            `json:"rootUrl,omitempty"`
-	BaseURL                            string            `json:"baseUrl,omitempty"`
-	AdminURL                           string            `json:"adminUrl,omitempty"`
-	SurrogateAuthRequired              bool              `json:"surrogateAuthRequired,omitempty"`
+	Name                               string            `json:"name"`
+	Description                        string            `json:"description"`
+	RootURL                            string            `json:"rootUrl"`
+	BaseURL                            string            `json:"baseUrl"`
+	AdminURL                           string            `json:"adminUrl"`
+	SurrogateAuthRequired              bool              `json:"surrogateAuthRequired"`
 	Enabled                            bool              `json:"enabled"`
-	AlwaysDisplayInConsole             bool              `json:"alwaysDisplayInConsole,omitempty"`
-	ClientAuthenticatorType            string            `json:"clientAuthenticatorType,omitempty"`
-	RedirectUris                       []string          `json:"redirectUris,omitempty"`
-	WebOrigins                         []string          `json:"webOrigins,omitempty"`
-	NotBefore                          int               `json:"notBefore,omitempty"`
-	BearerOnly                         bool              `json:"bearerOnly,omitempty"`
-	ConsentRequired                    bool              `json:"consentRequired,omitempty"`
-	StandardFlow                       bool              `json:"standardFlowEnabled,omitempty"`
-	ImplicitFlow                       bool              `json:"implicitFlowEnabled,omitempty"`
-	DirectAccess                       bool              `json:"directAccessGrantsEnabled,omitempty"`
-	ServiceAccounts                    bool              `json:"serviceAccountsEnabled,omitempty"`
-	PublicClient                       bool              `json:"publicClient,omitempty"`
-	FrontChannelLogout                 bool              `json:"frontchannelLogout,omitempty"`
-	Protocol                           string            `json:"protocol,omitempty"`
-	FullScopeAllowed                   bool              `json:"fullScopeAllowed,omitempty"`
-	NodeReRegistrationTimeout          int               `json:"nodeReRegistrationTimeout,omitempty"`
-	DefaultClientScopes                []string          `json:"defaultClientScopes,omitempty"`
-	OptionalClientScopes               []string          `json:"optionalClientScopes,omitempty"`
-	Access                             map[string]bool   `json:"access,omitempty"`
-	Secret                             string            `json:"secret,omitempty"`
-	ClientTemplate                     string            `json:"clientTemplate,omitempty"`
-	UseTemplateConfig                  bool              `json:"useTemplateConfig,omitempty"`
-	RootClientRealm                    string            `json:"rootClientRealm,omitempty"`
-	RegistrationAccessToken            string            `json:"registrationAccessToken,omitempty"`
-	AuthorizationServicesEnabled       bool              `json:"authorizationServicesEnabled,omitempty"`
-	ProtocolMappers                    []ProtocolMapper  `json:"protocolMappers,omitempty"`
-	DefaultRoles                       []string          `json:"defaultRoles,omitempty"`
-	AuthorizationURL                   string            `json:"authorizationUrl,omitempty"`
-	TlsRequired                        string            `json:"tlsRequired,omitempty"`
-	Attributes                         map[string]string `json:"attributes,omitempty"`
-	AuthenticationFlowBindingOverrides map[string]string `json:"authenticationFlowBindingOverrides,omitempty"`
-	RegisteredNodes                    map[string]int    `json:"registeredNodes,omitempty"`
+	AlwaysDisplayInConsole             bool              `json:"alwaysDisplayInConsole"`
+	ClientAuthenticatorType            string            `json:"clientAuthenticatorType"`
+	RedirectUris                       []string          `json:"redirectUris"`
+	WebOrigins                         []string          `json:"webOrigins"`
+	NotBefore                          int               `json:"notBefore"`
+	BearerOnly                         bool              `json:"bearerOnly"`
+	ConsentRequired                    bool              `json:"consentRequired"`
+	StandardFlow                       bool              `json:"standardFlowEnabled"`
+	ImplicitFlow                       bool              `json:"implicitFlowEnabled"`
+	DirectAccess                       bool              `json:"directAccessGrantsEnabled"`
+	ServiceAccounts                    bool              `json:"serviceAccountsEnabled"`
+	PublicClient                       bool              `json:"publicClient"`
+	FrontChannelLogout                 bool              `json:"frontchannelLogout"`
+	Protocol                           string            `json:"protocol"`
+	FullScopeAllowed                   bool              `json:"fullScopeAllowed"`
+	NodeReRegistrationTimeout          int               `json:"nodeReRegistrationTimeout"`
+	DefaultClientScopes                []string          `json:"defaultClientScopes"`
+	OptionalClientScopes               []string          `json:"optionalClientScopes"`
+	Access                             map[string]bool   `json:"access"`
+	Secret                             string            `json:"secret"`
+	ClientTemplate                     string            `json:"clientTemplate"`
+	UseTemplateConfig                  bool              `json:"useTemplateConfig"`
+	RootClientRealm                    string            `json:"rootClientRealm"`
+	RegistrationAccessToken            string            `json:"registrationAccessToken"`
+	AuthorizationServicesEnabled       bool              `json:"authorizationServicesEnabled"`
+	ProtocolMappers                    []ProtocolMapper  `json:"protocolMappers"`
+	DefaultRoles                       []string          `json:"defaultRoles"`
+	AuthorizationURL                   string            `json:"authorizationUrl"`
+	TlsRequired                        string            `json:"tlsRequired"`
+	Attributes                         map[string]string `json:"attributes"`
+	AuthenticationFlowBindingOverrides map[string]string `json:"authenticationFlowBindingOverrides"`
+	RegisteredNodes                    map[string]int    `json:"registeredNodes"`
 }
 
 type ProtocolMapper struct {
-	ID              string            `json:"id,omitempty"`
-	Name            string            `json:"name,omitempty"`
-	Protocol        string            `json:"protocol,omitempty"`
-	ProtocolMapper  string            `json:"protocolMapper,omitempty"`
-	ConsentRequired bool              `json:"consentRequired,omitempty"`
-	ConsentText     string            `json:"consentText,omitempty"`
-	Config          map[string]string `json:"config,omitempty"`
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Protocol        string            `json:"protocol"`
+	ProtocolMapper  string            `json:"protocolMapper"`
+	ConsentRequired bool              `json:"consentRequired"`
+	ConsentText     string            `json:"consentText"`
+	Config          map[string]string `json:"config"`
 }
 
 type User struct {
 	ID               string              `json:"id"`
 	Username         string              `json:"username"`
 	Email            string              `json:"email"`
-	FirstName        string              `json:"firstName,omitempty"`
-	LastName         string              `json:"lastName,omitempty"`
-	FullName         string              `json:"fullName,omitempty"`
+	FirstName        string              `json:"firstName"`
+	LastName         string              `json:"lastName"`
+	FullName         string              `json:"fullName"`
 	RealmRoles       []string            `json:"realmRoles"`
 	IsAdmin          bool                `json:"isAdmin"`
-	ClientRoles      map[string][]string `json:"clientRoles,omitempty"`
+	ClientRoles      map[string][]string `json:"clientRoles"`
 	Enabled          bool                `json:"enabled"`
 	EmailVerified    bool                `json:"emailVerified"`
 	RequirePwdChange bool                `json:"requirePwdChange"`
-	LastLoginAt      *time.Time          `json:"lastLoginAt,omitempty"`
+	LastLoginAt      *time.Time          `json:"lastLoginAt"`
 	CreatedAt        time.Time           `json:"createdAt"`
 	UpdatedAt        time.Time           `json:"updatedAt"`
-	CreatedBy        string              `json:"createdBy,omitempty"`
-	UpdatedBy        string              `json:"updatedBy,omitempty"`
+	CreatedBy        string              `json:"createdBy"`
+	UpdatedBy        string              `json:"updatedBy"`
 }
 
 type UserResponse struct {
 	ID               string              `json:"id"`
 	Username         string              `json:"username"`
-	Email            string              `json:"email,omitempty"`
+	Email            string              `json:"email"`
 	FullName         string              `json:"fullName"`
 	IsAdmin          bool                `json:"isAdmin"`
 	RealmRoles       []string            `json:"realmRoles"`
-	ClientRoles      map[string][]string `json:"clientRoles,omitempty"`
+	ClientRoles      map[string][]string `json:"clientRoles"`
 	IsActive         bool                `json:"isActive"`
-	EmailVerified    bool                `json:"emailVerified,omitempty"`
-	RequirePwdChange bool                `json:"requirePwdChange,omitempty"`
-	LastLoginAt      *time.Time          `json:"lastLoginAt,omitempty"`
-	CreatedAt        *time.Time          `json:"createdAt,omitempty"`
+	EmailVerified    bool                `json:"emailVerified"`
+	RequirePwdChange bool                `json:"requirePwdChange"`
+	LastLoginAt      *time.Time          `json:"lastLoginAt"`
+	CreatedAt        *time.Time          `json:"createdAt"`
 }
 
 type ImportUserRow struct {
@@ -105,9 +105,9 @@ type ImportUserRow struct {
 	Roles     []string `json:"roles"`
 	Enabled   bool     `json:"enabled"`
 	ClientIDs []string `json:"clientIds"`
-	Errors    []string `json:"errors,omitempty"`
-	Status    string   `json:"status,omitempty"`
-	ErrorMsg  string   `json:"errorMsg,omitempty"`
+	Errors    []string `json:"errors"`
+	Status    string   `json:"status"`
+	ErrorMsg  string   `json:"errorMsg"`
 }
 
 type PreviewResponse struct {
@@ -145,6 +145,11 @@ type parsedRow struct {
 	}
 }
 
+type CreateClientRoleRequest struct {
+	Role        string `json: "role"`
+	Description string `json: "description"`
+}
+
 type Notification struct {
 	ID         uuid.UUID       `json:"id"`
 	Type       string          `json:"type"`
@@ -152,7 +157,9 @@ type Notification struct {
 	Message    string          `json:"message"`
 	Severity   string          `json:"severity"`    // info | warning | critical
 	TargetRole string          `json:"target_role"` // admin | super_admin | etc
-	Metadata   json.RawMessage `json:"metadata"`    // JSONB from Postgres
+	ClientID   string          `json:"client_id"`
+	UserID     string          `json:"user_id"`
+	Metadata   json.RawMessage `json:"metadata"` // JSONB from Postgres
 	Read       bool            `json:"read"`
 	CreatedAt  time.Time       `json:"created_at"`
 }
@@ -164,6 +171,7 @@ const (
 	TokenRefreshFailed     NotificationType = "TOKEN_REFRESH_FAILED"
 	LoginSucceeded         NotificationType = "LOGIN_SUCCEEDED"
 	SuspiciousLogin        NotificationType = "SUSPICIOUS_LOGIN"
+	UserPasswordReset      NotificationType = "USER_PASSWORD_RESET"
 	PasswordResetRequested NotificationType = "PASSWORD_RESET_REQUESTED"
 	PasswordResetCompleted NotificationType = "PASSWORD_RESET_COMPLETED"
 	AccountLocked          NotificationType = "ACCOUNT_LOCKED"
@@ -209,6 +217,7 @@ const (
 	ClientRoleCreated  NotificationType = "CLIENT_ROLE_CREATED"
 	ClientRoleDeleted  NotificationType = "CLIENT_ROLE_DELETED"
 	ClientRoleAssigned NotificationType = "CLIENT_ROLE_ASSIGNED"
+	ClientRolesUpdated NotificationType = "CLIENT_TOLE_UPDATED"
 	ClientRoleRemoved  NotificationType = "CLIENT_ROLE_REMOVED"
 )
 
