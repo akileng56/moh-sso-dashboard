@@ -13,7 +13,9 @@ import { useSelector } from "react-redux";
 import { selectUser } from "../../store/auth/auth.selectors";
 import AppMenuAction from "../appmenu/AppMenu.component";
 import { API } from "../../lib/constants/api.constants";
-import { EnvironmentBadge } from "../../env/EnvironmentBadge";
+import "./public-header.css";
+
+import imagePath from "../../assets/logo.png"
 
 const PublicHeader: React.FC = () => {
   const navigate = useNavigate();
@@ -27,6 +29,7 @@ const PublicHeader: React.FC = () => {
       <SkipToContent />
 
       {/* Brand / Home */}
+        <img src={`${imagePath}`} className={`moh-image-style`}/>
       <HeaderName
         prefix="MOH"
         onClick={() => navigate("/dashboard")}
@@ -38,7 +41,7 @@ const PublicHeader: React.FC = () => {
       {/* Global Actions */}
       <HeaderGlobalBar>
         {/* 🌱 Environment */}
-        <EnvironmentBadge />
+        {/*<EnvironmentBadge />*/}
         {/* App Launcher */}
         <AppMenuAction />
         {/* User indicator */}

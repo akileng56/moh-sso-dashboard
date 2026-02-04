@@ -19,6 +19,7 @@ import ClientsPage from "./pages/admin/clients/client.component";
 import HomePage from "./pages/admin/home/home.component";
 import AdminLayout from "./layout/admin/AdminLayout";
 import { ModalProvider } from "./components/modal/modal.context";
+import DataVisualizer from "./pages/public/datavisualizer/data-visualizer.tsx";
 
 function App() {
   return (
@@ -40,6 +41,7 @@ function App() {
 
             <Route path="/dashboard" element={<NewsFeedPage />} />
             <Route path="/apps" element={<AppLauncherPage />} />
+            <Route path="/data-visualizer" element={<DataVisualizer />} />
           </Route>
 
           {/* ---------------------------------- */}

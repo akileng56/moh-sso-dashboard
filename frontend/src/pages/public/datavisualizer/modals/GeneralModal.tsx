@@ -1,0 +1,52 @@
+import React, {useState} from "react";
+import {ContentSwitcher, Modal, Switch} from "@carbon/react";
+import DataModal from "./DataModal.tsx";
+import PeriodModal from "./PeriodModal.tsx";
+import OrgUnitModal from "./OrgUnitModal.tsx";
+import "./general-modal.css";
+export default function GeneralModal({onClose, selectedData, onSaveData, selectedPeriods, onSavePeriods, selectedOrgUnits, onSaveOrgUnits }) {
+    const[selectedDimension, setSelectedDimension] = useState("data");
+
+
+    const onChangeContentSwitcher = (item) => {
+       setSelectedDimension(item?.name);
+    }
+
+  return (
+   <>
+       <Modal
+           open
+           size="lg"
+           passiveModal
+           isFullWidth
+           preventCloseOnClickOutside={true}
+           hasScrollingContent={true}
+           modalHeading="MAIN DIMENSIONS"
+           onRequestClose={onClose}
+       >
+           <div className={`dimension-modal-container`}>
+               <ContentSwitcher onChange={onChangeContentSwitcher} selectedIndex={0} size="md">
+                   <Switch
+                       name="data"
+                       text="Data"
+                   />
+                   <Switch
+                       name="period"
+                       text="Period"
+                   />
+                   <Switch
+                       name="orgunit"
+                       text="Organization Unit"
+                   />
+               </ContentSwitcher>
+           </div>
+
+           <div className={`dimension-modal-selection`}>
+               {selectedDimension === 'data' && (<DataModal onClose={close} selected={selectedData} onSave={onSaveData} />)}
+               {selectedDimension === 'period' && (<PeriodModal onClose={close} selected={selectedPeriods} onSave={onSavePeriods} />)}
+               {selectedDimension === 'orgunit' && (<OrgUnitModal show={true} onClose={close} selected={selectedOrgUnits} onSave={onSaveOrgUnits} />)}
+           </div>
+       </Modal>
+   </>
+  );
+}
