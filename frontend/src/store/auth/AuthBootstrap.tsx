@@ -1,26 +1,26 @@
-import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
 import { useRefreshMutation } from "../api/auth.api";
-import { selectAuthLoaded } from "./auth.selectors";
 import { authLoaded } from "./auth.slice";
 
 export default function AuthBootstrap() {
   const dispatch = useDispatch();
-  const authLoadedFlag = useSelector(selectAuthLoaded);
   const [refresh] = useRefreshMutation();
+  const didRun = useRef(false);
 
   useEffect(() => {
-    if (authLoadedFlag) return;
+    if (didRun.current) return;
+    didRun.current = true;
 
     refresh()
       .unwrap()
       .catch(() => {
-        // refresh failure is handled globally (redirect)
+        // handled globally (redirect)
       })
       .finally(() => {
         dispatch(authLoaded());
       });
-  }, [authLoadedFlag, refresh, dispatch]);
+  }, [refresh, dispatch]);
 
   return null;
 }
