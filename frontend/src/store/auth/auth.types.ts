@@ -6,6 +6,7 @@ export interface AuthUser {
   lastName?: string;
   fullName?: string;
   isAdmin: boolean;
+  isUser: boolean;
   realmRoles: string[];
   clientRoles: Record<string, string[]>;
   enabled: boolean;

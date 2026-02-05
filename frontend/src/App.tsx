@@ -9,17 +9,18 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminRoute } from "./components/AdminRoute";
 
 import PublicLayout from "./layout/public/PublicLayout";
+import UserLayout from "./layout/user/UserLayout";
+import AdminLayout from "./layout/admin/AdminLayout";
 
 import NewsFeedPage from "./pages/public/newsfeed/news_feed.component";
-import AppLauncherPage from "./pages/public/applauncher/app_launcher.component";
+import DataVisualizer from "./pages/public/datavisualizer/data-visualizer";
 
 import AuditLogsPage from "./pages/admin/audit/audit_component";
 import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
 import HomePage from "./pages/admin/home/home.component";
-import AdminLayout from "./layout/admin/AdminLayout";
+
 import { ModalProvider } from "./components/modal/modal.context";
-import DataVisualizer from "./pages/public/datavisualizer/data-visualizer.tsx";
 
 function App() {
   return (
@@ -27,25 +28,29 @@ function App() {
       <Router>
         <Routes>
           {/* ---------------------------------- */}
-          {/* PUBLIC (authenticated users) */}
+          {/* PUBLIC (no auth required) */}
+          {/* ---------------------------------- */}
+          <Route element={<PublicLayout />}>
+            <Route index element={<NewsFeedPage />} />
+            <Route path="/news" element={<NewsFeedPage />} />
+          </Route>
+
+          {/* ---------------------------------- */}
+          {/* USER (authenticated) */}
           {/* ---------------------------------- */}
           <Route
             element={
               <ProtectedRoute>
-                <PublicLayout />
+                <UserLayout />
               </ProtectedRoute>
             }
           >
-            {/* Default landing after login */}
-            <Route index element={<Navigate to="/dashboard" replace />} />
-
-            <Route path="/dashboard" element={<NewsFeedPage />} />
-            <Route path="/apps" element={<AppLauncherPage />} />
-            <Route path="/data-visualizer" element={<DataVisualizer />} />
+            <Route index element={<DataVisualizer />} />
+            <Route path="/dwh/data-visualizer" element={<DataVisualizer />} />
           </Route>
 
           {/* ---------------------------------- */}
-          {/* ADMIN */}
+          {/* ADMIN (authenticated + role) */}
           {/* ---------------------------------- */}
           <Route
             path="/admin"
@@ -76,6 +81,7 @@ function App() {
                 </AdminRoute>
               }
             />
+
             <Route
               path="audit-logs"
               element={
@@ -89,7 +95,7 @@ function App() {
           {/* ---------------------------------- */}
           {/* FALLBACK */}
           {/* ---------------------------------- */}
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
     </ModalProvider>

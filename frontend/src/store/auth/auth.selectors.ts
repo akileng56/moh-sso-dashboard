@@ -20,6 +20,11 @@ export const selectIsAdmin = createSelector(
   (u) => u?.isAdmin === true
 );
 
+export const selectIsUser = createSelector(
+  selectUser,
+  (u) => u?.isUser === true
+);
+
 export const selectAuthLoading = createSelector(selectAuth, (a) => a.loading);
 
 export const selectAuthLoaded = createSelector(selectAuth, (a) => a.loaded);

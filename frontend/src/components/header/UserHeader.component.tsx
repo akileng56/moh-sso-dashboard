@@ -6,18 +6,23 @@ import {
   HeaderGlobalAction,
   SkipToContent,
 } from "@carbon/react";
-import { Login } from "@carbon/icons-react";
+import { UserAvatarFilled, Logout } from "@carbon/icons-react";
 import { useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+
+import { selectUser } from "../../store/auth/auth.selectors";
+import AppMenuAction from "../appmenu/AppMenu.component";
 import { API } from "../../lib/constants/api.constants";
 import "./public-header.css";
 
 import imagePath from "../../assets/logo.png";
 
-const PublicHeader: React.FC = () => {
+const UserHeader: React.FC = () => {
   const navigate = useNavigate();
+  const user = useSelector(selectUser);
 
-  const handleLogin = () => {
-    window.location.replace(API.auth.login());
+  const handleLogout = () => {
+    window.location.replace(API.auth.logout());
   };
   return (
     <Header aria-label="MOH Integrated Health Portal">
@@ -27,7 +32,7 @@ const PublicHeader: React.FC = () => {
       <img src={`${imagePath}`} className={`moh-image-style`} />
       <HeaderName
         prefix="MOH"
-        onClick={() => navigate("/")}
+        onClick={() => navigate("/apps")}
         style={{ cursor: "pointer" }}
       >
         Integrated Health Portal
@@ -35,19 +40,28 @@ const PublicHeader: React.FC = () => {
 
       {/* Global Actions */}
       <HeaderGlobalBar>
+        {/* 🌱 Environment */}
+        {/*<EnvironmentBadge />*/}
+        {/* App Launcher */}
+        <AppMenuAction />
+        {/* User indicator */}
+        <HeaderGlobalAction
+          aria-label={`Signed in as ${user?.username ?? "user"}`}
+          tooltipAlignment="end"
+        >
+          <UserAvatarFilled size={20} />
+        </HeaderGlobalAction>
         {/* Logout */}
         <HeaderGlobalAction
-          aria-label="login"
+          aria-label="Logout"
           tooltipAlignment="end"
-          onClick={() => {
-            handleLogin();
-          }}
+          onClick={() => handleLogout()}
         >
-          <Login size={20} />
+          <Logout size={20} />
         </HeaderGlobalAction>
       </HeaderGlobalBar>
     </Header>
   );
 };
 
-export default PublicHeader;
+export default UserHeader;

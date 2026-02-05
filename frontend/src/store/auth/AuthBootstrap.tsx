@@ -5,11 +5,11 @@ import { authLoaded } from "./auth.slice";
 
 export default function AuthBootstrap() {
   const dispatch = useDispatch();
-  const [refresh] = useRefreshMutation();
+  const [refresh, { isLoading }] = useRefreshMutation();
   const didRun = useRef(false);
 
   useEffect(() => {
-    if (didRun.current) return;
+    if (didRun.current || isLoading) return;
     didRun.current = true;
 
     refresh()
@@ -18,7 +18,7 @@ export default function AuthBootstrap() {
         // handled globally (redirect)
       })
       .finally(() => {
-        dispatch(authLoaded());
+        // dispatch(authLoaded());
       });
   }, [refresh, dispatch]);
 

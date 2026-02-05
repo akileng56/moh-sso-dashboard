@@ -1,8 +1,8 @@
 import { Content } from "@carbon/react";
 import { Outlet } from "react-router-dom";
-import PublicHeader from "../../components/header/PublicHeader.component";
 import { PublicFooter } from "../../components/footer/PublicFooter";
 import { ClientSideNav } from "../../components/sidenav/ClientSideNav";
+import UserHeader from "../../components/header/UserHeader.component";
 
 export default function PublicLayout() {
   return (
@@ -14,7 +14,7 @@ export default function PublicLayout() {
       }}
     >
       {/* 🔹 Global Header */}
-      <PublicHeader />
+      <UserHeader />
 
       {/* 🔹 SideNav + Content row */}
       <div
@@ -24,7 +24,7 @@ export default function PublicLayout() {
         }}
       >
         {/* 🔹 Dynamic client SideNav */}
-        {/* <ClientSideNav /> */}
+        <ClientSideNav />
 
         {/* 🔹 Main content */}
         <Content

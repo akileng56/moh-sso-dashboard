@@ -26,6 +26,7 @@ import { NotificationsPanel } from "../../components/notifications/notifications
 import { API } from "../../lib/constants/api.constants";
 import { ToastProvider } from "../../components/notifications/toast/ToastProvider";
 import { EnvironmentBadge } from "../../env/EnvironmentBadge";
+import imagePath from "../../assets/logo.png";
 
 function HeaderActions() {
   const user = useSelector(selectUser);
@@ -93,6 +94,8 @@ export default function AdminLayout() {
       <HeaderPanelProvider>
         {/* ================= Header ================= */}
         <Header aria-label="MOH Integrated Health Portal">
+          <img src={`${imagePath}`} className={`moh-image-style`} />
+
           <HeaderName
             prefix="MOH"
             onClick={() => navigate("/admin")}

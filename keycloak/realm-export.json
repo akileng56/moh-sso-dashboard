@@ -269,8 +269,7 @@
         "http://localhost:3000/*"
       ],
       "webOrigins": [
-        "http://localhost:3000",
-        "http://localhost:9000"
+        "http://localhost:3000"
       ],
       "defaultClientScopes": [
         "openid",

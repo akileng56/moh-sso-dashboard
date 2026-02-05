@@ -16,6 +16,11 @@ type Config struct {
 	GinMode     string `mapstructure:"GIN_MODE"`
 
 	// ==================================================
+	// Frontend
+	// ==================================================
+	FrontendBaseURL string `mapstructure:"FRONTEND_BASE_URL"`
+
+	// ==================================================
 	// Keycloak (Infrastructure)
 	// ==================================================
 	KeycloakVersion   string `mapstructure:"KEYCLOAK_VERSION"`

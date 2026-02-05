@@ -55,6 +55,7 @@ type AuthUser struct {
 	LastName      string              `json:"lastName"`
 	FullName      string              `json:"fullName"`
 	IsAdmin       bool                `json:"isAdmin"`
+	IsUser        bool                `json:"isUser"`
 	RealmRoles    []string            `json:"realmRoles"`
 	ClientRoles   map[string][]string `json:"clientRoles"`
 	Enabled       bool                `json:"enabled"`
@@ -273,6 +274,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 
 	realmRoles := []string{}
 	isAdmin := false
+	isUser := false
 
 	res, err := c.Get("users/" + userID + "/role-mappings/realm")
 	if err != nil {
@@ -291,6 +293,10 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 			realmRoles = append(realmRoles, r.Name)
 			if r.Name == "admin" {
 				isAdmin = true
+			}
+
+			if r.Name == "user" {
+				isUser = true
 			}
 		}
 	}
@@ -369,6 +375,7 @@ func (c *Client) Me(accessToken string) (*AuthUser, error) {
 		LastName:      lastName,
 		FullName:      fullName,
 		IsAdmin:       isAdmin,
+		IsUser:        isUser,
 		RealmRoles:    realmRoles,
 		ClientRoles:   clientRoles,
 		Enabled:       enabled,
