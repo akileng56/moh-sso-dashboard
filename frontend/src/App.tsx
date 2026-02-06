@@ -21,6 +21,7 @@ import ClientsPage from "./pages/admin/clients/client.component";
 import HomePage from "./pages/admin/home/home.component";
 
 import { ModalProvider } from "./components/modal/modal.context";
+import { UserRoute } from "./components/UserRoute";
 
 function App() {
   return (
@@ -32,21 +33,50 @@ function App() {
           {/* ---------------------------------- */}
           <Route element={<PublicLayout />}>
             <Route index element={<NewsFeedPage />} />
-            <Route path="/news" element={<NewsFeedPage />} />
+            <Route path="/" element={<NewsFeedPage />} />
           </Route>
 
           {/* ---------------------------------- */}
           {/* USER (authenticated) */}
           {/* ---------------------------------- */}
           <Route
+            path="/apps"
             element={
               <ProtectedRoute>
                 <UserLayout />
               </ProtectedRoute>
             }
           >
-            <Route index element={<DataVisualizer />} />
-            <Route path="/dwh/data-visualizer" element={<DataVisualizer />} />
+            {/* /apps → redirect to default client home */}
+            <Route
+              index
+              element={<Navigate to="dwh/data-visualizer" replace />}
+            />
+
+            <Route path="dwh">
+              <Route
+                index
+                element={<Navigate to="data-visualizer" replace />}
+              />
+              <Route
+                path="data-visualizer"
+                element={
+                  <UserRoute>
+                    <DataVisualizer />
+                  </UserRoute>
+                }
+              />
+              {/* future */}
+
+              {/* <Route
+                path="reports"
+                element={
+                  <UserRoute>
+                    <DwhReports />
+                  </UserRoute>
+                }
+              /> */}
+            </Route>
           </Route>
 
           {/* ---------------------------------- */}

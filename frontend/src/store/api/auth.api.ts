@@ -15,7 +15,6 @@ type ApiEnvelope<T> = {
 
 type RefreshResponse = ApiEnvelope<{
   access_token: string;
-  user: AuthUser;
 }>;
 
 export const authApi = baseApi.injectEndpoints({
@@ -33,7 +32,7 @@ export const authApi = baseApi.injectEndpoints({
     }),
 
     /* -----------------------------
-     * Refresh token
+     * Refresh session
      * ----------------------------- */
     refresh: builder.mutation<RefreshResponse, void>({
       query: () => ({
@@ -46,25 +45,28 @@ export const authApi = baseApi.injectEndpoints({
         try {
           const { data } = await queryFulfilled;
 
-          // Store new access token
+          // 1️⃣ Update access token
           dispatch(setAccessToken(data.data.access_token));
 
-          const me = await dispatch(
+          // 2️⃣ Fetch current user
+          const user = await dispatch(
             authApi.endpoints.me.initiate(undefined, {
               forceRefetch: true,
             })
           ).unwrap();
 
+          // 3️⃣ Restore authenticated state
           dispatch(
             loginSuccess({
               accessToken: data.data.access_token,
-              user: me,
+              user,
             })
           );
         } catch {
+          // Refresh failed → clear session
           dispatch(logoutAction());
-          // window.location.replace(API.auth.login());
         } finally {
+          // 🚨 Always mark auth bootstrap as done
           dispatch(authLoaded());
         }
       },

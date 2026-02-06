@@ -1,32 +1,32 @@
 import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { InlineLoading } from "@carbon/react";
+import type { JSX } from "react";
 
 import {
   selectAuthenticated,
   selectAuthLoaded,
-  selectUser,
   selectIsAdmin,
 } from "../store/auth/auth.selectors";
-import type { JSX } from "react";
 
 export const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const loaded = useSelector(selectAuthLoaded);
   const authenticated = useSelector(selectAuthenticated);
-  const user = useSelector(selectUser);
   const isAdmin = useSelector(selectIsAdmin);
 
   if (!loaded) {
     return <InlineLoading description="Checking permissions…" />;
   }
 
-  if (!authenticated || !user) {
-    return <Navigate to="/login" replace />;
+  // ❌ Not authenticated → public newsfeed
+  if (!authenticated) {
+    return <Navigate to="/" replace />;
   }
 
   if (!isAdmin) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
+  // ✅ Admin allowed
   return children;
 };
