@@ -16,25 +16,25 @@ import (
 type CreateClientRequest struct {
 	Name                   string            `json:"name" validate:"required"`
 	Description            string            `json:"description,omitempty"`
-	ClientID               string            `json:"client_id" validate:"required"`
-	ClientSecret           string            `json:"client_secret,omitempty"`
-	RedirectURIs           []string          `json:"redirect_uris" validate:"required,dive,uri"`
-	WebOrigins             []string          `json:"web_origins,omitempty"`
-	StandardFlowEnabled    bool              `json:"standard_flow_enabled"`
-	ImplicitFlowEnabled    bool              `json:"implicit_flow_enabled"`
-	DirectAccessGrants     bool              `json:"direct_access_grants"`
-	ServiceAccountsEnabled bool              `json:"service_accounts_enabled"`
-	PublicClient           bool              `json:"public_client"`
-	RootURL                string            `json:"root_url"`
-	BaseURL                string            `json:"base_url"`
-	AdminURL               string            `json:"admin_url"`
+	ClientID               string            `json:"clientId" validate:"required"`
+	ClientSecret           string            `json:"clientSecret"`
+	RedirectURIs           []string          `json:"redirectUris" validate:"required,dive,uri"`
+	WebOrigins             []string          `json:"webOrigins"`
+	StandardFlowEnabled    bool              `json:"standardFlowEnabled"`
+	ImplicitFlowEnabled    bool              `json:"implicitFlowEnabled"`
+	DirectAccessGrants     bool              `json:"directAccessGrants"`
+	ServiceAccountsEnabled bool              `json:"serviceAccountsEnabled"`
+	PublicClient           bool              `json:"publicClient"`
+	RootURL                string            `json:"rootUrl"`
+	BaseURL                string            `json:"baseUrl"`
+	AdminURL               string            `json:"adminUrl"`
 	Enabled                bool              `json:"enabled"`
 	Protocol               string            `json:"protocol,omitempty"`
-	LoginURI               string            `json:"login_uri,omitempty"`
-	LogoutURI              string            `json:"logout_uri,omitempty"`
+	LoginURI               string            `json:"loginUri,omitempty"`
+	LogoutURI              string            `json:"logoutUri,omitempty"`
 	Attributes             map[string]string `json:"attributes"`
-	DefaultClientScopes    []string          `json:"default_client_scopes,omitempty"`
-	OptionalClientScopes   []string          `json:"optional_client_scopes,omitempty"`
+	DefaultClientScopes    []string          `json:"defaultClientScopes,omitempty"`
+	OptionalClientScopes   []string          `json:"optionalClientScopes,omitempty"`
 	Tags                   []string          `json:"tags,omitempty"`
 }
 

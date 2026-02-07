@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,11 +55,11 @@ type ProtocolMapper struct {
 type CreateClientParams struct {
 	ClientID                  string            `json:"clientId"`
 	Name                      string            `json:"name"`
-	Description               string            `json:"description,omitempty"`
-	BaseURL                   string            `json:"baseUrl,omitempty"`
-	RootURL                   string            `json:"rootUrl,omitempty"`
-	RedirectURIs              []string          `json:"redirectUris,omitempty"`
-	WebOrigins                []string          `json:"webOrigins,omitempty"`
+	Description               string            `json:"description"`
+	BaseURL                   string            `json:"baseUrl"`
+	RootURL                   string            `json:"rootUrl"`
+	RedirectURIs              []string          `json:"redirectUris"`
+	WebOrigins                []string          `json:"webOrigins"`
 	PublicClient              bool              `json:"publicClient"`
 	Protocol                  string            `json:"protocol"`
 	StandardFlowEnabled       bool              `json:"standardFlowEnabled"`
@@ -66,7 +67,7 @@ type CreateClientParams struct {
 	DirectAccessGrantsEnabled bool              `json:"directAccessGrantsEnabled"`
 	ServiceAccountsEnabled    bool              `json:"serviceAccountsEnabled"`
 	Enabled                   bool              `json:"enabled"`
-	Attributes                map[string]string `json:"attributes,omitempty"`
+	Attributes                map[string]string `json:"attributes"`
 }
 
 type KeycloakUser struct {
@@ -129,7 +130,7 @@ type UserRep struct {
 
 type CreateRoleRequest struct {
 	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
+	Description string `json:"description"`
 	Composite   bool   `json:"composite"`
 	ClientRole  bool   `json:"clientRole"`
 }
