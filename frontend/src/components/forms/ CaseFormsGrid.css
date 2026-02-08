@@ -1,0 +1,41 @@
+/* CaseFormsGrid.css */
+.case-forms {
+  margin-bottom: 3rem;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.case-forms__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.case-form-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-decoration: none;
+  border: 1px solid #e5e7eb;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.case-form-card:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.case-form-card h3 {
+  color: #2563eb;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.case-form-card p {
+  font-size: 0.875rem;
+  color: #6b7280;
+}

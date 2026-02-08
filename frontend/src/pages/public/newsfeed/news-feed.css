@@ -1,43 +1,74 @@
 /* =========================
  * Page layout
  * ========================= */
-.news-feed {
+.page-container {
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
-.news-feed__title {
+.page-header {
+  max-width: 720px;
+}
+
+.page-title {
   margin: 0;
 }
 
-.news-feed__subtitle {
+.page-subtitle {
   margin-top: 6px;
   opacity: 0.8;
 }
 
 /* =========================
- * Feed items
+ * Main content layout
  * ========================= */
-.feed-item {
-  margin-top: 1rem;
+.page-content {
+  display: grid;
+  grid-template-columns: minmax(0, 2.5fr) minmax(0, 1fr);
+  gap: 1.5rem;
 }
 
-.feed-item__header {
+@media (max-width: 960px) {
+  .page-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================
+ * News feed
+ * ========================= */
+.news-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.feed-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.feed-header {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.feed-item__title {
+.feed-header h4 {
   margin: 0;
   font-size: 1rem;
+  font-weight: 600;
 }
 
-.feed-item__message {
-  margin: 0;
+.feed-message {
+  margin-top: 0.75rem;
   line-height: 1.5;
 }
 
-.feed-item__meta {
+.feed-timestamp {
+  margin-top: 0.75rem;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -45,25 +76,62 @@
   opacity: 0.7;
 }
 
+/* Optional future state */
 .feed-item--unread {
   background-color: var(--cds-layer-hover);
 }
+
 /* =========================
- * Sidebar
+ * Sidebar – Case reporting
  * ========================= */
 .news-sidebar {
-  margin-top: 1rem;
+  position: sticky;
+  top: 1rem;
+  height: fit-content;
 }
 
-.news-sidebar__title {
-  margin-top: 0;
+.case-reporting-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
 }
 
-.news-sidebar__list {
-  margin-top: 0.75rem;
-  padding-left: 1rem;
-}
-
-.news-sidebar__list li {
+.case-reporting-list li {
   margin-bottom: 0.5rem;
+}
+
+.case-reporting-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  text-decoration: none;
+  padding: 0.25rem 0;
+}
+
+.case-reporting-link:hover {
+  text-decoration: underline;
+}
+
+/* =========================
+ * Tile behavior polish
+ * ========================= */
+.cds--tile {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cds--tile:hover {
+  box-shadow: var(--cds-shadow-sm);
+}
+
+/* =========================
+ * Accessibility helpers
+ * ========================= */
+.cds--tile[role="button"] {
+  cursor: pointer;
+}
+
+.cds--tile[role="button"]:focus {
+  outline: 2px solid var(--cds-focus);
+  outline-offset: 2px;
 }
