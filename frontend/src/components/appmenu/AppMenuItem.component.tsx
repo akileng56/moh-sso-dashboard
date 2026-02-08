@@ -1,5 +1,4 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 
 import { setActiveClient } from "../../store/clients/clients.slice";
@@ -18,7 +17,6 @@ const AppTile: React.FC<AppTileProps> = ({
   href,
   clientId,
 }) => {
-  const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const handleClick = () => {
@@ -27,8 +25,8 @@ const AppTile: React.FC<AppTileProps> = ({
       dispatch(setActiveClient(clientId));
     }
 
-    // 🧭 Navigate to route
-    navigate(href);
+    // 🌍 Open in new tab (safe defaults)
+    window.open(href, "_blank", "noopener,noreferrer");
   };
 
   return (
