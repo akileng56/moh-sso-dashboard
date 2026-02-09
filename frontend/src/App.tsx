@@ -31,6 +31,7 @@ import HomePage from "./pages/admin/home/home.component";
 import UsersPage from "./pages/admin/user/user.component";
 import ClientsPage from "./pages/admin/clients/client.component";
 import AuditLogsPage from "./pages/admin/audit/audit_component";
+
 import MyTimeSheet from "./pages/user/utilities/my-timesheet.component";
 import Elearning from "./pages/user/utilities/elearning.component";
 import LeavePlan from "./pages/user/utilities/leave-plan.component";
@@ -61,8 +62,18 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* /apps → default client */}
-            <Route index element={<Navigate to="dwh" replace />} />
+            {/* /apps -> choose a sensible default */}
+            <Route index element={<Navigate to="news" replace />} />
+
+            {/* simple: keep news directly under /apps */}
+            <Route
+              path="news"
+              element={
+                <UserRoute>
+                  <NewsFeedPage />
+                </UserRoute>
+              }
+            />
 
             {/* --------------------------
              * DWH client
@@ -251,7 +262,6 @@ function App() {
                   </UserRoute>
                 }
               />
-
               <Route
                 path="disease-registers"
                 element={
@@ -276,7 +286,6 @@ function App() {
                   </UserRoute>
                 }
               />
-
               <Route
                 path="poe-management"
                 element={
@@ -285,7 +294,6 @@ function App() {
                   </UserRoute>
                 }
               />
-
               <Route
                 path="case-management"
                 element={
@@ -360,7 +368,6 @@ function App() {
                 element={<Navigate to="self-service/timesheet" replace />}
               />
 
-              {/* Self Service */}
               <Route path="self-service">
                 <Route
                   path="timesheet"
@@ -403,7 +410,6 @@ function App() {
                   }
                 />
 
-                {/* eService Requests */}
                 <Route path="eservice">
                   <Route
                     path="document-upload"
@@ -445,7 +451,14 @@ function App() {
           >
             <Route index element={<Navigate to="home" replace />} />
 
-            <Route path="home" element={<HomePage />} />
+            <Route
+              path="home"
+              element={
+                <AdminRoute>
+                  <HomePage />
+                </AdminRoute>
+              }
+            />
 
             <Route
               path="users"
