@@ -22,24 +22,59 @@ interface FeedItem {
 /* --------------------------------
  * Mock data
  * -------------------------------- */
-const FEED_ITEMS: FeedItem[] = [
-  {
-    id: "1",
-    title: "System Updates",
-    message:
-      "Welcome to the MOH App Portal. New features are being rolled out gradually to improve security, performance, and usability.",
-    tag: { label: "New", type: "blue" },
-    timestamp: "Posted today",
-  },
-  {
-    id: "2",
-    title: "Maintenance Notice",
-    message:
-      "Planned system maintenance will occur on Saturday from 10:00 PM – 12:00 AM. Some services may be temporarily unavailable.",
-    tag: { label: "Scheduled", type: "red" },
-    timestamp: "Scheduled",
-  },
-];
+const FEED_ITEMS: FeedItem[] =
+    [
+      {
+        "id": "1",
+        "title": "System Updates",
+        "message": "We have upgraded our authentication engine to support faster logins. You may now manage active sessions directly from your profile settings.",
+        "tag": {
+          "label": "New",
+          "type": "blue"
+        },
+        "timestamp": "Posted today"
+      },
+      {
+        "id": "2",
+        "title": "Maintenance Notice",
+        "message": "To ensure database stability, the MOH Portal will undergo routine optimization this Saturday. Access to the Reporting module may be intermittent between 10:00 PM and 12:00 AM.",
+        "tag": {
+          "label": "Scheduled",
+          "type": "red"
+        },
+        "timestamp": "Scheduled"
+      },
+      {
+        "id": "3",
+        "title": "Upcoming Events",
+        "message": "Join us for the National Digital Health Summit next month. We will be discussing the future of EMR integration across regional referral hospitals.",
+        "tag": {
+          "label": "Event",
+          "type": "blue"
+        },
+        "timestamp": "Posted today"
+      },
+      {
+        "id": "4",
+        "title": "MOH Activity Listing",
+        "message": "The Ministry of Health will conduct a public sickle cell screening for children aged 10-15 starting next Monday at all district health centers.",
+        "tag": {
+          "label": "Action",
+          "type": "red"
+        },
+        "timestamp": "Scheduled"
+      },
+      {
+        "id": "5",
+        "title": "Daily Feeds",
+        "message": "Did you know? Consistent use of the iIHMS system has reduced patient wait times by 15% this quarter. Check the Insights tab for more performance data.",
+        "tag": {
+          "label": "Info",
+          "type": "blue"
+        },
+        "timestamp": "Posted today"
+      }
+    ]
 
 const CASE_REPORTING = [
   {
