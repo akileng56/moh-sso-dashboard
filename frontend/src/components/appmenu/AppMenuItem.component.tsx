@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 
 import { setActiveClient } from "../../store/clients/clients.slice";
 import "./AppMenu.css";
+import {ClickableTile} from "@carbon/react";
 
 interface AppTileProps {
   icon: React.ElementType;
@@ -30,15 +31,14 @@ const AppTile: React.FC<AppTileProps> = ({
   };
 
   return (
-    <button
-      type="button"
-      className="app-menu-item"
-      onClick={handleClick}
-      aria-label={name}
-    >
-      <Icon size={28} className="app-menu-item__icon" />
-      <span className="app-menu-item__label">{name}</span>
-    </button>
+      <ClickableTile
+          id={`clickable-tile-${name}`}
+          onClick={handleClick}
+          className={`clickable-tile-moh`}
+      >
+        <div><Icon size={25} className="app-menu-item__icon" /></div>
+        <div>{name}</div>
+      </ClickableTile>
   );
 };
 
