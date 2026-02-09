@@ -7,7 +7,7 @@ export const SETTINGS_CLIENT_ID = "__settings__";
 export const defaultClient: Client = {
   id: DEFAULT_CLIENT_ID,
   clientId: DEFAULT_CLIENT_ID,
-  name: "National Data Warehouse",
+  name: "Data & Statistics",
   enabled: true,
   publicClient: false,
 
@@ -27,6 +27,21 @@ export const defaultClient: Client = {
         id: "data-visualizer",
         label: "Data Visualizer",
         path: "/apps/dwh/data-visualizer",
+      },
+      {
+        id: "dashboards",
+        label: "Dashboards",
+        path: "/apps/dwh/dashboards",
+      },
+      {
+        id: "reports",
+        label: "Reports",
+        path: "/apps/dwh/reports",
+      },
+      {
+        id: "data-exports",
+        label: "Data Exports",
+        path: "/apps/dwh/exports",
       },
     ]),
   },
@@ -243,35 +258,6 @@ export const referenceRegistersClient: Client = {
   },
 };
 
-export const dataStatisticsClient: Client = {
-  id: "data-statistics",
-  clientId: "data-statistics",
-  name: "Data & Statistics",
-  enabled: true,
-  publicClient: false,
-  redirectUris: [],
-  attributes: {
-    "ui.icon": "chart-bar",
-    "ui.home": "/apps/data-statistics",
-    "ui.sidenav": JSON.stringify([
-      {
-        id: "dashboards",
-        label: "Dashboards",
-        path: "/apps/data-statistics/dashboards",
-      },
-      {
-        id: "reports",
-        label: "Reports",
-        path: "/apps/data-statistics/reports",
-      },
-      {
-        id: "data-exports",
-        label: "Data Exports",
-        path: "/apps/data-statistics/exports",
-      },
-    ]),
-  },
-};
 export const eServicesClient: Client = {
   id: "eservices",
   clientId: "eservices",
@@ -380,7 +366,6 @@ export const researchStudiesClient: Client = {
 
 export const DEFAULT_CLIENTS: Client[] = [
   defaultClient,
-  dataStatisticsClient,
   eServicesClient,
   researchStudiesClient,
   caseRegistersClient,

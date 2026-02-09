@@ -80,14 +80,6 @@ function App() {
                   </UserRoute>
                 }
               />
-            </Route>
-
-            {/* --------------------------
-             * Data & Statistics client
-             * -------------------------- */}
-            <Route path="data-statistics">
-              <Route index element={<Navigate to="dashboards" replace />} />
-
               <Route
                 path="dashboards"
                 element={
