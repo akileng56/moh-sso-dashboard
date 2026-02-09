@@ -188,7 +188,7 @@
         }
       ],
       "integrated-outbreak-system": [
-         {
+        {
           "name": "integrated-outbreak-system_access",
           "description": "Base access to Integrated Outbreak System"
         },
@@ -220,8 +220,14 @@
           "name": "surveillance_officer",
           "description": "Surveillance officer with monitoring access"
         }
-      ]
-      
+      ],
+
+     "report-browser":[
+       {
+          "name": "report-browser_access",
+          "description": "Access MOH Report browser"
+        }
+     ]
     }
   },
   "clients": [
@@ -291,15 +297,15 @@
       ]
     },
     {
-      "clientId": "integrated-outbreak-system",
+      "clientId": "report-browser",
       "name": "Report Browser",
-      "description": "Integrated Outbreak System Backend API",
+      "description": "Report Browser Dashboard",
       "rootUrl": "https://dashboards.health.go.ug/report-browser/",
       "baseUrl": "https://dashboards.health.go.ug/report-browser/",
       "enabled": true,
       "publicClient": false,
       "protocol": "openid-connect",
-      "secret": "ios-secret",
+      "secret": "report-browser-secret",
       "serviceAccountsEnabled": true,
       "authorizationServicesEnabled": true,
       "standardFlowEnabled": true,
@@ -313,6 +319,38 @@
       "attributes": {
         "access.token.lifespan": "1800",
         "ui.icon": "reporting",
+        "ui.home": "/dashboard"
+      },
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "roles"
+      ]
+    },
+     {
+      "clientId": "integrated-outbreak-system",
+      "name": "Integrated Outbreak System",
+      "description": "Integrated Outbreak System Backend API",
+      "rootUrl": "http://localhost:3001",
+      "baseUrl": "http://localhost:3001",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "secret": "ios-secret",
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3001/auth/callback"
+      ],
+      "webOrigins": [
+        "http://localhost:3001"
+      ],
+      "attributes": {
+        "access.token.lifespan": "1800",
+        "ui.icon": "user",
         "ui.home": "/dashboard"
       },
       "defaultClientScopes": [
@@ -344,7 +382,8 @@
       "clientRoles": {
         "dashboard-web": [
           "dashboard-web_access",
-          "integrated-outbreak-system_access"
+          "integrated-outbreak-system_access",
+          "report-browser_access"
         ],
         "integrated-outbreak-system": [
           "integrated-outbreak-system_access",
@@ -372,10 +411,12 @@
       "clientRoles": {
         "dashboard-web": [
           "dashboard-web_access",
-          "integrated-outbreak-system_access"
+          "integrated-outbreak-system_access",
+          "report-browser_access"
         ],
         "integrated-outbreak-system": [
           "integrated-outbreak-system_access",
+          "report-browser_access",
           "viewer"
         ]
       }
@@ -491,7 +532,7 @@
           "view-clients",
           "manage-clients",
           "view-realm"
-        ]     
+        ]
       }
     }
   ]

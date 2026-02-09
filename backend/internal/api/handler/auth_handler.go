@@ -211,7 +211,7 @@ func (h *AuthHandler) HandleAuthCallback(c *gin.Context) {
 	if isAdmin {
 		redirectURL = baseURL + "/admin/home"
 	} else if isUser {
-		redirectURL = baseURL + "/apps/dwh"
+		redirectURL = baseURL + "/apps/news"
 	}
 
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
