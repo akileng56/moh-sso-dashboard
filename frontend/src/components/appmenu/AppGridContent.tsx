@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Grid, Column, InlineLoading, Tile } from "@carbon/react";
+import { Grid, Column, InlineLoading, Tile,  } from "@carbon/react";
 import {
   Document,
   Calendar,
@@ -7,6 +7,7 @@ import {
   Menu,
   User,
   App,
+  IbmJrs
 } from "@carbon/icons-react";
 import { useDispatch } from "react-redux";
 
@@ -23,6 +24,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   settings: Menu,
   user: User,
   applications: App,
+  reporting: IbmJrs
 };
 
 const AppGridContent: React.FC = () => {
@@ -87,31 +89,23 @@ const AppGridContent: React.FC = () => {
   }
 
   return (
-    <Grid narrow className="app-grid">
+    <>
       {clients.map((client: Client) => {
         // 🔑 Attribute-driven icon
         const iconKey = client.attributes?.["ui.icon"];
         const Icon = ICON_MAP[iconKey ?? ""] ?? App;
         return (
-          <Column
-            key={client.clientId}
-            sm={2}
-            md={2}
-            lg={3}
-            className="app-grid__column"
-          >
-            <div className="app-tile-wrapper">
-              <AppTile
-                icon={Icon}
-                name={client.name}
-                href={client.baseUrl ?? ""}
-                clientId={client.clientId}
-              />
-            </div>
-          </Column>
+          <div className="app-tile-wrapper">
+            <AppTile
+              icon={Icon}
+              name={client.name}
+              href={client.baseUrl ?? ""}
+              clientId={client.clientId}
+            />
+          </div>
         );
       })}
-    </Grid>
+    </>
   );
 };
 

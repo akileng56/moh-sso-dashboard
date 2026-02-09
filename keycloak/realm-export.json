@@ -292,10 +292,10 @@
     },
     {
       "clientId": "integrated-outbreak-system",
-      "name": "Integrated Outbreak System",
+      "name": "Report Browser",
       "description": "Integrated Outbreak System Backend API",
-      "rootUrl": "http://localhost:3001",
-      "baseUrl": "http://localhost:3001",
+      "rootUrl": "https://dashboards.health.go.ug/report-browser/",
+      "baseUrl": "https://dashboards.health.go.ug/report-browser/",
       "enabled": true,
       "publicClient": false,
       "protocol": "openid-connect",
@@ -308,11 +308,11 @@
         "http://localhost:3001/auth/callback"
       ],
       "webOrigins": [
-        "http://localhost:3001"
+        "https://dashboards.health.go.ug/report-browser/"
       ],
       "attributes": {
         "access.token.lifespan": "1800",
-        "ui.icon": "user",
+        "ui.icon": "reporting",
         "ui.home": "/dashboard"
       },
       "defaultClientScopes": [
