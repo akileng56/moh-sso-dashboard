@@ -33,8 +33,8 @@ export function CreateClientRoleForm({ clientId, onSuccess }: Props) {
       setName("");
       setDescription("");
       onSuccess?.();
-    } catch (error) {
-      toast.error("Failed to create role", "Please try again");
+    } catch {
+      toast.error("Failed to create role", `Please try again`);
     }
   };
 
@@ -55,12 +55,7 @@ export function CreateClientRoleForm({ clientId, onSuccess }: Props) {
         onChange={(e) => setDescription(e.target.value)}
       />
 
-      <Button
-        kind="primary"
-        size="sm"
-        disabled={!isValid || isLoading}
-        onClick={handleSubmit}
-      >
+      <Button kind="primary" size="sm" disabled={!isValid || isLoading} onClick={handleSubmit}>
         {isLoading ? <InlineLoading description="Creating…" /> : "Add role"}
       </Button>
     </Stack>

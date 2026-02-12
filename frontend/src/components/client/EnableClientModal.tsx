@@ -28,8 +28,7 @@ export const EnableClientModal: React.FC<EnableClientModalProps> = ({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <p>
-        Are you sure you want to{" "}
-        <strong>{enabled ? "disable" : "enable"}</strong> the client
+        Are you sure you want to <strong>{enabled ? "disable" : "enable"}</strong> the client
         <strong> {clientName}</strong>?
       </p>
 
@@ -40,9 +39,7 @@ export const EnableClientModal: React.FC<EnableClientModalProps> = ({
       </p>
 
       {loading && (
-        <InlineLoading
-          description={enabled ? "Disabling client…" : "Enabling client…"}
-        />
+        <InlineLoading description={enabled ? "Disabling client…" : "Enabling client…"} />
       )}
 
       <div
@@ -56,11 +53,7 @@ export const EnableClientModal: React.FC<EnableClientModalProps> = ({
           Cancel
         </Button>
 
-        <Button
-          kind={enabled ? "danger" : "primary"}
-          onClick={handleConfirm}
-          disabled={loading}
-        >
+        <Button kind={enabled ? "danger" : "primary"} onClick={handleConfirm} disabled={loading}>
           {enabled ? "Disable client" : "Enable client"}
         </Button>
       </div>

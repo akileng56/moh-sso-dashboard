@@ -8,7 +8,7 @@ export default defineConfig({
     port: 3000,
   },
   optimizeDeps: {
-    include: ['react-pivottable/PivotTableUI'],
+    include: ["react-pivottable/PivotTableUI"],
   },
   build: {
     commonjsOptions: {

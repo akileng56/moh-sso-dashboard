@@ -11,9 +11,7 @@ type Props = {
 
 export function SignalTile({ label, value, severity, helperText }: Props) {
   return (
-    <Tile
-      className={`signal-tile ${severity ? `signal-tile--${severity}` : ""}`}
-    >
+    <Tile className={`signal-tile ${severity ? `signal-tile--${severity}` : ""}`}>
       <Stack gap={2}>
         <span className="signal-tile__label">{label}</span>
 
@@ -27,9 +25,7 @@ export function SignalTile({ label, value, severity, helperText }: Props) {
               </Tag>
             )}
 
-            {helperText && (
-              <span className="signal-tile__helper">{helperText}</span>
-            )}
+            {helperText && <span className="signal-tile__helper">{helperText}</span>}
           </Stack>
         )}
       </Stack>

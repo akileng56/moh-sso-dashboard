@@ -11,10 +11,7 @@ import {
 } from "@carbon/react";
 import { useMemo, useState } from "react";
 
-import {
-  useCreateClientMutation,
-  useUpdateClientMutation,
-} from "../../store/api/clients.api";
+import { useCreateClientMutation, useUpdateClientMutation } from "../../store/api/clients.api";
 import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert";
 import { useToast } from "../notifications/toast/useToast";
 import { ClientRolesPanel } from "../client/roles/client-roles-panel";
@@ -58,8 +55,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
 
   const [createdClientId, setCreatedClientId] = useState<string | null>(null);
 
-  const effectiveClientId =
-    mode === "edit" ? initialClient?.clientId : createdClientId;
+  const effectiveClientId = mode === "edit" ? initialClient?.clientId : createdClientId;
 
   const [form, setForm] = useState<ClientFormState>({
     id: initialClient?.id ?? "",
@@ -117,10 +113,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
     return true;
   }, [form, mode, isClientIdValid]);
 
-  const handleChange = <K extends keyof ClientFormState>(
-    field: K,
-    value: ClientFormState[K]
-  ) => {
+  const handleChange = <K extends keyof ClientFormState>(field: K, value: ClientFormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -155,9 +148,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
     } catch (err: any) {
       const message =
         err?.data?.message ??
-        (mode === "create"
-          ? "Failed to create client"
-          : "Failed to update client");
+        (mode === "create" ? "Failed to create client" : "Failed to update client");
 
       setError(message);
       toast.error("Operation failed", "Please review the form and try again");
@@ -167,9 +158,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
   return (
     <Form>
       <Stack gap={7}>
-        {error && (
-          <FormInlineAlert title="Unable to save client" subtitle={error} />
-        )}
+        {error && <FormInlineAlert title="Unable to save client" subtitle={error} />}
 
         {/* -----------------------------
          * Client details
@@ -187,15 +176,9 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               required
               disabled={mode === "edit"}
               value={form.clientId}
-              invalid={
-                mode === "create" &&
-                form.clientId.length > 0 &&
-                !isClientIdValid
-              }
+              invalid={mode === "create" && form.clientId.length > 0 && !isClientIdValid}
               invalidText="Only lowercase letters, numbers, and dashes allowed"
-              onChange={(e) =>
-                handleChange("clientId", e.target.value.toLowerCase())
-              }
+              onChange={(e) => handleChange("clientId", e.target.value.toLowerCase())}
             />
 
             <TextInput
@@ -268,9 +251,7 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
               id="publicClient"
               labelText="Public client (no client secret)"
               checked={form.publicClient}
-              onChange={(_, { checked }) =>
-                handleChange("publicClient", checked)
-              }
+              onChange={(_, { checked }) => handleChange("publicClient", checked)}
             />
 
             <Checkbox
@@ -286,16 +267,10 @@ export function ClientFormPanel({ mode, initialClient, onSuccess }: Props) {
          * Actions
          * ----------------------------- */}
         <Stack orientation="horizontal" gap={3}>
-          <Button
-            kind="primary"
-            disabled={!isValid || submitting}
-            onClick={handleSubmit}
-          >
+          <Button kind="primary" disabled={!isValid || submitting} onClick={handleSubmit}>
             {submitting ? (
               <InlineLoading
-                description={
-                  mode === "create" ? "Creating client…" : "Updating client…"
-                }
+                description={mode === "create" ? "Creating client…" : "Updating client…"}
               />
             ) : mode === "create" ? (
               "Create client"

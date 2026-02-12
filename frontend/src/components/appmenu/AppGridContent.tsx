@@ -1,14 +1,6 @@
 import React, { useEffect } from "react";
-import { Grid, Column, InlineLoading, Tile,  } from "@carbon/react";
-import {
-  Document,
-  Calendar,
-  Email,
-  Menu,
-  User,
-  App,
-  IbmJrs
-} from "@carbon/icons-react";
+import { InlineLoading, Tile } from "@carbon/react";
+import { Document, Calendar, Email, Menu, User, App, IbmJrs } from "@carbon/icons-react";
 import { useDispatch } from "react-redux";
 
 import AppTile from "./AppMenuItem.component";
@@ -24,18 +16,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
   settings: Menu,
   user: User,
   applications: App,
-  reporting: IbmJrs
+  reporting: IbmJrs,
 };
 
 const AppGridContent: React.FC = () => {
   const dispatch = useDispatch();
 
-  const {
-    data: clients = [],
-    isLoading,
-    isError,
-    refetch,
-  } = useListClientsQuery();
+  const { data: clients = [], isLoading, isError, refetch } = useListClientsQuery();
 
   /* -----------------------------
    * 🔑 Sync clients into Redux
@@ -65,11 +52,7 @@ const AppGridContent: React.FC = () => {
       <div className="app-grid-state">
         <Tile>
           <p style={{ marginBottom: "0.5rem" }}>Failed to load applications.</p>
-          <button
-            type="button"
-            className="app-grid-retry"
-            onClick={() => refetch()}
-          >
+          <button type="button" className="app-grid-retry" onClick={() => refetch()}>
             Retry
           </button>
         </Tile>

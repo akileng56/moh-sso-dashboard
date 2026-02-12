@@ -46,10 +46,7 @@ export function useToast() {
     show,
 
     /* Shorthands (non-breaking) */
-    success: (
-      options: Omit<ToastOptions, "kind"> | string,
-      subtitle?: string
-    ) =>
+    success: (options: Omit<ToastOptions, "kind"> | string, subtitle?: string) =>
       typeof options === "string"
         ? show({ kind: "success", title: options, subtitle })
         : show({ ...options, kind: "success" }),
@@ -64,10 +61,7 @@ export function useToast() {
         ? show({ kind: "info", title: options, subtitle })
         : show({ ...options, kind: "info" }),
 
-    warning: (
-      options: Omit<ToastOptions, "kind"> | string,
-      subtitle?: string
-    ) =>
+    warning: (options: Omit<ToastOptions, "kind"> | string, subtitle?: string) =>
       typeof options === "string"
         ? show({ kind: "warning", title: options, subtitle })
         : show({ ...options, kind: "warning" }),

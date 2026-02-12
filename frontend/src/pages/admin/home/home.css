@@ -12,9 +12,7 @@
  * Hero / Welcome tile
  * ========================= */
 .home-hero {
-  background: linear-gradient(135deg,
-      var(--cds-layer),
-      var(--cds-layer-accent));
+  background: linear-gradient(135deg, var(--cds-layer), var(--cds-layer-accent));
 }
 
 /* =========================

@@ -1,7 +1,5 @@
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 
 export default function MyTimeSheet() {
-  return (
-    <EmptyState title={"No Data"} description={"No timesheet  data here"} />
-  );
+  return <EmptyState title={"No Data"} description={"No timesheet  data here"} />;
 }

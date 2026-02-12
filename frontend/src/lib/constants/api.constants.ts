@@ -37,8 +37,7 @@ export const API = {
       list: (clientId: string) => `${API_BASE}/clients/${clientId}/roles`,
 
       // WRITE (admin)
-      create: (clientId: string) =>
-        `${API_BASE}/admin/clients/${clientId}/roles`,
+      create: (clientId: string) => `${API_BASE}/admin/clients/${clientId}/roles`,
       delete: (clientId: string, role: string) =>
         `${API_BASE}/admin/clients/${clientId}/roles/${role}`,
     },
@@ -74,8 +73,7 @@ export const API = {
         preview: () => `${API_BASE}/admin/users/import/preview`,
         execute: () => `${API_BASE}/admin/users/import/execute`,
         job: (jobId: string) => `${API_BASE}/admin/users/import/${jobId}`,
-        errorsCsv: (jobId: string) =>
-          `${API_BASE}/admin/users/import/${jobId}/errors.csv`,
+        errorsCsv: (jobId: string) => `${API_BASE}/admin/users/import/${jobId}/errors.csv`,
         templateCsv: () => `${API_BASE}/admin/users/import/template.csv`,
       },
 
@@ -86,8 +84,7 @@ export const API = {
           `${API_BASE}/admin/users/${userId}/clients/${clientId}/roles`,
 
         // PUT diff-based update
-        update: (userId: string) =>
-          `${API_BASE}/admin/users/${userId}/client-roles`,
+        update: (userId: string) => `${API_BASE}/admin/users/${userId}/client-roles`,
 
         // POST single role
         assign: (userId: string, clientId: string) =>
@@ -105,22 +102,17 @@ export const API = {
 
       system: {
         countUsers: () => `${API_BASE}/admin/metrics/system/count-users`,
-        countDisabledUsers: () =>
-          `${API_BASE}/admin/metrics/system/count-disabled-users`,
+        countDisabledUsers: () => `${API_BASE}/admin/metrics/system/count-disabled-users`,
         activeToday: () => `${API_BASE}/admin/metrics/system/active-today`,
-        activeThisWeek: () =>
-          `${API_BASE}/admin/metrics/system/active-this-week`,
+        activeThisWeek: () => `${API_BASE}/admin/metrics/system/active-this-week`,
         loginTrend: () => `${API_BASE}/admin/metrics/system/login-trend`,
-        loginTrendRange: () =>
-          `${API_BASE}/admin/metrics/system/login-trend-range`,
+        loginTrendRange: () => `${API_BASE}/admin/metrics/system/login-trend-range`,
       },
 
       security: {
         failedLogins: () => `${API_BASE}/admin/metrics/security/failed-logins`,
-        failedLoginsRange: () =>
-          `${API_BASE}/admin/metrics/security/failed-logins-range`,
-        suspiciousLogins: () =>
-          `${API_BASE}/admin/metrics/security/suspicious-logins`,
+        failedLoginsRange: () => `${API_BASE}/admin/metrics/security/failed-logins-range`,
+        suspiciousLogins: () => `${API_BASE}/admin/metrics/security/suspicious-logins`,
       },
 
       clients: {
@@ -134,10 +126,8 @@ export const API = {
         newRange: () => `${API_BASE}/admin/metrics/users/new-range`,
         newTrend: () => `${API_BASE}/admin/metrics/users/new-trend`,
         neverLoggedIn: () => `${API_BASE}/admin/metrics/users/never-logged-in`,
-        lastLogin: (userId: string) =>
-          `${API_BASE}/admin/metrics/users/last-login/${userId}`,
-        clientUsage: (userId: string) =>
-          `${API_BASE}/admin/metrics/users/client-usage/${userId}`,
+        lastLogin: (userId: string) => `${API_BASE}/admin/metrics/users/last-login/${userId}`,
+        clientUsage: (userId: string) => `${API_BASE}/admin/metrics/users/client-usage/${userId}`,
       },
     },
 
@@ -150,10 +140,8 @@ export const API = {
 
       metrics: {
         overview: () => `${API_BASE}/admin/audit-logs/metrics/overview`,
-        failedLoginsByDay: () =>
-          `${API_BASE}/admin/audit-logs/metrics/failed-logins-by-day`,
-        topFailureIps: () =>
-          `${API_BASE}/admin/audit-logs/metrics/top-failure-ips`,
+        failedLoginsByDay: () => `${API_BASE}/admin/audit-logs/metrics/failed-logins-by-day`,
+        topFailureIps: () => `${API_BASE}/admin/audit-logs/metrics/top-failure-ips`,
       },
 
       export: () => `${API_BASE}/admin/audit-logs/export`,

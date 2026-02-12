@@ -17,10 +17,7 @@ import {
 
 import { UserFilters } from "../../../components/user/UserFilters";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
-import {
-  useListUsersQuery,
-  useToggleUserMutation,
-} from "../../../store/api/users.api";
+import { useListUsersQuery, useToggleUserMutation } from "../../../store/api/users.api";
 import type { User } from "../../../store/types/user.types";
 import { UserFormPanel } from "../../../components/panels/create-user-panel";
 import { useEnableUserModal } from "../../../components/user/useEnableUserModal";
@@ -70,13 +67,7 @@ export default function UsersPage() {
   /* -----------------------------
    * Data
    * ----------------------------- */
-  const {
-    data: users = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useListUsersQuery();
+  const { data: users = [], isLoading, isError, error, refetch } = useListUsersQuery();
 
   const [toggleUser] = useToggleUserMutation();
 
@@ -101,8 +92,7 @@ export default function UsersPage() {
       if (statusFilter === "active" && !u.isActive) return false;
       if (statusFilter === "disabled" && u.isActive) return false;
       if (neverLoggedIn && u.lastLoginAt) return false;
-      if (roleFilter !== "all" && !u.realmRoles?.includes(roleFilter))
-        return false;
+      if (roleFilter !== "all" && !u.realmRoles?.includes(roleFilter)) return false;
       return true;
     });
   }, [users, statusFilter, roleFilter, neverLoggedIn]);
@@ -124,9 +114,7 @@ export default function UsersPage() {
     email: u.email ?? "—",
     status: u.isActive ? "Active" : "Disabled",
     verified: u.emailVerified ? "Verified" : "Not verified",
-    lastLogin: u.lastLoginAt
-      ? new Date(u.lastLoginAt).toLocaleString()
-      : "Never",
+    lastLogin: u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never",
     actions: "",
     raw: u,
   }));
@@ -172,16 +160,9 @@ export default function UsersPage() {
 
       <Tile>
         <DataTable rows={rows} headers={headers}>
-          {({
-            rows,
-            headers,
-            getHeaderProps,
-            getRowProps,
-            getSelectionProps,
-            selectedRows,
-          }) => {
+          {({ rows, headers, getHeaderProps, getRowProps, getSelectionProps, selectedRows }) => {
             const selectedUsers = selectedRows.map(
-              (r) => r.cells.find((c) => c.info.header === "raw")?.value as User
+              (r) => r.cells.find((c) => c.info.header === "raw")?.value as User,
             );
 
             return (
@@ -195,9 +176,7 @@ export default function UsersPage() {
                       setBulkAction("enable");
 
                       await Promise.all(
-                        selectedUsers.map((u) =>
-                          toggleUser({ id: u.id, enabled: true }).unwrap()
-                        )
+                        selectedUsers.map((u) => toggleUser({ id: u.id, enabled: true }).unwrap()),
                       );
 
                       toast.success({
@@ -218,9 +197,7 @@ export default function UsersPage() {
                       setBulkAction("disable");
 
                       await Promise.all(
-                        selectedUsers.map((u) =>
-                          toggleUser({ id: u.id, enabled: false }).unwrap()
-                        )
+                        selectedUsers.map((u) => toggleUser({ id: u.id, enabled: false }).unwrap()),
                       );
 
                       toast.warning({
@@ -243,9 +220,7 @@ export default function UsersPage() {
                       title: `Assign roles (${selectedUsers.length})`,
                       size: "lg",
                       content: (
-                        <UserClientRolesPanel
-                          userId={selectedUsers.map((u) => u.id).join(",")}
-                        />
+                        <UserClientRolesPanel userId={selectedUsers.map((u) => u.id).join(",")} />
                       ),
                     });
 
@@ -261,18 +236,14 @@ export default function UsersPage() {
                       {headers
                         .filter((h) => h.key !== "raw")
                         .map((h) => (
-                          <TableHeader {...getHeaderProps({ header: h })}>
-                            {h.header}
-                          </TableHeader>
+                          <TableHeader {...getHeaderProps({ header: h })}>{h.header}</TableHeader>
                         ))}
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
                     {rows.map((row) => {
-                      const user = row.cells.find(
-                        (c) => c.info.header === "raw"
-                      )?.value as User;
+                      const user = row.cells.find((c) => c.info.header === "raw")?.value as User;
 
                       return (
                         <TableRow {...getRowProps({ row })}>
@@ -284,9 +255,7 @@ export default function UsersPage() {
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={!user.isAdmin ? "green" : "red"}>
-                                    {cell.value}
-                                  </Tag>
+                                  <Tag type={!user.isAdmin ? "green" : "red"}>{cell.value}</Tag>
                                 </TableCell>
                               );
                             }
@@ -314,11 +283,7 @@ export default function UsersPage() {
                                         openPanel({
                                           title: `Roles: ${user.username}`,
                                           size: "lg",
-                                          content: (
-                                            <UserClientRolesPanel
-                                              userId={user.id}
-                                            />
-                                          ),
+                                          content: <UserClientRolesPanel userId={user.id} />,
                                         })
                                       }
                                       onToggleStatus={() =>
@@ -335,9 +300,7 @@ export default function UsersPage() {
                                               toast.success({
                                                 title: "User updated",
                                                 subtitle: `${user.username} ${
-                                                  user.isActive
-                                                    ? "disabled"
-                                                    : "enabled"
+                                                  user.isActive ? "disabled" : "enabled"
                                                 }.`,
                                               });
                                             } catch {
@@ -367,9 +330,7 @@ export default function UsersPage() {
                               );
                             }
 
-                            return (
-                              <TableCell key={cell.id}>{cell.value}</TableCell>
-                            );
+                            return <TableCell key={cell.id}>{cell.value}</TableCell>;
                           })}
                         </TableRow>
                       );

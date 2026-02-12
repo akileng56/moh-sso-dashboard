@@ -1,9 +1,4 @@
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 import { ModalProvider } from "./components/modal/modal.context";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -79,10 +74,7 @@ function App() {
              * DWH client
              * -------------------------- */}
             <Route path="dwh">
-              <Route
-                index
-                element={<Navigate to="data-visualizer" replace />}
-              />
+              <Route index element={<Navigate to="data-visualizer" replace />} />
               <Route
                 path="data-visualizer"
                 element={
@@ -249,10 +241,7 @@ function App() {
              * Case Registers client
              * -------------------------- */}
             <Route path="case-registers">
-              <Route
-                index
-                element={<Navigate to="external-referrals" replace />}
-              />
+              <Route index element={<Navigate to="external-referrals" replace />} />
 
               <Route
                 path="external-referrals"
@@ -308,10 +297,7 @@ function App() {
              * Reference Registers client
              * -------------------------- */}
             <Route path="reference-registers">
-              <Route
-                index
-                element={<Navigate to="facility-register" replace />}
-              />
+              <Route index element={<Navigate to="facility-register" replace />} />
 
               <Route
                 path="facility-register"
@@ -363,10 +349,7 @@ function App() {
              * Utilities client
              * -------------------------- */}
             <Route path="utilities">
-              <Route
-                index
-                element={<Navigate to="self-service/timesheet" replace />}
-              />
+              <Route index element={<Navigate to="self-service/timesheet" replace />} />
 
               <Route path="self-service">
                 <Route
@@ -411,18 +394,9 @@ function App() {
                 />
 
                 <Route path="eservice">
-                  <Route
-                    path="document-upload"
-                    element={<div>Document Upload</div>}
-                  />
-                  <Route
-                    path="service-access"
-                    element={<div>Service Access</div>}
-                  />
-                  <Route
-                    path="equipment-request"
-                    element={<div>Equipment Request</div>}
-                  />
+                  <Route path="document-upload" element={<div>Document Upload</div>} />
+                  <Route path="service-access" element={<div>Service Access</div>} />
+                  <Route path="equipment-request" element={<div>Equipment Request</div>} />
                 </Route>
               </Route>
             </Route>

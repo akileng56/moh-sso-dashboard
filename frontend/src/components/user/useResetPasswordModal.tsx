@@ -10,11 +10,7 @@ type OpenResetPasswordModalArgs = {
 export function useResetPasswordModal() {
   const { openModal, closeModal } = useModal();
 
-  function openResetPasswordModal({
-    username,
-    email,
-    onConfirm,
-  }: OpenResetPasswordModalArgs) {
+  function openResetPasswordModal({ username, email, onConfirm }: OpenResetPasswordModalArgs) {
     openModal({
       title: "Reset password",
       size: "sm",

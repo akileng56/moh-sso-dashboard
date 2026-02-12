@@ -83,12 +83,11 @@ export default function HomePage() {
   /* -----------------------------
    * Notifications
    * ----------------------------- */
-  const { data: notifications = [], isLoading: notificationsLoading } =
-    useGetNotificationsQuery({
-      unread: true,
-      limit: 5,
-      offset: 0,
-    });
+  const { data: notifications = [], isLoading: notificationsLoading } = useGetNotificationsQuery({
+    unread: true,
+    limit: 5,
+    offset: 0,
+  });
 
   const [markNotificationAsRead] = useMarkNotificationAsReadMutation();
 
@@ -117,10 +116,7 @@ export default function HomePage() {
               <Tag type="blue">{user?.realmRoles.join(", ")}</Tag>
               <span>{user.email}</span>
               <span className="muted">
-                Last login:{" "}
-                {user.lastLoginAt
-                  ? new Date(user.lastLoginAt).toLocaleString()
-                  : "—"}
+                Last login: {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "—"}
               </span>
             </Stack>
           </Stack>
@@ -147,13 +143,7 @@ export default function HomePage() {
             <SignalTile
               label="Security health score"
               value={`${securityScore}%`}
-              severity={
-                securityScore > 80
-                  ? "success"
-                  : securityScore > 50
-                  ? "warning"
-                  : "danger"
-              }
+              severity={securityScore > 80 ? "success" : securityScore > 50 ? "warning" : "danger"}
             />
             <SignalTile
               label="Failed logins (24h)"
@@ -357,16 +347,11 @@ export default function HomePage() {
         </div>
 
         {/* Loading */}
-        {notificationsLoading && (
-          <InlineLoading description="Loading notifications…" />
-        )}
+        {notificationsLoading && <InlineLoading description="Loading notifications…" />}
 
         {/* Empty state */}
         {!notificationsLoading && notifications.length === 0 && (
-          <EmptyState
-            title="No notifications"
-            description="You're all caught up."
-          />
+          <EmptyState title="No notifications" description="You're all caught up." />
         )}
 
         {/* List */}
@@ -374,27 +359,19 @@ export default function HomePage() {
           <Stack gap={3}>
             {notifications.map((n) => {
               const severityTagType =
-                n.severity === "critical"
-                  ? "red"
-                  : n.severity === "warning"
-                  ? "yellow"
-                  : "blue";
+                n.severity === "critical" ? "red" : n.severity === "warning" ? "yellow" : "blue";
 
               return (
                 <div
                   key={n.id}
                   role="listitem"
-                  className={`notification-item ${
-                    !n.read ? "notification-unread" : ""
-                  }`}
+                  className={`notification-item ${!n.read ? "notification-unread" : ""}`}
                   style={{
                     display: "flex",
                     gap: "0.75rem",
                     padding: "0.75rem",
                     borderRadius: "4px",
-                    background: !n.read
-                      ? "var(--cds-layer-accent)"
-                      : "transparent",
+                    background: !n.read ? "var(--cds-layer-accent)" : "transparent",
                     alignItems: "flex-start",
                   }}
                 >
@@ -435,11 +412,7 @@ export default function HomePage() {
                   </div>
 
                   {!n.read && (
-                    <Button
-                      size="sm"
-                      kind="ghost"
-                      onClick={() => markNotificationAsRead(n.id)}
-                    >
+                    <Button size="sm" kind="ghost" onClick={() => markNotificationAsRead(n.id)}>
                       Mark as read
                     </Button>
                   )}

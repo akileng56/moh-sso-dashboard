@@ -117,7 +117,9 @@
  * Tile behavior polish
  * ========================= */
 .cds--tile {
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .cds--tile:hover {

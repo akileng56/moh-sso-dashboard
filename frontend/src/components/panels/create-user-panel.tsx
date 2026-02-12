@@ -11,10 +11,7 @@ import {
 } from "@carbon/react";
 import { useMemo, useState } from "react";
 
-import {
-  useCreateUserMutation,
-  useUpdateUserMutation,
-} from "../../store/api/users.api";
+import { useCreateUserMutation, useUpdateUserMutation } from "../../store/api/users.api";
 import type { User } from "../../store/types/user.types";
 import { useToast } from "../notifications/toast/useToast";
 import { FormInlineAlert } from "../notifications/in-line-alerts/FormInlineAlert";
@@ -73,8 +70,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
   /* -----------------------------
    * Helpers
    * ----------------------------- */
-  const isValidEmail = (email: string) =>
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const buildPayload = () => ({
     email: form.email.trim().toLowerCase(),
@@ -96,10 +92,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
     return true;
   }, [form]);
 
-  const handleChange = <K extends keyof UserFormState>(
-    field: K,
-    value: UserFormState[K]
-  ) => {
+  const handleChange = <K extends keyof UserFormState>(field: K, value: UserFormState[K]) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -118,20 +111,14 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
           ...buildPayload(),
         }).unwrap();
 
-        toast.success(
-          "User created",
-          `User "${form.username}" was created successfully`
-        );
+        toast.success("User created", `User "${form.username}" was created successfully`);
       } else if (initialUser?.id) {
         await updateUser({
           id: initialUser.id,
           data: buildPayload(),
         }).unwrap();
 
-        toast.success(
-          "User updated",
-          `Changes to "${form.username}" were saved`
-        );
+        toast.success("User updated", `Changes to "${form.username}" were saved`);
       }
 
       onSuccess?.();
@@ -148,9 +135,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
   return (
     <Form>
       <Stack gap={6}>
-        {error && (
-          <FormInlineAlert title="Unable to save user" subtitle={error} />
-        )}
+        {error && <FormInlineAlert title="Unable to save user" subtitle={error} />}
 
         {/* -----------------------------
          * User details
@@ -162,13 +147,9 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               labelText="Username"
               required
               disabled={mode === "edit"}
-              helperText={
-                mode === "edit" ? "Username cannot be changed" : undefined
-              }
+              helperText={mode === "edit" ? "Username cannot be changed" : undefined}
               value={form.username}
-              onChange={(e) =>
-                handleChange("username", e.target.value.toLowerCase())
-              }
+              onChange={(e) => handleChange("username", e.target.value.toLowerCase())}
             />
 
             <TextInput
@@ -211,13 +192,11 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               label="Realm roles"
               items={REALM_ROLES}
               itemToString={(item) => item?.text ?? ""}
-              selectedItems={REALM_ROLES.filter((r) =>
-                form.realmRoles.includes(r.id)
-              )}
+              selectedItems={REALM_ROLES.filter((r) => form.realmRoles.includes(r.id))}
               onChange={({ selectedItems }) =>
                 handleChange(
                   "realmRoles",
-                  selectedItems.map((r) => r.id)
+                  selectedItems.map((r) => r.id),
                 )
               }
             />
@@ -233,9 +212,7 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
               id="emailVerified"
               labelText="Email verified"
               checked={form.emailVerified}
-              onChange={(_, { checked }) =>
-                handleChange("emailVerified", checked)
-              }
+              onChange={(_, { checked }) => handleChange("emailVerified", checked)}
             />
           </Stack>
         </FormGroup>
@@ -244,16 +221,10 @@ export function UserFormPanel({ mode, initialUser, onSuccess }: Props) {
          * Actions
          * ----------------------------- */}
         <Stack orientation="horizontal" gap={3}>
-          <Button
-            kind="primary"
-            disabled={!isValid || submitting}
-            onClick={handleSubmit}
-          >
+          <Button kind="primary" disabled={!isValid || submitting} onClick={handleSubmit}>
             {submitting ? (
               <InlineLoading
-                description={
-                  mode === "create" ? "Creating user…" : "Saving changes…"
-                }
+                description={mode === "create" ? "Creating user…" : "Saving changes…"}
               />
             ) : mode === "create" ? (
               "Create user"

@@ -132,8 +132,7 @@ export const usersApi = baseApi.injectEndpoints({
         credentials: "include",
       }),
 
-      transformResponse: (res: ApiEnvelope<UserClientRoleAssignment[]>) =>
-        res.data,
+      transformResponse: (res: ApiEnvelope<UserClientRoleAssignment[]>) => res.data,
 
       providesTags: (result, _, userId) =>
         result
@@ -150,10 +149,7 @@ export const usersApi = baseApi.injectEndpoints({
     /* --------------------------------
      * Get user client roles for a client (ADMIN)
      * -------------------------------- */
-    getUserClientRolesForClient: builder.query<
-      ClientRole[],
-      { userId: string; clientId: string }
-    >({
+    getUserClientRolesForClient: builder.query<ClientRole[], { userId: string; clientId: string }>({
       query: ({ userId, clientId }) => ({
         url: API.admin.users.clientRoles.list(userId, clientId),
         credentials: "include",

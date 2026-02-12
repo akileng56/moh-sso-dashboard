@@ -2,10 +2,7 @@ import { SideNav, SideNavItems, SideNavLink, SideNavMenu } from "@carbon/react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 
-import {
-  selectClients,
-  selectActiveClient,
-} from "../../store/clients/clients.selectors";
+import { selectClients, selectActiveClient } from "../../store/clients/clients.selectors";
 import type { Client } from "../../store/types/client.types";
 
 type SideNavItem = {
@@ -42,12 +39,7 @@ function RenderSideNavItem({
     return (
       <SideNavMenu key={item.id} title={item.label}>
         {item.children.map((child) => (
-          <RenderSideNavItem
-            key={child.id}
-            item={child}
-            location={location}
-            navigate={navigate}
-          />
+          <RenderSideNavItem key={child.id} item={child} location={location} navigate={navigate} />
         ))}
       </SideNavMenu>
     );

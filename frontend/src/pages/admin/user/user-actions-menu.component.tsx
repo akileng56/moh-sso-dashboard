@@ -20,11 +20,7 @@ export function UserActionsMenu({
     <OverflowMenu size="sm" flipped>
       <OverflowMenuItem itemText="Edit user" hasDivider onClick={onEdit} />
 
-      <OverflowMenuItem
-        itemText="Manage roles"
-        hasDivider
-        onClick={onManageRoles}
-      />
+      <OverflowMenuItem itemText="Manage roles" hasDivider onClick={onManageRoles} />
 
       <OverflowMenuItem
         itemText={user.isActive ? "Disable user" : "Enable user"}
@@ -32,11 +28,7 @@ export function UserActionsMenu({
         onClick={onToggleStatus}
       />
 
-      <OverflowMenuItem
-        itemText="Reset password"
-        hasDivider
-        onClick={onResetPassword}
-      />
+      <OverflowMenuItem itemText="Reset password" hasDivider onClick={onResetPassword} />
     </OverflowMenu>
   );
 }

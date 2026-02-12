@@ -11,13 +11,7 @@ type Props = {
   size: PanelSize;
 };
 
-export function ReusableHeaderPanel({
-  isOpen,
-  title,
-  content,
-  onClose,
-  size,
-}: Props) {
+export function ReusableHeaderPanel({ isOpen, title, content, onClose, size }: Props) {
   return (
     <HeaderPanel
       expanded={isOpen}

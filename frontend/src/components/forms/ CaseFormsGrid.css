@@ -21,7 +21,9 @@
   padding: 1.25rem;
   text-decoration: none;
   border: 1px solid #e5e7eb;
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
 }
 
 .case-form-card:hover {

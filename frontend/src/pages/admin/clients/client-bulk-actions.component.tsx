@@ -8,12 +8,7 @@ type Props = {
   onDisable: () => Promise<void>;
 };
 
-export function ClientBulkActions({
-  clients,
-  loadingAction,
-  onEnable,
-  onDisable,
-}: Props) {
+export function ClientBulkActions({ clients, loadingAction, onEnable, onDisable }: Props) {
   if (clients.length === 0) return null;
 
   const allEnabled = clients.every((c) => c.enabled);
@@ -21,11 +16,7 @@ export function ClientBulkActions({
 
   return (
     <ButtonSet style={{ marginBottom: 16 }}>
-      <Button
-        kind="secondary"
-        disabled={allEnabled || loadingAction !== null}
-        onClick={onEnable}
-      >
+      <Button kind="secondary" disabled={allEnabled || loadingAction !== null} onClick={onEnable}>
         {loadingAction === "enable" ? (
           <InlineLoading description="Enabling…" />
         ) : (
@@ -33,11 +24,7 @@ export function ClientBulkActions({
         )}
       </Button>
 
-      <Button
-        kind="danger"
-        disabled={allDisabled || loadingAction !== null}
-        onClick={onDisable}
-      >
+      <Button kind="danger" disabled={allDisabled || loadingAction !== null} onClick={onDisable}>
         {loadingAction === "disable" ? (
           <InlineLoading description="Disabling…" />
         ) : (

@@ -25,11 +25,7 @@ const PublicHeader: React.FC = () => {
 
       {/* Brand / Home */}
       <img src={`${imagePath}`} className={`moh-image-style`} />
-      <HeaderName
-        prefix="MOH"
-        onClick={() => navigate("/")}
-        style={{ cursor: "pointer" }}
-      >
+      <HeaderName prefix="MOH" onClick={() => navigate("/")} style={{ cursor: "pointer" }}>
         Integrated Health Portal
       </HeaderName>
 

@@ -30,11 +30,7 @@ type HeaderPanelContextType = {
  * --------------------------------- */
 const HeaderPanelContext = createContext<HeaderPanelContextType | null>(null);
 
-export function HeaderPanelProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function HeaderPanelProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<HeaderPanelState>({
     isOpen: false,
     size: "sm",

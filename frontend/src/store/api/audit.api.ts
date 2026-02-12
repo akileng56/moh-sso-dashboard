@@ -16,8 +16,7 @@ export const auditApi = baseApi.injectEndpoints({
         credentials: "include",
       }),
 
-      transformResponse: (response: ApiEnvelope<AuditListResponse>) =>
-        response.data,
+      transformResponse: (response: ApiEnvelope<AuditListResponse>) => response.data,
 
       providesTags: ["Audit"],
     }),

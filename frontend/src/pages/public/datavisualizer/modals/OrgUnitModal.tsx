@@ -1,241 +1,232 @@
 import React, { useEffect, useState } from "react";
 import API from "../../helpers/api";
-import {Modal} from "@carbon/react";
+import { Modal } from "@carbon/react";
 
 function TreeNode({ node, level = 0, selectedUnits, onToggle, onExpand, expandedNodes }) {
-    const childrenObj = node.children || {};
+  const childrenObj = node.children || {};
 
-    const uniqueChildren = Object.values(childrenObj).filter((child, index, self) =>
-            index === self.findIndex((c) => (
-                c.id === child.id
-            ))
-    );
+  const uniqueChildren = Object.values(childrenObj).filter(
+    (child, index, self) => index === self.findIndex((c) => c.id === child.id),
+  );
 
-    const hasChildren = uniqueChildren.length > 0;
-    const isExpanded = expandedNodes.has(node.uid);
-    const isSelected = selectedUnits.has(node.uid);
-    const childCount = uniqueChildren.length;
+  const hasChildren = uniqueChildren.length > 0;
+  const isExpanded = expandedNodes.has(node.uid);
+  const isSelected = selectedUnits.has(node.uid);
+  const childCount = uniqueChildren.length;
 
-    const handleToggle = () => {
-        onToggle(node.uid);
-    };
+  const handleToggle = () => {
+    onToggle(node.uid);
+  };
 
-    const handleExpand = () => {
-        if (hasChildren) {
-            onExpand(node.uid);
-        }
-    };
+  const handleExpand = () => {
+    if (hasChildren) {
+      onExpand(node.uid);
+    }
+  };
 
-    const getIcon = () => {
-        if (hasChildren) {
-            return isExpanded ? "fas fa-chevron-down" : "fas fa-chevron-right";
-        }
-        return "";
-    };
+  const getIcon = () => {
+    if (hasChildren) {
+      return isExpanded ? "fas fa-chevron-down" : "fas fa-chevron-right";
+    }
+    return "";
+  };
 
-    const indent = level * 18;
-    const childrenPadding = indent + 18;
+  const indent = level * 18;
+  const childrenPadding = indent + 18;
 
-    return (
-        <div>
-            <div
-                className="d-flex align-items-center p-1"
-                style={{
-                    paddingLeft: `${indent}px`
-                }}
-            >
-                <button
-                    className="btn btn-sm btn-link p-0 me-2"
-                    style={{width: '16px', visibility: hasChildren ? 'visible' : 'hidden'}}
-                    onClick={handleExpand}
-                    disabled={!hasChildren}
-                >
-                    {hasChildren && <i className={getIcon()}></i>}
-                </button>
-                <input
-                    type="checkbox"
-                    className="form-check-input me-2"
-                    checked={isSelected}
-                    onChange={handleToggle}
-                />
-                <span className="d-flex">
-                    {node.name}
-                    {childCount > 0 && <span className="text-muted"> ({childCount})</span>}
-                </span>
-            </div>
+  return (
+    <div>
+      <div
+        className="d-flex align-items-center p-1"
+        style={{
+          paddingLeft: `${indent}px`,
+        }}
+      >
+        <button
+          className="btn btn-sm btn-link p-0 me-2"
+          style={{ width: "16px", visibility: hasChildren ? "visible" : "hidden" }}
+          onClick={handleExpand}
+          disabled={!hasChildren}
+        >
+          {hasChildren && <i className={getIcon()}></i>}
+        </button>
+        <input
+          type="checkbox"
+          className="form-check-input me-2"
+          checked={isSelected}
+          onChange={handleToggle}
+        />
+        <span className="d-flex">
+          {node.name}
+          {childCount > 0 && <span className="text-muted"> ({childCount})</span>}
+        </span>
+      </div>
 
-            {hasChildren && isExpanded && (
-                <div
-                    style={{
-                        paddingLeft: `${childrenPadding}px`,
-                        borderLeft: '1px solid #eee'
-                    }}
-                >
-                    {uniqueChildren.map(child => (
-                        <TreeNode
-                            key={child.uid}
-                            node={child}
-                            level={level + 1}
-                            selectedUnits={selectedUnits}
-                            onToggle={onToggle}
-                            onExpand={onExpand}
-                            expandedNodes={expandedNodes}
-                        />
-                    ))}
-                </div>
-            )}
+      {hasChildren && isExpanded && (
+        <div
+          style={{
+            paddingLeft: `${childrenPadding}px`,
+            borderLeft: "1px solid #eee",
+          }}
+        >
+          {uniqueChildren.map((child) => (
+            <TreeNode
+              key={child.uid}
+              node={child}
+              level={level + 1}
+              selectedUnits={selectedUnits}
+              onToggle={onToggle}
+              onExpand={onExpand}
+              expandedNodes={expandedNodes}
+            />
+          ))}
         </div>
-    );
+      )}
+    </div>
+  );
 }
 
-
 export default function OrgUnitModal({ onClose, selected, onSave }) {
-    const [selectedUnits, setSelectedUnits] = useState(new Set(selected));
-    const [expandedNodes, setExpandedNodes] = useState(new Set());
-    const [orgUnits, setOrgUnits] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+  const [selectedUnits, setSelectedUnits] = useState(new Set(selected));
+  const [expandedNodes, setExpandedNodes] = useState(new Set());
+  const [orgUnits, setOrgUnits] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-    useEffect(() => {
-        const fetchOrgUnits = async () => {
-            // if (!show) return;
+  useEffect(() => {
+    const fetchOrgUnits = async () => {
+      // if (!show) return;
 
-            setLoading(true);
-            setError(null);
+      setLoading(true);
+      setError(null);
 
-            try {
-                const response = await API.get('/visualizer/hierarchy');
-                const hierarchyData = response?.data;
-                setOrgUnits(hierarchyData);
+      try {
+        const response = await API.get("/visualizer/hierarchy");
+        const hierarchyData = response?.data;
+        setOrgUnits(hierarchyData);
 
-                const expandIds = new Set();
-                const rootKeys = Object.keys(hierarchyData);
+        const expandIds = new Set();
+        const rootKeys = Object.keys(hierarchyData);
 
-                if (rootKeys.length > 0) {
-                    const firstRootNode = hierarchyData[rootKeys[0]];
-                    expandIds.add(firstRootNode.uid);
+        if (rootKeys.length > 0) {
+          const firstRootNode = hierarchyData[rootKeys[0]];
+          expandIds.add(firstRootNode.uid);
 
-                    const firstChildKeys = Object.keys(firstRootNode.children || {});
-                    if (firstChildKeys.length > 0) {
-                        const firstChildNode = firstRootNode.children[firstChildKeys[0]];
-                        expandIds.add(firstChildNode.uid);
-                    }
-                }
-
-                setExpandedNodes(expandIds);
-            } catch (err) {
-                console.error('Error fetching org units:', err);
-                setError('Failed to load organizational units');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchOrgUnits();
-    }, []);
-
-    useEffect(() => {
-
-            setSelectedUnits(new Set(selected));
-
-    }, [selected]);
-
-    const toggleUnit = (unitUid) => {
-        const newSelected = new Set(selectedUnits);
-        if (newSelected.has(unitUid)) {
-            newSelected.delete(unitUid);
-        } else {
-            newSelected.add(unitUid);
+          const firstChildKeys = Object.keys(firstRootNode.children || {});
+          if (firstChildKeys.length > 0) {
+            const firstChildNode = firstRootNode.children[firstChildKeys[0]];
+            expandIds.add(firstChildNode.uid);
+          }
         }
-        setSelectedUnits(newSelected);
+
+        setExpandedNodes(expandIds);
+      } catch (err) {
+        console.error("Error fetching org units:", err);
+        setError("Failed to load organizational units");
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const toggleExpanded = (unitUid) => {
-        const newExpanded = new Set(expandedNodes);
-        if (newExpanded.has(unitUid)) {
-            newExpanded.delete(unitUid);
-        } else {
-            newExpanded.add(unitUid);
-        }
-        setExpandedNodes(newExpanded);
-    };
+    fetchOrgUnits();
+  }, []);
 
-    const deselectAll = () => {
-        setSelectedUnits(new Set());
-    };
+  useEffect(() => {
+    setSelectedUnits(new Set(selected));
+  }, [selected]);
 
-    const save = () => {
-        onSave(Array.from(selectedUnits));
-        onClose();
-    };
+  const toggleUnit = (unitUid) => {
+    const newSelected = new Set(selectedUnits);
+    if (newSelected.has(unitUid)) {
+      newSelected.delete(unitUid);
+    } else {
+      newSelected.add(unitUid);
+    }
+    setSelectedUnits(newSelected);
+  };
 
-    // if (!show) return null;
+  const toggleExpanded = (unitUid) => {
+    const newExpanded = new Set(expandedNodes);
+    if (newExpanded.has(unitUid)) {
+      newExpanded.delete(unitUid);
+    } else {
+      newExpanded.add(unitUid);
+    }
+    setExpandedNodes(newExpanded);
+  };
 
-    const selectedCount = selectedUnits.size;
+  const deselectAll = () => {
+    setSelectedUnits(new Set());
+  };
 
-    return (
-        <>
-            <Modal
-                open
-                size="md"
-                preventCloseOnClickOutside={true}
-                hasScrollingContent={true}
-                modalHeading="Organisation Units"
-                secondaryButtonText="Hide"
-                primaryButtonText="Update"
-                onRequestClose={onClose}
-                onRequestSubmit={save}
-            >
+  const save = () => {
+    onSave(Array.from(selectedUnits));
+    onClose();
+  };
 
-                <div className="border" style={{height: "400px", overflowY: "auto"}}>
-                    {loading ? (
-                        <div className="d-flex justify-content-center align-items-center h-100">
-                            <div className="spinner-border text-primary" role="status">
-                                <span className="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                    ) : error ? (
-                        <div className="d-flex justify-content-center align-items-center h-100">
-                            <div className="text-center text-danger">
-                                <i className="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                                <div>{error}</div>
-                            </div>
-                        </div>
-                    ) : Object.keys(orgUnits).length === 0 ? (
-                        <div className="d-flex justify-content-center align-items-center h-100">
-                            <div className="text-center text-muted">
-                                <i className="fas fa-folder-open fa-2x mb-2"></i>
-                                <div>No organizational units found</div>
-                            </div>
-                        </div>
-                    ) : (
-                        Object.values(orgUnits).map(unit => (
-                            <TreeNode
-                                key={unit.uid}
-                                node={unit}
-                                selectedUnits={selectedUnits}
-                                onToggle={toggleUnit}
-                                onExpand={toggleExpanded}
-                                expandedNodes={expandedNodes}
-                            />
-                        ))
-                    )}
-                </div>
+  // if (!show) return null;
 
-                <div className="mt-3 d-flex justify-content-between align-items-center">
-                  <span className="text-muted">
-                    {selectedCount} selected
-                      {selectedCount > 0 && (
-                          <button
-                              className="btn btn-link p-0 ms-2 text-decoration-none"
-                              onClick={deselectAll}
-                          >
-                              - Deselect all
-                          </button>
-                      )}
-                  </span>
-                </div>
-            </Modal>
-        </>
-    );
+  const selectedCount = selectedUnits.size;
+
+  return (
+    <>
+      <Modal
+        open
+        size="md"
+        preventCloseOnClickOutside={true}
+        hasScrollingContent={true}
+        modalHeading="Organisation Units"
+        secondaryButtonText="Hide"
+        primaryButtonText="Update"
+        onRequestClose={onClose}
+        onRequestSubmit={save}
+      >
+        <div className="border" style={{ height: "400px", overflowY: "auto" }}>
+          {loading ? (
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <div className="text-center text-danger">
+                <i className="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                <div>{error}</div>
+              </div>
+            </div>
+          ) : Object.keys(orgUnits).length === 0 ? (
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <div className="text-center text-muted">
+                <i className="fas fa-folder-open fa-2x mb-2"></i>
+                <div>No organizational units found</div>
+              </div>
+            </div>
+          ) : (
+            Object.values(orgUnits).map((unit) => (
+              <TreeNode
+                key={unit.uid}
+                node={unit}
+                selectedUnits={selectedUnits}
+                onToggle={toggleUnit}
+                onExpand={toggleExpanded}
+                expandedNodes={expandedNodes}
+              />
+            ))
+          )}
+        </div>
+
+        <div className="mt-3 d-flex justify-content-between align-items-center">
+          <span className="text-muted">
+            {selectedCount} selected
+            {selectedCount > 0 && (
+              <button className="btn btn-link p-0 ms-2 text-decoration-none" onClick={deselectAll}>
+                - Deselect all
+              </button>
+            )}
+          </span>
+        </div>
+      </Modal>
+    </>
+  );
 }

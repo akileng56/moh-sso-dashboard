@@ -1,10 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { InlineLoading } from "@carbon/react";
-import {
-  selectAuthenticated,
-  selectAuthLoaded,
-} from "../store/auth/auth.selectors";
+import { selectAuthenticated, selectAuthLoaded } from "../store/auth/auth.selectors";
 import { API } from "../lib/constants/api.constants";
 import type { JSX } from "react";
 

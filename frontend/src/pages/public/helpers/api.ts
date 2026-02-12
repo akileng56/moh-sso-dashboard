@@ -38,7 +38,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL_PROD;
 //         : process.env.REACT_APP_API_BASE_URL_PROD;
 
 const API = axios.create({
-    baseURL,
+  baseURL,
 });
 
 export default API;

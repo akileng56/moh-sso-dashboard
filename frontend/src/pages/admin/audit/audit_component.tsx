@@ -20,11 +20,7 @@ import { AuditMetricsPanel } from "../../../components/audit/AuditMetricsPanel";
 import { EmptyState } from "../../../components/emptystate/EmptyState";
 import { ErrorState } from "../../../components/errorstate/ErrorState";
 import { AuditLogFilters } from "../../../components/audit/AuditLogFilters";
-import type {
-  AuditFilters,
-  AuditLog,
-  Cursor,
-} from "../../../store/types/audit.types";
+import type { AuditFilters, AuditLog, Cursor } from "../../../store/types/audit.types";
 import { useListAuditLogsQuery } from "../../../store/api/audit.api";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 import { AuditLogPanel } from "../../../components/audit/AuditLogDrawer";
@@ -71,8 +67,10 @@ export default function AuditLogs() {
     return q;
   }, [from, to, action, clientId, success, cursor]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } =
-    useListAuditLogsQuery(queryArgs, { skip: !from || !to });
+  const { data, isLoading, isFetching, isError, error, refetch } = useListAuditLogsQuery(
+    queryArgs,
+    { skip: !from || !to },
+  );
 
   useEffect(() => {
     if (!data) return;
@@ -98,9 +96,7 @@ export default function AuditLogs() {
       items.map((log) => ({
         id: log.id,
         shortId: log.id.slice(0, 8),
-        time: log.created_at.Valid
-          ? new Date(log.created_at.Time).toLocaleString()
-          : "—",
+        time: log.created_at.Valid ? new Date(log.created_at.Time).toLocaleString() : "—",
         actor: log.username ?? "System",
         action: log.action,
         client: log.metadata?.RawMessage?.client_id ?? "—",
@@ -108,11 +104,11 @@ export default function AuditLogs() {
           log.metadata?.RawMessage?.success === true
             ? "success"
             : log.metadata?.RawMessage?.success === false
-            ? "failure"
-            : "—",
+              ? "failure"
+              : "—",
         raw: log,
       })),
-    [items]
+    [items],
   );
 
   const headers = [
@@ -187,7 +183,7 @@ export default function AuditLogs() {
                               <TableHeader {...getHeaderProps({ header })}>
                                 {header.header}
                               </TableHeader>
-                            )
+                            ),
                         )}
                         <TableHeader />
                       </TableRow>
@@ -195,9 +191,8 @@ export default function AuditLogs() {
 
                     <TableBody>
                       {rows.map((row) => {
-                        const raw = row.cells.find(
-                          (c) => c.info.header === "raw"
-                        )?.value as AuditLog;
+                        const raw = row.cells.find((c) => c.info.header === "raw")
+                          ?.value as AuditLog;
 
                         return (
                           <TableRow {...getRowProps({ row })}>
@@ -212,8 +207,8 @@ export default function AuditLogs() {
                                         cell.value === "success"
                                           ? "green"
                                           : cell.value === "failure"
-                                          ? "red"
-                                          : "gray"
+                                            ? "red"
+                                            : "gray"
                                       }
                                     >
                                       {cell.value}
@@ -232,12 +227,7 @@ export default function AuditLogs() {
                                   onClick={() =>
                                     openPanel({
                                       title: "Audit Log",
-                                      content: (
-                                        <AuditLogPanel
-                                          log={raw}
-                                          onClose={closePanel}
-                                        />
-                                      ),
+                                      content: <AuditLogPanel log={raw} onClose={closePanel} />,
                                     })
                                   }
                                 />
@@ -254,11 +244,7 @@ export default function AuditLogs() {
 
             {hasMore && (
               <div style={{ textAlign: "center", padding: 16 }}>
-                <Button
-                  kind="secondary"
-                  disabled={isFetching}
-                  onClick={() => refetch()}
-                >
+                <Button kind="secondary" disabled={isFetching} onClick={() => refetch()}>
                   {isFetching ? "Loading…" : "Load more"}
                 </Button>
               </div>

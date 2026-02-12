@@ -18,10 +18,7 @@ export default function AppLauncherPage() {
     <Grid condensed>
       {apps.map((app) => (
         <Column lg={4} md={4} sm={4} key={app.id}>
-          <Tile
-            style={{ cursor: "pointer" }}
-            onClick={() => navigate(app.route)}
-          >
+          <Tile style={{ cursor: "pointer" }} onClick={() => navigate(app.route)}>
             <h4>{app.name}</h4>
             <p>{app.description}</p>
           </Tile>

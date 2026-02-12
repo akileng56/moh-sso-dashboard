@@ -1,8 +1,5 @@
 import { baseApi } from "./baseApi";
-import type {
-  AuditOverview,
-  AuditMetricsFilters,
-} from "../types/audit-metrics.types";
+import type { AuditOverview, AuditMetricsFilters } from "../types/audit-metrics.types";
 import { API } from "../../lib/constants/api.constants";
 
 type ApiEnvelope<T> = {

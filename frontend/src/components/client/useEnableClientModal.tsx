@@ -10,11 +10,7 @@ type OpenEnableClientModalArgs = {
 export function useEnableClientModal() {
   const { openModal, closeModal } = useModal();
 
-  function openEnableClientModal({
-    clientName,
-    enabled,
-    onConfirm,
-  }: OpenEnableClientModalArgs) {
+  function openEnableClientModal({ clientName, enabled, onConfirm }: OpenEnableClientModalArgs) {
     openModal({
       title: enabled ? "Disable client" : "Enable client",
       size: "sm",

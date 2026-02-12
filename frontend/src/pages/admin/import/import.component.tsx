@@ -70,7 +70,7 @@ export default function UserBulkImportPage() {
       { key: "status", header: "Status" },
       { key: "errors", header: "Errors" },
     ],
-    []
+    [],
   );
 
   const rows = useMemo(() => {
@@ -94,10 +94,7 @@ export default function UserBulkImportPage() {
 
   const downloadErrors = () => {
     if (!preview?.jobId) return;
-    window.open(
-      `${API_BASE}/admin/users/import/${preview.jobId}/errors.csv`,
-      "_blank"
-    );
+    window.open(`${API_BASE}/admin/users/import/${preview.jobId}/errors.csv`, "_blank");
   };
 
   const onPickFile = (f: File) => {
@@ -127,8 +124,7 @@ export default function UserBulkImportPage() {
       });
 
       const json = await res.json();
-      if (!res.ok)
-        throw new Error(json?.error || `Preview failed (${res.status})`);
+      if (!res.ok) throw new Error(json?.error || `Preview failed (${res.status})`);
 
       setPreview(json);
       setNotice({
@@ -162,8 +158,7 @@ export default function UserBulkImportPage() {
       });
 
       const json = await res.json();
-      if (!res.ok)
-        throw new Error(json?.error || `Execute failed (${res.status})`);
+      if (!res.ok) throw new Error(json?.error || `Execute failed (${res.status})`);
 
       setExecuted(json);
       setNotice({
@@ -173,13 +168,10 @@ export default function UserBulkImportPage() {
       });
 
       // Refresh status/details
-      const statusRes = await fetch(
-        `${API_BASE}/admin/users/import/${preview.jobId}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
+      const statusRes = await fetch(`${API_BASE}/admin/users/import/${preview.jobId}`, {
+        method: "GET",
+        credentials: "include",
+      });
       const statusJson = await statusRes.json();
       if (statusRes.ok) setPreview({ ...preview, rows: statusJson.rows });
     } catch (e: any) {
@@ -236,11 +228,7 @@ export default function UserBulkImportPage() {
       </div>
 
       <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
-        <Button
-          kind="primary"
-          disabled={!file || loading}
-          onClick={previewUpload}
-        >
+        <Button kind="primary" disabled={!file || loading} onClick={previewUpload}>
           Preview
         </Button>
         <Button
@@ -250,11 +238,7 @@ export default function UserBulkImportPage() {
         >
           Execute Import
         </Button>
-        <Button
-          kind="secondary"
-          disabled={!preview?.jobId || loading}
-          onClick={downloadErrors}
-        >
+        <Button kind="secondary" disabled={!preview?.jobId || loading} onClick={downloadErrors}>
           Download Errors CSV
         </Button>
       </div>
@@ -285,10 +269,7 @@ export default function UserBulkImportPage() {
                 <TableHead>
                   <TableRow>
                     {headers.map((h: any) => (
-                      <TableHeader
-                        key={h.key}
-                        {...getHeaderProps({ header: h })}
-                      >
+                      <TableHeader key={h.key} {...getHeaderProps({ header: h })}>
                         {h.header}
                       </TableHeader>
                     ))}
@@ -302,12 +283,11 @@ export default function UserBulkImportPage() {
                           {cell.info.header === "status" ? (
                             <Tag
                               type={
-                                cell.value === "valid" ||
-                                cell.value === "success"
+                                cell.value === "valid" || cell.value === "success"
                                   ? "green"
                                   : cell.value === "skipped"
-                                  ? "gray"
-                                  : "red"
+                                    ? "gray"
+                                    : "red"
                               }
                             >
                               {cell.value}

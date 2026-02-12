@@ -30,11 +30,7 @@ const UserHeader: React.FC = () => {
 
       {/* Brand / Home */}
       <img src={`${imagePath}`} className={`moh-image-style`} />
-      <HeaderName
-        prefix="MOH"
-        onClick={() => navigate("/apps")}
-        style={{ cursor: "pointer" }}
-      >
+      <HeaderName prefix="MOH" onClick={() => navigate("/apps")} style={{ cursor: "pointer" }}>
         Integrated Health Portal
       </HeaderName>
 

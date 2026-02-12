@@ -35,9 +35,7 @@ export function ErrorState({
 
       <p style={{ opacity: 0.8, marginBottom: "1.5rem" }}>{description}</p>
 
-      <div
-        style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}
-      >
+      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
         {primaryAction && (
           <Button kind="primary" onClick={primaryAction.onClick}>
             {primaryAction.label}

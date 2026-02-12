@@ -90,13 +90,7 @@ export function ImportUsersPanel() {
         }}
       />
 
-      {file && (
-        <FileUploaderItem
-          name={file.name}
-          status="edit"
-          onDelete={() => setFile(null)}
-        />
-      )}
+      {file && <FileUploaderItem name={file.name} status="edit" onDelete={() => setFile(null)} />}
 
       {/* -----------------------------
        * Import Options
@@ -132,16 +126,8 @@ export function ImportUsersPanel() {
       {/* -----------------------------
        * Actions
        * ----------------------------- */}
-      <Button
-        kind="primary"
-        disabled={!file || uploading}
-        onClick={handleUpload}
-      >
-        {uploading ? (
-          <InlineLoading description="Starting import…" />
-        ) : (
-          "Start import"
-        )}
+      <Button kind="primary" disabled={!file || uploading} onClick={handleUpload}>
+        {uploading ? <InlineLoading description="Starting import…" /> : "Start import"}
       </Button>
     </Stack>
   );

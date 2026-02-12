@@ -64,11 +64,7 @@ export function QuickAction({
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : -1}
       aria-disabled={disabled}
-      className={[
-        "quick-action",
-        `quick-action--${tone}`,
-        disabled && "quick-action--disabled",
-      ]
+      className={["quick-action", `quick-action--${tone}`, disabled && "quick-action--disabled"]
         .filter(Boolean)
         .join(" ")}
       onClick={isInteractive ? handleClick : undefined}
@@ -81,9 +77,7 @@ export function QuickAction({
       <div className="quick-action__content">
         <strong className="quick-action__label">{label}</strong>
 
-        {description && (
-          <p className="quick-action__description">{description}</p>
-        )}
+        {description && <p className="quick-action__description">{description}</p>}
       </div>
     </Tile>
   );

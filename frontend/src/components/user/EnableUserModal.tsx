@@ -8,12 +8,7 @@ type EnableUserModalProps = {
   onCancel: () => void;
 };
 
-export function EnableUserModal({
-  username,
-  enabled,
-  onConfirm,
-  onCancel,
-}: EnableUserModalProps) {
+export function EnableUserModal({ username, enabled, onConfirm, onCancel }: EnableUserModalProps) {
   const [loading, setLoading] = useState(false);
 
   async function handleConfirm() {
@@ -28,8 +23,7 @@ export function EnableUserModal({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <p>
-        Are you sure you want to{" "}
-        <strong>{enabled ? "disable" : "enable"}</strong> the user{" "}
+        Are you sure you want to <strong>{enabled ? "disable" : "enable"}</strong> the user{" "}
         <strong>{username}</strong>?
       </p>
 
@@ -39,11 +33,7 @@ export function EnableUserModal({
           : "The user will regain access to the platform."}
       </p>
 
-      {loading && (
-        <InlineLoading
-          description={enabled ? "Disabling user…" : "Enabling user…"}
-        />
-      )}
+      {loading && <InlineLoading description={enabled ? "Disabling user…" : "Enabling user…"} />}
 
       <div
         style={{
@@ -56,11 +46,7 @@ export function EnableUserModal({
           Cancel
         </Button>
 
-        <Button
-          kind={enabled ? "danger" : "primary"}
-          onClick={handleConfirm}
-          disabled={loading}
-        >
+        <Button kind={enabled ? "danger" : "primary"} onClick={handleConfirm} disabled={loading}>
           {enabled ? "Disable user" : "Enable user"}
         </Button>
       </div>

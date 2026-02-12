@@ -35,15 +35,9 @@ export function EmptyState({
       <h4 style={{ marginBottom: "0.5rem" }}>{title}</h4>
       <p style={{ opacity: 0.8, marginBottom: "1.5rem" }}>{description}</p>
 
-      <div
-        style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}
-      >
+      <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
         {primaryAction && (
-          <Button
-            kind="primary"
-            renderIcon={primaryAction.icon}
-            onClick={primaryAction.onClick}
-          >
+          <Button kind="primary" renderIcon={primaryAction.icon} onClick={primaryAction.onClick}>
             {primaryAction.label}
           </Button>
         )}

@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  ComposedModal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-} from "@carbon/react";
+import { ComposedModal, ModalHeader, ModalBody, ModalFooter, Button } from "@carbon/react";
 
 export type ModalSize = "sm" | "md" | "lg" | "xl";
 

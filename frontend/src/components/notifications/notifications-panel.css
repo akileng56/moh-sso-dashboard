@@ -58,7 +58,7 @@
 /* =========================
  * StructuredList cell fixes
  * ========================= */
-.notification-row>.cds--structured-list-td:first-child {
+.notification-row > .cds--structured-list-td:first-child {
   flex: 1;
   min-width: 0;
   /* REQUIRED for wrapping */

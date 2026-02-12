@@ -60,9 +60,7 @@ function HeaderActions() {
         }
       >
         <Notification size={20} />
-        {unreadCount > 0 && (
-          <span className="notification-badge">{unreadCount}</span>
-        )}
+        {unreadCount > 0 && <span className="notification-badge">{unreadCount}</span>}
       </HeaderGlobalAction>
 
       {/* 👤 User */}
@@ -74,11 +72,7 @@ function HeaderActions() {
       </HeaderGlobalAction>
 
       {/* 🚪 Logout */}
-      <HeaderGlobalAction
-        aria-label="Logout"
-        tooltipAlignment="end"
-        onClick={handleLogout}
-      >
+      <HeaderGlobalAction aria-label="Logout" tooltipAlignment="end" onClick={handleLogout}>
         <Logout size={20} />
       </HeaderGlobalAction>
     </HeaderGlobalBar>
@@ -96,11 +90,7 @@ export default function AdminLayout() {
         <Header aria-label="MOH Integrated Health Portal">
           <img src={`${imagePath}`} className={`moh-image-style`} />
 
-          <HeaderName
-            prefix="MOH"
-            onClick={() => navigate("/admin")}
-            style={{ cursor: "pointer" }}
-          >
+          <HeaderName prefix="MOH" onClick={() => navigate("/admin")} style={{ cursor: "pointer" }}>
             Integrated Health Portal
           </HeaderName>
 

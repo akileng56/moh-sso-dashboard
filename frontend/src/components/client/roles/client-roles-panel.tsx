@@ -82,10 +82,7 @@ export function ClientRolesPanel({ id, clientId }: Props) {
               <TableHead>
                 <TableRow>
                   {headers.map((header) => (
-                    <TableHeader
-                      key={header.key}
-                      {...getHeaderProps({ header })}
-                    >
+                    <TableHeader key={header.key} {...getHeaderProps({ header })}>
                       {header.header}
                     </TableHeader>
                   ))}
@@ -103,9 +100,7 @@ export function ClientRolesPanel({ id, clientId }: Props) {
                               <OverflowMenuItem
                                 itemText="Delete"
                                 isDelete
-                                onClick={() =>
-                                  handleDelete(row.id, row.cells[0].value)
-                                }
+                                onClick={() => handleDelete(row.id, row.cells[0].value)}
                               />
                             </OverflowMenu>
                           </TableCell>

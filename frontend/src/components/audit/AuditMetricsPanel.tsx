@@ -13,7 +13,7 @@ export const AuditMetricsPanel: React.FC<Props> = ({ from, to }) => {
     { from, to },
     {
       skip: !from || !to,
-    }
+    },
   );
 
   if (isLoading && !data) {

@@ -27,8 +27,7 @@ export const authApi = baseApi.injectEndpoints({
         url: API.auth.me(),
         credentials: "include",
       }),
-      transformResponse: (res: ApiEnvelope<{ user: AuthUser }>) =>
-        res.data.user,
+      transformResponse: (res: ApiEnvelope<{ user: AuthUser }>) => res.data.user,
     }),
 
     /* -----------------------------
@@ -52,7 +51,7 @@ export const authApi = baseApi.injectEndpoints({
           const user = await dispatch(
             authApi.endpoints.me.initiate(undefined, {
               forceRefetch: true,
-            })
+            }),
           ).unwrap();
 
           // 3️⃣ Restore authenticated state
@@ -60,7 +59,7 @@ export const authApi = baseApi.injectEndpoints({
             loginSuccess({
               accessToken: data.data.access_token,
               user,
-            })
+            }),
           );
         } catch {
           // Refresh failed → clear session

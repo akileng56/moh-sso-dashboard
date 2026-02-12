@@ -59,18 +59,8 @@ export function AuditLogFilters({
           }
         }}
       >
-        <DatePickerInput
-          id="audit-from"
-          labelText="From date"
-          hideLabel
-          placeholder="From"
-        />
-        <DatePickerInput
-          id="audit-to"
-          labelText="To date"
-          hideLabel
-          placeholder="To"
-        />
+        <DatePickerInput id="audit-from" labelText="From date" hideLabel placeholder="From" />
+        <DatePickerInput id="audit-to" labelText="To date" hideLabel placeholder="To" />
       </DatePicker>
 
       {/* Client */}

@@ -1,8 +1,5 @@
 import { API } from "../../lib/constants/api.constants";
-import type {
-  GetNotificationsParams,
-  Notification,
-} from "../types/notifications.types";
+import type { GetNotificationsParams, Notification } from "../types/notifications.types";
 import { baseApi } from "./baseApi";
 
 type ApiEnvelope<T> = {
@@ -104,8 +101,7 @@ export const notificationsApi = baseApi.injectEndpoints({
         credentials: "include",
       }),
 
-      transformResponse: (res: ApiEnvelope<{ count: number }>) =>
-        res.data.count,
+      transformResponse: (res: ApiEnvelope<{ count: number }>) => res.data.count,
 
       providesTags: ["Notification"],
     }),
@@ -148,8 +144,7 @@ export const notificationsApi = baseApi.injectEndpoints({
         credentials: "include",
       }),
 
-      transformResponse: (res: ApiEnvelope<{ count: number }>) =>
-        res.data.count,
+      transformResponse: (res: ApiEnvelope<{ count: number }>) => res.data.count,
 
       providesTags: [{ type: "Notification", id: "COUNT" }],
     }),

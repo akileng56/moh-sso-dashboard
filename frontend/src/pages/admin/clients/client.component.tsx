@@ -16,10 +16,7 @@ import {
 } from "@carbon/react";
 
 import { ClientFilters } from "../../../components/client/ClientFilters";
-import {
-  useListClientsQuery,
-  useToggleClientMutation,
-} from "../../../store/api/clients.api";
+import { useListClientsQuery, useToggleClientMutation } from "../../../store/api/clients.api";
 import type { Client } from "../../../store/types/client.types";
 import { useHeaderPanel } from "../../../components/header-panel/header-panel.context";
 import { ClientFormPanel } from "../../../components/panels/client-form-panel";
@@ -64,9 +61,7 @@ export default function ClientsPage() {
   const { openEnableClientModal } = useEnableClientModal();
   const toast = useToast();
 
-  const [bulkAction, setBulkAction] = useState<"enable" | "disable" | null>(
-    null
-  );
+  const [bulkAction, setBulkAction] = useState<"enable" | "disable" | null>(null);
 
   /* -----------------------------
    * Filters
@@ -83,13 +78,7 @@ export default function ClientsPage() {
   /* -----------------------------
    * Data
    * ----------------------------- */
-  const {
-    data: clients = [],
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useListClientsQuery();
+  const { data: clients = [], isLoading, isError, error, refetch } = useListClientsQuery();
 
   const [toggleClient] = useToggleClientMutation();
 
@@ -180,17 +169,9 @@ export default function ClientsPage() {
       {/* Table */}
       <Tile>
         <DataTable rows={rows} headers={headers}>
-          {({
-            rows,
-            headers,
-            getHeaderProps,
-            getRowProps,
-            getSelectionProps,
-            selectedRows,
-          }) => {
+          {({ rows, headers, getHeaderProps, getRowProps, getSelectionProps, selectedRows }) => {
             const selectedClients = selectedRows.map(
-              (r) =>
-                r.cells.find((c) => c.info.header === "raw")?.value as Client
+              (r) => r.cells.find((c) => c.info.header === "raw")?.value as Client,
             );
 
             return (
@@ -207,8 +188,8 @@ export default function ClientsPage() {
                           toggleClient({
                             id: c.clientId,
                             enabled: true,
-                          }).unwrap()
-                        )
+                          }).unwrap(),
+                        ),
                       );
 
                       toast.success({
@@ -233,8 +214,8 @@ export default function ClientsPage() {
                           toggleClient({
                             id: c.clientId,
                             enabled: false,
-                          }).unwrap()
-                        )
+                          }).unwrap(),
+                        ),
                       );
 
                       toast.warning({
@@ -259,18 +240,15 @@ export default function ClientsPage() {
                       {headers
                         .filter((h) => h.key !== "raw")
                         .map((h) => (
-                          <TableHeader {...getHeaderProps({ header: h })}>
-                            {h.header}
-                          </TableHeader>
+                          <TableHeader {...getHeaderProps({ header: h })}>{h.header}</TableHeader>
                         ))}
                     </TableRow>
                   </TableHead>
 
                   <TableBody>
                     {rows.map((row) => {
-                      const client = row.cells.find(
-                        (c) => c.info.header === "raw"
-                      )?.value as Client;
+                      const client = row.cells.find((c) => c.info.header === "raw")
+                        ?.value as Client;
 
                       return (
                         <TableRow {...getRowProps({ row })}>
@@ -282,9 +260,7 @@ export default function ClientsPage() {
                             if (cell.info.header === "status") {
                               return (
                                 <TableCell key={cell.id}>
-                                  <Tag type={client.enabled ? "green" : "red"}>
-                                    {cell.value}
-                                  </Tag>
+                                  <Tag type={client.enabled ? "green" : "red"}>{cell.value}</Tag>
                                 </TableCell>
                               );
                             }
@@ -338,9 +314,7 @@ export default function ClientsPage() {
                               );
                             }
 
-                            return (
-                              <TableCell key={cell.id}>{cell.value}</TableCell>
-                            );
+                            return <TableCell key={cell.id}>{cell.value}</TableCell>;
                           })}
                         </TableRow>
                       );

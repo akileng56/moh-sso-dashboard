@@ -42,10 +42,7 @@ export const clientRolesApi = baseApi.injectEndpoints({
      * Create client role (ADMIN)
      * POST /admin/clients/:id/roles
      * -------------------------------- */
-    createClientRole: builder.mutation<
-      void,
-      { clientId: string; payload: RoleRequest }
-    >({
+    createClientRole: builder.mutation<void, { clientId: string; payload: RoleRequest }>({
       query: ({ clientId, payload }) => ({
         url: API.clients.roles.create(clientId),
         method: "POST",
@@ -53,19 +50,14 @@ export const clientRolesApi = baseApi.injectEndpoints({
         credentials: "include",
       }),
 
-      invalidatesTags: (_r, _e, { clientId }) => [
-        { type: "ClientRole", id: `LIST-${clientId}` },
-      ],
+      invalidatesTags: (_r, _e, { clientId }) => [{ type: "ClientRole", id: `LIST-${clientId}` }],
     }),
 
     /* --------------------------------
      * Delete client role (ADMIN)
      * DELETE /admin/clients/:id/roles/:role
      * -------------------------------- */
-    deleteClientRole: builder.mutation<
-      void,
-      { clientId: string; role: string }
-    >({
+    deleteClientRole: builder.mutation<void, { clientId: string; role: string }>({
       query: ({ clientId, role }) => ({
         url: API.clients.roles.delete(clientId, role),
         method: "DELETE",
@@ -80,8 +72,5 @@ export const clientRolesApi = baseApi.injectEndpoints({
   }),
 });
 
-export const {
-  useListClientRolesQuery,
-  useCreateClientRoleMutation,
-  useDeleteClientRoleMutation,
-} = clientRolesApi;
+export const { useListClientRolesQuery, useCreateClientRoleMutation, useDeleteClientRoleMutation } =
+  clientRolesApi;

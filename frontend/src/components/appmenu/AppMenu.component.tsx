@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import {HeaderGlobalAction} from "@carbon/react";
+import { HeaderGlobalAction } from "@carbon/react";
 import { Switcher } from "@carbon/icons-react";
 import AppGridContent from "./AppGridContent";
 import "./AppMenu.css";

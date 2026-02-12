@@ -1,16 +1,16 @@
 export const emptyChartOptions = {
-    title: "",
-    axes: {
-        left: {
-            mapsTo: "value"
-        },
-        bottom: {
-            scaleType: "labels",
-            mapsTo: "key"
-        }
+  title: "",
+  axes: {
+    left: {
+      mapsTo: "value",
     },
-    data: {
-        loading: true
+    bottom: {
+      scaleType: "labels",
+      mapsTo: "key",
     },
-    height: '30rem'
-}
+  },
+  data: {
+    loading: true,
+  },
+  height: "30rem",
+};

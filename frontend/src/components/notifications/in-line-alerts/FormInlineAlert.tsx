@@ -8,12 +8,6 @@ type Props = {
 
 export function FormInlineAlert({ kind = "error", title, subtitle }: Props) {
   return (
-    <InlineNotification
-      kind={kind}
-      title={title}
-      subtitle={subtitle}
-      lowContrast
-      hideCloseButton
-    />
+    <InlineNotification kind={kind} title={title} subtitle={subtitle} lowContrast hideCloseButton />
   );
 }

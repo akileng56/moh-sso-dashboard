@@ -10,9 +10,7 @@ export const AuditLogPanel: React.FC<{
   if (!log) return null;
 
   const success =
-    typeof log.metadata?.RawMessage?.success === "boolean"
-      ? log.metadata.RawMessage.success
-      : null;
+    typeof log.metadata?.RawMessage?.success === "boolean" ? log.metadata.RawMessage.success : null;
 
   return (
     <div style={{ padding: 24, display: "grid", gap: 20 }}>
@@ -47,9 +45,7 @@ export const AuditLogPanel: React.FC<{
         >
           <strong>{log.action}</strong>
           {success !== null && (
-            <Tag type={success ? "green" : "red"}>
-              {success ? "success" : "failure"}
-            </Tag>
+            <Tag type={success ? "green" : "red"}>{success ? "success" : "failure"}</Tag>
           )}
         </div>
       </div>
@@ -59,15 +55,9 @@ export const AuditLogPanel: React.FC<{
         <Field label="ID" value={log.id} />
         <Field label="Actor" value={log.username ?? "System"} />
         <Field label="User ID" value={log.user_id ?? "—"} />
-        <Field
-          label="Client"
-          value={log.metadata?.RawMessage?.client_id ?? "—"}
-        />
+        <Field label="Client" value={log.metadata?.RawMessage?.client_id ?? "—"} />
         <Field label="IP Address" value={log.metadata?.RawMessage?.ip ?? "—"} />
-        <Field
-          label="User Agent"
-          value={log.metadata?.RawMessage?.user_agent ?? "—"}
-        />
+        <Field label="User Agent" value={log.metadata?.RawMessage?.user_agent ?? "—"} />
         <Field
           label="Location"
           value={
@@ -82,9 +72,7 @@ export const AuditLogPanel: React.FC<{
       <div>
         <strong>Metadata</strong>
         <div style={{ marginTop: 8 }}>
-          <CodeSnippet type="multi">
-            {JSON.stringify(log.metadata ?? {}, null, 2)}
-          </CodeSnippet>
+          <CodeSnippet type="multi">{JSON.stringify(log.metadata ?? {}, null, 2)}</CodeSnippet>
         </div>
       </div>
     </div>

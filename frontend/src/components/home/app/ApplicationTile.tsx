@@ -37,10 +37,7 @@ export function ApplicationTile({
   };
 
   return (
-    <Tile
-      key={clientId}
-      className={`app-tile ${!enabled ? "app-tile--disabled" : ""}`}
-    >
+    <Tile key={clientId} className={`app-tile ${!enabled ? "app-tile--disabled" : ""}`}>
       <Stack gap={4}>
         {/* Header */}
         <div className="app-header">
@@ -54,9 +51,7 @@ export function ApplicationTile({
         </div>
 
         {/* Description */}
-        <p className="app-description">
-          {description || "No description provided"}
-        </p>
+        <p className="app-description">{description || "No description provided"}</p>
 
         {/* Action */}
         <Button

@@ -10,8 +10,7 @@ type Props = {
 export function ClientActionsMenu({ client, onEdit, onToggleStatus }: Props) {
   return (
     <OverflowMenu size="sm" flipped>
-      <OverflowMenuItem itemText="Edit client" hasDivider onClick={
-        onEdit} />
+      <OverflowMenuItem itemText="Edit client" hasDivider onClick={onEdit} />
 
       <OverflowMenuItem
         itemText={client.enabled ? "Disable client" : "Enable client"}

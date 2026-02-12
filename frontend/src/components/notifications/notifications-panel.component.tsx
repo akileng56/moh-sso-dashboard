@@ -17,11 +17,7 @@ type Props = {
   onView?: (notification: Notification) => void;
 };
 
-export function NotificationsPanel({
-  notifications,
-  onMarkRead,
-  onView,
-}: Props) {
+export function NotificationsPanel({ notifications, onMarkRead, onView }: Props) {
   if (notifications.length === 0) {
     return <p className="notifications-panel__empty">No notifications</p>;
   }
@@ -33,9 +29,7 @@ export function NotificationsPanel({
           {notifications.map((n) => (
             <StructuredListRow
               key={n.id}
-              className={`notification-row ${
-                !n.read ? "notification-row--unread" : ""
-              }`}
+              className={`notification-row ${!n.read ? "notification-row--unread" : ""}`}
               tabIndex={0}
               onClick={() => onView?.(n)}
             >
@@ -84,9 +78,7 @@ export function NotificationsPanel({
 /* --------------------------------------------------
  * Severity mapping (Carbon-safe)
  * -------------------------------------------------- */
-function mapSeverity(
-  severity: "info" | "warning" | "critical"
-): "red" | "yellow" | "gray" {
+function mapSeverity(severity: "info" | "warning" | "critical"): "red" | "yellow" | "gray" {
   switch (severity) {
     case "critical":
       return "red";

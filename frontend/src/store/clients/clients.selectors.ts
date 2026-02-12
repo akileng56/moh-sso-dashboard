@@ -18,10 +18,7 @@ export const selectClients = createSelector(selectClientsState, (s) => [
   ...s.items,
 ]);
 
-export const selectActiveClientId = createSelector(
-  selectClientsState,
-  (s) => s.activeClientId
-);
+export const selectActiveClientId = createSelector(selectClientsState, (s) => s.activeClientId);
 
 /**
  * Resolve active client safely
@@ -29,8 +26,7 @@ export const selectActiveClientId = createSelector(
  */
 export const selectActiveClient = createSelector(
   [selectClients, selectActiveClientId],
-  (clients, activeId) =>
-    clients.find((c) => c.clientId === activeId) ?? clients[0] ?? null
+  (clients, activeId) => clients.find((c) => c.clientId === activeId) ?? clients[0] ?? null,
 );
 
 /* -----------------------------
@@ -59,20 +55,17 @@ export type SideNavItem = {
   children?: SideNavItem[];
 };
 
-export const selectClientSideNav = createSelector(
-  selectActiveClient,
-  (client): SideNavItem[] => {
-    const raw = client?.attributes?.["ui.sidenav"];
-    return parseJSON<SideNavItem[]>(raw) ?? [];
-  }
-);
+export const selectClientSideNav = createSelector(selectActiveClient, (client): SideNavItem[] => {
+  const raw = client?.attributes?.["ui.sidenav"];
+  return parseJSON<SideNavItem[]>(raw) ?? [];
+});
 
 export const selectClientIcon = createSelector(
   selectActiveClient,
-  (client) => client?.attributes?.["ui.icon"] ?? "app"
+  (client) => client?.attributes?.["ui.icon"] ?? "app",
 );
 
 export const selectClientHome = createSelector(
   selectActiveClient,
-  (client) => client?.attributes?.["ui.home"] ?? "/"
+  (client) => client?.attributes?.["ui.home"] ?? "/",
 );

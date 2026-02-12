@@ -16,31 +16,29 @@ type Props = {
 export function UserClientRolesPanel({ userId }: Props) {
   const toast = useToast();
 
-  const { data: clients = [], isLoading: loadingClients } =
-    useListClientsQuery();
+  const { data: clients = [], isLoading: loadingClients } = useListClientsQuery();
 
   const { data: assignments = [], isLoading: loadingAssignments } =
     useGetUserClientRolesQuery(userId);
 
-  const [updateRoles, { isLoading: saving }] =
-    useUpdateUserClientRolesMutation();
+  const [updateRoles, { isLoading: saving }] = useUpdateUserClientRolesMutation();
 
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
-  const [selectedClientUuid, setSelectedClientUuid] = useState<string | null>(
-    null
-  );
+  const [selectedClientUuid, setSelectedClientUuid] = useState<string | null>(null);
 
   const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
 
   const selectedClient = useMemo(
     () => clients.find((c) => c.clientId === selectedClientId),
-    [clients, selectedClientId]
+    [clients, selectedClientId],
   );
-  const { data: clientRoles = [], isLoading: loadingRoles } =
-    useListClientRolesQuery(selectedClientId!, {
+  const { data: clientRoles = [], isLoading: loadingRoles } = useListClientRolesQuery(
+    selectedClientId!,
+    {
       skip: !selectedClientId,
-    });
+    },
+  );
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -58,7 +56,7 @@ export function UserClientRolesPanel({ userId }: Props) {
         id: r.name,
         text: r.name,
       })),
-    [clientRoles]
+    [clientRoles],
   );
 
   /* ------------------------------------------------
@@ -75,10 +73,7 @@ export function UserClientRolesPanel({ userId }: Props) {
         roles: selectedRoles,
       }).unwrap();
 
-      toast.success(
-        "Roles updated",
-        "User client roles were updated successfully"
-      );
+      toast.success("Roles updated", "User client roles were updated successfully");
     } catch (err) {
       toast.error("Update failed", "Unable to update client roles");
     }
@@ -111,13 +106,9 @@ export function UserClientRolesPanel({ userId }: Props) {
             }))}
             itemToString={(item) => item?.text ?? ""}
             selectedItems={
-              selectedClient
-                ? [{ id: selectedClient.clientId, text: selectedClient.name }]
-                : []
+              selectedClient ? [{ id: selectedClient.clientId, text: selectedClient.name }] : []
             }
-            onChange={({ selectedItems }) =>
-              setSelectedClientId(selectedItems[0]?.id ?? null)
-            }
+            onChange={({ selectedItems }) => setSelectedClientId(selectedItems[0]?.id ?? null)}
           />
         </Stack>
       </Tile>
@@ -140,12 +131,8 @@ export function UserClientRolesPanel({ userId }: Props) {
                 titleText="Client roles"
                 items={roleItems}
                 itemToString={(item) => item?.text ?? ""}
-                selectedItems={roleItems.filter((r) =>
-                  selectedRoles.includes(r.id)
-                )}
-                onChange={({ selectedItems }) =>
-                  setSelectedRoles(selectedItems.map((r) => r.id))
-                }
+                selectedItems={roleItems.filter((r) => selectedRoles.includes(r.id))}
+                onChange={({ selectedItems }) => setSelectedRoles(selectedItems.map((r) => r.id))}
               />
             )}
 

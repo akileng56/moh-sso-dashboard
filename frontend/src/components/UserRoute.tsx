@@ -1,13 +1,9 @@
 // components/UserRoute.tsx
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { InlineLoading } from "@carbon/react";
 
-import {
-  selectAuthenticated,
-  selectAuthLoaded,
-  selectIsUser,
-} from "../store/auth/auth.selectors";
+import { selectAuthenticated, selectAuthLoaded, selectIsUser } from "../store/auth/auth.selectors";
 import type { JSX } from "react";
 
 export const UserRoute = ({ children }: { children: JSX.Element }) => {

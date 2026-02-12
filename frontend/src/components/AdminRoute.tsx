@@ -3,11 +3,7 @@ import { useSelector } from "react-redux";
 import { InlineLoading } from "@carbon/react";
 import type { JSX } from "react";
 
-import {
-  selectAuthenticated,
-  selectAuthLoaded,
-  selectIsAdmin,
-} from "../store/auth/auth.selectors";
+import { selectAuthenticated, selectAuthLoaded, selectIsAdmin } from "../store/auth/auth.selectors";
 
 export const AdminRoute = ({ children }: { children: JSX.Element }) => {
   const loaded = useSelector(selectAuthLoaded);
