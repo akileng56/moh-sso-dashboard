@@ -7,9 +7,11 @@ import {
   Button,
   Stack,
 } from "@carbon/react";
+
 import type { Notification } from "../../store/types/notifications.types";
 
 import "./notifications-panel.css";
+import { getSeverityTagType } from "../../ui/severity";
 
 type Props = {
   notifications: Notification[];
@@ -49,7 +51,7 @@ export function NotificationsPanel({ notifications, onMarkRead, onView }: Props)
               {/* ================= Actions ================= */}
               <StructuredListCell className="notification-actions">
                 <Stack gap={2}>
-                  <Tag size="sm" type={mapSeverity(n.severity)}>
+                  <Tag size="sm" type={getSeverityTagType(n.severity)}>
                     {n.severity}
                   </Tag>
 
@@ -73,18 +75,4 @@ export function NotificationsPanel({ notifications, onMarkRead, onView }: Props)
       </StructuredListWrapper>
     </div>
   );
-}
-
-/* --------------------------------------------------
- * Severity mapping (Carbon-safe)
- * -------------------------------------------------- */
-function mapSeverity(severity: "info" | "warning" | "critical"): "red" | "yellow" | "gray" {
-  switch (severity) {
-    case "critical":
-      return "red";
-    case "warning":
-      return "yellow";
-    default:
-      return "gray";
-  }
 }

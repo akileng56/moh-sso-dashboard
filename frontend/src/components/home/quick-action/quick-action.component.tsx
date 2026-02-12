@@ -1,5 +1,5 @@
-import React from "react";
 import { Tile } from "@carbon/react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import "./quick-action.css";
 
@@ -60,7 +60,6 @@ export function QuickAction({
 
   return (
     <Tile
-      as="div"
       role={isInteractive ? "button" : undefined}
       tabIndex={isInteractive ? 0 : -1}
       aria-disabled={disabled}

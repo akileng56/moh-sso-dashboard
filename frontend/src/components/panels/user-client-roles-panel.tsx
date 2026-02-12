@@ -1,12 +1,12 @@
 import { Stack, Tile, MultiSelect, InlineLoading, Button } from "@carbon/react";
 import { useEffect, useMemo, useState } from "react";
 
+import { useListClientRolesQuery } from "../../store/api/clientRoles.api";
 import { useListClientsQuery } from "../../store/api/clients.api";
 import {
   useGetUserClientRolesQuery,
   useUpdateUserClientRolesMutation,
 } from "../../store/api/users.api";
-import { useListClientRolesQuery } from "../../store/api/clientRoles.api";
 import { useToast } from "../notifications/toast/useToast";
 
 type Props = {
@@ -108,7 +108,9 @@ export function UserClientRolesPanel({ userId }: Props) {
             selectedItems={
               selectedClient ? [{ id: selectedClient.clientId, text: selectedClient.name }] : []
             }
-            onChange={({ selectedItems }) => setSelectedClientId(selectedItems[0]?.id ?? null)}
+            onChange={({ selectedItems }) =>
+              { setSelectedClientId((selectedItems ?? [])[0]?.id ?? null); }
+            }
           />
         </Stack>
       </Tile>
@@ -132,7 +134,9 @@ export function UserClientRolesPanel({ userId }: Props) {
                 items={roleItems}
                 itemToString={(item) => item?.text ?? ""}
                 selectedItems={roleItems.filter((r) => selectedRoles.includes(r.id))}
-                onChange={({ selectedItems }) => setSelectedRoles(selectedItems.map((r) => r.id))}
+                onChange={({ selectedItems }) =>
+                  { setSelectedRoles((selectedItems ?? []).map((r) => r.id)); }
+                }
               />
             )}
 
