@@ -5,14 +5,16 @@ import (
 
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	repository "github.com/moh-sso-dashboard/internal/repository/document"
+	"github.com/moh-sso-dashboard/internal/storage"
 )
 
 type FhirBundlerProcessor struct {
 	repository repository.DocumentRepository
+	storage    storage.Storage
 }
 
-func NewFhirBundlerProcessor(repository repository.DocumentRepository) *FhirBundlerProcessor {
-	return &FhirBundlerProcessor{repository: repository}
+func NewFhirBundlerProcessor(repository repository.DocumentRepository, storage storage.Storage) *FhirBundlerProcessor {
+	return &FhirBundlerProcessor{repository: repository, storage: storage}
 }
 
 func (c *FhirBundlerProcessor) Process(ctx context.Context, p db.Process) error {

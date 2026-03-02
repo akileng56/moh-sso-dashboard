@@ -5,14 +5,16 @@ import (
 
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	repository "github.com/moh-sso-dashboard/internal/repository/document"
+	"github.com/moh-sso-dashboard/internal/storage"
 )
 
 type ExcelProcessor struct {
 	repository repository.DocumentRepository
+	storage    storage.Storage
 }
 
-func NewExcelProcessor(repository repository.DocumentRepository) *ExcelProcessor {
-	return &ExcelProcessor{repository: repository}
+func NewExcelProcessor(repository repository.DocumentRepository, storage storage.Storage) *ExcelProcessor {
+	return &ExcelProcessor{repository: repository, storage: storage}
 }
 
 func (c *ExcelProcessor) Process(ctx context.Context, p db.Process) error {
