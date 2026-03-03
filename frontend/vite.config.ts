@@ -2,7 +2,6 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  base: "/portal/",
   plugins: [react()],
   server: {
     host: true,
