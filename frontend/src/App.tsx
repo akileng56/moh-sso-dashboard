@@ -33,6 +33,9 @@ import MyTimeSheet from "./pages/user/utilities/my-timesheet.component";
 import FileUpload from "./pages/public/fileupload/file-upload.tsx";
 import DocumentPage from "./pages/user/e-services/documents/documents.component";
 import DocumentDetailsPage from "./pages/user/e-services/documents/document-details.component";
+import MyProfilePage from "./pages/user/settings/Profile/profile.component.tsx";
+import SecurityPage from "./pages/user/settings/security/security.component.tsx";
+import ActiveSessionsPage from "./pages/user/settings/sessions/active-sesssions.component.tsx";
 
 function App() {
   return (
@@ -432,9 +435,9 @@ function App() {
              * -------------------------- */}
             <Route path="settings">
               <Route index element={<Navigate to="profile" replace />} />
-              <Route path="profile" element={<div>My Profile</div>} />
-              <Route path="sessions" element={<div>Active Sessions</div>} />
-              <Route path="security" element={<div>Security</div>} />
+              <Route path="profile" element={<MyProfilePage />} />
+              <Route path="sessions" element={<ActiveSessionsPage />} />
+              <Route path="security" element={<SecurityPage />} />
             </Route>
           </Route>
 
