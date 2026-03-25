@@ -27,6 +27,8 @@ func SetupRouter(
 	storageLocationHandler *handler.StorageLocationHandler,
 	sessionHandler *handler.SessionHandler,
 	announcementHandler *handler.AnnouncementHandler,
+	adminunitsHandler *handler.AdminUnitsHandler,
+	visualiserHandler *handler.VisualiserHandler,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -201,6 +203,35 @@ func SetupRouter(
 		{
 			sessions.GET("", sessionHandler.GetUserSessions)
 			sessions.DELETE("/:id", sessionHandler.LogoutSession)
+		}
+
+		// ----------------------------------
+		//  Visualiser
+		// ---------------------------------------
+		visualiser := protected.Group("visualizer")
+		{
+
+			// Admin units endpoints
+			visualiser.GET("/adminunits/orgunits", adminunitsHandler.GetOrgUnits)
+			visualiser.GET("/adminunits/facilities", adminunitsHandler.GetFacilities)
+			visualiser.GET("/adminunits/district", adminunitsHandler.GetDistricts)
+			visualiser.POST("/adminunits/subcounties", adminunitsHandler.GetSubCounties)
+			visualiser.POST("/adminunits/localgovt", adminunitsHandler.GetLocalGovt)
+			visualiser.POST("/adminunits/districts", adminunitsHandler.GetDistrictsByRegion)
+			visualiser.GET("/adminunits/region", adminunitsHandler.GetRegions)
+			visualiser.GET("/adminunits/national", adminunitsHandler.GetNational)
+			visualiser.GET("/adminunits/hierarchy", adminunitsHandler.GetHierarchy)
+
+			// Visualizer endpoints
+			visualiser.GET("/datasets", visualiserHandler.GetDatasets)
+			visualiser.POST("/dataelements", visualiserHandler.GetDataElements)
+			visualiser.POST("/datavalues", visualiserHandler.GetDataValues)
+			visualiser.GET("/themes", visualiserHandler.GetThemes)
+			visualiser.POST("/dataelements/theme", visualiserHandler.GetDataElementsByTheme)
+			visualiser.GET("/hiv/summary", visualiserHandler.GetHIVSummary)
+			visualiser.GET("/hiv/tested", visualiserHandler.GetHIVTested)
+			visualiser.GET("/hiv/regimen", visualiserHandler.GetHIVRegimen)
+
 		}
 
 		// --------------------------------------------------

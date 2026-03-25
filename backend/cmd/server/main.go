@@ -89,6 +89,23 @@ func main() {
 	defer remoteDB.Close()
 
 	// ==================================================
+	// Initialize DWH DB
+	// ==================================================
+
+	dwhDB, err := db.InitDB(ctx, db.DBConfig{
+		Driver:          cfg.DbDriver,
+		DSN:             cfg.DwhDbSource(),
+		MaxOpenConns:    25,
+		MaxIdleConns:    10,
+		ConnMaxLifetime: 30 * time.Minute,
+		WaitTimeout:     30 * time.Second,
+	})
+	if err != nil {
+		appLogger.Fatal("Failed to initialize dwh DB: ", err)
+	}
+	defer dwhDB.Close()
+
+	// ==================================================
 	// Run Migrations
 	// ==================================================
 	if err := db.MigrateDB(primaryDB, "file://internal/db/migrations"); err != nil {
@@ -225,6 +242,8 @@ func main() {
 	storageLocationHandler := handler.NewStorageLocationHandler(storageLocationService, auditService)
 	sessionHandler := handler.NewSessionHandler(sessionService)
 	announcementHandler := handler.NewAnnouncementHandler(announcementService, auditService)
+	adminunitsHandler := handler.NewAdminUnitsHandler(cfg, dwhDB)
+	visualiserHandler := handler.NewVisualiserHandler(cfg, dwhDB)
 
 	healthHandler := handler.NewHealthHandler(
 		func(ctx context.Context) error { return db.PingDB(ctx, primaryDB) },
@@ -250,6 +269,8 @@ func main() {
 		storageLocationHandler,
 		sessionHandler,
 		announcementHandler,
+		adminunitsHandler,
+		visualiserHandler,
 	)
 
 	r.GET("/health/live", healthHandler.HandleLive)
