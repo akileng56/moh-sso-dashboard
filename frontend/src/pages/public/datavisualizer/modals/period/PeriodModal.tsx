@@ -1,8 +1,9 @@
-import {Modal, MultiSelect, NumberInput, Select, SelectItem, Tag} from "@carbon/react";
+import { Modal, NumberInput, Select, SelectItem } from "@carbon/react";
 import { useMemo, useState } from "react";
 
 import { getAvailablePeriods, getPeriodType, periodType } from "../../Constants.tsx";
 import "./period.css";
+import Panel from "../../components/panel/panel.component.tsx";
 
 export default function PeriodModal({ onClose, selected, onSave }) {
   const CURRENT_YEAR = new Date().getFullYear();
@@ -18,9 +19,9 @@ export default function PeriodModal({ onClose, selected, onSave }) {
   const [selectedPeriodType, setSelectedPeriodType] = useState(initialPeriodType);
   const [selectedYear, setSelectedYear] = useState(initialSelectedYear);
 
-  const onChangeSelectedPeriod = (event) => {
-    setSelectedPeriods(event?.selectedItems);
-  };
+  // const onChangeSelectedPeriod = (event) => {
+  //   setSelectedPeriods(event?.selectedItems);
+  // };
 
   const save = () => {
     onSave(selectedPeriods);
@@ -43,16 +44,25 @@ export default function PeriodModal({ onClose, selected, onSave }) {
     setSelectedPeriods([]);
   };
 
-  const comparePeriodItemsItems = (periodA, periodB) => {
-    return periodA?.id?.localeCompare(periodB?.id);
-  };
+  // const comparePeriodItemsItems = (periodA, periodB) => {
+  //   return periodA?.id?.localeCompare(periodB?.id);
+  // };
 
-  const sortPeriodFunction = (periodItems) => {
-    return [...periodItems]?.sort(comparePeriodItemsItems);
-  };
+  // const sortPeriodFunction = (periodItems) => {
+  //   return [...periodItems]?.sort(comparePeriodItemsItems);
+  // };
 
-  const handleClearTag = (periodId) => {
-    setSelectedPeriods(selectedPeriods.filter(period => period.id !== periodId));
+  // const handleClearTag = (periodId) => {
+  //   setSelectedPeriods(selectedPeriods.filter(period => period.id !== periodId));
+  // };
+
+  const moveAllFromLeftToRight = (selectedPeriod) => {
+    const updatedAvailablePeriods = availablePeriods.filter(
+        (parameter) => parameter !== selectedPeriod
+    );
+    setAvailablePeriods(updatedAvailablePeriods);
+
+    setSelectedPeriods([...selectedPeriods, selectedPeriod]);
   };
 
   // if (!show) return null;
@@ -105,29 +115,46 @@ export default function PeriodModal({ onClose, selected, onSave }) {
       <div className="row">
         <div className="mb-2 fw-bold">{selectedPeriodType} Periods</div>
 
-        <div className={`multi-select-period-container`}>
-          <MultiSelect
-            id="period-multiselect-id"
-            label=""
-            titleText="title"
-            onChange={onChangeSelectedPeriod}
-            hideLabel
-            items={availablePeriods}
-            sortItems={sortPeriodFunction}
-            selectedItems={selectedPeriods}
-          />
-          <div className={`selected-period-container`}>
-            {selectedPeriods.map((period) => (
-                <Tag
-                    key={period.id}
-                    type="blue"
-                    filter
-                    onClose={() => handleClearTag(period.id)}
-                >
-                  {period.label}
-                </Tag>
-            ))}
-          </div>
+        {/*<div className={`multi-select-period-container`}>*/}
+        {/*  <MultiSelect*/}
+        {/*    id="period-multiselect-id"*/}
+        {/*    label=""*/}
+        {/*    titleText="title"*/}
+        {/*    onChange={onChangeSelectedPeriod}*/}
+        {/*    hideLabel*/}
+        {/*    items={availablePeriods}*/}
+        {/*    sortItems={sortPeriodFunction}*/}
+        {/*    selectedItems={selectedPeriods}*/}
+        {/*  />*/}
+        {/*  <div className={`selected-period-container`}>*/}
+        {/*    {selectedPeriods.map((period) => (*/}
+        {/*        <Tag*/}
+        {/*            key={period.id}*/}
+        {/*            type="blue"*/}
+        {/*            filter*/}
+        {/*            onClose={() => handleClearTag(period.id)}*/}
+        {/*        >*/}
+        {/*          {period.label}*/}
+        {/*        </Tag>*/}
+        {/*    ))}*/}
+        {/*  </div>*/}
+        {/*</div>*/}
+
+        <div className={`panel-container`}>
+          <Panel heading="Available parameters">
+            <ul className={`list`}>
+              {availablePeriods.map((parameter) => (
+                  <li
+                      role="menuitem"
+                      className={``}
+                      key={parameter.label}
+                      onClick={() => moveAllFromLeftToRight(parameter)}
+                  >
+                    {parameter.label}
+                  </li>
+              ))}
+            </ul>
+          </Panel>
         </div>
       </div>
     </Modal>
