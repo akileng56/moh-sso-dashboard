@@ -1,20 +1,20 @@
 import React from "react";
-import "./panel.css";
+import "./panel.scss";
 
 interface PanelProps {
-  heading: string;
-  children: React.ReactNode;
+    heading: string;
+    children: React.ReactNode;
 }
 
 const Panel: React.FC<PanelProps> = ({ heading, children }) => {
-  return (
-    <div className={`panel`}>
-      <div className={`heading`}>
-        <span>{heading}</span>
-      </div>
-      {children}
-    </div>
-  );
+    return (
+        <div className={`panel`}>
+            <div className={`heading`}>
+                <span>{heading}</span>
+            </div>
+            {children}
+        </div>
+    );
 };
 
 export default Panel;

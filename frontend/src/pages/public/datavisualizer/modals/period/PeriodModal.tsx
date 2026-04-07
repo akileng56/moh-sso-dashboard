@@ -1,9 +1,10 @@
-import { Modal, NumberInput, Select, SelectItem } from "@carbon/react";
+import {Button, Modal, NumberInput, Select, SelectItem} from "@carbon/react";
 import { useMemo, useState } from "react";
 
 import { getAvailablePeriods, getPeriodType, periodType } from "../../Constants.tsx";
-import "./period.css";
+import "./period.scss";
 import Panel from "../../components/panel/panel.component.tsx";
+import {ArrowLeft, ArrowRight} from "@carbon/icons-react";
 
 export default function PeriodModal({ onClose, selected, onSave }) {
   const CURRENT_YEAR = new Date().getFullYear();
@@ -56,21 +57,39 @@ export default function PeriodModal({ onClose, selected, onSave }) {
   //   setSelectedPeriods(selectedPeriods.filter(period => period.id !== periodId));
   // };
 
-  const moveAllFromLeftToRight = (selectedPeriod) => {
-    const updatedAvailablePeriods = availablePeriods.filter(
-        (parameter) => parameter !== selectedPeriod
+  const moveToRight = (selectedItem) => {
+    const updatedAvailable = availablePeriods.filter(
+        (period) => period?.id !== selectedItem?.id
     );
-    setAvailablePeriods(updatedAvailablePeriods);
-
-    setSelectedPeriods([...selectedPeriods, selectedPeriod]);
+    setAvailablePeriods(updatedAvailable);
+    setSelectedPeriods([...selectedPeriods, selectedItem]);
   };
 
-  // if (!show) return null;
+  const moveToLeft = (selectedItem) => {
+    const updatedSelected = selectedPeriods.filter(
+        (period) => period.id !== selectedItem.id
+    );
+    setSelectedPeriods(updatedSelected);
+    setAvailablePeriods([...availablePeriods, selectedItem]);
+  };
+
+  const moveAllToRight = () => {
+    if (availablePeriods.length === 0) return;
+
+    setSelectedPeriods([...selectedPeriods, ...availablePeriods]);
+    setAvailablePeriods([]);
+  };
+
+  const moveAllToLeft = () => {
+    if (selectedPeriods.length === 0) return;
+    setAvailablePeriods([...availablePeriods, ...selectedPeriods]);
+    setSelectedPeriods([]);
+  };
 
   return (
     <Modal
       open
-      size="sm"
+      size="md"
       preventCloseOnClickOutside={true}
       hasScrollingContent={true}
       modalHeading="Period"
@@ -113,7 +132,7 @@ export default function PeriodModal({ onClose, selected, onSave }) {
         </div>
       </div>
       <div className="row">
-        <div className="mb-2 fw-bold">{selectedPeriodType} Periods</div>
+        {/*<div className="mb-2 fw-bold">{selectedPeriodType} Periods</div>*/}
 
         {/*<div className={`multi-select-period-container`}>*/}
         {/*  <MultiSelect*/}
@@ -141,17 +160,55 @@ export default function PeriodModal({ onClose, selected, onSave }) {
         {/*</div>*/}
 
         <div className={`panel-container`}>
-          <Panel heading="Available parameters">
+          <Panel heading={`Available Periods`}>
             <ul className={`list`}>
               {availablePeriods.map((parameter) => (
                   <li
                       role="menuitem"
-                      className={``}
+                      className={`left-list-item`}
                       key={parameter.label}
-                      onClick={() => moveAllFromLeftToRight(parameter)}
+                      onClick={() => moveToRight(parameter)}
                   >
                     {parameter.label}
                   </li>
+              ))}
+            </ul>
+          </Panel>
+          <div className={`periods-control-container`}>
+            <Button
+                iconDescription="Move all parameters to the right"
+                kind="tertiary"
+                hasIconOnly
+                renderIcon={ArrowRight}
+                onClick={moveAllToRight}
+                role="button"
+                size="md"
+                disabled={availablePeriods.length < 1}
+            />
+            <Button
+                iconDescription="Move all parameters to the left"
+                kind="tertiary"
+                hasIconOnly
+                renderIcon={ArrowLeft}
+                onClick={moveAllToLeft}
+                role="button"
+                size="md"
+                disabled={selectedPeriods.length < 1}
+            />
+          </div>
+          <Panel heading="Selected Periods">
+            <ul className={`list`}>
+              {selectedPeriods.map((parameter) => (
+                  <>
+                    <li
+                        className={`right-list-item`}
+                        key={parameter.label}
+                        role="menuitem"
+                        onClick={() => moveToLeft(parameter)}
+                    >
+                      {parameter.label}
+                    </li>
+                  </>
               ))}
             </ul>
           </Panel>
