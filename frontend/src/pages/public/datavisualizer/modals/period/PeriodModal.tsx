@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { getAvailablePeriods, getPeriodType, periodType } from "../../Constants.tsx";
 import "./period.scss";
 import Panel from "../../components/panel/panel.component.tsx";
-import {ArrowLeft, ArrowRight} from "@carbon/react/icons";
 
 export default function PeriodModal({ onClose, selected, onSave }) {
   const CURRENT_YEAR = new Date().getFullYear();
@@ -148,25 +147,29 @@ export default function PeriodModal({ onClose, selected, onSave }) {
           </Panel>
           <div className={`periods-control-container`}>
             <Button
+                className={`btn-ndwh-mv`}
                 iconDescription="Move all periods to the right"
                 kind="tertiary"
                 hasIconOnly
-                renderIcon={ArrowRight}
                 onClick={moveAllToRight}
                 role="button"
                 size="md"
                 disabled={availablePeriods.length < 1}
-            />
+            >
+              <i className="fa-solid fa-angles-right"></i>
+            </Button>
             <Button
+                className={`btn-ndwh-mv`}
                 iconDescription="Move all periods to the left"
                 kind="tertiary"
                 hasIconOnly
-                renderIcon={ArrowLeft}
                 onClick={moveAllToLeft}
                 role="button"
                 size="md"
                 disabled={selectedPeriods.length < 1}
-            />
+            >
+              <i className="fa-solid fa-angles-left"></i>
+            </Button>
           </div>
           <Panel heading="Selected Periods">
             <ul className={`list`}>
