@@ -4,25 +4,24 @@ import { useMemo, useState } from "react";
 import { getAvailablePeriods, getPeriodType, periodType } from "../../Constants.tsx";
 import "./period.scss";
 import Panel from "../../components/panel/panel.component.tsx";
-import {ArrowLeft, ArrowRight} from "@carbon/icons-react";
+import {ArrowLeft, ArrowRight} from "@carbon/react/icons";
 
 export default function PeriodModal({ onClose, selected, onSave }) {
   const CURRENT_YEAR = new Date().getFullYear();
   const initialPeriodType = selected?.length > 0 ? getPeriodType(selected[0]?.id) : "Monthly";
   const initialSelectedYear = selected?.length > 0 ? Number(selected[0]?.id?.slice(0,4)) : CURRENT_YEAR;
-  const initialPeriods = useMemo(
-    () => getAvailablePeriods(initialPeriodType, initialSelectedYear),
-    [initialPeriodType, initialSelectedYear],
-  );
 
-  const [availablePeriods, setAvailablePeriods] = useState(initialPeriods);
+
   const [selectedPeriods, setSelectedPeriods] = useState(selected);
+  const initialPeriods = useMemo(
+      () => getAvailablePeriods(initialPeriodType, initialSelectedYear).filter(
+          (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+      ),
+      [initialPeriodType, initialSelectedYear, selectedPeriods],
+  );
+  const [availablePeriods, setAvailablePeriods] = useState(initialPeriods);
   const [selectedPeriodType, setSelectedPeriodType] = useState(initialPeriodType);
   const [selectedYear, setSelectedYear] = useState(initialSelectedYear);
-
-  // const onChangeSelectedPeriod = (event) => {
-  //   setSelectedPeriods(event?.selectedItems);
-  // };
 
   const save = () => {
     onSave(selectedPeriods);
@@ -32,30 +31,20 @@ export default function PeriodModal({ onClose, selected, onSave }) {
   const onChangePeriod = (event) => {
     const paramPeriodType = event?.target?.value;
     setSelectedPeriodType(paramPeriodType);
-    const newPeriods = getAvailablePeriods(paramPeriodType, selectedYear);
+    const newPeriods = getAvailablePeriods(paramPeriodType, selectedYear)?.filter(
+        (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+    );
     setAvailablePeriods(newPeriods);
-    setSelectedPeriods([]);
   };
 
   const onChangeYear = (_event,{ value }) => {
     const paramYear = value;
     setSelectedYear(paramYear);
-    const newPeriods = getAvailablePeriods(selectedPeriodType, paramYear);
+    const newPeriods = getAvailablePeriods(selectedPeriodType, paramYear)?.filter(
+        (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+    );
     setAvailablePeriods(newPeriods);
-    setSelectedPeriods([]);
   };
-
-  // const comparePeriodItemsItems = (periodA, periodB) => {
-  //   return periodA?.id?.localeCompare(periodB?.id);
-  // };
-
-  // const sortPeriodFunction = (periodItems) => {
-  //   return [...periodItems]?.sort(comparePeriodItemsItems);
-  // };
-
-  // const handleClearTag = (periodId) => {
-  //   setSelectedPeriods(selectedPeriods.filter(period => period.id !== periodId));
-  // };
 
   const moveToRight = (selectedItem) => {
     const updatedAvailable = availablePeriods.filter(
@@ -70,19 +59,29 @@ export default function PeriodModal({ onClose, selected, onSave }) {
         (period) => period.id !== selectedItem.id
     );
     setSelectedPeriods(updatedSelected);
-    setAvailablePeriods([...availablePeriods, selectedItem]);
+
+    let updatedAvailablePeriods = [...availablePeriods];
+
+    getAvailablePeriods(selectedPeriodType,selectedYear).filter((item) => {
+      if (item === selectedItem) {
+        updatedAvailablePeriods = [
+          ...updatedAvailablePeriods,
+          selectedItem,
+        ];
+      }
+    });
+    setAvailablePeriods(updatedAvailablePeriods);
   };
 
   const moveAllToRight = () => {
     if (availablePeriods.length === 0) return;
-
     setSelectedPeriods([...selectedPeriods, ...availablePeriods]);
     setAvailablePeriods([]);
   };
 
   const moveAllToLeft = () => {
     if (selectedPeriods.length === 0) return;
-    setAvailablePeriods([...availablePeriods, ...selectedPeriods]);
+    setAvailablePeriods(getAvailablePeriods(selectedPeriodType,selectedYear));
     setSelectedPeriods([]);
   };
 
@@ -132,51 +131,24 @@ export default function PeriodModal({ onClose, selected, onSave }) {
         </div>
       </div>
       <div className="row">
-        {/*<div className="mb-2 fw-bold">{selectedPeriodType} Periods</div>*/}
-
-        {/*<div className={`multi-select-period-container`}>*/}
-        {/*  <MultiSelect*/}
-        {/*    id="period-multiselect-id"*/}
-        {/*    label=""*/}
-        {/*    titleText="title"*/}
-        {/*    onChange={onChangeSelectedPeriod}*/}
-        {/*    hideLabel*/}
-        {/*    items={availablePeriods}*/}
-        {/*    sortItems={sortPeriodFunction}*/}
-        {/*    selectedItems={selectedPeriods}*/}
-        {/*  />*/}
-        {/*  <div className={`selected-period-container`}>*/}
-        {/*    {selectedPeriods.map((period) => (*/}
-        {/*        <Tag*/}
-        {/*            key={period.id}*/}
-        {/*            type="blue"*/}
-        {/*            filter*/}
-        {/*            onClose={() => handleClearTag(period.id)}*/}
-        {/*        >*/}
-        {/*          {period.label}*/}
-        {/*        </Tag>*/}
-        {/*    ))}*/}
-        {/*  </div>*/}
-        {/*</div>*/}
-
         <div className={`panel-container`}>
           <Panel heading={`Available Periods`}>
             <ul className={`list`}>
-              {availablePeriods.map((parameter) => (
+              {availablePeriods.map((period) => (
                   <li
                       role="menuitem"
                       className={`left-list-item`}
-                      key={parameter.label}
-                      onClick={() => moveToRight(parameter)}
+                      key={period?.label}
+                      onClick={() => moveToRight(period)}
                   >
-                    {parameter.label}
+                    {period?.label}
                   </li>
               ))}
             </ul>
           </Panel>
           <div className={`periods-control-container`}>
             <Button
-                iconDescription="Move all parameters to the right"
+                iconDescription="Move all periods to the right"
                 kind="tertiary"
                 hasIconOnly
                 renderIcon={ArrowRight}
@@ -186,7 +158,7 @@ export default function PeriodModal({ onClose, selected, onSave }) {
                 disabled={availablePeriods.length < 1}
             />
             <Button
-                iconDescription="Move all parameters to the left"
+                iconDescription="Move all periods to the left"
                 kind="tertiary"
                 hasIconOnly
                 renderIcon={ArrowLeft}
@@ -198,15 +170,15 @@ export default function PeriodModal({ onClose, selected, onSave }) {
           </div>
           <Panel heading="Selected Periods">
             <ul className={`list`}>
-              {selectedPeriods.map((parameter) => (
+              {selectedPeriods.map((period) => (
                   <>
                     <li
                         className={`right-list-item`}
-                        key={parameter.label}
+                        key={period?.label}
                         role="menuitem"
-                        onClick={() => moveToLeft(parameter)}
+                        onClick={() => moveToLeft(period)}
                     >
-                      {parameter.label}
+                      {period?.label}
                     </li>
                   </>
               ))}
