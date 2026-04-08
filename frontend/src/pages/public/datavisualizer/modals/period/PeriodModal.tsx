@@ -14,7 +14,7 @@ export default function PeriodModal({ onClose, selected, onSave }) {
   const [selectedPeriods, setSelectedPeriods] = useState(selected);
   const initialPeriods = useMemo(
       () => getAvailablePeriods(initialPeriodType, initialSelectedYear).filter(
-          (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+          (period) => !selectedPeriods?.find((selected) => selected.id === period.id)
       ),
       [initialPeriodType, initialSelectedYear, selectedPeriods],
   );
@@ -31,7 +31,7 @@ export default function PeriodModal({ onClose, selected, onSave }) {
     const paramPeriodType = event?.target?.value;
     setSelectedPeriodType(paramPeriodType);
     const newPeriods = getAvailablePeriods(paramPeriodType, selectedYear)?.filter(
-        (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+        (period) => !selectedPeriods?.find((selected) => selected?.id === period?.id)
     );
     setAvailablePeriods(newPeriods);
   };
@@ -40,7 +40,7 @@ export default function PeriodModal({ onClose, selected, onSave }) {
     const paramYear = value;
     setSelectedYear(paramYear);
     const newPeriods = getAvailablePeriods(selectedPeriodType, paramYear)?.filter(
-        (period) => !selectedPeriods.find((selected) => selected.id === period.id)
+        (period) => !selectedPeriods.find((selected) => selected?.id === period?.id)
     );
     setAvailablePeriods(newPeriods);
   };
@@ -55,14 +55,14 @@ export default function PeriodModal({ onClose, selected, onSave }) {
 
   const moveToLeft = (selectedItem) => {
     const updatedSelected = selectedPeriods.filter(
-        (period) => period.id !== selectedItem.id
+        (period) => period?.id !== selectedItem?.id
     );
     setSelectedPeriods(updatedSelected);
 
     let updatedAvailablePeriods = [...availablePeriods];
 
     getAvailablePeriods(selectedPeriodType,selectedYear).filter((item) => {
-      if (item === selectedItem) {
+      if (item?.id === selectedItem?.id) {
         updatedAvailablePeriods = [
           ...updatedAvailablePeriods,
           selectedItem,
