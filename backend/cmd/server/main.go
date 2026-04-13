@@ -31,6 +31,7 @@ import (
 	processRepo "github.com/moh-sso-dashboard/internal/repository/processes"
 	sessionRepository "github.com/moh-sso-dashboard/internal/repository/session"
 	storageLocationRepo "github.com/moh-sso-dashboard/internal/repository/storage_locations"
+	repository "github.com/moh-sso-dashboard/internal/repository/surveillance"
 	userRepo "github.com/moh-sso-dashboard/internal/repository/user"
 
 	"github.com/rs/zerolog"
@@ -187,6 +188,17 @@ func main() {
 	sessionRepository := sessionRepository.NewSessionRepository(adminKC, cfg, *appLogger)
 	announcementRepository := announcementRepo.NewAnnouncementRepository(store, *appLogger)
 
+	// surveillance
+	regionRepository := repository.NewRepositories(store).Regions
+	districtRepository := repository.NewRepositories(store).Districts
+	subCountyRepository := repository.NewRepositories(store).SubCounties
+	diseaseRepository := repository.NewRepositories(store).Diseases
+	epiWeekRepository := repository.NewRepositories(store).EpiWeeks
+	facilityWeeklyMetricsRepository := repository.NewRepositories(store).FacilityMetrics
+	weeklyStatusRepository := repository.NewRepositories(store).WeeklyStatus
+	importRepository := repository.NewRepositories(store).Imports
+	alertRepository := repository.NewRepositories(store).Alerts
+
 	// ==================================================
 	// Services
 	// ==================================================
@@ -204,10 +216,24 @@ func main() {
 	userService := service.NewUserService(userRepository, notificationsService)
 	announcementService := service.NewAnnouncementService(announcementRepository, notificationsService)
 
+	// surveillance
+	diseaseService := service.NewSurveillanceDiseaseService(appLogger, diseaseRepository)
+	epiWeekService := service.NewSurveillanceEpiWeekService(appLogger, epiWeekRepository)
+	locationService := service.NewSurveillanceLocationService(appLogger, regionRepository, districtRepository, subCountyRepository)
+	facilityWeeklyMetricsService := service.NewSurveillanceFacilityWeeklyMetricsService(appLogger, facilityWeeklyMetricsRepository, importRepository)
+	weeklyStatusService := service.NewSurveillanceWeeklyStatusService(appLogger, weeklyStatusRepository)
+
+	surveillanceImportService := service.NewSurveillanceImportService(importRepository)
+	alertsService := service.NewSurveillanceAlertService(appLogger, alertRepository, importRepository)
+
 	importService := importSvc.NewService(
 		documentRepository,
 		processRepository,
 		fileRepository,
+		importRepository,
+		facilityWeeklyMetricsService,
+		weeklyStatusService,
+		alertsService,
 		fileStorage,
 		remoteDB,
 	)
@@ -245,6 +271,17 @@ func main() {
 	adminunitsHandler := handler.NewAdminUnitsHandler(cfg, dwhDB)
 	visualiserHandler := handler.NewVisualiserHandler(cfg, dwhDB)
 
+	// surveillance
+	surveillanceHandler := handler.NewSurveillanceHandler(
+		epiWeekService,
+		diseaseService,
+		locationService,
+		facilityWeeklyMetricsService,
+		weeklyStatusService,
+		alertsService,
+		surveillanceImportService,
+	)
+
 	healthHandler := handler.NewHealthHandler(
 		func(ctx context.Context) error { return db.PingDB(ctx, primaryDB) },
 		func(ctx context.Context) error { return db.PingDB(ctx, remoteDB) },
@@ -271,6 +308,7 @@ func main() {
 		announcementHandler,
 		adminunitsHandler,
 		visualiserHandler,
+		surveillanceHandler,
 	)
 
 	r.GET("/health/live", healthHandler.HandleLive)

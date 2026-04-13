@@ -29,6 +29,7 @@ func SetupRouter(
 	announcementHandler *handler.AnnouncementHandler,
 	adminunitsHandler *handler.AdminUnitsHandler,
 	visualiserHandler *handler.VisualiserHandler,
+	surveillanceHandler *handler.SurveillanceHandler,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -234,6 +235,41 @@ func SetupRouter(
 
 		}
 
+		// ------------------------------
+		// Surveillance
+		// --------------------------------
+		surveillance := protected.Group("/surveillance")
+		{
+			surveillance.GET("/weeks", surveillanceHandler.ListEpiWeeksByYear)
+			surveillance.GET("alerts", surveillanceHandler.ListAlerts)
+			surveillance.GET("/diseases", surveillanceHandler.ListDiseases)
+
+			surveillance.GET("/regions", surveillanceHandler.ListRegions)
+
+			surveillance.GET("/districts", surveillanceHandler.ListDistricts)
+			surveillance.GET("/regions/:regionID/districts", surveillanceHandler.ListDistrictsByRegion)
+			surveillance.POST("/districts", surveillanceHandler.UpsertDistrict)
+
+			surveillance.GET("/districts/:districtID/subcounties", surveillanceHandler.ListSubcountiesByDistrict)
+			surveillance.GET("/subcounties/:id", surveillanceHandler.GetSubcountyByID)
+			surveillance.POST("/subcounties", surveillanceHandler.UpsertSubcounty)
+			surveillance.DELETE("/subcounties/:id", surveillanceHandler.DeleteSubcounty)
+
+			surveillance.GET("/facility-weekly-metrics/week/:epiWeekID", surveillanceHandler.ListFacilityWeeklyMetricsByWeek)
+			surveillance.GET("/facility-weekly-metrics/facility/:facilityID", surveillanceHandler.ListFacilityWeeklyMetricsByFacility)
+
+			// weekly statuses
+			surveillance.GET("/weekly-statuses/district/week/:epiWeekID", surveillanceHandler.ListDistrictWeeklyStatusesByWeek)
+			surveillance.GET("/weekly-statuses/region/week/:epiWeekID", surveillanceHandler.ListRegionWeeklyStatusesByWeek)
+			surveillance.GET("/weekly-statuses/national/week/:epiWeekID", surveillanceHandler.ListNationalWeeklyStatusesByWeek)
+
+			surveillance.GET("/imports", surveillanceHandler.ListImportBatches)
+			surveillance.POST("/imports", surveillanceHandler.CreateImportBatch)
+			surveillance.GET("/imports/:batchID", surveillanceHandler.GetImportBatchByID)
+			surveillance.PATCH("/imports/:batchID/status", surveillanceHandler.UpdateImportBatchStatus)
+			surveillance.GET("/imports/:batchID/raw-rows", surveillanceHandler.ListImportRawRowsByBatch)
+		}
+
 		// --------------------------------------------------
 		// Admin (ADMIN ONLY + STRICTER LIMITS)
 		// --------------------------------------------------
@@ -329,10 +365,7 @@ func SetupRouter(
 				notifications.DELETE("/cleanup", notificationsHandler.DeleteOldNotifications)
 			}
 
-			//  -------- announements --------------------
-			// -------------------------------------
-			// admin announcements
-			// -------------------------------------
+			//  -------- announcements --------------------
 			announcements := admin.Group("/announcements")
 			{
 				announcements.GET("", announcementHandler.ListAnnouncementsAdmin)

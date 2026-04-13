@@ -23,6 +23,7 @@ type Querier interface {
 	ClaimNextPendingProcess(ctx context.Context) (Process, error)
 	ClientUsageForUserInRange(ctx context.Context, arg ClientUsageForUserInRangeParams) ([]ClientUsageForUserInRangeRow, error)
 	CompleteProcess(ctx context.Context, id uuid.UUID) error
+	CompleteSurveillanceImportBatch(ctx context.Context, arg CompleteSurveillanceImportBatchParams) error
 	CountActivePublishedAnnouncements(ctx context.Context) (int64, error)
 	CountActiveUsers(ctx context.Context) (int64, error)
 	CountActiveUsersInRange(ctx context.Context, arg CountActiveUsersInRangeParams) (int64, error)
@@ -44,6 +45,7 @@ type Querier interface {
 	CountSearchAnnouncementsAdmin(ctx context.Context, searchText sql.NullString) (int64, error)
 	CountUnreadNotifications(ctx context.Context, targetRole string) (int64, error)
 	CountUsers(ctx context.Context) (int64, error)
+	CreateAlert(ctx context.Context, arg CreateAlertParams) (Alert, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (Announcement, error)
 	// =====================================================
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
@@ -51,52 +53,104 @@ type Querier interface {
 	// Clients
 	// =====================================================
 	CreateClient(ctx context.Context, arg CreateClientParams) error
+	CreateDisease(ctx context.Context, arg CreateDiseaseParams) (Disease, error)
+	CreateDistrict(ctx context.Context, arg CreateDistrictParams) (District, error)
 	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
+	CreateEpiWeek(ctx context.Context, arg CreateEpiWeekParams) (EpiWeek, error)
+	CreateFacility(ctx context.Context, arg CreateFacilityParams) (Facility, error)
+	CreateFacilityWeeklyDiseaseMetric(ctx context.Context, arg CreateFacilityWeeklyDiseaseMetricParams) (FacilityWeeklyMetric, error)
+	CreateFacilityWeeklyIndicatorMetric(ctx context.Context, arg CreateFacilityWeeklyIndicatorMetricParams) (FacilityWeeklyMetric, error)
+	CreateImportBatch(ctx context.Context, arg CreateImportBatchParams) (SurveillanceImportBatch, error)
 	// =====================================================
 	// Import Jobs
 	// =====================================================
 	CreateImportJob(ctx context.Context, arg CreateImportJobParams) error
+	CreateImportRawRow(ctx context.Context, arg CreateImportRawRowParams) (SurveillanceImportRawRow, error)
+	CreateIndicator(ctx context.Context, arg CreateIndicatorParams) (Indicator, error)
 	// =====================================================
 	// Notifications
 	// =====================================================
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CreateProcess(ctx context.Context, arg CreateProcessParams) (Process, error)
+	CreateRegion(ctx context.Context, arg CreateRegionParams) (Region, error)
 	CreateStorageLocation(ctx context.Context, arg CreateStorageLocationParams) (StorageLocation, error)
+	CreateSubCounty(ctx context.Context, arg CreateSubCountyParams) (SubCounty, error)
 	// =====================================================
 	// Users
 	// =====================================================
 	CreateUser(ctx context.Context, arg CreateUserParams) error
+	CreateWeeklyStatus(ctx context.Context, arg CreateWeeklyStatusParams) (WeeklyStatus, error)
 	DeleteAnnouncementClients(ctx context.Context, announcementID uuid.UUID) error
 	DeleteAnnouncementRoles(ctx context.Context, announcementID uuid.UUID) error
 	DeleteAnnouncementUsers(ctx context.Context, announcementID uuid.UUID) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
+	DeleteDisease(ctx context.Context, id uuid.UUID) error
+	DeleteDistrict(ctx context.Context, id uuid.UUID) error
 	DeleteDocument(ctx context.Context, id uuid.UUID) error
+	DeleteFacility(ctx context.Context, id uuid.UUID) error
+	DeleteFacilityMetricsByWeek(ctx context.Context, epiWeekID uuid.UUID) error
+	DeleteIndicator(ctx context.Context, id uuid.UUID) error
 	DeleteNotificationByID(ctx context.Context, id uuid.UUID) error
 	DeleteOldNotifications(ctx context.Context) error
+	DeleteProcessedSurveillanceImportRawRows(ctx context.Context, batchID uuid.UUID) error
+	DeleteRegion(ctx context.Context, id uuid.UUID) error
 	DeleteStorageLocation(ctx context.Context, id uuid.UUID) error
+	DeleteSubCounty(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
+	DeleteWeeklyStatus(ctx context.Context, id uuid.UUID) error
 	DraftAnnouncement(ctx context.Context, arg DraftAnnouncementParams) (Announcement, error)
+	ExistsDiseaseIndicator(ctx context.Context, arg ExistsDiseaseIndicatorParams) (bool, error)
 	ExportAuditLogs(ctx context.Context, arg ExportAuditLogsParams) ([]ExportAuditLogsRow, error)
 	FailProcess(ctx context.Context, arg FailProcessParams) error
+	FailSurveillanceImportBatch(ctx context.Context, arg FailSurveillanceImportBatchParams) error
 	FailedLoginsByDay(ctx context.Context, arg FailedLoginsByDayParams) ([]FailedLoginsByDayRow, error)
 	FailedLoginsByUserInRange(ctx context.Context, arg FailedLoginsByUserInRangeParams) ([]FailedLoginsByUserInRangeRow, error)
 	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
+	GetAlertByID(ctx context.Context, id uuid.UUID) (Alert, error)
 	GetAnnouncementByID(ctx context.Context, id uuid.UUID) (Announcement, error)
 	GetAnnouncementByIDForUpdate(ctx context.Context, id uuid.UUID) (Announcement, error)
 	GetAnnouncementStats(ctx context.Context) (GetAnnouncementStatsRow, error)
 	GetAuditLog(ctx context.Context, id uuid.UUID) (GetAuditLogRow, error)
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
+	GetDiseaseByID(ctx context.Context, id uuid.UUID) (Disease, error)
+	GetDiseaseByName(ctx context.Context, lower string) (Disease, error)
+	GetDiseaseDashboardSummaryByWeek(ctx context.Context, arg GetDiseaseDashboardSummaryByWeekParams) (GetDiseaseDashboardSummaryByWeekRow, error)
+	GetDistrictByID(ctx context.Context, id uuid.UUID) (District, error)
+	GetDistrictByName(ctx context.Context, lower string) (District, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (Document, error)
+	GetEpiWeekByID(ctx context.Context, id uuid.UUID) (EpiWeek, error)
+	GetEpiWeekByYearWeek(ctx context.Context, arg GetEpiWeekByYearWeekParams) (EpiWeek, error)
+	GetFacilityByExternalID(ctx context.Context, externalID sql.NullString) (Facility, error)
+	GetFacilityByID(ctx context.Context, id uuid.UUID) (Facility, error)
+	GetFacilityByName(ctx context.Context, name string) (Facility, error)
+	GetFacilityByNameAndDistrict(ctx context.Context, arg GetFacilityByNameAndDistrictParams) (Facility, error)
+	GetFacilityMetricBySourceRecordID(ctx context.Context, sourceRecordID sql.NullString) (FacilityWeeklyMetric, error)
+	GetFacilityWeeklyMetricByID(ctx context.Context, id uuid.UUID) (FacilityWeeklyMetric, error)
+	GetImportBatchByID(ctx context.Context, id uuid.UUID) (SurveillanceImportBatch, error)
 	GetImportJob(ctx context.Context, id uuid.UUID) (ImportJob, error)
+	GetIndicatorByID(ctx context.Context, id uuid.UUID) (Indicator, error)
+	GetIndicatorByName(ctx context.Context, lower string) (Indicator, error)
+	GetIndicatorDashboardSummaryByWeek(ctx context.Context, arg GetIndicatorDashboardSummaryByWeekParams) (GetIndicatorDashboardSummaryByWeekRow, error)
+	GetLatestImportBatchByDocumentID(ctx context.Context, documentID uuid.NullUUID) (SurveillanceImportBatch, error)
 	GetLatestProcessByDocumentID(ctx context.Context, documentID uuid.UUID) (Process, error)
+	GetNationalWeeklyStatusSummary(ctx context.Context, epiWeekID uuid.UUID) ([]GetNationalWeeklyStatusSummaryRow, error)
 	GetNotificationByID(ctx context.Context, id uuid.UUID) (Notification, error)
 	GetProcessByID(ctx context.Context, id uuid.UUID) (Process, error)
+	GetRegionByID(ctx context.Context, id uuid.UUID) (Region, error)
+	GetRegionByName(ctx context.Context, lower string) (Region, error)
 	GetStorageLocationByCode(ctx context.Context, code string) (StorageLocation, error)
 	GetStorageLocationByID(ctx context.Context, id uuid.UUID) (StorageLocation, error)
+	GetSubCountyByID(ctx context.Context, id uuid.UUID) (SubCounty, error)
+	GetSubCountyByNameAndDistrict(ctx context.Context, arg GetSubCountyByNameAndDistrictParams) (SubCounty, error)
+	GetSubcountyByName(ctx context.Context, name string) (SubCounty, error)
+	GetTopFacilitiesByDiseaseAndWeek(ctx context.Context, arg GetTopFacilitiesByDiseaseAndWeekParams) ([]GetTopFacilitiesByDiseaseAndWeekRow, error)
+	GetTopFacilitiesByIndicatorAndWeek(ctx context.Context, arg GetTopFacilitiesByIndicatorAndWeekParams) ([]GetTopFacilitiesByIndicatorAndWeekRow, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GetUsersByRole(ctx context.Context, roles []string) ([]User, error)
+	GetWeeklyStatusByID(ctx context.Context, id uuid.UUID) (WeeklyStatus, error)
+	GetWeeklySubjectTotals(ctx context.Context, epiWeekID uuid.UUID) ([]GetWeeklySubjectTotalsRow, error)
 	InactiveUsersSince(ctx context.Context) ([]User, error)
 	InsertAnnouncementClient(ctx context.Context, arg InsertAnnouncementClientParams) error
 	InsertAnnouncementRole(ctx context.Context, arg InsertAnnouncementRoleParams) error
@@ -104,8 +158,14 @@ type Querier interface {
 	InsertImportJobItem(ctx context.Context, arg InsertImportJobItemParams) error
 	LastLoginForAllUsers(ctx context.Context) ([]LastLoginForAllUsersRow, error)
 	LastLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
+	ListActiveDiseases(ctx context.Context) ([]Disease, error)
+	ListActiveIndicators(ctx context.Context) ([]Indicator, error)
 	ListActivePublishedAnnouncements(ctx context.Context, arg ListActivePublishedAnnouncementsParams) ([]Announcement, error)
 	ListActiveStorageLocations(ctx context.Context) ([]StorageLocation, error)
+	ListAlerts(ctx context.Context) ([]ListAlertsRow, error)
+	ListAlertsByDisease(ctx context.Context, diseaseID uuid.UUID) ([]ListAlertsByDiseaseRow, error)
+	ListAlertsByDistrict(ctx context.Context, districtID uuid.NullUUID) ([]ListAlertsByDistrictRow, error)
+	ListAlertsByWeek(ctx context.Context, epiWeekID uuid.NullUUID) ([]ListAlertsByWeekRow, error)
 	ListAnnouncementClients(ctx context.Context, announcementID uuid.UUID) ([]uuid.UUID, error)
 	ListAnnouncementRoles(ctx context.Context, announcementID uuid.UUID) ([]string, error)
 	ListAnnouncementUsers(ctx context.Context, announcementID uuid.UUID) ([]uuid.UUID, error)
@@ -119,11 +179,27 @@ type Querier interface {
 	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
+	ListDiseases(ctx context.Context) ([]Disease, error)
+	ListDistrictWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
+	ListDistrictWeeklySubjectsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListDistrictWeeklySubjectsByWeekRow, error)
+	ListDistricts(ctx context.Context) ([]ListDistrictsRow, error)
+	ListDistrictsByRegion(ctx context.Context, regionID uuid.NullUUID) ([]District, error)
 	ListDocuments(ctx context.Context, arg ListDocumentsParams) ([]Document, error)
 	ListDocumentsByUser(ctx context.Context, arg ListDocumentsByUserParams) ([]Document, error)
 	ListEnabledClients(ctx context.Context) ([]Client, error)
+	ListEpiWeeksByYear(ctx context.Context, epiYear int32) ([]EpiWeek, error)
+	ListFacilities(ctx context.Context) ([]ListFacilitiesRow, error)
+	ListFacilitiesByDistrict(ctx context.Context, districtID uuid.NullUUID) ([]Facility, error)
+	ListFacilityMetricsByFacility(ctx context.Context, facilityID uuid.UUID) ([]ListFacilityMetricsByFacilityRow, error)
+	ListFacilityWeeklyDiseaseMetricsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListFacilityWeeklyDiseaseMetricsByWeekRow, error)
+	ListFacilityWeeklyIndicatorMetricsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListFacilityWeeklyIndicatorMetricsByWeekRow, error)
+	ListImportBatches(ctx context.Context) ([]SurveillanceImportBatch, error)
 	ListImportJobFailedItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
 	ListImportJobItems(ctx context.Context, jobID uuid.UUID) ([]ImportJobItem, error)
+	ListImportRawRowsByBatch(ctx context.Context, batchID uuid.UUID) ([]SurveillanceImportRawRow, error)
+	ListIndicators(ctx context.Context) ([]Indicator, error)
+	ListNationalWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
+	ListNationalWeeklySubjectsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListNationalWeeklySubjectsByWeekRow, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]Notification, error)
 	ListNotificationsByCursor(ctx context.Context, arg ListNotificationsByCursorParams) ([]Notification, error)
 	ListProcesses(ctx context.Context, arg ListProcessesParams) ([]Process, error)
@@ -144,8 +220,19 @@ type Querier interface {
 	// ORDER BY created_at ASC;
 	ListProcessesByDocument(ctx context.Context, documentID uuid.UUID) ([]Process, error)
 	ListPublicAnnouncements(ctx context.Context, arg ListPublicAnnouncementsParams) ([]Announcement, error)
+	ListRegionWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
+	ListRegionWeeklySubjectsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListRegionWeeklySubjectsByWeekRow, error)
+	ListRegions(ctx context.Context) ([]Region, error)
+	ListSubCountiesByDistrict(ctx context.Context, districtID uuid.UUID) ([]SubCounty, error)
+	ListSubCountyWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	ListUsersPaged(ctx context.Context, arg ListUsersPagedParams) ([]User, error)
+	ListWeeklyStatuses(ctx context.Context, arg ListWeeklyStatusesParams) ([]WeeklyStatus, error)
+	ListWeeklyStatusesByDistrict(ctx context.Context, districtID uuid.NullUUID) ([]WeeklyStatus, error)
+	ListWeeklyStatusesByRegion(ctx context.Context, regionID uuid.NullUUID) ([]WeeklyStatus, error)
+	ListWeeklyStatusesBySubCounty(ctx context.Context, subCountyID uuid.NullUUID) ([]WeeklyStatus, error)
+	ListWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
+	ListWeeklyStatusesDetailed(ctx context.Context, arg ListWeeklyStatusesDetailedParams) ([]ListWeeklyStatusesDetailedRow, error)
 	LoginCountForClientInRange(ctx context.Context, arg LoginCountForClientInRangeParams) (int64, error)
 	LoginCountPerUserInRange(ctx context.Context, arg LoginCountPerUserInRangeParams) ([]LoginCountPerUserInRangeRow, error)
 	LoginSuccessFailureInRange(ctx context.Context, arg LoginSuccessFailureInRangeParams) (LoginSuccessFailureInRangeRow, error)
@@ -153,6 +240,8 @@ type Querier interface {
 	LoginTrendByDay(ctx context.Context, arg LoginTrendByDayParams) ([]LoginTrendByDayRow, error)
 	MarkAllNotificationsRead(ctx context.Context, targetRole string) error
 	MarkNotificationRead(ctx context.Context, id uuid.UUID) error
+	MarkSurveillanceImportRawRowFailed(ctx context.Context, arg MarkSurveillanceImportRawRowFailedParams) error
+	MarkSurveillanceImportRawRowProcessed(ctx context.Context, id uuid.UUID) error
 	MostAccessedClients(ctx context.Context, arg MostAccessedClientsParams) ([]MostAccessedClientsRow, error)
 	MostActiveClients(ctx context.Context) ([]MostActiveClientsRow, error)
 	NeverLoggedInUsers(ctx context.Context) ([]User, error)
@@ -161,6 +250,14 @@ type Querier interface {
 	NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([]NewUsersTrendRow, error)
 	PublishAnnouncementNow(ctx context.Context, arg PublishAnnouncementNowParams) (Announcement, error)
 	RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]RecentlyCreatedClientsRow, error)
+	ResolveDiseaseByName(ctx context.Context, lower string) (Disease, error)
+	ResolveDistrictByName(ctx context.Context, lower string) (District, error)
+	ResolveFacilityByExternalID(ctx context.Context, externalID sql.NullString) (Facility, error)
+	ResolveFacilityByNameAndDistrict(ctx context.Context, arg ResolveFacilityByNameAndDistrictParams) (Facility, error)
+	ResolveIndicatorByName(ctx context.Context, lower string) (Indicator, error)
+	ResolveRegionByName(ctx context.Context, lower string) (Region, error)
+	ResolveSubCountyByNameAndDistrict(ctx context.Context, arg ResolveSubCountyByNameAndDistrictParams) (SubCounty, error)
+	ResolveWeekByYearWeek(ctx context.Context, arg ResolveWeekByYearWeekParams) (EpiWeek, error)
 	RestoreAnnouncement(ctx context.Context, arg RestoreAnnouncementParams) (Announcement, error)
 	RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error)
 	ScheduleAnnouncement(ctx context.Context, arg ScheduleAnnouncementParams) (Announcement, error)
@@ -169,17 +266,22 @@ type Querier interface {
 	SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error)
 	SetAnnouncementPinned(ctx context.Context, arg SetAnnouncementPinnedParams) (Announcement, error)
 	SetAnnouncementPriority(ctx context.Context, arg SetAnnouncementPriorityParams) (Announcement, error)
+	SetDiseaseActiveState(ctx context.Context, arg SetDiseaseActiveStateParams) (Disease, error)
+	SetIndicatorActiveState(ctx context.Context, arg SetIndicatorActiveStateParams) (Indicator, error)
 	SoftDeleteAnnouncement(ctx context.Context, arg SoftDeleteAnnouncementParams) error
 	SuspiciousLoginsInRange(ctx context.Context, arg SuspiciousLoginsInRangeParams) ([]SuspiciousLoginsInRangeRow, error)
 	TopFailureIPs(ctx context.Context, arg TopFailureIPsParams) ([]TopFailureIPsRow, error)
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UnarchiveAnnouncementToDraft(ctx context.Context, arg UnarchiveAnnouncementToDraftParams) (Announcement, error)
+	UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusParams) (Alert, error)
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (Announcement, error)
 	UpdateAnnouncementStatus(ctx context.Context, arg UpdateAnnouncementStatusParams) (Announcement, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
 	UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error
 	UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error)
+	UpdateImportBatchProgress(ctx context.Context, arg UpdateImportBatchProgressParams) error
+	UpdateImportBatchStatus(ctx context.Context, arg UpdateImportBatchStatusParams) (SurveillanceImportBatch, error)
 	UpdateImportJobCounts(ctx context.Context, arg UpdateImportJobCountsParams) error
 	UpdateImportJobItemStatus(ctx context.Context, arg UpdateImportJobItemStatusParams) error
 	UpdateImportJobStatus(ctx context.Context, arg UpdateImportJobStatusParams) error
@@ -188,7 +290,26 @@ type Querier interface {
 	UpdateUser(ctx context.Context, arg UpdateUserParams) error
 	UpdateUserEnabled(ctx context.Context, arg UpdateUserEnabledParams) error
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
+	UpsertAlertByExternalID(ctx context.Context, arg UpsertAlertByExternalIDParams) (Alert, error)
 	UpsertClient(ctx context.Context, arg UpsertClientParams) error
+	UpsertDisease(ctx context.Context, arg UpsertDiseaseParams) (Disease, error)
+	UpsertDistrict(ctx context.Context, arg UpsertDistrictParams) (District, error)
+	UpsertDistrictDiseaseWeeklyStatus(ctx context.Context, arg UpsertDistrictDiseaseWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertDistrictIndicatorWeeklyStatus(ctx context.Context, arg UpsertDistrictIndicatorWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertEpiWeek(ctx context.Context, arg UpsertEpiWeekParams) (EpiWeek, error)
+	UpsertFacilityByExternalID(ctx context.Context, arg UpsertFacilityByExternalIDParams) (Facility, error)
+	UpsertFacilityByNameDistrict(ctx context.Context, arg UpsertFacilityByNameDistrictParams) (Facility, error)
+	UpsertFacilityWeeklyDiseaseMetric(ctx context.Context, arg UpsertFacilityWeeklyDiseaseMetricParams) (FacilityWeeklyMetric, error)
+	UpsertFacilityWeeklyIndicatorMetric(ctx context.Context, arg UpsertFacilityWeeklyIndicatorMetricParams) (FacilityWeeklyMetric, error)
+	UpsertIndicator(ctx context.Context, arg UpsertIndicatorParams) (Indicator, error)
+	UpsertNationalDiseaseWeeklyStatus(ctx context.Context, arg UpsertNationalDiseaseWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertNationalIndicatorWeeklyStatus(ctx context.Context, arg UpsertNationalIndicatorWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertRegion(ctx context.Context, arg UpsertRegionParams) (Region, error)
+	UpsertRegionDiseaseWeeklyStatus(ctx context.Context, arg UpsertRegionDiseaseWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertRegionIndicatorWeeklyStatus(ctx context.Context, arg UpsertRegionIndicatorWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertSubCounty(ctx context.Context, arg UpsertSubCountyParams) (SubCounty, error)
+	UpsertSubCountyDiseaseWeeklyStatus(ctx context.Context, arg UpsertSubCountyDiseaseWeeklyStatusParams) (WeeklyStatus, error)
+	UpsertSubCountyIndicatorWeeklyStatus(ctx context.Context, arg UpsertSubCountyIndicatorWeeklyStatusParams) (WeeklyStatus, error)
 	UpsertUser(ctx context.Context, arg UpsertUserParams) error
 	UserAgentStatsInRange(ctx context.Context, arg UserAgentStatsInRangeParams) ([]UserAgentStatsInRangeRow, error)
 	UserExists(ctx context.Context, id uuid.UUID) (bool, error)
