@@ -31,6 +31,7 @@ func SetupRouter(
 	adminunitsHandler *handler.AdminUnitsHandler,
 	visualiserHandler *handler.VisualiserHandler,
 	surveillanceHandler *handler.SurveillanceHandler,
+	geojsonHandler *handler.GeoJSONHandler,
 ) *gin.Engine {
 
 	r := gin.New()
@@ -144,6 +145,11 @@ func SetupRouter(
 	{
 		protected.GET("/auth/me", authHandler.HandleAuthGetMe)
 
+		geojson := protected.Group("/geojson")
+		{
+			geojson.GET("/:name", geojsonHandler.GetGeoJSON)
+		}
+
 		// ------------------
 		// Clients
 		// ------------------
@@ -175,15 +181,17 @@ func SetupRouter(
 		documents := protected.Group("/documents")
 		{
 			documents.GET("", documentHandler.ListDocuments)
-
-			documents.GET("/:id/download", documentHandler.DownloadDocument)
-			documents.GET("/:id/processes", documentHandler.ListDocumentProcesses)
-			documents.POST("/:id/reprocess", documentHandler.ReprocessDocument)
-			documents.GET("/:id", documentHandler.GetDocument)
-
 			documents.POST("", documentHandler.CreateDocument)
+
+			documents.GET("/:id", documentHandler.GetDocument)
 			documents.PUT("/:id", documentHandler.EditDocument)
 			documents.DELETE("/:id", documentHandler.DeleteDocument)
+
+			documents.GET("/files/:id/view", documentHandler.ViewDocument)
+			documents.GET("/files/:id/download", documentHandler.DownloadDocument)
+
+			documents.GET("/:id/processes", documentHandler.ListDocumentProcesses)
+			documents.POST("/:id/reprocess", documentHandler.ReprocessDocument)
 		}
 
 		// --------------------------
@@ -268,6 +276,10 @@ func SetupRouter(
 
 			surveillance.GET("/facility-weekly-metrics/week/:epiWeekID", surveillanceHandler.ListFacilityWeeklyMetricsByWeek)
 			surveillance.GET("/facility-weekly-metrics/facility/:facilityID", surveillanceHandler.ListFacilityWeeklyMetricsByFacility)
+			surveillance.GET("/facility-weekly-metrics/facility/:facilityID/disease/:diseaseID/trend", surveillanceHandler.ListFacilityDiseaseMetricsTrend)
+			surveillance.GET("/facility-weekly-metrics/facility/:facilityID/indicator/:indicatorID/trend", surveillanceHandler.ListFacilityIndicatorMetricsTrend)
+			surveillance.GET("/facility-weekly-metrics/week/:epiWeekID/disease/:diseaseID", surveillanceHandler.ListFacilityDiseaseMetricsByWeekAndDisease)
+			surveillance.GET("/facility-weekly-metrics/disease-trend", surveillanceHandler.ListDiseaseWeeklyTrendAggregated)
 
 			// weekly statuses
 			surveillance.GET("/weekly-statuses/list", surveillanceHandler.ListWeeklyStatuses)
