@@ -62,6 +62,8 @@ export const baseApi = createApi({
     "ThemeElement",
     "Surveillance",
     "GeoJson",
+    "Issues",
+    "Transactions"
   ],
 
   endpoints: () => ({}),
