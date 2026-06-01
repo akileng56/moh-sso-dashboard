@@ -10,9 +10,12 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	logger "github.com/moh-sso-dashboard/internal/log"
+	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/repository/surveillance/interfaces"
+	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 const alertImportSource = "csv_import"
@@ -47,17 +50,28 @@ type SurveillanceAlertService struct {
 	log                    *logger.Logger
 	alertRepo              interfaces.AlertRepository
 	surveillanceImportRepo interfaces.ImportRepository
+	notifications          NotificationsService
+	cfg                    *config.Config
 }
 
 func NewSurveillanceAlertService(
 	log *logger.Logger,
 	alertRepo interfaces.AlertRepository,
 	surveillanceImportRepo interfaces.ImportRepository,
+	notifications NotificationsService,
+	cfg ...*config.Config,
 ) *SurveillanceAlertService {
+	var appConfig *config.Config
+	if len(cfg) > 0 {
+		appConfig = cfg[0]
+	}
+
 	return &SurveillanceAlertService{
 		log:                    log,
 		alertRepo:              alertRepo,
 		surveillanceImportRepo: surveillanceImportRepo,
+		notifications:          notifications,
+		cfg:                    appConfig,
 	}
 }
 
@@ -66,11 +80,16 @@ func (s *SurveillanceAlertService) GetAlertByID(ctx context.Context, id uuid.UUI
 		return db.Alert{}, err
 	}
 
-	s.log.Debug(ctx, "getting alert by id", "alert_id", id)
+	if s.log != nil {
+		s.log.Debug(ctx, "getting alert by id", "alert_id", id)
+	}
 
 	item, err := s.alertRepo.GetByID(ctx, id)
 	if err != nil {
-		s.log.Error(ctx, "failed to get alert by id", "alert_id", id, "error", err)
+		if s.log != nil {
+			s.log.Error(ctx, "failed to get alert by id", "alert_id", id, "error", err)
+		}
+
 		return db.Alert{}, err
 	}
 
@@ -85,11 +104,16 @@ func (s *SurveillanceAlertService) ListAlertsByDisease(
 		return nil, err
 	}
 
-	s.log.Debug(ctx, "listing alerts by disease", "disease_id", diseaseID)
+	if s.log != nil {
+		s.log.Debug(ctx, "listing alerts by disease", "disease_id", diseaseID)
+	}
 
 	items, err := s.alertRepo.ListByDisease(ctx, diseaseID)
 	if err != nil {
-		s.log.Error(ctx, "failed to list alerts by disease", "disease_id", diseaseID, "error", err)
+		if s.log != nil {
+			s.log.Error(ctx, "failed to list alerts by disease", "disease_id", diseaseID, "error", err)
+		}
+
 		return nil, err
 	}
 
@@ -104,11 +128,16 @@ func (s *SurveillanceAlertService) ListAlertsByDistrict(
 		return nil, err
 	}
 
-	s.log.Debug(ctx, "listing alerts by district", "district_id", districtID)
+	if s.log != nil {
+		s.log.Debug(ctx, "listing alerts by district", "district_id", districtID)
+	}
 
 	items, err := s.alertRepo.ListByDistrict(ctx, districtID)
 	if err != nil {
-		s.log.Error(ctx, "failed to list alerts by district", "district_id", districtID, "error", err)
+		if s.log != nil {
+			s.log.Error(ctx, "failed to list alerts by district", "district_id", districtID, "error", err)
+		}
+
 		return nil, err
 	}
 
@@ -123,11 +152,16 @@ func (s *SurveillanceAlertService) ListAlertsByWeek(
 		return nil, err
 	}
 
-	s.log.Debug(ctx, "listing alerts by week", "epi_week_id", epiWeekID)
+	if s.log != nil {
+		s.log.Debug(ctx, "listing alerts by week", "epi_week_id", epiWeekID)
+	}
 
 	items, err := s.alertRepo.ListByWeek(ctx, epiWeekID)
 	if err != nil {
-		s.log.Error(ctx, "failed to list alerts by week", "epi_week_id", epiWeekID, "error", err)
+		if s.log != nil {
+			s.log.Error(ctx, "failed to list alerts by week", "epi_week_id", epiWeekID, "error", err)
+		}
+
 		return nil, err
 	}
 
@@ -138,44 +172,54 @@ func (s *SurveillanceAlertService) ListAlerts(
 	ctx context.Context,
 	params db.ListAlertsParams,
 ) ([]db.ListAlertsRow, error) {
-	s.log.Debug(ctx, "listing alerts")
+	if s.log != nil {
+		s.log.Debug(ctx, "listing alerts")
+	}
 
 	items, err := s.alertRepo.ListAlerts(ctx, params)
 	if err != nil {
-		s.log.Error(ctx, "failed to list alerts", "error", err)
+		if s.log != nil {
+			s.log.Error(ctx, "failed to list alerts", "error", err)
+		}
+
 		return nil, err
 	}
 
 	return items, nil
 }
+
 func (s *SurveillanceAlertService) ProcessAlerts(ctx context.Context, batchID uuid.UUID) error {
 	if err := requireUUID("batch id", batchID); err != nil {
 		return err
 	}
 
-	s.log.Info(ctx, "processing alert batch", "batch_id", batchID)
+	if s.log != nil {
+		s.log.Info(ctx, "processing alert batch", "batch_id", batchID)
+	}
 
-	return s.alertRepo.WithTx(ctx, func(q db.Querier) error {
+	var successRows int32
+	var failedRows int32
+
+	err := s.alertRepo.WithTx(ctx, func(q db.Querier) error {
 		rows, err := s.surveillanceImportRepo.ListImportRawRowsByBatch(ctx, batchID)
 		if err != nil {
 			return fmt.Errorf("list import raw rows by batch: %w", err)
 		}
 
-		var successRows int32
-		var failedRows int32
-
 		for _, raw := range rows {
 			if err := s.processAlertRow(ctx, q, raw); err != nil {
 				failedRows++
 
-				s.log.Warn(
-					ctx,
-					"failed to process alert row",
-					"batch_id", batchID,
-					"raw_row_id", raw.ID,
-					"row_number", raw.RowNumber,
-					"error", err,
-				)
+				if s.log != nil {
+					s.log.Warn(
+						ctx,
+						"failed to process alert row",
+						"batch_id", batchID,
+						"raw_row_id", raw.ID,
+						"row_number", raw.RowNumber,
+						"error", err,
+					)
+				}
 
 				if markErr := s.surveillanceImportRepo.MarkRawRowFailed(ctx, raw.ID, err.Error()); markErr != nil {
 					return fmt.Errorf("mark raw row failed: %w", markErr)
@@ -201,6 +245,52 @@ func (s *SurveillanceAlertService) ProcessAlerts(ctx context.Context, batchID uu
 			}
 		}
 
+		return nil
+	})
+	if err != nil {
+		notification := model.Notification{
+			Type:       "SURVEILLANCE_ALERT_IMPORT_FAILED",
+			Title:      "Alert import failed",
+			Severity:   "critical",
+			Message:    "Surveillance alert batch processing failed",
+			TargetRole: "admin",
+			Metadata: utils.MustJSON(map[string]any{
+				"batch_id":     batchID.String(),
+				"success_rows": successRows,
+				"failed_rows":  failedRows,
+				"error":        err.Error(),
+			}),
+		}
+
+		s.attachAdminEmailDelivery(
+			&notification,
+			"surveillance-alert-import-failed",
+			"Surveillance alert import failed",
+			"Surveillance alert batch processing failed.",
+			map[string]any{
+				"Name":        s.systemAdminName(),
+				"Platform":    s.platformName(),
+				"BatchID":     batchID.String(),
+				"SuccessRows": successRows,
+				"FailedRows":  failedRows,
+				"Error":       err.Error(),
+				"ActionURL":   s.adminSurveillanceURL(),
+				"Details": fmt.Sprintf(
+					"Batch ID: %s\nSuccess Rows: %d\nFailed Rows: %d\nError: %s",
+					batchID.String(),
+					successRows,
+					failedRows,
+					err.Error(),
+				),
+			},
+		)
+
+		s.notify(ctx, notification)
+
+		return err
+	}
+
+	if s.log != nil {
 		s.log.Info(
 			ctx,
 			"completed alert batch processing",
@@ -208,9 +298,59 @@ func (s *SurveillanceAlertService) ProcessAlerts(ctx context.Context, batchID uu
 			"success_rows", successRows,
 			"failed_rows", failedRows,
 		)
+	}
 
-		return nil
-	})
+	severity := "info"
+	title := "Alert import completed"
+	message := "Surveillance alert batch processing completed"
+
+	if failedRows > 0 {
+		severity = "warning"
+		title = "Alert import completed with errors"
+		message = "Surveillance alert batch processing completed with failed rows"
+	}
+
+	notification := model.Notification{
+		Type:       "SURVEILLANCE_ALERT_IMPORT_COMPLETED",
+		Title:      title,
+		Severity:   severity,
+		Message:    message,
+		TargetRole: "admin",
+		Metadata: utils.MustJSON(map[string]any{
+			"batch_id":     batchID.String(),
+			"success_rows": successRows,
+			"failed_rows":  failedRows,
+		}),
+	}
+
+	// Email only when import completed with failed rows.
+	// Fully successful imports remain in-app only.
+	if failedRows > 0 {
+		s.attachAdminEmailDelivery(
+			&notification,
+			"surveillance-alert-import-completed",
+			"Surveillance alert import completed with errors",
+			"Surveillance alert batch processing completed with failed rows.",
+			map[string]any{
+				"Name":        s.systemAdminName(),
+				"Platform":    s.platformName(),
+				"BatchID":     batchID.String(),
+				"SuccessRows": successRows,
+				"FailedRows":  failedRows,
+				"ActionURL":   s.adminSurveillanceURL(),
+				"Details": fmt.Sprintf(
+					"Batch ID: %s\nSuccess Rows: %d\nFailed Rows: %d",
+					batchID.String(),
+					successRows,
+					failedRows,
+				),
+			},
+		)
+	}
+
+	s.notify(ctx, notification)
+
+	return nil
 }
 
 func (s *SurveillanceAlertService) processAlertRow(
@@ -329,6 +469,10 @@ func parseAlertsPayload(rawPayload []byte) (parsedAlertsPayload, error) {
 		return parsedAlertsPayload{}, fmt.Errorf("weeks is required")
 	}
 
+	if raw.EpiWeek > 53 {
+		return parsedAlertsPayload{}, fmt.Errorf("weeks must not be greater than 53")
+	}
+
 	return parsedAlertsPayload{
 		CreatedAt:   createdAt,
 		Narrative:   raw.Narrative,
@@ -358,4 +502,133 @@ func buildAlertExternalID(payload parsedAlertsPayload) string {
 	}
 
 	return strings.Join(parts, "|")
+}
+
+func (s *SurveillanceAlertService) notify(
+	ctx context.Context,
+	notification model.Notification,
+) {
+	if s == nil || s.notifications == nil {
+		return
+	}
+
+	if strings.TrimSpace(notification.TargetRole) == "" {
+		notification.TargetRole = "admin"
+	}
+
+	if _, err := s.notifications.Notify(ctx, notification); err != nil {
+		if s.log != nil {
+			s.log.Error(
+				ctx,
+				"surveillance alert notification failed",
+				"type", notification.Type,
+				"error", err,
+			)
+		}
+	}
+}
+
+func (s *SurveillanceAlertService) attachAdminEmailDelivery(
+	notification *model.Notification,
+	templateName string,
+	subject string,
+	textBody string,
+	templateData map[string]any,
+) {
+	if notification == nil {
+		return
+	}
+
+	adminEmail := strings.TrimSpace(s.systemAdminEmail())
+	if adminEmail == "" {
+		return
+	}
+
+	if templateData == nil {
+		templateData = map[string]any{}
+	}
+
+	if _, ok := templateData["Name"]; !ok {
+		templateData["Name"] = s.systemAdminName()
+	}
+
+	if _, ok := templateData["Platform"]; !ok {
+		templateData["Platform"] = s.platformName()
+	}
+
+	if _, ok := templateData["ActionURL"]; !ok {
+		templateData["ActionURL"] = s.adminSurveillanceURL()
+	}
+
+	notification.Deliveries = []model.NotificationDeliveryRequest{
+		{
+			Channel: model.NotificationChannelInApp,
+			Recipient: map[string]any{
+				"target_role": notification.TargetRole,
+			},
+			Payload: map[string]any{
+				"title":    notification.Title,
+				"message":  notification.Message,
+				"type":     notification.Type,
+				"severity": notification.Severity,
+			},
+			MaxAttempts: 1,
+		},
+		{
+			Channel: model.NotificationChannelEmail,
+			Recipient: map[string]any{
+				"name":  s.systemAdminName(),
+				"email": adminEmail,
+			},
+			TemplateName: templateName,
+			TemplateData: templateData,
+			Payload: map[string]any{
+				"subject":   subject,
+				"text_body": textBody,
+			},
+			MaxAttempts: 5,
+		},
+	}
+}
+
+func (s *SurveillanceAlertService) platformName() string {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Notification.PlatformName) != "" {
+		return strings.TrimSpace(s.cfg.Notification.PlatformName)
+	}
+
+	return "MOH Integrated Health Portal"
+}
+
+func (s *SurveillanceAlertService) systemAdminName() string {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Notification.SystemAdminName) != "" {
+		return strings.TrimSpace(s.cfg.Notification.SystemAdminName)
+	}
+
+	return "System Administrator"
+}
+
+func (s *SurveillanceAlertService) systemAdminEmail() string {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Notification.SystemAdminEmail) != "" {
+		return strings.TrimSpace(s.cfg.Notification.SystemAdminEmail)
+	}
+
+	return ""
+}
+
+func (s *SurveillanceAlertService) adminDashboardURL() string {
+	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.Notification.AdminDashboardURL) != "" {
+		return strings.TrimSpace(s.cfg.Notification.AdminDashboardURL)
+	}
+
+	return "http://localhost:3000/admin/home"
+}
+
+func (s *SurveillanceAlertService) adminSurveillanceURL() string {
+	base := strings.TrimRight(s.adminDashboardURL(), "/")
+
+	if strings.HasSuffix(base, "/admin/home") {
+		return strings.TrimSuffix(base, "/admin/home") + "/surveillance"
+	}
+
+	return base + "/surveillance"
 }
