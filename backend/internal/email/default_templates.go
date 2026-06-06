@@ -216,7 +216,7 @@ func DefaultTemplates() map[string]string {
 			`
               {{if .Message}}
               <p style="color:#525252; font-size:14px; line-height:1.6;">
-                {{.Message}}
+                A document named <strong>{{.DocumentName}}</strong> has been uploaded to <strong>{{.Platform}}</strong>.
               </p>
               {{end}}`,
 			"Review Alert",
