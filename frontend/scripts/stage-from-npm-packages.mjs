@@ -1,9 +1,10 @@
-/* global process */
+/* global console, process */
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const basePath = (process.env.FRONTEND_BASE_PATH ?? "/portal").replace(/^\/?/, "/").replace(/\/$/, "");
 
 const apps = [
   "announcements",
@@ -21,26 +22,20 @@ const apps = [
 ];
 
 const packages = ["api", "auth", "config", "microfrontend", "state", "types", "ui", "utils"];
-const basePath = (process.env.FRONTEND_BASE_PATH ?? "/portal").replace(/^\/?/, "/").replace(/\/$/, "");
 
-function copyRequired(from, to) {
-  if (!existsSync(from)) {
-    throw new Error(`Missing build artifact: ${from}`);
-  }
-
-  mkdirSync(dirname(to), { recursive: true });
-  copyFileSync(from, to);
+function packageDist(name) {
+  return join(root, "node_modules", "@moh-sso", name, "dist");
 }
 
 function assertRequired(path) {
   if (!existsSync(path)) {
-    throw new Error(`Missing build artifact: ${path}`);
+    throw new Error(`Missing npm package build artifact: ${path}`);
   }
 }
 
 function copyDirectory(from, to) {
   if (!existsSync(from)) {
-    throw new Error(`Missing build directory: ${from}`);
+    throw new Error(`Missing npm package build directory: ${from}`);
   }
 
   rmSync(to, { recursive: true, force: true });
@@ -62,31 +57,19 @@ function copyDirectory(from, to) {
 }
 
 assertRequired(join(root, "apps", "shell", "dist", "index.html"));
-copyDirectory(
-  join(root, "apps", "shell", "dist"),
-  join(root, "dist"),
-);
+copyDirectory(join(root, "apps", "shell", "dist"), join(root, "dist"));
 
 for (const app of apps) {
-  assertRequired(join(root, "apps", app, "dist", "single-spa.js"));
-  copyDirectory(
-    join(root, "apps", app, "dist"),
-    join(root, "dist", "mf", app),
-  );
+  const dist = packageDist(app);
+  assertRequired(join(dist, "single-spa.js"));
+  copyDirectory(dist, join(root, "dist", "mf", app));
 }
 
-for (const pkg of packages) {
-  assertRequired(join(root, "packages", pkg, "dist", "index.js"));
-  copyDirectory(
-    join(root, "packages", pkg, "dist"),
-    join(root, "dist", "packages", pkg),
-  );
+for (const packageName of packages) {
+  const dist = packageDist(packageName);
+  assertRequired(join(dist, "index.js"));
+  copyDirectory(dist, join(root, "dist", "packages", packageName));
 }
-
-copyRequired(
-  join(root, "public", "version-manifest.json"),
-  join(root, "dist", "version-manifest.json"),
-);
 
 if (basePath && basePath !== "/") {
   const baseDir = join(root, "dist", basePath.slice(1));
@@ -106,15 +89,18 @@ if (basePath && basePath !== "/") {
     "version-manifest.json",
   ]) {
     const source = join(root, "dist", entry);
-    if (existsSync(source)) {
-      const target = join(baseDir, entry);
+    if (!existsSync(source)) {
+      continue;
+    }
 
-      if (statSync(source).isDirectory()) {
-        copyDirectory(source, target);
-      } else {
-        mkdirSync(dirname(target), { recursive: true });
-        copyFileSync(source, target);
-      }
+    const target = join(baseDir, entry);
+    if (statSync(source).isDirectory()) {
+      copyDirectory(source, target);
+    } else {
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(source, target);
     }
   }
 }
+
+console.log("Staged microfrontend apps/packages from installed @moh-sso npm packages.");
