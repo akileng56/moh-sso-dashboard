@@ -31,13 +31,15 @@ import {
   useHeaderPanel,
 } from "@moh-sso/ui";
 
-import { API, BRANDING } from "@moh-sso/config";
+import { API } from "@moh-sso/config";
 import { useGetNotificationsQuery, useGetUnreadNotificationsCountQuery } from "@moh-sso/api";
 import { selectUser } from "@moh-sso/auth";
 
 import { RouteBreadcrumbBar } from "@/app/navigation/RouteBreadcrumbBar";
 
 import "./admin-layout.scss";
+
+import imagePath from "../../../assets/logo.png";
 
 type CarbonIconComponent = ComponentType<{
   size?: number | string;
@@ -221,7 +223,7 @@ export default function AdminLayout() {
                 aria-label="Go to admin home"
               >
                 <img
-                  src={BRANDING.logo}
+                  src={imagePath}
                   className="admin-layout__brand-logo"
                   alt=""
                   aria-hidden="true"
