@@ -1,4 +1,8 @@
-import type { MicrofrontendLifecycle, MicrofrontendRoute } from "@moh-sso/microfrontend";
+import {
+  resolveRuntimeBasename,
+  type MicrofrontendLifecycle,
+  type MicrofrontendRoute,
+} from "@moh-sso/microfrontend";
 
 import {
   announcementsLifecycles,
@@ -36,18 +40,18 @@ type SingleSpaModule = {
 };
 
 const lifecycleLoaders: Record<string, () => Promise<MicrofrontendLifecycle>> = {
-  "@moh-sso/announcements": () => Promise.resolve(announcementsLifecycles),
-  "@moh-sso/audit": () => Promise.resolve(auditLifecycles),
-  "@moh-sso/clients": () => Promise.resolve(clientsLifecycles),
-  "@moh-sso/data-visualizer": () => Promise.resolve(dataVisualizerLifecycles),
-  "@moh-sso/documents": () => Promise.resolve(documentsLifecycles),
-  "@moh-sso/e-services": () => Promise.resolve(eServicesLifecycles),
-  "@moh-sso/email": () => Promise.resolve(emailLifecycles),
-  "@moh-sso/issue-tracker": () => Promise.resolve(issueTrackerLifecycles),
-  "@moh-sso/report-browser": () => Promise.resolve(reportBrowserLifecycles),
-  "@moh-sso/surveillance": () => Promise.resolve(surveillanceLifecycles),
-  "@moh-sso/users": () => Promise.resolve(usersLifecycles),
-  "@moh-sso/utilities": () => Promise.resolve(utilitiesLifecycles),
+  "@moh-sso/announcements": announcementsLifecycles,
+  "@moh-sso/audit": auditLifecycles,
+  "@moh-sso/clients": clientsLifecycles,
+  "@moh-sso/data-visualizer": dataVisualizerLifecycles,
+  "@moh-sso/documents": documentsLifecycles,
+  "@moh-sso/e-services": eServicesLifecycles,
+  "@moh-sso/email": emailLifecycles,
+  "@moh-sso/issue-tracker": issueTrackerLifecycles,
+  "@moh-sso/report-browser": reportBrowserLifecycles,
+  "@moh-sso/surveillance": surveillanceLifecycles,
+  "@moh-sso/users": usersLifecycles,
+  "@moh-sso/utilities": utilitiesLifecycles,
 };
 
 export function shouldUseSingleSpaOrchestration() {
@@ -90,6 +94,10 @@ async function loadSingleSpa(): Promise<SingleSpaModule | null> {
 
 function registerRoute(singleSpa: SingleSpaModule, route: MicrofrontendRoute) {
   const mode = getMicrofrontendMode();
+  const routeBasename = resolveRuntimeBasename(route.path, import.meta.env.BASE_URL);
+  const activeWhen = (route.paths ?? [route.path]).map((path) =>
+    resolveRuntimeBasename(path, import.meta.env.BASE_URL),
+  );
   const loader =
     mode === "remote"
       ? () => runtimeImport<MicrofrontendLifecycle>(route.appName)
@@ -105,7 +113,7 @@ function registerRoute(singleSpa: SingleSpaModule, route: MicrofrontendRoute) {
       const lifecycle = await loader();
       const propsWithContainer = (props: Record<string, unknown>) => ({
         ...props,
-        basename: route.path,
+        basename: routeBasename,
         domElement: getMicrofrontendContainer(route.appName),
       });
 
@@ -115,9 +123,9 @@ function registerRoute(singleSpa: SingleSpaModule, route: MicrofrontendRoute) {
         unmount: (props) => lifecycle.unmount(propsWithContainer(props)),
       };
     },
-    activeWhen: route.paths ?? [route.path],
+    activeWhen,
     customProps: {
-      basename: route.path,
+      basename: routeBasename,
     },
   });
 }
