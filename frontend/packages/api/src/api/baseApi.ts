@@ -191,6 +191,12 @@ export const baseApi = createApi({
     "DocumentTemplates",
     "DocumentSheets",
     "DocumentColumns",
+    "RbacSystem",
+    "RbacPermission",
+    "RbacRealmRole",
+    "RbacAccessRequest",
+    "RbacChangeRequest",
+    "RbacAudit",
   ],
 
   endpoints: () => ({}),

@@ -2,9 +2,19 @@ import type { ReactElement } from "react";
 import { Navigate, Route } from "react-router-dom";
 
 import { ProtectedRoute } from "./guards/ProtectedRoute";
+import { PermissionRoute } from "./guards/PermissionRoute";
 import { UserRoute } from "./guards/UserRoute";
 import UserLayout from "../layouts/user/user-layout.component";
 import { ComingSoon } from "@moh-sso/ui";
+import { PERMISSIONS, type Permission, type System } from "@moh-sso/auth";
+import { dataVisualizerRoute } from "@moh-sso/data-visualizer";
+import { documentsRoute } from "@moh-sso/documents";
+import { eServicesRoute } from "@moh-sso/e-services";
+import { issueTrackerRoute } from "@moh-sso/issue-tracker";
+import type { MicrofrontendRoute } from "@moh-sso/microfrontend";
+import { reportBrowserRoute } from "@moh-sso/report-browser";
+import { surveillanceRoute } from "@moh-sso/surveillance";
+import { utilitiesRoute } from "@moh-sso/utilities";
 
 import NewsFeedPage from "@/app/newsfeed/pages/news_feed.component";
 import MyProfilePage from "@/app/settings/pages/Profile/profile.component";
@@ -17,12 +27,47 @@ import {
   dataVisualizerLifecycles,
   documentsLifecycles,
   issueTrackerLifecycles,
+  reportBrowserLifecycles,
   surveillanceLifecycles,
   utilitiesLifecycles,
   eServicesLifecycles,
 } from "@/app/microfrontends/lifecycles";
 
-const userPage = (element: ReactElement) => <UserRoute>{element}</UserRoute>;
+type RouteAccess = {
+  permission?: Permission;
+  allOf?: Permission[];
+  anyOf?: Permission[];
+  systems?: Array<System | string>;
+  systemRoles?: Array<{ system: System | string; role: string }>;
+};
+
+const accessFromRoute = (route: MicrofrontendRoute): RouteAccess => ({
+  allOf: route.requiredPermissions as Permission[] | undefined,
+  anyOf: route.requiredAnyPermissions as Permission[] | undefined,
+  systems: route.requiredSystems as System[] | undefined,
+  systemRoles: route.requiredSystemRoles,
+});
+
+const userPage = (element: ReactElement, access?: Permission | RouteAccess) => {
+  const routeAccess: RouteAccess | undefined =
+    typeof access === "string" ? { permission: access } : access;
+
+  const guarded = routeAccess ? (
+    <PermissionRoute
+      permission={routeAccess.permission}
+      allOf={routeAccess.allOf}
+      anyOf={routeAccess.anyOf}
+      systems={routeAccess.systems}
+      systemRoles={routeAccess.systemRoles}
+    >
+      {element}
+    </PermissionRoute>
+  ) : (
+    element
+  );
+
+  return <UserRoute>{guarded}</UserRoute>;
+};
 
 export const userRoutes = (
   <Route
@@ -51,6 +96,7 @@ export const userRoutes = (
             lifecycles={dataVisualizerLifecycles}
             basename="/apps/dwh/data-visualizer"
           />,
+          accessFromRoute(dataVisualizerRoute),
         )}
       />
 
@@ -59,10 +105,11 @@ export const userRoutes = (
         path="reports/*"
         element={userPage(
           <SingleSpaApp
-            appName="@moh-sso/reports"
-            lifecycles={utilitiesLifecycles}
+            appName="@moh-sso/report-browser"
+            lifecycles={reportBrowserLifecycles}
             basename="/apps/dwh/reports"
           />,
+          accessFromRoute(reportBrowserRoute),
         )}
       />
       <Route path="exports" element={userPage(<ComingSoon title="Data Exports" />)} />
@@ -75,6 +122,7 @@ export const userRoutes = (
             lifecycles={documentsLifecycles}
             basename="/apps/dwh/filesvr"
           />,
+          accessFromRoute(documentsRoute),
         )}
       />
 
@@ -86,6 +134,7 @@ export const userRoutes = (
             lifecycles={surveillanceLifecycles}
             basename="/apps/dwh/surveillance"
           />,
+          accessFromRoute(surveillanceRoute),
         )}
       />
 
@@ -97,6 +146,7 @@ export const userRoutes = (
             lifecycles={issueTrackerLifecycles}
             basename="/apps/dwh/issue-tracker"
           />,
+          accessFromRoute(issueTrackerRoute),
         )}
       />
     </Route>
@@ -112,6 +162,7 @@ export const userRoutes = (
           lifecycles={eServicesLifecycles}
           basename="/apps/eservices"
         />,
+        accessFromRoute(eServicesRoute),
       )}
     />
 
@@ -198,6 +249,9 @@ export const userRoutes = (
               lifecycles={documentsLifecycles}
               basename="/apps/utilities/self-service/eservice/document-upload"
             />,
+            {
+              anyOf: [PERMISSIONS.documentsWrite],
+            },
           )}
         />
 
@@ -218,6 +272,7 @@ export const userRoutes = (
             lifecycles={utilitiesLifecycles}
             basename="/apps/utilities/self-service"
           />,
+          accessFromRoute(utilitiesRoute),
         )}
       />
     </Route>
