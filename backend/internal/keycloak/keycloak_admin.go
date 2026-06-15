@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
@@ -680,17 +682,19 @@ func (c *KeyAdminClient) CreateUser(user *model.User) (string, error) {
 		enabled = true
 	}
 
+	requiredActions := []string{"UPDATE_PASSWORD"}
+	if !user.EmailVerified {
+		requiredActions = append([]string{"VERIFY_EMAIL"}, requiredActions...)
+	}
+
 	payload := CreateUserRequest{
-		Username:      username,
-		Email:         email,
-		FirstName:     strings.TrimSpace(user.FirstName),
-		LastName:      strings.TrimSpace(user.LastName),
-		Enabled:       enabled,
-		EmailVerified: false,
-		RequiredActions: []string{
-			"VERIFY_EMAIL",
-			"UPDATE_PASSWORD",
-		},
+		Username:        username,
+		Email:           email,
+		FirstName:       strings.TrimSpace(user.FirstName),
+		LastName:        strings.TrimSpace(user.LastName),
+		Enabled:         enabled,
+		EmailVerified:   user.EmailVerified,
+		RequiredActions: requiredActions,
 		Attributes: map[string][]string{
 			"created_by": {"admin"},
 			"user_type":  {"human"},
@@ -844,7 +848,7 @@ func (c *KeyAdminClient) UpdateUser(user *model.User) error {
 		"firstName":       firstName,
 		"lastName":        lastName,
 		"enabled":         user.Enabled,
-		"emailVerified":   current.EmailVerified,
+		"emailVerified":   user.EmailVerified,
 		"requiredActions": current.RequiredActions,
 		"attributes":      current.Attributes,
 	}
@@ -1683,6 +1687,10 @@ func (c *KeyAdminClient) resolveClientUUID(
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
 		return "", fmt.Errorf("resolveClientUUID: clientID is required")
+	}
+
+	if _, err := uuid.Parse(clientID); err == nil {
+		return clientID, nil
 	}
 
 	path := "clients?clientId=" + url.QueryEscape(clientID)

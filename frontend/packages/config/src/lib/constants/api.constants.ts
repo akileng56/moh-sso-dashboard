@@ -40,7 +40,7 @@ export const API = {
       // WRITE (admin)
       create: (clientId: string) => `${API_BASE}/admin/clients/${clientId}/roles`,
       delete: (clientId: string, role: string) =>
-        `${API_BASE}/admin/clients/${clientId}/roles/${role}`,
+        `${API_BASE}/admin/clients/${clientId}/roles/${encodeURIComponent(role)}`,
     },
   },
 
@@ -84,7 +84,11 @@ export const API = {
       list: () => `${API_BASE}/admin/users`,
       byId: (id: string) => `${API_BASE}/admin/users/${id}`,
       create: () => `${API_BASE}/admin/users`,
+      update: (id: string) => `${API_BASE}/admin/users/${id}`,
       delete: (id: string) => `${API_BASE}/admin/users/${id}`,
+      toggle: (id: string) => `${API_BASE}/admin/users/${id}/toggle`,
+      resetPassword: (id: string) => `${API_BASE}/admin/users/${id}/reset-password`,
+      passwordResetEmail: (id: string) => `${API_BASE}/admin/users/${id}/password-reset`,
 
       import: {
         preview: () => `${API_BASE}/admin/users/import/preview`,

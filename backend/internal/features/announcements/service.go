@@ -6,15 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
+	emailutil "github.com/moh-sso-dashboard/internal/email"
 	userRepository "github.com/moh-sso-dashboard/internal/features/users"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	models "github.com/moh-sso-dashboard/internal/model"
 	sharedservice "github.com/moh-sso-dashboard/internal/service"
+	"github.com/moh-sso-dashboard/internal/storage"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
 
@@ -22,13 +25,21 @@ type Service struct {
 	repo          Repository
 	userRepo      userRepository.UserRepository
 	notifications sharedservice.NotificationsService
+	storage       storage.Storage
 	cfg           *config.Config
+}
+
+type AnnouncementEmailOptions struct {
+	Attachments               []models.Attachment
+	IncludeAttachmentsInEmail bool
+	ScheduledAt               *time.Time
 }
 
 func NewService(
 	repo Repository,
 	userRepo userRepository.UserRepository,
 	notifications sharedservice.NotificationsService,
+	fileStorage storage.Storage,
 	cfg ...*config.Config,
 ) *Service {
 	var appConfig *config.Config
@@ -40,6 +51,7 @@ func NewService(
 		repo:          repo,
 		userRepo:      userRepo,
 		notifications: notifications,
+		storage:       fileStorage,
 		cfg:           appConfig,
 	}
 }
@@ -628,6 +640,7 @@ func (s *Service) PublishAnnouncementNow(
 	ctx context.Context,
 	id uuid.UUID,
 	publishedBy uuid.UUID,
+	options ...AnnouncementEmailOptions,
 ) (db.Announcement, error) {
 	if s == nil {
 		return db.Announcement{}, errors.New("announcement service is nil")
@@ -671,7 +684,15 @@ func (s *Service) PublishAnnouncementNow(
 		}
 
 		if len(recipients) > 0 {
-			s.attachAnnouncementEmailDelivery(&notification, item, recipients)
+			emailOptions, err := s.normalizeAnnouncementEmailOptions(options...)
+			if err != nil {
+				return item, err
+			}
+			emailOptions, err = s.withPersistedAnnouncementEmailAttachments(ctx, item.ID, emailOptions)
+			if err != nil {
+				return item, err
+			}
+			s.attachAnnouncementEmailDelivery(&notification, item, recipients, emailOptions)
 
 			markedItem, err := s.repo.MarkEmailNotificationSent(ctx, item.ID)
 			if err != nil {
@@ -724,6 +745,7 @@ func (s *Service) MoveAnnouncementToDraft(
 func (s *Service) ScheduleAnnouncement(
 	ctx context.Context,
 	params db.ScheduleAnnouncementParams,
+	options ...AnnouncementEmailOptions,
 ) (db.Announcement, error) {
 	if s == nil {
 		return db.Announcement{}, errors.New("announcement service is nil")
@@ -739,7 +761,7 @@ func (s *Service) ScheduleAnnouncement(
 	}
 
 	nt := models.AnnouncementScheduled
-	s.notify(ctx, models.Notification{
+	notification := models.Notification{
 		Type:       string(nt),
 		Title:      nt.Title(),
 		Severity:   nt.Severity(),
@@ -750,7 +772,39 @@ func (s *Service) ScheduleAnnouncement(
 			"title":           item.Title,
 			"status":          announcementStatusString(item.Status),
 		}),
-	})
+	}
+
+	if s.shouldSendAnnouncementEmail(item) {
+		recipients, err := s.resolveAnnouncementEmailRecipients(ctx, item)
+		if err != nil {
+			return item, fmt.Errorf("resolve announcement email recipients: %w", err)
+		}
+
+		if len(recipients) > 0 {
+			emailOptions, err := s.normalizeAnnouncementEmailOptions(options...)
+			if err != nil {
+				return item, err
+			}
+			emailOptions, err = s.withPersistedAnnouncementEmailAttachments(ctx, item.ID, emailOptions)
+			if err != nil {
+				return item, err
+			}
+			if emailOptions.ScheduledAt == nil && item.PublishAt.Valid {
+				publishAt := item.PublishAt.Time
+				emailOptions.ScheduledAt = &publishAt
+			}
+			s.attachAnnouncementEmailDelivery(&notification, item, recipients, emailOptions)
+
+			markedItem, err := s.repo.MarkEmailNotificationSent(ctx, item.ID)
+			if err != nil {
+				return item, fmt.Errorf("mark announcement email notification scheduled: %w", err)
+			}
+
+			item = markedItem
+		}
+	}
+
+	s.notify(ctx, notification)
 
 	return item, nil
 }
@@ -1529,6 +1583,7 @@ func (s *Service) attachAnnouncementEmailDelivery(
 	notification *models.Notification,
 	item db.Announcement,
 	recipients []AnnouncementEmailRecipient,
+	options AnnouncementEmailOptions,
 ) {
 	if notification == nil {
 		return
@@ -1565,6 +1620,12 @@ func (s *Service) attachAnnouncementEmailDelivery(
 			name = email
 		}
 
+		attachments := []models.Attachment(nil)
+		if options.IncludeAttachmentsInEmail {
+			attachments = options.Attachments
+		}
+		attachmentNames := announcementEmailAttachmentNames(attachments)
+
 		deliveries = append(deliveries, models.NotificationDeliveryRequest{
 			Channel: models.NotificationChannelEmail,
 			Recipient: map[string]any{
@@ -1574,15 +1635,18 @@ func (s *Service) attachAnnouncementEmailDelivery(
 			},
 			TemplateName: "announcement",
 			TemplateData: map[string]any{
-				"Name":           name,
-				"Platform":       s.platformName(),
-				"Title":          item.Title,
-				"Summary":        nullStringValue(item.Summary),
-				"Message":        item.Message,
-				"Level":          announcementLevelString(item.Level),
-				"Status":         announcementStatusString(item.Status),
-				"AnnouncementID": item.ID.String(),
-				"ActionURL":      announcementLinkOrDefault(item, s.portalAnnouncementsURL()),
+				"Name":            name,
+				"Platform":        s.platformName(),
+				"Title":           item.Title,
+				"Summary":         nullStringValue(item.Summary),
+				"Message":         item.Message,
+				"Level":           announcementLevelString(item.Level),
+				"Status":          announcementStatusString(item.Status),
+				"AnnouncementID":  item.ID.String(),
+				"HasAttachments":  len(attachments) > 0,
+				"AttachmentCount": len(attachments),
+				"AttachmentNames": attachmentNames,
+				"ActionURL":       announcementLinkOrDefault(item, s.portalAnnouncementsURL()),
 				"Details": fmt.Sprintf(
 					"Title: %s\nLevel: %s\nStatus: %s\nMessage: %s",
 					item.Title,
@@ -1595,11 +1659,43 @@ func (s *Service) attachAnnouncementEmailDelivery(
 				"subject":   fmt.Sprintf("[Announcement] %s", item.Title),
 				"text_body": item.Message,
 			},
+			Attachments: attachments,
+			ScheduledAt: options.ScheduledAt,
 			MaxAttempts: 5,
 		})
 	}
 
 	notification.Deliveries = deliveries
+}
+
+func announcementEmailAttachmentNames(attachments []models.Attachment) []string {
+	names := make([]string, 0, len(attachments))
+	for _, attachment := range attachments {
+		name := strings.TrimSpace(attachment.FileName)
+		if name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func (s *Service) normalizeAnnouncementEmailOptions(options ...AnnouncementEmailOptions) (AnnouncementEmailOptions, error) {
+	out := AnnouncementEmailOptions{IncludeAttachmentsInEmail: true}
+	if len(options) > 0 {
+		out = options[0]
+		if len(out.Attachments) > 0 && !out.IncludeAttachmentsInEmail {
+			return out, nil
+		}
+	}
+	if len(out.Attachments) == 0 {
+		return out, nil
+	}
+	attachments, err := emailutil.NormalizeAttachments(s.cfg, out.Attachments)
+	if err != nil {
+		return AnnouncementEmailOptions{}, fmt.Errorf("validate announcement email attachments: %w", err)
+	}
+	out.Attachments = attachments
+	return out, nil
 }
 
 func (s *Service) attachAdminEmailDelivery(
