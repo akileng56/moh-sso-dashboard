@@ -14,4 +14,4 @@ export * from "./api/rbac.api";
 export * from "./api/sessions.api";
 export * from "./api/surveillance.api";
 export * from "./api/users.api";
-export * from "./api/issuetracker.api";
+export * from "../../../apps/issue-tracker/src/component/issuetracker.api";
