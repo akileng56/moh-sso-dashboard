@@ -24,6 +24,11 @@ export type RbacSystem = {
   documentationUrl?: string;
   environment?: string;
   criticality?: string;
+  navigation?: string;
+  systemType: "platform" | "external";
+  displayInLauncher: boolean;
+  displayInSideNav: boolean;
+  launchMode: "internal" | "new_tab" | "same_tab";
   enabled: boolean;
   sortOrder: number;
 };
@@ -62,6 +67,11 @@ export type UpsertRbacSystemPayload = {
   documentationUrl?: string;
   environment?: string;
   criticality?: string;
+  navigation?: string;
+  systemType?: "platform" | "external";
+  displayInLauncher?: boolean;
+  displayInSideNav?: boolean;
+  launchMode?: "internal" | "new_tab" | "same_tab";
   enabled?: boolean;
   sortOrder?: number;
 };
@@ -98,6 +108,7 @@ export type RbacDriftSystem = {
   missingRolesInRbac: string[];
   staleRolesInRbac: string[];
   missingAccessRoles: string[];
+  configurationDifferences?: string[];
 };
 
 export type RbacDriftRealmRole = {
@@ -159,6 +170,11 @@ export type RbacSystemAccessSummary = {
   launchUrl?: string;
   icon?: string;
   category?: string;
+  navigation?: string;
+  systemType: "platform" | "external";
+  displayInLauncher: boolean;
+  displayInSideNav: boolean;
+  launchMode: "internal" | "new_tab" | "same_tab";
   roles: string[];
 };
 
@@ -191,6 +207,10 @@ export type RbacAssignableSystemAccess = {
   launchUrl?: string;
   icon?: string;
   category?: string;
+  systemType: "platform" | "external";
+  displayInLauncher: boolean;
+  displayInSideNav: boolean;
+  launchMode: "internal" | "new_tab" | "same_tab";
   roles: RbacAssignableSystemRole[];
   accessRoles: string[];
 };

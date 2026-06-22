@@ -11,6 +11,8 @@ import (
 	"github.com/moh-sso-dashboard/internal/model"
 )
 
+type announcement = db.Announcement
+
 func nullStringPtr(ns sql.NullString) *string {
 	if !ns.Valid {
 		return nil
@@ -34,6 +36,7 @@ func toAnnouncementResponse(a db.Announcement) AnnouncementResponse {
 		Level:                   normalizeLevel(model.AnnouncementLevel(interfaceToString(a.Level))),
 		Tag:                     nullStringPtr(a.Tag),
 		LinkURL:                 nullStringPtr(a.LinkUrl),
+		LinkLabel:               nullStringPtr(a.LinkLabel),
 		Priority:                a.Priority,
 		IsPinned:                a.IsPinned,
 		Status:                  normalizeAnnouncementStatus(model.AnnouncementStatus(interfaceToString(a.Status))),
@@ -141,6 +144,17 @@ func toAnnouncementAttachmentResponses(
 		out = append(out, toAnnouncementAttachmentResponseWithDownloadBase(announcementID, attachment, basePath))
 	}
 	return out
+}
+
+func toAnnouncementStatsResponse(stats db.GetAnnouncementStatsRow) AnnouncementStatsResponse {
+	return AnnouncementStatsResponse{
+		Total:          stats.Total,
+		DraftCount:     stats.DraftCount,
+		ScheduledCount: stats.ScheduledCount,
+		PublishedCount: stats.PublishedCount,
+		ArchivedCount:  stats.ArchivedCount,
+		ActiveCount:    stats.ActiveCount,
+	}
 }
 
 func mapAnnouncementAttachments(in []announcementAttachmentRequest) []model.Attachment {

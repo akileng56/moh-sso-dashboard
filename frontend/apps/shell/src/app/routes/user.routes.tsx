@@ -7,14 +7,17 @@ import { UserRoute } from "./guards/UserRoute";
 import UserLayout from "../layouts/user/user-layout.component";
 import { ComingSoon } from "@moh-sso/ui";
 import { PERMISSIONS, type Permission, type System } from "@moh-sso/auth";
-import { dataVisualizerRoute } from "@moh-sso/data-visualizer";
-import { documentsRoute } from "@moh-sso/documents";
-import { eServicesRoute } from "@moh-sso/e-services";
-import { issueTrackerRoute } from "@moh-sso/issue-tracker";
 import type { MicrofrontendRoute } from "@moh-sso/microfrontend";
-import { reportBrowserRoute } from "@moh-sso/report-browser";
-import { surveillanceRoute } from "@moh-sso/surveillance";
-import { utilitiesRoute } from "@moh-sso/utilities";
+import {
+  dataValidationRoute,
+  dataVisualizerRoute,
+  documentsRoute,
+  eServicesRoute,
+  issueTrackerRoute,
+  reportBrowserRoute,
+  surveillanceRoute,
+  utilitiesRoute,
+} from "@/app/microfrontends/registry";
 
 import NewsFeedPage from "@/app/newsfeed/pages/news_feed.component";
 import MyProfilePage from "@/app/settings/pages/Profile/profile.component";
@@ -25,6 +28,7 @@ import { SingleSpaApp } from "@/app/microfrontends/SingleSpaApp";
 
 import {
   dataVisualizerLifecycles,
+  dataValidationLifecycles,
   documentsLifecycles,
   issueTrackerLifecycles,
   reportBrowserLifecycles,
@@ -47,6 +51,30 @@ const accessFromRoute = (route: MicrofrontendRoute): RouteAccess => ({
   systems: route.requiredSystems as System[] | undefined,
   systemRoles: route.requiredSystemRoles,
 });
+
+const SYSTEMS = {
+  dataStatistics: "data-statistics",
+  eServices: "eservices",
+  researchStudies: "research-studies",
+  caseRegisters: "case-registers",
+  outbreakManagement: "outbreak-management",
+  referenceRegisters: "reference-registers",
+  utilities: "utilities",
+  settings: "settings",
+} as const;
+
+const withSystemAccess = (
+  system: System | string,
+  access: Permission | RouteAccess = { allOf: [PERMISSIONS.systemsLaunch] },
+): RouteAccess => {
+  const routeAccess: RouteAccess = typeof access === "string" ? { permission: access } : access;
+
+  return {
+    ...routeAccess,
+    allOf: [...(routeAccess.allOf ?? []), PERMISSIONS.systemsLaunch],
+    systems: [...(routeAccess.systems ?? []), system],
+  };
+};
 
 const userPage = (element: ReactElement, access?: Permission | RouteAccess) => {
   const routeAccess: RouteAccess | undefined =
@@ -96,11 +124,29 @@ export const userRoutes = (
             lifecycles={dataVisualizerLifecycles}
             basename="/apps/dwh/data-visualizer"
           />,
-          accessFromRoute(dataVisualizerRoute),
+          withSystemAccess(SYSTEMS.dataStatistics, accessFromRoute(dataVisualizerRoute)),
         )}
       />
 
-      <Route path="dashboards" element={userPage(<ComingSoon title="Dashboards" />)} />
+      <Route
+        path="data-validation/*"
+        element={userPage(
+          <SingleSpaApp
+            appName="@moh-sso/data-validation"
+            lifecycles={dataValidationLifecycles}
+            basename="/apps/dwh/data-validation"
+          />,
+          withSystemAccess(SYSTEMS.dataStatistics, accessFromRoute(dataValidationRoute)),
+        )}
+      />
+
+      <Route
+        path="dashboards"
+        element={userPage(
+          <ComingSoon title="Dashboards" />,
+          withSystemAccess(SYSTEMS.dataStatistics, PERMISSIONS.dataQualityRead),
+        )}
+      />
       <Route
         path="reports/*"
         element={userPage(
@@ -112,7 +158,13 @@ export const userRoutes = (
           accessFromRoute(reportBrowserRoute),
         )}
       />
-      <Route path="exports" element={userPage(<ComingSoon title="Data Exports" />)} />
+      <Route
+        path="exports"
+        element={userPage(
+          <ComingSoon title="Data Exports" />,
+          withSystemAccess(SYSTEMS.dataStatistics, PERMISSIONS.dataQualityRead),
+        )}
+      />
 
       <Route
         path="filesvr/*"
@@ -122,7 +174,7 @@ export const userRoutes = (
             lifecycles={documentsLifecycles}
             basename="/apps/dwh/filesvr"
           />,
-          accessFromRoute(documentsRoute),
+          withSystemAccess(SYSTEMS.dataStatistics, accessFromRoute(documentsRoute)),
         )}
       />
 
@@ -146,7 +198,7 @@ export const userRoutes = (
             lifecycles={issueTrackerLifecycles}
             basename="/apps/dwh/issue-tracker"
           />,
-          accessFromRoute(issueTrackerRoute),
+          withSystemAccess(SYSTEMS.dataStatistics, accessFromRoute(issueTrackerRoute)),
         )}
       />
     </Route>
@@ -162,7 +214,7 @@ export const userRoutes = (
           lifecycles={eServicesLifecycles}
           basename="/apps/eservices"
         />,
-        accessFromRoute(eServicesRoute),
+        withSystemAccess(SYSTEMS.eServices, accessFromRoute(eServicesRoute)),
       )}
     />
 
@@ -171,10 +223,28 @@ export const userRoutes = (
        ========================= */}
     <Route path="research-studies">
       <Route index element={<Navigate to="studies" replace />} />
-      <Route path="studies" element={userPage(<ComingSoon title="Studies" />)} />
-      <Route path="datasets" element={userPage(<ComingSoon title="Datasets" />)} />
-      <Route path="ethics" element={userPage(<ComingSoon title="Ethics & Approvals" />)} />
-      <Route path="publications" element={userPage(<ComingSoon title="Publications" />)} />
+      <Route
+        path="studies"
+        element={userPage(<ComingSoon title="Studies" />, withSystemAccess(SYSTEMS.researchStudies))}
+      />
+      <Route
+        path="datasets"
+        element={userPage(<ComingSoon title="Datasets" />, withSystemAccess(SYSTEMS.researchStudies))}
+      />
+      <Route
+        path="ethics"
+        element={userPage(
+          <ComingSoon title="Ethics & Approvals" />,
+          withSystemAccess(SYSTEMS.researchStudies),
+        )}
+      />
+      <Route
+        path="publications"
+        element={userPage(
+          <ComingSoon title="Publications" />,
+          withSystemAccess(SYSTEMS.researchStudies),
+        )}
+      />
     </Route>
 
     {/* =========================
@@ -185,12 +255,18 @@ export const userRoutes = (
 
       <Route
         path="external-referrals"
-        element={userPage(<ComingSoon title="External Referrals" />)}
+        element={userPage(
+          <ComingSoon title="External Referrals" />,
+          withSystemAccess(SYSTEMS.caseRegisters, PERMISSIONS.documentsRead),
+        )}
       />
 
       <Route
         path="disease-registers"
-        element={userPage(<ComingSoon title="Disease Registers" />)}
+        element={userPage(
+          <ComingSoon title="Disease Registers" />,
+          withSystemAccess(SYSTEMS.caseRegisters, PERMISSIONS.documentsRead),
+        )}
       />
     </Route>
 
@@ -200,11 +276,35 @@ export const userRoutes = (
     <Route path="outbreak-management">
       <Route index element={<Navigate to="signals-alerts" replace />} />
 
-      <Route path="signals-alerts" element={userPage(<ComingSoon title="Signals & Alerts" />)} />
+      <Route
+        path="signals-alerts"
+        element={userPage(
+          <ComingSoon title="Signals & Alerts" />,
+          withSystemAccess(SYSTEMS.outbreakManagement, {
+            anyOf: [PERMISSIONS.outbreakAccess, PERMISSIONS.surveillanceRead],
+          }),
+        )}
+      />
 
-      <Route path="poe-management" element={userPage(<ComingSoon title="PoE Management" />)} />
+      <Route
+        path="poe-management"
+        element={userPage(
+          <ComingSoon title="PoE Management" />,
+          withSystemAccess(SYSTEMS.outbreakManagement, {
+            anyOf: [PERMISSIONS.outbreakAccess, PERMISSIONS.surveillanceRead],
+          }),
+        )}
+      />
 
-      <Route path="case-management" element={userPage(<ComingSoon title="Case Management" />)} />
+      <Route
+        path="case-management"
+        element={userPage(
+          <ComingSoon title="Case Management" />,
+          withSystemAccess(SYSTEMS.outbreakManagement, {
+            anyOf: [PERMISSIONS.outbreakAccess, PERMISSIONS.surveillanceRead],
+          }),
+        )}
+      />
     </Route>
 
     {/* =========================
@@ -215,19 +315,46 @@ export const userRoutes = (
 
       <Route
         path="facility-register"
-        element={userPage(<ComingSoon title="Facility Register" />)}
+        element={userPage(
+          <ComingSoon title="Facility Register" />,
+          withSystemAccess(SYSTEMS.referenceRegisters, PERMISSIONS.systemsRead),
+        )}
       />
 
       <Route path="terminology">
         <Route index element={<Navigate to="test-menu" replace />} />
 
-        <Route path="test-menu" element={userPage(<ComingSoon title="Test Menu" />)} />
+        <Route
+          path="test-menu"
+          element={userPage(
+            <ComingSoon title="Test Menu" />,
+            withSystemAccess(SYSTEMS.referenceRegisters, PERMISSIONS.systemsRead),
+          )}
+        />
 
-        <Route path="pharmaceuticals" element={userPage(<ComingSoon title="Pharmaceuticals" />)} />
+        <Route
+          path="pharmaceuticals"
+          element={userPage(
+            <ComingSoon title="Pharmaceuticals" />,
+            withSystemAccess(SYSTEMS.referenceRegisters, PERMISSIONS.systemsRead),
+          )}
+        />
 
-        <Route path="procedures" element={userPage(<ComingSoon title="Procedures" />)} />
+        <Route
+          path="procedures"
+          element={userPage(
+            <ComingSoon title="Procedures" />,
+            withSystemAccess(SYSTEMS.referenceRegisters, PERMISSIONS.systemsRead),
+          )}
+        />
 
-        <Route path="equipment" element={userPage(<ComingSoon title="Equipment" />)} />
+        <Route
+          path="equipment"
+          element={userPage(
+            <ComingSoon title="Equipment" />,
+            withSystemAccess(SYSTEMS.referenceRegisters, PERMISSIONS.systemsRead),
+          )}
+        />
       </Route>
     </Route>
 
@@ -251,15 +378,26 @@ export const userRoutes = (
             />,
             {
               anyOf: [PERMISSIONS.documentsWrite],
+              systems: [SYSTEMS.utilities],
+              allOf: [PERMISSIONS.systemsLaunch],
             },
           )}
         />
 
-        <Route path="service-access" element={userPage(<ComingSoon title="Service Access" />)} />
+        <Route
+          path="service-access"
+          element={userPage(
+            <ComingSoon title="Service Access" />,
+            withSystemAccess(SYSTEMS.utilities),
+          )}
+        />
 
         <Route
           path="equipment-request"
-          element={userPage(<ComingSoon title="Equipment Request" />)}
+          element={userPage(
+            <ComingSoon title="Equipment Request" />,
+            withSystemAccess(SYSTEMS.utilities),
+          )}
         />
       </Route>
 
@@ -272,7 +410,7 @@ export const userRoutes = (
             lifecycles={utilitiesLifecycles}
             basename="/apps/utilities/self-service"
           />,
-          accessFromRoute(utilitiesRoute),
+          withSystemAccess(SYSTEMS.utilities, accessFromRoute(utilitiesRoute)),
         )}
       />
     </Route>
@@ -282,9 +420,15 @@ export const userRoutes = (
        ========================= */}
     <Route path="settings">
       <Route index element={<Navigate to="profile" replace />} />
-      <Route path="profile" element={userPage(<MyProfilePage />)} />
-      <Route path="sessions" element={userPage(<ActiveSessionsPage />)} />
-      <Route path="security" element={userPage(<SecurityPage />)} />
+      <Route path="profile" element={userPage(<MyProfilePage />, withSystemAccess(SYSTEMS.settings))} />
+      <Route
+        path="sessions"
+        element={userPage(<ActiveSessionsPage />, withSystemAccess(SYSTEMS.settings))}
+      />
+      <Route
+        path="security"
+        element={userPage(<SecurityPage />, withSystemAccess(SYSTEMS.settings))}
+      />
     </Route>
 
     {/* =========================

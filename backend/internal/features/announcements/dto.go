@@ -1,6 +1,7 @@
 package announcements
 
 import (
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,7 @@ type createAnnouncementRequest struct {
 	Level         string   `json:"level" binding:"required"`
 	Tag           *string  `json:"tag"`
 	LinkURL       *string  `json:"link_url"`
+	LinkLabel     *string  `json:"link_label"`
 	Priority      int32    `json:"priority"`
 	IsPinned      bool     `json:"is_pinned"`
 	Status        string   `json:"status"`
@@ -32,6 +34,7 @@ type updateAnnouncementRequest struct {
 	Level         string   `json:"level" binding:"required"`
 	Tag           *string  `json:"tag"`
 	LinkURL       *string  `json:"link_url"`
+	LinkLabel     *string  `json:"link_label"`
 	Priority      int32    `json:"priority"`
 	IsPinned      bool     `json:"is_pinned"`
 	PublishAt     *string  `json:"publish_at"`
@@ -43,6 +46,42 @@ type updateAnnouncementRequest struct {
 	NotifyByEmail bool     `json:"notify_by_email"`
 }
 
+type CreateAnnouncementInput struct {
+	Title         string
+	Message       string
+	Summary       sql.NullString
+	Level         string
+	Tag           sql.NullString
+	LinkURL       sql.NullString
+	LinkLabel     sql.NullString
+	Priority      int32
+	IsPinned      bool
+	Status        string
+	PublishAt     sql.NullTime
+	ExpiresAt     sql.NullTime
+	AudienceType  string
+	NotifyByEmail bool
+	CreatedBy     uuid.UUID
+}
+
+type UpdateAnnouncementInput struct {
+	ID            uuid.UUID
+	Title         string
+	Message       string
+	Summary       sql.NullString
+	Level         string
+	Tag           sql.NullString
+	LinkURL       sql.NullString
+	LinkLabel     sql.NullString
+	Priority      int32
+	IsPinned      bool
+	PublishAt     sql.NullTime
+	ExpiresAt     sql.NullTime
+	AudienceType  string
+	NotifyByEmail bool
+	UpdatedBy     uuid.UUID
+}
+
 type AnnouncementResponse struct {
 	ID                      string                           `json:"id"`
 	Title                   string                           `json:"title"`
@@ -51,6 +90,7 @@ type AnnouncementResponse struct {
 	Level                   string                           `json:"level"`
 	Tag                     *string                          `json:"tag,omitempty"`
 	LinkURL                 *string                          `json:"link_url,omitempty"`
+	LinkLabel               *string                          `json:"link_label,omitempty"`
 	Priority                int32                            `json:"priority"`
 	IsPinned                bool                             `json:"is_pinned"`
 	Status                  string                           `json:"status"`
@@ -92,6 +132,19 @@ type AnnouncementAttachmentResponse struct {
 	DeletedAt        *time.Time `json:"deleted_at,omitempty"`
 	DeletedBy        *string    `json:"deleted_by,omitempty"`
 	DownloadURL      string     `json:"download_url,omitempty"`
+}
+
+type MessageResponse struct {
+	Message string `json:"message"`
+}
+
+type AnnouncementStatsResponse struct {
+	Total          int64 `json:"total"`
+	DraftCount     int64 `json:"draft_count"`
+	ScheduledCount int64 `json:"scheduled_count"`
+	PublishedCount int64 `json:"published_count"`
+	ArchivedCount  int64 `json:"archived_count"`
+	ActiveCount    int64 `json:"active_count"`
 }
 
 type createAnnouncementAttachmentRequest struct {

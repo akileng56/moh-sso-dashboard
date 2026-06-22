@@ -26,12 +26,17 @@ export interface SystemAccess {
   launchUrl?: string;
   icon?: string;
   category?: string;
+  navigation?: string;
+  systemType: "platform" | "external";
+  displayInLauncher: boolean;
+  displayInSideNav: boolean;
+  launchMode: "internal" | "new_tab" | "same_tab";
   roles: string[];
 }
 
-export type Role = "admin" | "user" | "manager";
+export type Role = string;
 
-export type System = "dashboard-web" | "integrated-outbreak-system" | "report-browser";
+export type System = string;
 
 export type Permission =
   | "portal:access"

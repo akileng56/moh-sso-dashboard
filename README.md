@@ -4,6 +4,8 @@ MOH SSO Dashboard is the Integrated Health Portal for Ministry of Health Uganda.
 
 The project is now organized as a feature-first backend and a monorepo-style microfrontend-ready frontend.
 
+The system registry explicitly supports portal-owned modules and external launcher-only applications. Keycloak clients opt in with `portal.system=true`; registry metadata controls launcher visibility, side-navigation visibility, and internal, new-tab, or same-tab launch behavior. See [System onboarding](docs/system-onboarding.md).
+
 ## Contents
 
 - [Platform Overview](#platform-overview)
@@ -15,6 +17,7 @@ The project is now organized as a feature-first backend and a monorepo-style mic
 - [Local Development](#local-development)
 - [Docker And Production Deployment](#docker-and-production-deployment)
 - [API Reference](#api-reference)
+- [Documentation Map](#documentation-map)
 - [Verification](#verification)
 - [Troubleshooting](#troubleshooting)
 
@@ -211,6 +214,12 @@ Run these from `frontend/`.
 
 ## Backend Documentation
 
+Backend-specific development, architecture, and operations notes live in:
+
+- [`backend/README.md`](backend/README.md)
+- [`docs/api-reference.md`](docs/api-reference.md)
+- [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml)
+
 ### Backend Architecture
 
 The backend follows a feature-first modular monolith structure. It is designed to stay deployable as one service now, while keeping boundaries clear enough for future service extraction.
@@ -302,7 +311,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 | Email | `features/email` | Email send, queue, retry, listing, and delete. |
 | GeoJSON | `features/geojson` | GeoJSON assets for maps. |
 | Metrics | `features/metrics` | Admin metrics for users, clients, logins, and security. |
-| Notifications | `features/notifications` | Notifications, unread counts, read state, cleanup, and deletion. |
+| Notifications | `features/notifications` | Notifications, unread counts, read state, delivery history, retry, cleanup, and deletion. |
 | RBAC | `features/rbac` | System-aware RBAC, Keycloak sync, drift, permissions, roles, and user access. |
 | Sessions | `features/sessions` | Current user sessions and logout. |
 | Storage locations | `features/storage_locations` | Storage configuration records. |
@@ -343,7 +352,7 @@ Startup sync is configured through backend env vars:
 | `RBAC_STARTUP_SYNC_REALM_EXPORT_PATH` | Optional explicit realm export path. |
 | `RBAC_STARTUP_SYNC_LIVE_KEYCLOAK` | Pulls live Keycloak clients, roles, and users. |
 | `RBAC_STARTUP_SYNC_USERS` | Syncs user access profiles from Keycloak. |
-| `RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK` | Creates missing roles back into Keycloak when intentionally enabled. |
+| `RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK` | Creates missing portal-defined Keycloak clients and realm/client roles from the RBAC registry. |
 | `RBAC_STARTUP_SYNC_FAIL_ON_ERROR` | Fails backend startup if RBAC sync fails. Useful in stricter environments. |
 
 Recommended development settings:
@@ -353,7 +362,7 @@ RBAC_STARTUP_SYNC_ENABLED=true
 RBAC_STARTUP_SEED_ENABLED=true
 RBAC_STARTUP_SYNC_LIVE_KEYCLOAK=true
 RBAC_STARTUP_SYNC_USERS=true
-RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK=false
+RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK=true
 RBAC_STARTUP_SYNC_FAIL_ON_ERROR=false
 ```
 
@@ -363,7 +372,7 @@ Recommended production posture:
 - Keep portal DB as the source for permission metadata and launch metadata.
 - Use RBAC drift tools before applying changes.
 - Enable `RBAC_STARTUP_SYNC_FAIL_ON_ERROR=true` only when operational readiness requires sync failures to block startup.
-- Keep `RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK=false` unless intentionally promoting portal-defined roles into Keycloak.
+- Keep `RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK=true` when the portal should create missing registry clients and roles in Keycloak during startup. User access is still granted only after assigning the relevant client roles, such as `data-statistics_access`.
 
 ## Configuration
 
@@ -573,18 +582,18 @@ Used by `POST /api/v1/clients` and `PUT /api/v1/clients/:id`.
 
 ```json
 {
-  "name": "Report Browser",
-  "description": "Reports and dashboards",
-  "icon": "reporting",
-  "publicClient": false,
+  "name": "Data & Statistics",
+  "description": "Data quality, reports, surveillance, and dashboards",
+  "icon": "home",
+  "publicClient": true,
   "enabled": true,
-  "rootUrl": "https://reports.example.org",
-  "baseUrl": "/portal/apps/dwh/reports",
+  "rootUrl": "https://portal.example.org/portal/apps/dwh",
+  "baseUrl": "/portal/apps/dwh",
   "adminUrl": "",
-  "redirectUris": ["https://reports.example.org/*"],
-  "webOrigins": ["https://reports.example.org"],
+  "redirectUris": ["https://portal.example.org/portal/*"],
+  "webOrigins": ["https://portal.example.org"],
   "attributes": {
-    "category": "reporting"
+    "category": "platform"
   }
 }
 ```
@@ -595,9 +604,9 @@ Add/remove roles for a user and client:
 
 ```json
 {
-  "clientId": "report-browser",
+  "clientId": "data-statistics",
   "clientUuid": "optional-keycloak-client-uuid",
-  "roles": ["report_browser_access", "report_admin"]
+  "roles": ["data-statistics_access", "report_admin"]
 }
 ```
 
@@ -616,7 +625,7 @@ Dynamic RBAC user access is managed through `PUT /api/v1/admin/rbac/user-access/
   "realmRoles": ["admin"],
   "clientRoles": {
     "dashboard-web": ["dashboard-web_access"],
-    "report-browser": ["report-browser_access", "report_admin"]
+    "data-statistics": ["data-statistics_access", "report_admin"]
   },
   "permissions": ["portal:access", "report_browser:read"]
 }
@@ -634,14 +643,15 @@ Create announcement:
   "level": "information",
   "tag": "surveillance",
   "link_url": "/portal/apps/dwh/surveillance",
+  "link_label": "Open surveillance dashboard",
   "priority": 5,
   "is_pinned": true,
   "status": "draft",
   "publish_at": "2026-06-16T09:00:00Z",
   "expires_at": "2026-07-16T09:00:00Z",
   "audience_type": "client",
-  "client_ids": ["integrated-outbreak-system"],
-  "role_names": ["integrated-outbreak-system_access"],
+  "client_ids": ["outbreak-management"],
+  "role_names": ["outbreak-management_access"],
   "user_ids": [],
   "notify_by_email": true
 }
@@ -679,6 +689,12 @@ Publish or schedule with transient email attachments:
 ```
 
 For transient email attachments, provide exactly one of `path` or `data_base64`.
+Persistent announcement attachments are stored as announcement assets and exposed
+through `download_url`. When an announcement is published with email delivery,
+attachments marked `include_in_email` are sent with the email and also rendered
+as secure download links in the announcement email template. If `link_url` is set,
+the template and News & Updates UI use `link_label` as the call-to-action text,
+falling back to a generic label when it is omitted.
 
 #### Email Payload
 
@@ -768,12 +784,12 @@ Update system metadata:
 
 ```json
 {
-  "clientId": "report-browser",
-  "displayName": "Report Browser",
-  "description": "Reports and dashboards",
-  "icon": "reporting",
-  "launchUrl": "/portal/apps/dwh/reports",
-  "category": "reporting",
+  "clientId": "data-statistics",
+  "displayName": "Data & Statistics",
+  "description": "Data quality, reports, surveillance, and dashboards",
+  "icon": "home",
+  "launchUrl": "/portal/apps/dwh",
+  "category": "platform",
   "ownerTeam": "Analytics",
   "ownerName": "System Owner",
   "ownerEmail": "owner@example.org",
@@ -1070,9 +1086,13 @@ Mounted under `/api/v1/admin/notifications`.
 | `GET` | `/count` | `notifications:read` | Count notifications. |
 | `GET` | `/count/unread` | `notifications:read` | Count unread notifications. |
 | `DELETE` | `/cleanup` | `notifications:write` | Delete old notifications. |
+| `GET` | `/:id/deliveries` | `notifications:read` | List delivery history and status records for a notification. |
+| `POST` | `/deliveries/:deliveryID/retry` | `notifications:write` | Requeue a failed, retry, or cancelled notification delivery. |
 | `GET` | `/:id` | `notifications:read` | Get notification. |
 | `PATCH` | `/:id/read` | `notifications:read` | Mark notification as read. |
 | `DELETE` | `/:id` | `notifications:write` | Delete notification. |
+
+Notification delivery statuses include `PENDING`, `PROCESSING`, `SENT`, `FAILED`, `RETRY`, and `CANCELLED`.
 
 ### Email
 
@@ -1166,7 +1186,7 @@ Mounted under `/api/v1/issues`.
 
 ### Surveillance
 
-Mounted under `/api/v1/surveillance`. Requires access to the integrated outbreak system plus route-specific surveillance permissions.
+Mounted under `/api/v1/surveillance`. Requires access to the outbreak management plus route-specific surveillance permissions.
 
 | Method | Path | Permission | Purpose |
 | --- | --- | --- | --- |
@@ -1343,4 +1363,40 @@ frontend/apps/*/README.md
 frontend/packages/*/README.md
 ```
 
-Use this root README for system-level architecture, development, deployment, and API reference. Use module READMEs for module-specific UI behavior and ownership.
+Backend docs:
+
+| Document | Purpose |
+| --- | --- |
+| [`backend/README.md`](backend/README.md) | Backend architecture, module boundaries, operations, and verification. |
+| [`docs/api-reference.md`](docs/api-reference.md) | Human-readable API endpoint map and payload notes. |
+| [`backend/docs/openapi.yaml`](backend/docs/openapi.yaml) | Machine-readable OpenAPI starter contract. |
+| [`docs/versioning.md`](docs/versioning.md) | Backend SemVer, build metadata, and image tag policy. |
+| [`docs/releasing-backend.md`](docs/releasing-backend.md) | Verified backend release workflow and artifacts. |
+| [`docs/deployment.md`](docs/deployment.md) | Immutable backend deployment and runtime verification. |
+| [`docs/rollback.md`](docs/rollback.md) | Automated and manual backend rollback procedure. |
+
+RBAC and onboarding docs:
+
+| Document | Purpose |
+| --- | --- |
+| [`docs/rbac-keycloak-sync.md`](docs/rbac-keycloak-sync.md) | Keycloak/client/role sync operating model. |
+| [`docs/rbac-governance.md`](docs/rbac-governance.md) | RBAC governance center behavior and workflows. |
+| [`docs/rbac-usage.md`](docs/rbac-usage.md) | How RBAC permissions are used by backend and frontend. |
+| [`docs/system-onboarding.md`](docs/system-onboarding.md) | How to onboard a new Keycloak client/system. |
+| [`docs/tooling.md`](docs/tooling.md) | Project-wide doctor/audit/tooling commands. |
+
+Frontend docs:
+
+| Document | Purpose |
+| --- | --- |
+| [`frontend/README.md`](frontend/README.md) | Frontend workspace overview. |
+| [`frontend/docs/architecture.md`](frontend/docs/architecture.md) | Frontend app/package architecture. |
+| [`frontend/docs/development.md`](frontend/docs/development.md) | Local development modes. |
+| [`frontend/docs/build-and-deployment.md`](frontend/docs/build-and-deployment.md) | Build, Docker, import-map, and deployment modes. |
+| [`frontend/docs/import-maps.md`](frontend/docs/import-maps.md) | Import map behavior. |
+| [`frontend/docs/package-publishing.md`](frontend/docs/package-publishing.md) | npm package publish readiness. |
+| [`frontend/docs/versioning.md`](frontend/docs/versioning.md) | App/package versioning strategy. |
+| [`frontend/docs/verification.md`](frontend/docs/verification.md) | Frontend verification commands. |
+| [`frontend/docs/troubleshooting.md`](frontend/docs/troubleshooting.md) | Common frontend issues. |
+
+Use this root README for system-level orientation. Use module READMEs for module-specific UI behavior and ownership, `backend/README.md` for backend implementation rules, and `docs/api-reference.md` for endpoint lookup.

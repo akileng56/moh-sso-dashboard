@@ -13,6 +13,7 @@ import {
 import {
   Activity,
   Api,
+  Application,
   Bullhorn,
   Dashboard,
   Email,
@@ -34,11 +35,17 @@ import {
 } from "@moh-sso/ui";
 
 import { API } from "@moh-sso/config";
-import { useGetNotificationsQuery, useGetUnreadNotificationsCountQuery } from "@moh-sso/api";
+import {
+  useDeleteNotificationMutation,
+  useGetNotificationsQuery,
+  useGetUnreadNotificationsCountQuery,
+  useMarkNotificationAsReadMutation,
+} from "@moh-sso/api";
 import { PERMISSIONS, selectUser, useAuthorization } from "@moh-sso/auth";
 import type { Permission } from "@moh-sso/auth";
 
 import { RouteBreadcrumbBar } from "@/app/navigation/RouteBreadcrumbBar";
+import { NotificationDetailPanel } from "./NotificationDetailPanel";
 
 import "./admin-layout.scss";
 
@@ -57,6 +64,7 @@ type AdminNavItem = {
   icon: CarbonIconComponent;
   exact?: boolean;
   requiredPermission?: Permission;
+  requiredAnyPermissions?: Permission[];
 };
 
 const ADMIN_NAV_ITEMS: AdminNavItem[] = [
@@ -66,43 +74,56 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     path: "/admin",
     icon: Dashboard,
     exact: true,
+    requiredPermission: PERMISSIONS.portalAccess,
   },
   {
     id: "users",
     label: "Users",
     path: "/admin/users",
     icon: UserMultiple,
+    requiredPermission: PERMISSIONS.usersRead,
   },
   {
     id: "clients",
     label: "Clients",
     path: "/admin/clients",
     icon: Api,
+    requiredPermission: PERMISSIONS.clientsRead,
+  },
+  {
+    id: "systems",
+    label: "Systems",
+    path: "/admin/systems",
+    icon: Application,
+    requiredAnyPermissions: [PERMISSIONS.systemsRead, PERMISSIONS.rbacRead],
   },
   {
     id: "announcements",
     label: "Announcements",
     path: "/admin/announcements",
     icon: Bullhorn,
+    requiredPermission: PERMISSIONS.announcementsRead,
   },
   {
     id: "emails",
     label: "Emails",
     path: "/admin/emails",
     icon: Email,
+    requiredAnyPermissions: [PERMISSIONS.emailRead, PERMISSIONS.emailManage],
   },
   {
     id: "audit-logs",
     label: "Audits",
     path: "/admin/audit-logs",
     icon: Activity,
+    requiredPermission: PERMISSIONS.auditRead,
   },
   {
     id: "rbac",
     label: "RBAC",
     path: "/admin/rbac",
     icon: UserRole,
-    requiredPermission: PERMISSIONS.rbacRolesWrite,
+    requiredAnyPermissions: [PERMISSIONS.rbacRead, PERMISSIONS.rbacRolesWrite],
   },
 ];
 
@@ -117,18 +138,29 @@ function isActiveRoute(pathname: string, item: AdminNavItem): boolean {
 function HeaderActions() {
   const user = useSelector(selectUser);
   const { openPanel } = useHeaderPanel();
+  const { can } = useAuthorization();
 
   const {
     data: notifications = [],
     isLoading: isLoadingNotifications,
-    refetch,
+    refetch: refetchUnreadNotifications,
   } = useGetNotificationsQuery({
     unread: true,
     limit: 10,
     offset: 0,
   });
+  const {
+    data: recentNotifications = [],
+    isLoading: isLoadingRecentNotifications,
+    refetch: refetchRecentNotifications,
+  } = useGetNotificationsQuery({
+    limit: 20,
+    offset: 0,
+  });
 
   const { data: unreadCount = 0 } = useGetUnreadNotificationsCountQuery();
+  const [markNotificationAsRead] = useMarkNotificationAsReadMutation();
+  const [deleteNotification] = useDeleteNotificationMutation();
 
   const safeUnreadCount = Number(unreadCount) || 0;
 
@@ -143,9 +175,32 @@ function HeaderActions() {
         <div className="notifications-header-panel">
           <NotificationsPanel
             notifications={notifications}
+            recentNotifications={recentNotifications}
             isLoading={isLoadingNotifications}
-            onMarkRead={() => {
-              refetch();
+            isLoadingRecent={isLoadingRecentNotifications}
+            onMarkRead={(id) => {
+              void markNotificationAsRead(id).then(() => {
+                void refetchUnreadNotifications();
+                void refetchRecentNotifications();
+              });
+            }}
+            onDelete={(id) => {
+              void deleteNotification(id).then(() => {
+                void refetchUnreadNotifications();
+                void refetchRecentNotifications();
+              });
+            }}
+            onView={(notification) => {
+              openPanel({
+                title: "Notification details",
+                size: "md",
+                content: (
+                  <NotificationDetailPanel
+                    notification={notification}
+                    canRetryDelivery={can(PERMISSIONS.notificationsWrite)}
+                  />
+                ),
+              });
             }}
           />
         </div>
@@ -188,12 +243,16 @@ function HeaderActions() {
 function AdminSideNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { can } = useAuthorization();
+  const { can, canAny } = useAuthorization();
 
   const navItems = useMemo(
     () =>
-      ADMIN_NAV_ITEMS.filter((item) => !item.requiredPermission || can(item.requiredPermission)),
-    [can],
+      ADMIN_NAV_ITEMS.filter(
+        (item) =>
+          (!item.requiredPermission || can(item.requiredPermission)) &&
+          (!item.requiredAnyPermissions || canAny(item.requiredAnyPermissions)),
+      ),
+    [can, canAny],
   );
 
   return (
