@@ -1,11 +1,12 @@
 import DataList from "../../../data-visualizer/src/pages/components/data-table/data-table.component.tsx";
 import {Button, Dropdown, Popover, PopoverContent, ComboBox, Search, TreeView} from "@carbon/react";
-import {Add, Filter, ChevronDown} from "@carbon/react/icons";
+import {Add, Filter, ChevronDown, Upload, Download} from "@carbon/react/icons";
 import "./issue-tracker.scss";
-import {useEffect, useState, useCallback, useRef} from "react";
+import {useEffect, useState, useCallback, useRef, useMemo} from "react";
 import {IssueModal} from "../component/issue-modal.component.tsx";
+import {ImportIssuesModal} from "../component/import-issues-modal.component.tsx";
 import { useGetIssuesQuery } from "@moh-sso/api";
-import { headers } from "../lib/constants.ts";
+import { headers, IMPORT_TEMPLATE_HEADERS } from "../lib/constants.ts";
 import IssueDetail from "./issue-detail/issue-detail.component.tsx";
 import {getAvailablePeriods, periodType} from "../../../data-visualizer/src/pages/Constants.tsx";
 import {
@@ -15,6 +16,7 @@ import {
 } from "../../../data-visualizer/src/pages/modals/data-model/data-model.ts";
 import {useGetHierarchyQuery} from "../../../data-visualizer/src/pages/modals/orgunit/org-unit.ts";
 import {OrgUnitNode} from "../component/tree-node.component.tsx";
+import * as XLSX from "xlsx";
 
 export type Issue = {
   id?: string;
@@ -39,10 +41,12 @@ export type Issue = {
 const IssueTracker = () => {
   const CURRENT_YEAR = new Date().getFullYear();
   const [showModal, setShowModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
   const [issues, setIssues] = useState<Issue[]>([]);
   const { data, isLoading, error } = useGetIssuesQuery();
   const [selectedIssue, setSelectedIssue] = useState<Issue>();
   const [isViewIssueDetail, setIsViewIssueDetail] = useState(false);
+  const [tableSearchTerm, setTableSearchTerm] = useState("");
 
   // Period Filters
   const [selectedYear, setSelectedYear] = useState(CURRENT_YEAR);
@@ -72,6 +76,30 @@ const IssueTracker = () => {
 
   const close = () => {
     setShowModal(false);
+  };
+
+  const closeImportModal = () => {
+    setShowImportModal(false);
+  };
+
+  const downloadTemplate = () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      IMPORT_TEMPLATE_HEADERS,
+      [
+        "Example Dataset",
+        "Example Data Element",
+        "Example Org Unit",
+        "Example issue description",
+        "Outliers",
+        "High",
+        "Moderate",
+        "2025Q1",
+      ],
+    ]);
+    ws["!cols"] = IMPORT_TEMPLATE_HEADERS.map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(wb, ws, "Issues Template");
+    XLSX.writeFile(wb, "issue-import-template.xlsx");
   };
 
   useEffect(() => {
@@ -105,6 +133,15 @@ const IssueTracker = () => {
       console.error("Error Encountered while fetching issues:: " + error)
     }
   }, [data, error, isLoading]);
+
+  const filteredIssues = useMemo(() => {
+    if (!tableSearchTerm.trim()) return issues;
+    const term = tableSearchTerm.toLowerCase();
+    return issues.filter(issue =>
+      [issue.issue_code, issue.dataset, issue.data_element, issue.issue, issue.status, issue.org_unit, issue.date_reported, issue.issue_type]
+        .some(field => field?.toLowerCase().includes(term))
+    );
+  }, [issues, tableSearchTerm]);
 
   const handleIssueClick = (issue) => {
     const selectedItem = issues?.find(item => item?.issue_id.toString() === issue?.id);
@@ -268,15 +305,33 @@ const IssueTracker = () => {
                 <div>
                   <span className="issue-label"> Registered Issues </span>
                 </div>
-                <Button
-                    size="md"
-                    kind="primary"
-                    renderIcon={Add}
-                    className={`dwh-btn-width`}
-                    onClick={()=> setShowModal(true)}
-                >
-                  New Issue
-                </Button>
+                <div className="issue-toolbar-actions">
+                  <Button
+                      size="md"
+                      kind="ghost"
+                      renderIcon={Download}
+                      onClick={downloadTemplate}
+                  >
+                    Template
+                  </Button>
+                  <Button
+                      size="md"
+                      kind="secondary"
+                      renderIcon={Upload}
+                      onClick={() => setShowImportModal(true)}
+                  >
+                    Import Issues
+                  </Button>
+                  <Button
+                      size="md"
+                      kind="primary"
+                      renderIcon={Add}
+                      className={`dwh-btn-width`}
+                      onClick={()=> setShowModal(true)}
+                  >
+                    New Issue
+                  </Button>
+                </div>
               </div>
 
 
@@ -446,10 +501,23 @@ const IssueTracker = () => {
                     </div>
                   </div>
                 </div>
-                <DataList columns={headers} data={issues} handleIssueClick={handleIssueClick} closeView={() => setIsViewIssueDetail(false)}/>
+                <div className="issue-table-search">
+                  <Search
+                    labelText="Search issues"
+                    placeholder="Search by issue code, dataset, data element, issue, status, org unit..."
+                    value={tableSearchTerm}
+                    onChange={(e) => setTableSearchTerm(e.target.value)}
+                    size="lg"
+                    closeButtonLabelText="Clear search"
+                  />
+                </div>
+                <DataList columns={headers} data={filteredIssues} handleIssueClick={handleIssueClick} closeView={() => setIsViewIssueDetail(false)}/>
               </div>
               {
                   showModal && <IssueModal onClose={close}/>
+              }
+              {
+                  showImportModal && <ImportIssuesModal onClose={closeImportModal}/>
               }
             </>
         )}
