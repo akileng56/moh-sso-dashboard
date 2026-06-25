@@ -15,35 +15,26 @@ func RegisterProtectedRoutes(
 	{
 		issues.POST(
 			"",
-			middleware.RequirePermission(authz.PermissionIssueTrackerWrite),
 			handler.CreateIssue,
 		)
 
 		issues.GET(
 			"",
-			middleware.RequirePermission(authz.PermissionIssueTrackerRead),
 			handler.ListIssues,
 		)
 
 		issues.PUT(
 			"/:issueCode",
-			middleware.RequirePermission(authz.PermissionIssueTrackerWrite),
 			handler.UpdateIssue,
 		)
 
 		issues.POST(
 			"/:issueCode/resolveIssue",
-			middleware.RequireAnyPermission(
-				authz.PermissionIssueTrackerComment,
-				authz.PermissionIssueTrackerManage,
-				authz.PermissionIssueTrackerClose,
-			),
 			handler.ResolveIssue,
 		)
 
 		issues.GET(
 			"/:issueCode/transactions",
-			middleware.RequirePermission(authz.PermissionIssueTrackerRead),
 			handler.ListIssueResolutionTransactions,
 		)
 	}
