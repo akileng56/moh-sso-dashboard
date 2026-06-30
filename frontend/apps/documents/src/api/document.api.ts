@@ -5,8 +5,8 @@ import type {
   DocumentResponse,
   StorageLocation,
   UpdateDocumentPayload,
-} from "@moh-sso/types";
-import { baseApi } from "./baseApi";
+} from "../types";
+import { baseApi } from "@moh-sso/api";
 
 type ApiEnvelope<T> = {
   success: boolean;

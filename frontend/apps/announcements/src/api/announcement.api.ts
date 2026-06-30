@@ -11,9 +11,9 @@ import type {
   ScheduleAnnouncementRequest,
   SetAnnouncementPinnedRequest,
   SetAnnouncementPriorityRequest,
-} from "@moh-sso/types";
+} from "../types";
 import { API } from "@moh-sso/config";
-import { baseApi } from "./baseApi";
+import { baseApi } from "@moh-sso/api";
 
 type ApiEnvelope<T> = {
   success: boolean;

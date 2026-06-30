@@ -5,9 +5,9 @@ import type {
   Announcement,
   CreateAnnouncementRequest,
   UpdateAnnouncementRequest,
-} from "@moh-sso/types";
+} from "../types";
 
-import { useCreateAnnouncementMutation, useUpdateAnnouncementMutation } from "@moh-sso/api";
+import { useCreateAnnouncementMutation, useUpdateAnnouncementMutation } from "../api";
 
 import { AnnouncementForm } from "./announcements-form.component";
 import { AnnouncementAttachments } from "./announcement-attachments.component";

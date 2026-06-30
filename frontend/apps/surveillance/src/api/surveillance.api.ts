@@ -18,8 +18,8 @@ import type {
   FacilityWeeklyMetricTrend,
   DiseaseWeeklyTrendAggregate,
   FacilityWeeklyMetricRow,
-} from "@moh-sso/types";
-import { baseApi } from "./baseApi";
+} from "../types";
+import { baseApi } from "@moh-sso/api";
 
 type ApiEnvelope<T> = {
   success: boolean;

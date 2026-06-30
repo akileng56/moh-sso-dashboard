@@ -5,9 +5,9 @@ import type {
   AuditOverview,
   AuditTopFailureIpsFilters,
   AuditTopFailureIpsResponse,
-} from "@moh-sso/types";
+} from "../types";
 
-import { baseApi } from "./baseApi";
+import { baseApi } from "@moh-sso/api";
 
 type ApiEnvelope<T> = {
   success: boolean;

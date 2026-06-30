@@ -25,9 +25,9 @@ import {
   useLazyDownloadDocumentQuery,
   useLazyViewDocumentQuery,
   useReprocessDocumentMutation,
-} from "@moh-sso/api";
+} from "../../../api";
 import { PERMISSIONS, PermissionGuard } from "@moh-sso/auth";
-import type { DocumentProcess, DocumentResponse } from "@moh-sso/types";
+import type { DocumentProcess, DocumentResponse } from "../../../types";
 import { useToast } from "@moh-sso/ui";
 
 function StatusTag({ status }: { status: string }) {
