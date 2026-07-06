@@ -36,7 +36,7 @@ const ChartRenderer = ({
       setChartData([]);
       try {
         const data = await triggerGetDataValues(queryParams).unwrap();
-        const rows = data["rows"] || [];
+        const rows = data?.data?.["rows"] || [];
 
         const mappedPivotData =
           rows?.map((item) => ({
