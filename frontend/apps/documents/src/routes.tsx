@@ -4,13 +4,12 @@ export const documentsRoutes: MicrofrontendRoute[] = [
   {
     appName: "@moh-sso/documents",
     path: "/apps/dwh/documents",
-    paths: ["/apps/dwh/documents", "/apps/dwh/documents/*", "/apps/dwh/filesvr", "/apps/dwh/filesvr/*"],
+    paths: [
+      "/portal/apps/dwh/documents",
+      "/portal/apps/dwh/documents/:id",
+      "/portal/apps/dwh/documents/:id/preview",
+    ],
+    requiredSystems: ["data-statistics"],
     requiredAnyPermissions: ["documents:read"],
-  },
-  {
-    appName: "@moh-sso/documents",
-    path: "/apps/utilities/self-service/eservice/document-upload",
-    paths: ["/apps/utilities/self-service/eservice/document-upload"],
-    requiredAnyPermissions: ["documents:write"],
   },
 ];

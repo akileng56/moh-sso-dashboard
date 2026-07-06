@@ -75,6 +75,8 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.StorageLocations,
 		deps.FileStorage,
 		deps.StorageFactory,
+		deps.Databases.Primary,
+		deps.Databases.Remote,
 	)
 
 	storageLocationHandler := storagelocationfeature.NewHandler(
@@ -107,6 +109,8 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.DocumentTemplates,
 		deps.Services.DocumentTemplateSheets,
 		deps.Services.DocumentTemplateColumns,
+		deps.Databases.Primary,
+		deps.Databases.Remote,
 	)
 	documentTemplateSheetHandler := documenttemplatesfeature.NewSheetHandler(
 		deps.Services.DocumentTemplateSheets,

@@ -243,16 +243,6 @@ export default function SurveillanceDashboardPage() {
     [weeks, selectedWeekId],
   );
 
-  const currentEpiWeekLabel = useMemo(() => {
-    if (!selectedWeek) {
-      return "--";
-    }
-
-    return selectedWeek.epi_year && selectedWeek.epi_week
-      ? `${selectedWeek.epi_year} / Week ${selectedWeek.epi_week}`
-      : `Week ${selectedWeek.epi_week ?? "--"}`;
-  }, [selectedWeek]);
-
   const epiWeekOptions: FilterOption[] = useMemo(
     () => [
       {
@@ -513,13 +503,7 @@ export default function SurveillanceDashboardPage() {
         <div className="surveillance-dashboard-page__hero">
           <div className="surveillance-dashboard-page__hero-main">
             <div className="surveillance-dashboard-page__hero-copy">
-              <p className="surveillance-dashboard-page__eyebrow">
-                Epi Week: {currentEpiWeekLabel}
-              </p>
-
-              <h1 className="surveillance-dashboard-page__title">
-                National Surveillance Reporting Dashboard
-              </h1>
+              <h1 className="surveillance-dashboard-page__title">Surveillance Dashboard</h1>
 
               <p className="surveillance-dashboard-page__subtitle">
                 Monitor surveillance signals, reporting trends, alerts, and priority conditions
