@@ -109,11 +109,39 @@ func (h *Handler) announcementResponsesWithAttachments(
 		}
 		if adminLinks {
 			res[i] = toAnnouncementResponseWithAttachments(item, attachments)
+			h.attachAnnouncementAudience(ctx, item.ID, &res[i])
 		} else {
 			res[i] = toUserAnnouncementResponseWithAttachments(item, attachments)
 		}
 	}
 	return res
+}
+
+func (h *Handler) attachAnnouncementAudience(
+	c *gin.Context,
+	announcementID uuid.UUID,
+	res *AnnouncementResponse,
+) {
+	if h == nil || h.announcementService == nil || res == nil || announcementID == uuid.Nil {
+		return
+	}
+
+	clientIDs, err := h.announcementService.ListClientAudience(c.Request.Context(), announcementID)
+	if err != nil {
+		return
+	}
+
+	roleNames, err := h.announcementService.ListRoleAudience(c.Request.Context(), announcementID)
+	if err != nil {
+		return
+	}
+
+	userIDs, err := h.announcementService.ListUserAudience(c.Request.Context(), announcementID)
+	if err != nil {
+		return
+	}
+
+	*res = withAnnouncementAudience(*res, clientIDs, roleNames, userIDs)
 }
 
 func (h *Handler) ListAnnouncementsAdmin(c *gin.Context) {
@@ -146,7 +174,9 @@ func (h *Handler) GetAnnouncementByID(c *gin.Context) {
 	}
 
 	attachments, _ := h.announcementService.ListAttachments(c.Request.Context(), item.ID)
-	response.OK(c, http.StatusOK, toAnnouncementResponseWithAttachments(item, attachments))
+	res := toAnnouncementResponseWithAttachments(item, attachments)
+	h.attachAnnouncementAudience(c, item.ID, &res)
+	response.OK(c, http.StatusOK, res)
 }
 
 func (h *Handler) ListPublicAnnouncements(c *gin.Context) {
@@ -216,6 +246,8 @@ func (h *Handler) CreateAnnouncement(c *gin.Context) {
 		ExpiresAt:     expiresAt,
 		AudienceType:  req.AudienceType,
 		NotifyByEmail: req.NotifyByEmail,
+		NotifyBySMS:   req.NotifyBySMS,
+		SMSMessage:    nullableString(req.SMSMessage),
 		CreatedBy:     userID,
 	}
 
@@ -271,11 +303,14 @@ func (h *Handler) CreateAnnouncement(c *gin.Context) {
 				"status":          item.Status,
 				"is_pinned":       item.IsPinned,
 				"notify_by_email": item.NotifyByEmail,
+				"notify_by_sms":   req.NotifyBySMS,
 			},
 		)
 	}
 
-	response.OK(c, http.StatusCreated, toAnnouncementResponse(item))
+	res := toAnnouncementResponse(item)
+	h.attachAnnouncementAudience(c, item.ID, &res)
+	response.OK(c, http.StatusCreated, res)
 }
 
 func (h *Handler) UpdateAnnouncement(c *gin.Context) {
@@ -322,6 +357,8 @@ func (h *Handler) UpdateAnnouncement(c *gin.Context) {
 		ExpiresAt:     expiresAt,
 		AudienceType:  req.AudienceType,
 		NotifyByEmail: req.NotifyByEmail,
+		NotifyBySMS:   req.NotifyBySMS,
+		SMSMessage:    nullableString(req.SMSMessage),
 		UpdatedBy:     userID,
 	}
 
@@ -371,11 +408,14 @@ func (h *Handler) UpdateAnnouncement(c *gin.Context) {
 				"status":          item.Status,
 				"is_pinned":       item.IsPinned,
 				"notify_by_email": item.NotifyByEmail,
+				"notify_by_sms":   req.NotifyBySMS,
 			},
 		)
 	}
 
-	response.OK(c, http.StatusOK, toAnnouncementResponse(item))
+	res := toAnnouncementResponse(item)
+	h.attachAnnouncementAudience(c, item.ID, &res)
+	response.OK(c, http.StatusOK, res)
 }
 
 func (h *Handler) PublishAnnouncementNow(c *gin.Context) {
@@ -418,11 +458,14 @@ func (h *Handler) PublishAnnouncementNow(c *gin.Context) {
 				"title":                              item.Title,
 				"notify_by_email":                    item.NotifyByEmail,
 				"email_notification_sent_at_present": item.EmailNotificationSentAt.Valid,
+				"notify_by_sms":                      item.NotifyBySms,
+				"sms_notification_queued_at_present": item.SmsNotificationQueuedAt.Valid,
 			},
 		)
 	}
 
-	response.OK(c, http.StatusOK, toAnnouncementResponse(item))
+	res := toAnnouncementResponse(item)
+	response.OK(c, http.StatusOK, res)
 }
 
 func (h *Handler) MoveAnnouncementToDraft(c *gin.Context) {
@@ -457,7 +500,8 @@ func (h *Handler) MoveAnnouncementToDraft(c *gin.Context) {
 		)
 	}
 
-	response.OK(c, http.StatusOK, toAnnouncementResponse(item))
+	res := toAnnouncementResponse(item)
+	response.OK(c, http.StatusOK, res)
 }
 
 func (h *Handler) ScheduleAnnouncement(c *gin.Context) {
@@ -504,6 +548,7 @@ func (h *Handler) ScheduleAnnouncement(c *gin.Context) {
 				"announcement_id": item.ID.String(),
 				"title":           item.Title,
 				"publish_at":      item.PublishAt,
+				"notify_by_sms":   item.NotifyBySms,
 			},
 		)
 	}

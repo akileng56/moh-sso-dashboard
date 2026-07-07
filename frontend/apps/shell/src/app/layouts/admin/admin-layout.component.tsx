@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Content,
@@ -18,6 +18,7 @@ import {
   Dashboard,
   Email,
   Logout,
+  Menu,
   Notification,
   UserAvatarFilled,
   UserMultiple,
@@ -40,11 +41,12 @@ import {
   useGetNotificationsQuery,
   useGetUnreadNotificationsCountQuery,
   useMarkNotificationAsReadMutation,
-} from "@moh-sso/api";
+} from "../../api";
 import { PERMISSIONS, selectUser, useAuthorization } from "@moh-sso/auth";
 import type { Permission } from "@moh-sso/auth";
 
 import { RouteBreadcrumbBar } from "@/app/navigation/RouteBreadcrumbBar";
+import { useVersionInfo } from "@/app/version/useVersionInfo";
 import { NotificationDetailPanel } from "./NotificationDetailPanel";
 
 import "./admin-layout.scss";
@@ -62,6 +64,7 @@ type AdminNavItem = {
   label: string;
   path: string;
   icon: CarbonIconComponent;
+  group: "main" | "identity" | "communications" | "governance";
   exact?: boolean;
   requiredPermission?: Permission;
   requiredAnyPermissions?: Permission[];
@@ -73,6 +76,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Home",
     path: "/admin",
     icon: Dashboard,
+    group: "main",
     exact: true,
     requiredPermission: PERMISSIONS.portalAccess,
   },
@@ -81,6 +85,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Users",
     path: "/admin/users",
     icon: UserMultiple,
+    group: "identity",
     requiredPermission: PERMISSIONS.usersRead,
   },
   {
@@ -88,6 +93,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Clients",
     path: "/admin/clients",
     icon: Api,
+    group: "identity",
     requiredPermission: PERMISSIONS.clientsRead,
   },
   {
@@ -95,6 +101,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Systems",
     path: "/admin/systems",
     icon: Application,
+    group: "identity",
     requiredAnyPermissions: [PERMISSIONS.systemsRead, PERMISSIONS.rbacRead],
   },
   {
@@ -102,6 +109,7 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Announcements",
     path: "/admin/announcements",
     icon: Bullhorn,
+    group: "communications",
     requiredPermission: PERMISSIONS.announcementsRead,
   },
   {
@@ -109,13 +117,23 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "Emails",
     path: "/admin/emails",
     icon: Email,
+    group: "communications",
     requiredAnyPermissions: [PERMISSIONS.emailRead, PERMISSIONS.emailManage],
+  },
+  {
+    id: "notification-deliveries",
+    label: "Deliveries",
+    path: "/admin/notifications/deliveries",
+    icon: Notification,
+    group: "communications",
+    requiredPermission: PERMISSIONS.notificationsRead,
   },
   {
     id: "audit-logs",
     label: "Audits",
     path: "/admin/audit-logs",
     icon: Activity,
+    group: "governance",
     requiredPermission: PERMISSIONS.auditRead,
   },
   {
@@ -123,9 +141,30 @@ const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     label: "RBAC",
     path: "/admin/rbac",
     icon: UserRole,
+    group: "governance",
     requiredAnyPermissions: [PERMISSIONS.rbacRead, PERMISSIONS.rbacRolesWrite],
   },
 ];
+
+const ADMIN_NAV_GROUPS: Array<{
+  id: AdminNavItem["group"];
+  label: string;
+}> = [
+  { id: "main", label: "Overview" },
+  { id: "identity", label: "Access" },
+  { id: "communications", label: "Messaging" },
+  { id: "governance", label: "Governance" },
+];
+
+const ADMIN_SIDENAV_STORAGE_KEY = "moh.adminLayout.sideNavVisible";
+
+function readStoredSideNavVisible(): boolean {
+  if (typeof window === "undefined") {
+    return true;
+  }
+
+  return window.localStorage.getItem(ADMIN_SIDENAV_STORAGE_KEY) !== "false";
+}
 
 function isActiveRoute(pathname: string, item: AdminNavItem): boolean {
   if (item.exact) {
@@ -209,7 +248,7 @@ function HeaderActions() {
   };
 
   return (
-    <HeaderGlobalBar>
+    <>
       <HeaderGlobalAction
         aria-label={
           safeUnreadCount > 0 ? `Notifications, ${safeUnreadCount} unread` : "Notifications"
@@ -236,11 +275,16 @@ function HeaderActions() {
       <HeaderGlobalAction aria-label="Logout" tooltipAlignment="end" onClick={handleLogout}>
         <Logout size={20} />
       </HeaderGlobalAction>
-    </HeaderGlobalBar>
+    </>
   );
 }
 
-function AdminSideNav() {
+type AdminSideNavProps = {
+  visible: boolean;
+  onToggleVisibility: () => void;
+};
+
+function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { can, canAny } = useAuthorization();
@@ -256,39 +300,101 @@ function AdminSideNav() {
   );
 
   return (
-    <SideNav isFixedNav expanded aria-label="Admin navigation" className="admin-layout__sidenav">
-      <SideNavItems>
-        {navItems.map((item) => {
-          const active = isActiveRoute(location.pathname, item);
+    <>
+      {!visible ? (
+        <button
+          type="button"
+          className="admin-layout__sidenav-toggle admin-layout__sidenav-toggle--rail"
+          aria-label="Show navigation"
+          aria-controls="admin-sidenav"
+          aria-expanded={false}
+          onClick={onToggleVisibility}
+        >
+          <Menu size={22} />
+        </button>
+      ) : null}
 
-          return (
-            <SideNavLink
-              key={item.id}
-              isActive={active}
-              aria-current={active ? "page" : undefined}
-              renderIcon={item.icon}
-              onClick={() => {
-                if (location.pathname !== item.path) {
-                  navigate(item.path);
-                }
-              }}
+      <SideNav
+        id="admin-sidenav"
+        isFixedNav
+        expanded
+        aria-hidden={!visible}
+        aria-label="Admin navigation"
+        className={`admin-layout__sidenav${visible ? "" : " admin-layout__sidenav--hidden"}`}
+      >
+        <SideNavItems>
+          <div className="admin-layout__sidenav-header">
+            <div className="admin-layout__sidenav-heading">
+              <span className="admin-layout__sidenav-kicker">Administration</span>
+              <span className="admin-layout__sidenav-title">Portal Console</span>
+            </div>
+
+            <button
+              type="button"
+              className="admin-layout__sidenav-toggle"
+              aria-label="Hide navigation"
+              aria-controls="admin-sidenav"
+              aria-expanded={visible}
+              onClick={onToggleVisibility}
             >
-              {item.label}
-            </SideNavLink>
-          );
-        })}
-      </SideNavItems>
-    </SideNav>
+              <Menu size={22} />
+            </button>
+          </div>
+
+          {ADMIN_NAV_GROUPS.map((group) => {
+            const groupItems = navItems.filter((item) => item.group === group.id);
+
+            if (groupItems.length === 0) {
+              return null;
+            }
+
+            return (
+              <div key={group.id} className="admin-layout__sidenav-group">
+                <div className="admin-layout__sidenav-group-label">{group.label}</div>
+
+                {groupItems.map((item) => {
+                  const active = isActiveRoute(location.pathname, item);
+
+                  return (
+                    <SideNavLink
+                      key={item.id}
+                      isActive={active}
+                      aria-current={active ? "page" : undefined}
+                      renderIcon={item.icon}
+                      onClick={() => {
+                        if (location.pathname !== item.path) {
+                          navigate(item.path);
+                        }
+                      }}
+                    >
+                      {item.label}
+                    </SideNavLink>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </SideNavItems>
+      </SideNav>
+    </>
   );
 }
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const [isSideNavVisible, setIsSideNavVisible] = useState(readStoredSideNavVisible);
+  const versionInfo = useVersionInfo();
+
+  useEffect(() => {
+    window.localStorage.setItem(ADMIN_SIDENAV_STORAGE_KEY, String(isSideNavVisible));
+  }, [isSideNavVisible]);
 
   return (
     <ToastProvider>
       <HeaderPanelProvider>
-        <div className="admin-layout">
+        <div
+          className={`admin-layout${isSideNavVisible ? "" : " admin-layout--sidenav-hidden"}`}
+        >
           <Header aria-label="MOH Integrated Health Portal" className="admin-layout__header">
             <div className="admin-layout__brand">
               <button
@@ -314,10 +420,15 @@ export default function AdminLayout() {
               </HeaderName>
             </div>
 
-            <HeaderActions />
+            <HeaderGlobalBar>
+              <HeaderActions />
+            </HeaderGlobalBar>
           </Header>
 
-          <AdminSideNav />
+          <AdminSideNav
+            visible={isSideNavVisible}
+            onToggleVisibility={() => setIsSideNavVisible((visible) => !visible)}
+          />
 
           <div className="admin-layout__content-shell">
             <RouteBreadcrumbBar />
@@ -326,7 +437,11 @@ export default function AdminLayout() {
               <Outlet />
             </Content>
           </div>
-          <PublicFooter />
+          <PublicFooter
+            frontendVersion={versionInfo.frontend.version}
+            backendVersion={versionInfo.backend?.version}
+            backendUnavailable={!versionInfo.isLoading && !versionInfo.backend}
+          />
         </div>
       </HeaderPanelProvider>
     </ToastProvider>

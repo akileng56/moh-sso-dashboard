@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { SideNav, SideNavItems, SideNavLink, SideNavMenu } from "@carbon/react";
+import { Menu } from "@carbon/react/icons";
 
 import type { Client } from "@moh-sso/types";
 
@@ -42,15 +43,27 @@ function isActivePath(currentPath: string, itemPath?: string): boolean {
 
 function sortItems(items: SideNavItem[]): SideNavItem[] {
   return [...items].sort((a, b) => {
-    const aOrder = typeof a.order === "number" ? a.order : Number.MAX_SAFE_INTEGER;
-    const bOrder = typeof b.order === "number" ? b.order : Number.MAX_SAFE_INTEGER;
+    const aHasOrder = typeof a.order === "number";
+    const bHasOrder = typeof b.order === "number";
+    const aOrder = aHasOrder ? a.order! : Number.MAX_SAFE_INTEGER;
+    const bOrder = bHasOrder ? b.order! : Number.MAX_SAFE_INTEGER;
 
     if (aOrder !== bOrder) {
       return aOrder - bOrder;
     }
 
+    if (!aHasOrder && !bHasOrder) {
+      return 0;
+    }
+
     return a.label.localeCompare(b.label);
   });
+}
+
+function getClientOrder(client: Client): number {
+  const order = Number(client.attributes?.["ui.order"]);
+
+  return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
 }
 
 function isValidSideNavItem(value: unknown): value is SideNavItem {
@@ -61,6 +74,53 @@ function isValidSideNavItem(value: unknown): value is SideNavItem {
   const item = value as Partial<SideNavItem>;
 
   return typeof item.id === "string" && typeof item.label === "string";
+}
+
+function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
+  const normalizedItems = items
+    .filter((item) => item.id !== "data-exports" && normalizePath(item.path) !== "/apps/dwh/exports")
+    .map((item) => {
+      const children = item.children ? normalizeLegacySideNavItems(item.children) : undefined;
+      const itemPath = normalizePath(item.path);
+
+      if (itemPath === "/apps/dwh" || itemPath === "/apps/dwh/reports" || itemPath === "/apps/dwh/dashboards") {
+        return {
+          ...item,
+          id: "dashboards",
+          label: "Dashboards",
+          path: "/apps/dwh/dashboards",
+          children,
+        };
+      }
+
+      if (itemPath === "/apps/dwh/filesvr") {
+        return {
+          ...item,
+          id: item.id === "file-svr" ? "documents" : item.id,
+          label: item.label === "File Upload" ? "Documents" : item.label,
+          path: "/apps/dwh/documents",
+          children,
+        };
+      }
+
+      return {
+        ...item,
+        children,
+      };
+    });
+
+  const seen = new Set<string>();
+
+  return normalizedItems.filter((item) => {
+    const key = normalizePath(item.path) || item.id;
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
 }
 
 function parseSideNav(client: Client): SideNavItem[] {
@@ -77,7 +137,7 @@ function parseSideNav(client: Client): SideNavItem[] {
       return [];
     }
 
-    return parsed.filter(isValidSideNavItem);
+    return normalizeLegacySideNavItems(parsed.filter(isValidSideNavItem));
   } catch {
     return [];
   }
@@ -202,6 +262,8 @@ type ClientSideNavProps = {
   currentPath: string;
   onNavigate: (path: string) => void;
   hasPermission?: (permission: string) => boolean;
+  visible?: boolean;
+  onToggleVisibility?: () => void;
 };
 
 export function ClientSideNav({
@@ -210,6 +272,8 @@ export function ClientSideNav({
   currentPath,
   onNavigate,
   hasPermission,
+  visible = true,
+  onToggleVisibility,
 }: ClientSideNavProps) {
   const navClients = useMemo(() => {
     return clients
@@ -222,7 +286,16 @@ export function ClientSideNav({
           items: sortItems(items),
         };
       })
-      .filter(({ items }) => items.length > 0);
+      .filter(({ items }) => items.length > 0)
+      .sort((a, b) => {
+        const orderDiff = getClientOrder(a.client) - getClientOrder(b.client);
+
+        if (orderDiff !== 0) {
+          return orderDiff;
+        }
+
+        return getClientLabel(a.client).localeCompare(getClientLabel(b.client));
+      });
   }, [clients, hasPermission]);
 
   if (navClients.length === 0) {
@@ -238,33 +311,75 @@ export function ClientSideNav({
   };
 
   return (
-    <SideNav isFixedNav expanded aria-label="Application navigation">
-      <SideNavItems>
-        {navClients.map(({ client, items }) => {
-          const clientActive =
-            client.clientId === activeClient?.clientId ||
-            items.some((item) => hasActiveChild(item, currentPath));
+    <>
+      {!visible && onToggleVisibility ? (
+        <button
+          type="button"
+          className="moh-client-sidenav__toggle moh-client-sidenav__toggle--rail"
+          aria-label="Show navigation"
+          aria-controls="user-sidenav"
+          aria-expanded={false}
+          onClick={onToggleVisibility}
+        >
+          <Menu size={22} />
+        </button>
+      ) : null}
 
-          return (
-            <SideNavMenu
-              key={client.clientId}
-              title={getClientLabel(client)}
-              defaultExpanded={clientActive}
-              isActive={clientActive}
-            >
-              {items.map((item) => (
-                <RenderSideNavItem
-                  key={item.id}
-                  item={item}
-                  currentPath={currentPath}
-                  onNavigate={handleNavigate}
-                />
-              ))}
-            </SideNavMenu>
-          );
-        })}
-      </SideNavItems>
-    </SideNav>
+      <SideNav
+        id="user-sidenav"
+        isFixedNav
+        expanded
+        aria-hidden={!visible}
+        aria-label="Application navigation"
+        className="moh-client-sidenav"
+      >
+        <SideNavItems>
+          <div className="moh-client-sidenav__header">
+            <div className="moh-client-sidenav__heading">
+              <span className="moh-client-sidenav__kicker">Applications</span>
+              <span className="moh-client-sidenav__title">Workspace</span>
+            </div>
+
+            {onToggleVisibility ? (
+              <button
+                type="button"
+                className="moh-client-sidenav__toggle"
+                aria-label="Hide navigation"
+                aria-controls="user-sidenav"
+                aria-expanded={visible}
+                onClick={onToggleVisibility}
+              >
+                <Menu size={22} />
+              </button>
+            ) : null}
+          </div>
+
+          {navClients.map(({ client, items }) => {
+            const clientActive =
+              client.clientId === activeClient?.clientId ||
+              items.some((item) => hasActiveChild(item, currentPath));
+
+            return (
+              <SideNavMenu
+                key={client.clientId}
+                title={getClientLabel(client)}
+                defaultExpanded={clientActive}
+                isActive={clientActive}
+              >
+                {items.map((item) => (
+                  <RenderSideNavItem
+                    key={item.id}
+                    item={item}
+                    currentPath={currentPath}
+                    onNavigate={handleNavigate}
+                  />
+                ))}
+              </SideNavMenu>
+            );
+          })}
+        </SideNavItems>
+      </SideNav>
+    </>
   );
 }
 

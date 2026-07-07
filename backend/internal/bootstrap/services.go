@@ -26,6 +26,7 @@ type services struct {
 	Email                   service.EmailService
 	EmailFeature            *emailfeature.Service
 	SMTP                    worker.EmailSender
+	SMS                     service.SMSService
 	Notifications           service.NotificationsService
 	Auth                    service.AuthService
 	Metrics                 *service.MetricsService
@@ -90,6 +91,18 @@ func buildServices(deps serviceDependencies) services {
 	}
 
 	deps.Logger.Info("Email application service initialized")
+
+	smsService, err := service.NewSMSService(deps.Config, deps.Logger)
+	if err != nil {
+		deps.Logger.Fatal("Failed to initialize SMS service: ", err)
+	}
+
+	if deps.Config.SMS.Enabled {
+		deps.Logger.Info("SMS service initialized", "provider", deps.Config.SMS.Provider)
+	} else {
+		deps.Logger.Info("SMS service initialized in disabled mode")
+	}
+
 	emailFeatureService := emailfeature.NewService(emailService, deps.Repositories.Email)
 
 	publisher := cache.NewNotificationPublisher(deps.CacheClient)
@@ -97,6 +110,7 @@ func buildServices(deps serviceDependencies) services {
 		deps.Config,
 		deps.Repositories.Notifications,
 		deps.Repositories.NotificationDelivery,
+		deps.Repositories.NotificationPreferences,
 		publisher,
 	)
 
@@ -217,7 +231,7 @@ func buildServices(deps serviceDependencies) services {
 
 	importService := importsvc.NewService(
 		deps.Repositories.Documents,
-		deps.Repositories.DocumentStockImports,
+		deps.Repositories.DocumentTemplateImports,
 		deps.Repositories.Processes,
 		deps.Repositories.DocumentFiles,
 		deps.Repositories.Surveillance.Imports,
@@ -230,11 +244,13 @@ func buildServices(deps serviceDependencies) services {
 	)
 
 	rbacService := rbacfeature.NewService(deps.Repositories.RBAC, userService)
+	rbacService.SetFrontendBaseURL(deps.Config.FrontendBaseURL)
 
 	return services{
 		Email:                   emailService,
 		EmailFeature:            emailFeatureService,
 		SMTP:                    smtpService,
+		SMS:                     smsService,
 		Notifications:           notificationsService,
 		Auth:                    authService,
 		Metrics:                 metricsService,

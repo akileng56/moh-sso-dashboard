@@ -16,7 +16,7 @@ import {
 } from "@carbon/react";
 import type { FileUploaderItemProps } from "@carbon/react";
 
-import { useCreateDocumentMutation, useListStorageLocationsQuery } from "@moh-sso/api";
+import { useCreateDocumentMutation, useListStorageLocationsQuery } from "../../api";
 import { PERMISSIONS, PermissionGuard } from "@moh-sso/auth";
 import {
   ACCEPTED_EXTENSIONS,
@@ -26,7 +26,7 @@ import {
   isAcceptedFile,
   validateProcessTypeAgainstFile,
 } from "@moh-sso/utils";
-import { DOCUMENT_PROCESS_TYPE_OPTIONS, type DocumentProcessType } from "@moh-sso/types";
+import { DOCUMENT_PROCESS_TYPE_OPTIONS, type DocumentProcessType } from "../../types";
 
 import "./file-upload.scss";
 

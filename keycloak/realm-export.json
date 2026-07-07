@@ -178,6 +178,20 @@
       {
         "name": "manager",
         "description": "Can manage applications and operational workflows",
+        "composite": true,
+        "composites": {
+          "client": {
+            "data-statistics": [
+              "data-statistics_access",
+              "report_manager",
+              "issue_tracker_manager",
+              "document_manager"
+            ],
+            "utilities": [
+              "utilities_access"
+            ]
+          }
+        },
         "attributes": {
           "portal.permissions": [
             "portal:access",
@@ -189,6 +203,9 @@
             "documents:read",
             "documents:write",
             "documents:process",
+            "document_templates:read",
+            "document_templates:write",
+            "document_templates:publish",
             "storage_locations:read",
             "surveillance:read",
             "data_quality:read",
@@ -206,15 +223,13 @@
       },
       {
         "name": "user",
-        "description": "Standard user role",
+        "description": "Standard user role with read-only access to common platform services",
         "composite": true,
         "composites": {
           "client": {
             "data-statistics": [
-              "data-statistics_access"
-            ],
-            "utilities": [
-              "utilities_access"
+              "data-statistics_access",
+              "document_viewer"
             ],
             "settings": [
               "settings_access"
@@ -229,6 +244,7 @@
             "data_quality:read",
             "issue_tracker:read",
             "documents:read",
+            "document_templates:read",
             "storage_locations:read",
             "surveillance:read",
             "report_browser:read"
@@ -302,6 +318,7 @@
               "data_quality:read",
               "issue_tracker:read",
               "documents:read",
+              "document_templates:read",
               "storage_locations:read",
               "surveillance:read",
               "report_browser:read"
@@ -395,10 +412,11 @@
         },
         {
           "name": "document_viewer",
-          "description": "Read-only access to documents",
+          "description": "Read-only access to documents and document templates",
           "attributes": {
             "portal.permissions": [
               "documents:read",
+              "document_templates:read",
               "storage_locations:read"
             ]
           }
@@ -410,29 +428,70 @@
             "portal.permissions": [
               "documents:read",
               "documents:write",
+              "document_templates:read",
               "storage_locations:read"
             ]
           }
         },
         {
           "name": "document_processor",
-          "description": "Can view and process documents",
+          "description": "Can view, process, and reprocess documents",
           "attributes": {
             "portal.permissions": [
               "documents:read",
               "documents:process",
+              "document_templates:read",
               "storage_locations:read"
             ]
           }
         },
         {
           "name": "document_manager",
-          "description": "Full document management access",
+          "description": "Full document and document-template management access",
           "attributes": {
             "portal.permissions": [
               "documents:read",
               "documents:write",
               "documents:process",
+              "document_templates:read",
+              "document_templates:write",
+              "document_templates:publish",
+              "storage_locations:read"
+            ]
+          }
+        },
+        {
+          "name": "document_template_viewer",
+          "description": "Read-only access to document templates",
+          "attributes": {
+            "portal.permissions": [
+              "documents:read",
+              "document_templates:read",
+              "storage_locations:read"
+            ]
+          }
+        },
+        {
+          "name": "document_template_editor",
+          "description": "Can create and edit document templates and their structures",
+          "attributes": {
+            "portal.permissions": [
+              "documents:read",
+              "document_templates:read",
+              "document_templates:write",
+              "storage_locations:read"
+            ]
+          }
+        },
+        {
+          "name": "document_template_publisher",
+          "description": "Can create, edit, publish, archive, and republish document templates",
+          "attributes": {
+            "portal.permissions": [
+              "documents:read",
+              "document_templates:read",
+              "document_templates:write",
+              "document_templates:publish",
               "storage_locations:read"
             ]
           }
@@ -470,6 +529,9 @@
           "description": "Base access to Outbreak Management",
           "attributes": {
             "portal.permissions": [
+              "portal:access",
+              "systems:read",
+              "systems:launch",
               "outbreak:access",
               "surveillance:read"
             ]
@@ -491,7 +553,11 @@
               "data_quality:resolve",
               "documents:read",
               "documents:write",
-              "documents:process"
+              "documents:process",
+              "document_templates:read",
+              "document_templates:write",
+              "document_templates:publish",
+              "storage_locations:read"
             ]
           }
         },
@@ -672,14 +738,14 @@
       "attributes": {
         "access.token.lifespan": "1800",
         "ui.icon": "reporting",
-        "ui.home": "/dashboard",
+        "ui.home": "/portal",
         "portal.system": "true",
         "portal.accessRoles": "dashboard-web_access",
         "ui.systemType": "platform",
         "ui.displayInLauncher": "true",
         "ui.displayInSideNav": "false",
         "ui.launchMode": "internal",
-        "ui.launchUrl": "/dashboard"
+        "ui.launchUrl": "/portal"
       },
       "protocolMappers": [
         {
@@ -712,21 +778,22 @@
         "ui.home": "/portal/apps/dwh",
         "ui.category": "platform",
         "portal.system": "true",
-        "portal.accessRoles": "data-statistics_access,report_viewer,report_analyst,report_manager,report_admin,issue_tracker_viewer,issue_tracker_contributor,issue_tracker_editor,issue_tracker_manager,document_viewer,document_editor,document_processor,document_manager",
+        "portal.accessRoles": "data-statistics_access,report_viewer,report_analyst,report_manager,report_admin,issue_tracker_viewer,issue_tracker_contributor,issue_tracker_editor,issue_tracker_manager,document_viewer,document_editor,document_processor,document_manager,document_template_viewer,document_template_editor,document_template_publisher",
         "ui.systemType": "platform",
         "ui.displayInLauncher": "false",
         "ui.displayInSideNav": "true",
         "ui.launchMode": "internal",
+        "ui.order": "20",
         "ui.launchUrl": "/portal/apps/dwh",
-        "ui.navigation": "[{\"id\":\"overview\",\"label\":\"Overview\",\"path\":\"/apps/dwh\"},{\"id\":\"data-validation\",\"label\":\"Data Validation\",\"path\":\"/apps/dwh/data-validation\",\"permission\":\"data_quality:read\"},{\"id\":\"documents\",\"label\":\"Documents\",\"path\":\"/apps/dwh/documents\",\"permission\":\"documents:read\"},{\"id\":\"report-browser\",\"label\":\"Reports\",\"path\":\"/apps/dwh/reports\",\"permission\":\"report_browser:read\"},{\"id\":\"surveillance\",\"label\":\"Surveillance\",\"path\":\"/apps/dwh/surveillance\",\"permission\":\"surveillance:read\"},{\"id\":\"issue-tracker\",\"label\":\"Issue Tracker\",\"path\":\"/apps/dwh/issues\",\"permission\":\"issue_tracker:read\"}]"
+        "ui.navigation": "[{\"id\":\"dashboards\",\"label\":\"Dashboards\",\"path\":\"/apps/dwh/dashboards\",\"permission\":\"report_browser:read\"},{\"id\":\"data-validation\",\"label\":\"Data Validation\",\"path\":\"/apps/dwh/data-validation\",\"permission\":\"data_quality:read\"},{\"id\":\"data-visualizer\",\"label\":\"Data Visualizer\",\"path\":\"/apps/dwh/data-visualizer\",\"permission\":\"data_quality:read\"},{\"id\":\"documents\",\"label\":\"Document Management\",\"path\":\"/apps/dwh/documents\",\"permission\":\"documents:read\"},{\"id\":\"surveillance\",\"label\":\"Surveillance\",\"path\":\"/apps/dwh/surveillance\",\"permission\":\"surveillance:read\"},{\"id\":\"issue-tracker\",\"label\":\"Issue Tracking\",\"path\":\"/apps/dwh/issue-tracker\",\"permission\":\"issue_tracker:read\"}]"
       }
     },
     {
       "clientId": "utilities",
       "name": "Utilities",
       "description": "Self-service utilities and staff tools",
-      "rootUrl": "http://localhost:3000/portal/apps/utilities",
-      "baseUrl": "http://localhost:3000/portal/apps/utilities",
+      "rootUrl": "http://localhost:3000/portal/apps/utilities/self-service",
+      "baseUrl": "http://localhost:3000/portal/apps/utilities/self-service",
       "enabled": true,
       "publicClient": true,
       "protocol": "openid-connect",
@@ -735,7 +802,7 @@
       "serviceAccountsEnabled": false,
       "attributes": {
         "ui.icon": "tools",
-        "ui.home": "/portal/apps/utilities",
+        "ui.home": "/portal/apps/utilities/self-service",
         "ui.category": "utilities",
         "portal.system": "true",
         "portal.accessRoles": "utilities_access",
@@ -743,8 +810,9 @@
         "ui.displayInLauncher": "false",
         "ui.displayInSideNav": "true",
         "ui.launchMode": "internal",
-        "ui.launchUrl": "/portal/apps/utilities",
-        "ui.navigation": "[{\"id\":\"timesheet\",\"label\":\"My Timesheet\",\"path\":\"/apps/utilities/self-service/timesheet\"},{\"id\":\"elearning\",\"label\":\"eLearning\",\"path\":\"/apps/utilities/self-service/elearning\"},{\"id\":\"leave-plan\",\"label\":\"Leave Plan\",\"path\":\"/apps/utilities/self-service/leave-plan\"},{\"id\":\"absence-requests\",\"label\":\"Absence Requests\",\"path\":\"/apps/utilities/self-service/absence-requests\"},{\"id\":\"absence-dashboard\",\"label\":\"My Absence Dashboard\",\"path\":\"/apps/utilities/self-service/absence-dashboard\"},{\"id\":\"document-upload\",\"label\":\"Document Upload\",\"path\":\"/apps/utilities/self-service/eservice/document-upload\",\"permission\":\"documents:write\"},{\"id\":\"service-access\",\"label\":\"Service Access\",\"path\":\"/apps/utilities/self-service/eservice/service-access\"},{\"id\":\"equipment-request\",\"label\":\"Equipment Request\",\"path\":\"/apps/utilities/self-service/eservice/equipment-request\"}]"
+        "ui.order": "90",
+        "ui.launchUrl": "/portal/apps/utilities/self-service",
+        "ui.navigation": "[{\"id\":\"timesheet\",\"label\":\"My Timesheet\",\"path\":\"/apps/utilities/self-service/timesheet\"},{\"id\":\"elearning\",\"label\":\"eLearning\",\"path\":\"/apps/utilities/self-service/elearning\"},{\"id\":\"leave-plan\",\"label\":\"Leave Plan\",\"path\":\"/apps/utilities/self-service/leave-plan\"},{\"id\":\"absence-requests\",\"label\":\"Absence Requests\",\"path\":\"/apps/utilities/self-service/absence-requests\"},{\"id\":\"absence-dashboard\",\"label\":\"My Absence Dashboard\",\"path\":\"/apps/utilities/self-service/absence-dashboard\"},{\"id\":\"service-access\",\"label\":\"Service Access\",\"path\":\"/apps/utilities/self-service/eservice/service-access\"},{\"id\":\"equipment-request\",\"label\":\"Equipment Request\",\"path\":\"/apps/utilities/self-service/eservice/equipment-request\"}]"
       }
     },
     {
@@ -767,10 +835,11 @@
         "portal.accessRoles": "settings_access",
         "ui.systemType": "platform",
         "ui.displayInLauncher": "false",
-        "ui.displayInSideNav": "true",
+        "ui.displayInSideNav": "false",
         "ui.launchMode": "internal",
+        "ui.order": "100",
         "ui.launchUrl": "/portal/apps/settings",
-        "ui.navigation": "[{\"id\":\"profile\",\"label\":\"My Profile\",\"path\":\"/apps/settings/profile\"},{\"id\":\"sessions\",\"label\":\"Active Sessions\",\"path\":\"/apps/settings/sessions\"},{\"id\":\"security\",\"label\":\"Security\",\"path\":\"/apps/settings/security\"}]"
+        "ui.navigation": "[]"
       }
     },
     {
@@ -804,6 +873,7 @@
         "ui.displayInLauncher": "false",
         "ui.displayInSideNav": "true",
         "ui.launchMode": "internal",
+        "ui.order": "10",
         "ui.launchUrl": "/portal/apps/outbreak-management",
         "ui.navigation": "[{\"id\":\"signals-alerts\",\"label\":\"Signals & Alerts\",\"path\":\"/apps/outbreak-management/signals-alerts\"},{\"id\":\"poe-management\",\"label\":\"PoE Management\",\"path\":\"/apps/outbreak-management/poe-management\"},{\"id\":\"case-management\",\"label\":\"Case Management\",\"path\":\"/apps/outbreak-management/case-management\"}]"
       },
@@ -836,7 +906,7 @@
         "ui.home": "/portal/apps/dwh",
         "ui.icon": "dashboard",
         "ui.category": "platform",
-        "ui.navigation": "[{\"id\":\"overview\",\"label\":\"Overview\",\"path\":\"/apps/dwh\"},{\"id\":\"reports\",\"label\":\"Reports\",\"path\":\"/apps/dwh/reports\",\"permission\":\"report_browser:read\"}]",
+        "ui.navigation": "[{\"id\":\"dashboards\",\"label\":\"Dashboards\",\"path\":\"/apps/dwh/dashboards\",\"permission\":\"report_browser:read\"}]",
         "portal.accessRoles": "demo-platform-system_access"
       }
     },
@@ -958,7 +1028,6 @@
         "accessible_systems": [
           "dashboard-web",
           "data-statistics",
-          "utilities",
           "settings"
         ]
       },
@@ -982,6 +1051,9 @@
           "report_viewer",
           "issue_tracker_viewer",
           "document_viewer"
+        ],
+        "settings": [
+          "settings_access"
         ]
       }
     },
@@ -1052,7 +1124,6 @@
           "dashboard-web",
           "outbreak-management",
           "data-statistics",
-          "utilities",
           "settings"
         ]
       },
@@ -1081,6 +1152,9 @@
           "report_analyst",
           "issue_tracker_editor",
           "document_editor"
+        ],
+        "settings": [
+          "settings_access"
         ]
       }
     },
@@ -1102,7 +1176,6 @@
           "dashboard-web",
           "outbreak-management",
           "data-statistics",
-          "utilities",
           "settings"
         ]
       },
@@ -1130,6 +1203,584 @@
           "report_viewer",
           "issue_tracker_viewer",
           "document_viewer"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "document.viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Document",
+      "lastName": "Viewer",
+      "email": "document.viewer@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-viewer"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DocumentViewer@123",
+          "temporary": true
+        }
+      ],
+        "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_viewer"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "document.editor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Document",
+      "lastName": "Editor",
+      "email": "document.editor@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-editor"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DocumentEditor@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_editor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "document.processor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Document",
+      "lastName": "Processor",
+      "email": "document.processor@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-processor"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DocumentProcessor@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_processor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "document.manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Document",
+      "lastName": "Manager",
+      "email": "document.manager@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-manager"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DocumentManager@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_manager"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_manager"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "template.viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Template",
+      "lastName": "Viewer",
+      "email": "template.viewer@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-template-viewer"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "TemplateViewer@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_template_viewer"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "template.editor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Template",
+      "lastName": "Editor",
+      "email": "template.editor@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-template-editor"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "TemplateEditor@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_template_editor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "template.publisher",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Template",
+      "lastName": "Publisher",
+      "email": "template.publisher@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-template-publisher"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "TemplatePublisher@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_template_publisher"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "issue.viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Issue",
+      "lastName": "Viewer",
+      "email": "issue.viewer@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "issue-tracker-viewer"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "IssueViewer@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "issue_tracker_viewer"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "issue.contributor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Issue",
+      "lastName": "Contributor",
+      "email": "issue.contributor@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "issue-tracker-contributor"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "IssueContributor@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "issue_tracker_contributor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "issue.editor",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Issue",
+      "lastName": "Editor",
+      "email": "issue.editor@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "issue-tracker-editor"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "IssueEditor@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "issue_tracker_editor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "issue.manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Issue",
+      "lastName": "Manager",
+      "email": "issue.manager@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "issue-tracker-manager"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "IssueManager@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_manager"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "issue_tracker_manager"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "data.operations.officer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Data",
+      "lastName": "Operations Officer",
+      "email": "data.operations@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-and-issue-operator"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DataOperations@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_user"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_editor",
+          "document_processor",
+          "issue_tracker_editor"
+        ],
+        "settings": [
+          "settings_access"
+        ]
+      }
+    },
+    {
+      "username": "data.governance.manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Data",
+      "lastName": "Governance Manager",
+      "email": "data.governance@moh.go.ug",
+      "attributes": {
+        "access_profile": [
+          "document-and-issue-manager"
+        ],
+        "primary_system": [
+          "data-statistics"
+        ],
+        "accessible_systems": [
+          "dashboard-web",
+          "data-statistics",
+          "settings"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "DataGovernance@123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ],
+      "clientRoles": {
+        "dashboard-web": [
+          "dashboard-web_access",
+          "portal_manager"
+        ],
+        "data-statistics": [
+          "data-statistics_access",
+          "document_manager",
+          "issue_tracker_manager"
+        ],
+        "settings": [
+          "settings_access"
         ]
       }
     },

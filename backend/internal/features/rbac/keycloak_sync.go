@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
@@ -130,17 +131,19 @@ func (s *Service) PushMissingRBACRolesToKeycloak(ctx context.Context, source Key
 			"ui.displayInLauncher": fmt.Sprintf("%t", system.DisplayInLauncher),
 			"ui.displayInSideNav":  fmt.Sprintf("%t", system.DisplayInSideNav),
 			"ui.launchMode":        system.LaunchMode,
+			"ui.order":             fmt.Sprintf("%d", system.SortOrder),
 			"portal.system":        "true",
 			"portal.accessRoles":   strings.Join(detail.AccessRoles, ","),
 		}
 		discoveredSystem, ok := discoveredSystems[clientID]
 		if !ok {
+			clientURL := s.keycloakClientURL(system.LaunchURL)
 			if _, err := source.CreateClient(keycloak.CreateClientParams{
 				ClientID:    clientID,
 				Name:        system.DisplayName,
 				Description: system.Description,
-				BaseURL:     system.LaunchURL,
-				RootURL:     system.LaunchURL,
+				BaseURL:     clientURL,
+				RootURL:     clientURL,
 				Enabled:     system.Enabled,
 				Attributes:  attributes,
 			}); err != nil {
@@ -232,6 +235,51 @@ func (s *Service) PushMissingRBACRolesToKeycloak(ctx context.Context, source Key
 	return result, nil
 }
 
+func (s *Service) keycloakClientURL(launchURL string) string {
+	launchURL = strings.TrimSpace(launchURL)
+	if launchURL == "" {
+		return ""
+	}
+	if parsed, err := url.Parse(launchURL); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		return launchURL
+	}
+
+	base := strings.TrimSpace(s.frontendBaseURL)
+	if base == "" {
+		return ""
+	}
+	baseURL, err := url.Parse(base)
+	if err != nil || baseURL.Scheme == "" || baseURL.Host == "" {
+		return ""
+	}
+
+	relative, err := url.Parse(launchURL)
+	if err != nil {
+		return ""
+	}
+	if relative.IsAbs() {
+		return relative.String()
+	}
+
+	basePath := strings.TrimRight(baseURL.Path, "/")
+	path := relative.Path
+	if path == "" {
+		path = "/"
+	}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+	if basePath != "" && path != basePath && !strings.HasPrefix(path, basePath+"/") {
+		path = basePath + path
+	}
+
+	resolved := *baseURL
+	resolved.Path = path
+	resolved.RawQuery = relative.RawQuery
+	resolved.Fragment = relative.Fragment
+	return resolved.String()
+}
+
 func (s *Service) previewDiscoveredSync(ctx context.Context, source string, discovered discoveredRBAC) (SyncPreviewResponse, error) {
 	report, err := s.buildDriftReport(ctx, source, discovered)
 	if err != nil {
@@ -272,6 +320,7 @@ func (s *Service) applyDiscoveredSync(ctx context.Context, preview SyncPreviewRe
 			DisplayInLauncher: boolPointer(system.DisplayInLauncher),
 			DisplayInSideNav:  boolPointer(system.DisplayInSideNav),
 			LaunchMode:        system.LaunchMode,
+			SortOrder:         system.SortOrder,
 			Enabled:           &enabled,
 		}); err != nil {
 			return SyncApplyResponse{}, err
@@ -377,6 +426,7 @@ func discoverLiveKeycloakRBAC(ctx context.Context, source KeycloakSyncSource, kn
 			DisplayInLauncher: *behavior.DisplayInLauncher,
 			DisplayInSideNav:  *behavior.DisplayInSideNav,
 			LaunchMode:        behavior.LaunchMode,
+			SortOrder:         int32Attribute(client.Attributes, "ui.order"),
 			AccessRoles:       splitAttributeList(client.Attributes["portal.accessRoles"]),
 			Enabled:           client.Enabled,
 			Roles:             make([]KeycloakDiscoveredRole, 0, len(roles)),
@@ -393,6 +443,9 @@ func discoverLiveKeycloakRBAC(ctx context.Context, source KeycloakSyncSource, kn
 
 	sort.Strings(discovered.RealmRoles)
 	sort.Slice(discovered.Systems, func(i, j int) bool {
+		if discovered.Systems[i].SortOrder != discovered.Systems[j].SortOrder {
+			return discovered.Systems[i].SortOrder < discovered.Systems[j].SortOrder
+		}
 		return discovered.Systems[i].ClientID < discovered.Systems[j].ClientID
 	})
 	for i := range discovered.Systems {

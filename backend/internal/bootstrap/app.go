@@ -159,6 +159,7 @@ func Run() {
 	})
 
 	startBackgroundWorkers(ctx, workerDependencies{
+		Config:                         cfg,
 		ProcessRepository:              repos.Processes,
 		ImportService:                  services.Import,
 		FileStorage:                    fileStorage,
@@ -166,6 +167,8 @@ func Run() {
 		SMTPService:                    services.SMTP,
 		NotificationDeliveryRepository: repos.NotificationDelivery,
 		EmailService:                   services.Email,
+		SMSService:                     services.SMS,
+		AuditService:                   services.Audit,
 		Logger:                         appLogger,
 	})
 

@@ -25,8 +25,8 @@ import {
   useToast,
 } from "@moh-sso/ui";
 
-import { buildAuditExportUrl, useListAuditActionsQuery, useListAuditLogsQuery } from "@moh-sso/api";
-import type { AuditFilters, AuditLog, Cursor } from "@moh-sso/types";
+import { buildAuditExportUrl, useListAuditActionsQuery, useListAuditLogsQuery } from "../api";
+import type { AuditFilters, AuditLog, Cursor } from "../types";
 import { AuditLogBulkActions } from "../components/audit-log-bulk-actions.component";
 import { AuditLogActionsMenu } from "../components/audit-log-actions-menu.component";
 
