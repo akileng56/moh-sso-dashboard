@@ -1,14 +1,58 @@
 import { Modal, MultiSelect } from "@carbon/react";
 import { useEffect, useState } from "react";
 import { useGetHierarchyQuery } from "./org-unit.ts";
-import { levelOfCareOptions, ownershipOptions } from "../../Constants.tsx"
+import { levelOfCareOptions, ownershipOptions } from "../../Contants.tsx"
+
+const normalizeSearchTerm = (value = "") => value.trim().toLowerCase();
+
+const getUniqueChildren = (childrenObj = {}) =>
+  Object.values(childrenObj).filter(
+    (child: any, index, self) => index === self.findIndex((c: any) => c.id === child.id),
+  );
+
+const filterNodeBySearch = (node: any, searchTerm: string) => {
+  const normalizedSearch = normalizeSearchTerm(searchTerm);
+
+  if (!normalizedSearch) {
+    return { node, expandedIds: new Set() };
+  }
+
+  const matchesNode = node.name?.toLowerCase().includes(normalizedSearch);
+  const uniqueChildren = getUniqueChildren(node.children);
+  const expandedIds = new Set<string>();
+
+  if (matchesNode) {
+    if (uniqueChildren.length > 0) {
+      expandedIds.add(node.uid);
+    }
+    return { node, expandedIds };
+  }
+
+  const filteredChildren = uniqueChildren
+    .map((child: any) => filterNodeBySearch(child, normalizedSearch))
+    .filter((result) => result.node);
+
+  if (filteredChildren.length === 0) {
+    return { node: null, expandedIds };
+  }
+
+  filteredChildren.forEach((result) => {
+    result.expandedIds.forEach((id) => expandedIds.add(id));
+  });
+  expandedIds.add(node.uid);
+
+  return {
+    node: {
+      ...node,
+      children: Object.fromEntries(filteredChildren.map((result) => [result.node.uid, result.node])),
+    },
+    expandedIds,
+  };
+};
 
 function TreeNode({ node, level = 0, selectedUnits, onToggle, onExpand, expandedNodes }) {
   const childrenObj = node.children || {};
-
-  const uniqueChildren = Object.values(childrenObj).filter(
-    (child: any, index, self) => index === self.findIndex((c: any) => c.id === child.id),
-  );
+  const uniqueChildren = getUniqueChildren(childrenObj);
 
   const hasChildren = uniqueChildren.length > 0;
   const isExpanded = expandedNodes.has(node.uid);
@@ -99,6 +143,7 @@ export default function OrgUnitModal({
   const [ownership, setOwnership] = useState(selectedOwnership);
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [orgUnits, setOrgUnits] = useState<any>({});
+  const [searchTerm, setSearchTerm] = useState("");
   const { data: hierarchyData, isLoading, error } = useGetHierarchyQuery();
 
   useEffect(() => {
@@ -163,9 +208,19 @@ export default function OrgUnitModal({
     onClose();
   };
 
-  // if (!show) return null;
-
   const selectedCount = selectedUnits.size;
+  const normalizedSearchTerm = normalizeSearchTerm(searchTerm);
+  const filteredResults = Object.values(orgUnits).map((unit: any) => filterNodeBySearch(unit, normalizedSearchTerm));
+  const visibleUnits = filteredResults
+    .map((result) => result.node)
+    .filter(Boolean);
+  const searchExpandedNodes = filteredResults.reduce((acc, result) => {
+    result.expandedIds.forEach((id) => acc.add(id));
+    return acc;
+  }, new Set());
+  const effectiveExpandedNodes = normalizedSearchTerm
+    ? new Set([...expandedNodes, ...searchExpandedNodes])
+    : expandedNodes;
 
   return (
     <>
@@ -181,6 +236,18 @@ export default function OrgUnitModal({
         onRequestSubmit={save}
       >
         <div className="border" style={{ height: "400px", overflowY: "auto" }}>
+          <div
+            className="p-2 border-bottom bg-white"
+            style={{ position: "sticky", top: 0, zIndex: 1 }}
+          >
+            <input
+              type="search"
+              className="form-control"
+              placeholder="Search organisation unit"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
+            />
+          </div>
           {isLoading ? (
             <div className="d-flex justify-content-center align-items-center h-100">
               <div className="spinner-border text-primary" role="status">
@@ -205,15 +272,22 @@ export default function OrgUnitModal({
                 <div>No organizational units found</div>
               </div>
             </div>
+          ) : visibleUnits.length === 0 ? (
+            <div className="d-flex justify-content-center align-items-center h-100">
+              <div className="text-center text-muted">
+                <i className="fas fa-search fa-2x mb-2"></i>
+                <div>No organization units match "{searchTerm.trim()}"</div>
+              </div>
+            </div>
           ) : (
-            Object.values(orgUnits).map((unit: any) => (
+            visibleUnits.map((unit: any) => (
               <TreeNode
                 key={unit.uid}
                 node={unit}
                 selectedUnits={selectedUnits}
                 onToggle={toggleUnit}
                 onExpand={toggleExpanded}
-                expandedNodes={expandedNodes}
+                expandedNodes={effectiveExpandedNodes}
               />
             ))
           )}
