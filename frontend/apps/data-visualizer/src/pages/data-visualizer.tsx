@@ -16,12 +16,16 @@ type VisualizerQuery = {
   dx: string[];
   pe: string[];
   ou: string[];
+  levelOfCare: string[];
+  ownership: string[];
 };
 
 const DataVisualizer = () => {
   const [selectedData, setSelectedData] = useState([]);
   const [selectedPeriods, setSelectedPeriods] = useState([]);
   const [selectedOrgUnits, setSelectedOrgUnits] = useState([]);
+  const [selectedLevelOfCare, setSelectedLevelOfCare] = useState<string[]>([]);
+  const [selectedOwnership, setSelectedOwnership] = useState<string[]>([]);
   const [loadedChartData, setLoadedChartData] = useState([]);
   const [pivotChartData, setPivotChartData] = useState([]);
   const [showModal, setShowModal] = useState(null);
@@ -33,12 +37,16 @@ const DataVisualizer = () => {
     const savedData = localStorage.getItem("selectedData");
     const savedPeriods = localStorage.getItem("selectedPeriods");
     const savedOrgUnits = localStorage.getItem("selectedOrgUnits");
+    const savedLevelOfCare = localStorage.getItem("selectedLevelOfCare");
+    const savedOwnership = localStorage.getItem("selectedOwnership");
     const savedLoadedData = localStorage.getItem("loadedChartData");
     const savedPivotData = localStorage.getItem("pivotChartData");
 
     if (savedData) setSelectedData(JSON.parse(savedData));
     if (savedPeriods) setSelectedPeriods(JSON.parse(savedPeriods));
     if (savedOrgUnits) setSelectedOrgUnits(JSON.parse(savedOrgUnits));
+    if (savedLevelOfCare) setSelectedLevelOfCare(JSON.parse(savedLevelOfCare));
+    if (savedOwnership) setSelectedOwnership(JSON.parse(savedOwnership));
     if (savedLoadedData) setLoadedChartData(JSON.parse(savedLoadedData));
     if (savedPivotData) setPivotChartData(JSON.parse(savedPivotData));
   }, []);
@@ -55,6 +63,14 @@ const DataVisualizer = () => {
   React.useEffect(() => {
     localStorage.setItem("selectedOrgUnits", JSON.stringify(selectedOrgUnits));
   }, [selectedOrgUnits]);
+
+  React.useEffect(() => {
+    localStorage.setItem("selectedLevelOfCare", JSON.stringify(selectedLevelOfCare));
+  }, [selectedLevelOfCare]);
+
+  React.useEffect(() => {
+    localStorage.setItem("selectedOwnership", JSON.stringify(selectedOwnership));
+  }, [selectedOwnership]);
 
   React.useEffect(() => {
     localStorage.setItem("loadedChartData", JSON.stringify(loadedChartData));
@@ -76,10 +92,18 @@ const DataVisualizer = () => {
     setSelectedData([]);
     setSelectedPeriods([]);
     setSelectedOrgUnits([]);
+    setSelectedLevelOfCare([]);
+    setSelectedOwnership([]);
     setPivotChartData([]);
     setLoadedChartData([]);
     setAppliedQuery(null);
     setIsClearModalOpen(false);
+  };
+
+  const saveOrgUnitFilters = (orgUnits, levelOfCare, ownership) => {
+    setSelectedOrgUnits(orgUnits);
+    setSelectedLevelOfCare(levelOfCare);
+    setSelectedOwnership(ownership);
   };
 
   // Function to check if all required dimensions are selected
@@ -91,6 +115,8 @@ const DataVisualizer = () => {
         dx: selectedData.map((item: any) => item.data_element_id),
         pe: selectedPeriods.map((item: any) => item.id),
         ou: selectedOrgUnits,
+        levelOfCare: selectedLevelOfCare,
+        ownership: selectedOwnership,
       }
     : null;
 
@@ -357,7 +383,13 @@ const DataVisualizer = () => {
         <PeriodModal onClose={close} selected={selectedPeriods} onSave={setSelectedPeriods} />
       )}
       {showModal === "orgunit" && (
-        <OrgUnitModal onClose={close} selected={selectedOrgUnits} onSave={setSelectedOrgUnits} />
+        <OrgUnitModal
+          onClose={close}
+          selected={selectedOrgUnits}
+          selectedLevelOfCare={selectedLevelOfCare}
+          selectedOwnership={selectedOwnership}
+          onSave={saveOrgUnitFilters}
+        />
       )}
       {showModal === "general" && (
         <GeneralModal
@@ -367,7 +399,9 @@ const DataVisualizer = () => {
           selectedPeriods={selectedPeriods}
           onSavePeriods={setSelectedPeriods}
           selectedOrgUnits={selectedOrgUnits}
-          onSaveOrgUnits={setSelectedOrgUnits}
+          selectedLevelOfCare={selectedLevelOfCare}
+          selectedOwnership={selectedOwnership}
+          onSaveOrgUnits={saveOrgUnitFilters}
         />
       )}
       {isClearModalOpen && (

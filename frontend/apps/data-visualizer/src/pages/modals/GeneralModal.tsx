@@ -12,6 +12,8 @@ export default function GeneralModal({
   selectedPeriods,
   onSavePeriods,
   selectedOrgUnits,
+  selectedLevelOfCare,
+  selectedOwnership,
   onSaveOrgUnits,
 }) {
   const [selectedDimension, setSelectedDimension] = useState("data");
@@ -48,7 +50,13 @@ export default function GeneralModal({
             <PeriodModal onClose={close} selected={selectedPeriods} onSave={onSavePeriods} />
           )}
           {selectedDimension === "orgunit" && (
-            <OrgUnitModal onClose={close} selected={selectedOrgUnits} onSave={onSaveOrgUnits} />
+            <OrgUnitModal
+              onClose={close}
+              selected={selectedOrgUnits}
+              selectedLevelOfCare={selectedLevelOfCare}
+              selectedOwnership={selectedOwnership}
+              onSave={onSaveOrgUnits}
+            />
           )}
         </div>
       </Modal>

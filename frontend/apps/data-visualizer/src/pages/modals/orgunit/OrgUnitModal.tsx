@@ -1,6 +1,7 @@
-import { Modal } from "@carbon/react";
+import { Modal, MultiSelect } from "@carbon/react";
 import { useEffect, useState } from "react";
 import { useGetHierarchyQuery } from "./org-unit.ts";
+import { levelOfCareOptions, ownershipOptions } from "../../Constants.tsx"
 
 function TreeNode({ node, level = 0, selectedUnits, onToggle, onExpand, expandedNodes }) {
   const childrenObj = node.children || {};
@@ -86,8 +87,16 @@ function TreeNode({ node, level = 0, selectedUnits, onToggle, onExpand, expanded
   );
 }
 
-export default function OrgUnitModal({ onClose, selected, onSave }) {
-  const [selectedUnits, setSelectedUnits] = useState(new Set(selected));
+export default function OrgUnitModal({
+  onClose,
+  selected,
+  selectedLevelOfCare = [],
+  selectedOwnership = [],
+  onSave,
+}) {
+  const [selectedUnits, setSelectedUnits] = useState(new Set(selected ?? []));
+  const [levelOfCare, setLevelOfCare] = useState(selectedLevelOfCare);
+  const [ownership, setOwnership] = useState(selectedOwnership);
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [orgUnits, setOrgUnits] = useState<any>({});
   const { data: hierarchyData, isLoading, error } = useGetHierarchyQuery();
@@ -114,8 +123,16 @@ export default function OrgUnitModal({ onClose, selected, onSave }) {
   }, [hierarchyData, isLoading]);
 
   useEffect(() => {
-    setSelectedUnits(new Set(selected));
+    setSelectedUnits(new Set(selected ?? []));
   }, [selected]);
+
+  useEffect(() => {
+    setLevelOfCare(selectedLevelOfCare ?? []);
+  }, [selectedLevelOfCare]);
+
+  useEffect(() => {
+    setOwnership(selectedOwnership ?? []);
+  }, [selectedOwnership]);
 
   const toggleUnit = (unitUid) => {
     const newSelected = new Set(selectedUnits);
@@ -142,7 +159,7 @@ export default function OrgUnitModal({ onClose, selected, onSave }) {
   };
 
   const save = () => {
-    onSave(Array.from(selectedUnits));
+    onSave(Array.from(selectedUnits), levelOfCare, ownership);
     onClose();
   };
 
@@ -211,6 +228,35 @@ export default function OrgUnitModal({ onClose, selected, onSave }) {
               </button>
             )}
           </span>
+        </div>
+
+        <div className="row mb-3">
+          <div className="col-md-6">
+            <MultiSelect
+              id="level-of-care-select"
+              titleText="Level of care"
+              label="Select level of care"
+              items={levelOfCareOptions}
+              itemToString={(item) => item?.label ?? ""}
+              selectedItems={levelOfCareOptions.filter((option) => levelOfCare.includes(option.id))}
+              onChange={({ selectedItems }) => {
+                setLevelOfCare((selectedItems ?? []).map((item) => item.id));
+              }}
+            />
+          </div>
+          <div className="col-md-6">
+            <MultiSelect
+              id="ownership-select"
+              titleText="Ownership"
+              label="Select ownership"
+              items={ownershipOptions}
+              itemToString={(item) => item?.label ?? ""}
+              selectedItems={ownershipOptions.filter((option) => ownership.includes(option.id))}
+              onChange={({ selectedItems }) => {
+                setOwnership((selectedItems ?? []).map((item) => item.id));
+              }}
+            />
+          </div>
         </div>
       </Modal>
     </>
