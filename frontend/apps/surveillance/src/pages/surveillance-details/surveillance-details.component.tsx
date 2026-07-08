@@ -28,7 +28,7 @@ import {
 import { useListDocumentsQuery } from "@moh-sso/documents/api";
 import type { DocumentResponse } from "@moh-sso/documents/types";
 import WeeklyCasesChart from "./surveillance-weekly-cases.component";
-import "./surveillance-details.css";
+import "./surveillance-details.scss";
 
 function formatDiseaseName(value?: string) {
   if (!value) return "Disease";
@@ -528,11 +528,7 @@ export default function DiseaseDetailsPage() {
                       {doc.label}
                     </Link>
                     {doc.uploaded && doc.status ? (
-                      <span
-                        style={{ marginLeft: "0.5rem", color: "#6f6f6f", fontSize: "0.875rem" }}
-                      >
-                        ({doc.status})
-                      </span>
+                      <span className="disease-details-page__link-status">({doc.status})</span>
                     ) : null}
                   </li>
                 ))}
