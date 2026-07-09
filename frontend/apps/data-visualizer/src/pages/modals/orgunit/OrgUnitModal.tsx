@@ -1,20 +1,30 @@
 import { Modal, MultiSelect } from "@carbon/react";
 import { useEffect, useState } from "react";
 import { useGetHierarchyQuery } from "./org-unit.ts";
-import { levelOfCareOptions, ownershipOptions } from "../../Contants.tsx"
+import { levelOfCareOptions, ownershipOptions } from "../../Constants.tsx"
 
 const normalizeSearchTerm = (value = "") => value.trim().toLowerCase();
 
-const getUniqueChildren = (childrenObj = {}) =>
-  Object.values(childrenObj).filter(
-    (child: any, index, self) => index === self.findIndex((c: any) => c.id === child.id),
+const getUniqueChildren = (childrenObj: any) => {
+  if (!childrenObj) {
+    return [];
+  }
+  const childrenArray = (Array.isArray(childrenObj) ? childrenObj : Object.values(childrenObj)).filter(Boolean);
+  return childrenArray.filter(
+    (child: any, index, self) =>
+      index === self.findIndex((c: any) => (c.uid || c.id) === (child.uid || child.id)),
   );
+};
 
 const filterNodeBySearch = (node: any, searchTerm: string) => {
   const normalizedSearch = normalizeSearchTerm(searchTerm);
 
+  if (!node) {
+    return { node: null, expandedIds: new Set<string>() };
+  }
+
   if (!normalizedSearch) {
-    return { node, expandedIds: new Set() };
+    return { node, expandedIds: new Set<string>() };
   }
 
   const matchesNode = node.name?.toLowerCase().includes(normalizedSearch);
@@ -22,7 +32,7 @@ const filterNodeBySearch = (node: any, searchTerm: string) => {
   const expandedIds = new Set<string>();
 
   if (matchesNode) {
-    if (uniqueChildren.length > 0) {
+    if (uniqueChildren.length > 0 && node.uid) {
       expandedIds.add(node.uid);
     }
     return { node, expandedIds };
@@ -30,7 +40,7 @@ const filterNodeBySearch = (node: any, searchTerm: string) => {
 
   const filteredChildren = uniqueChildren
     .map((child: any) => filterNodeBySearch(child, normalizedSearch))
-    .filter((result) => result.node);
+    .filter((result) => result && result.node);
 
   if (filteredChildren.length === 0) {
     return { node: null, expandedIds };
@@ -39,12 +49,18 @@ const filterNodeBySearch = (node: any, searchTerm: string) => {
   filteredChildren.forEach((result) => {
     result.expandedIds.forEach((id) => expandedIds.add(id));
   });
-  expandedIds.add(node.uid);
+  if (node.uid) {
+    expandedIds.add(node.uid);
+  }
+
+  const childrenMap = Object.fromEntries(
+    filteredChildren.map((result) => [result.node.uid || result.node.id, result.node])
+  );
 
   return {
     node: {
       ...node,
-      children: Object.fromEntries(filteredChildren.map((result) => [result.node.uid, result.node])),
+      children: Array.isArray(node.children) ? Object.values(childrenMap) : childrenMap,
     },
     expandedIds,
   };
@@ -148,19 +164,23 @@ export default function OrgUnitModal({
 
   useEffect(() => {
     if (!isLoading) {
-      setOrgUnits(hierarchyData);
+      setOrgUnits(hierarchyData || {});
 
       const expandIds = new Set();
-      const rootKeys = Object.keys(hierarchyData);
+      const rootKeys = hierarchyData ? Object.keys(hierarchyData) : [];
 
       if (rootKeys.length > 0) {
         const firstRootNode = hierarchyData[rootKeys[0]];
-        expandIds.add(firstRootNode.uid);
+        if (firstRootNode?.uid) {
+          expandIds.add(firstRootNode.uid);
+        }
 
-        const firstChildKeys = Object.keys(firstRootNode.children || {});
+        const firstChildKeys = firstRootNode?.children ? Object.keys(firstRootNode.children) : [];
         if (firstChildKeys.length > 0) {
           const firstChildNode = firstRootNode.children[firstChildKeys[0]];
-          expandIds.add(firstChildNode.uid);
+          if (firstChildNode?.uid) {
+            expandIds.add(firstChildNode.uid);
+          }
         }
       }
       setExpandedNodes(expandIds);
@@ -293,17 +313,6 @@ export default function OrgUnitModal({
           )}
         </div>
 
-        <div className="mt-3 d-flex justify-content-between align-items-center">
-          <span className="text-muted">
-            {selectedCount} selected
-            {selectedCount > 0 && (
-              <button className="btn btn-link p-0 ms-2 text-decoration-none" onClick={deselectAll}>
-                - Deselect all
-              </button>
-            )}
-          </span>
-        </div>
-
         <div className="row mb-3">
           <div className="col-md-6">
             <MultiSelect
@@ -331,6 +340,17 @@ export default function OrgUnitModal({
               }}
             />
           </div>
+        </div>
+
+        <div className="mt-3 d-flex mb-5 justify-content-between align-items-center">
+          <span className="text-muted">
+            {selectedCount} selected organisation units
+            {selectedCount > 0 && (
+              <button className="btn btn-link p-0 ms-2 text-decoration-none" onClick={deselectAll}>
+                - Deselect all
+              </button>
+            )}
+          </span>
         </div>
       </Modal>
     </>
