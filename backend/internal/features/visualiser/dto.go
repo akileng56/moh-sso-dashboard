@@ -48,6 +48,8 @@ type DataValueRowResponse struct {
 	Region        string `json:"region"`
 	District      string `json:"district"`
 	SubCounty     string `json:"sub_county"`
+	LevelOfCare   string `json:"level_of_care"`
+	Ownership     string `json:"ownership"`
 	Dataelement   string `json:"dataelement"`
 }
 

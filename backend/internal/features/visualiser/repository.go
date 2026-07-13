@@ -164,7 +164,16 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		}
 
 		query = `
-		   WITH selected_input AS (
+		   WITH org_unit_attrs AS (
+		     SELECT
+		       COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) AS facility_uid,
+		       MAX(NULLIF(h.level_of_care, '')) AS level_of_care,
+		       MAX(NULLIF(h.ownership, '')) AS ownership
+		     FROM hiv.organisation_unit h
+		     WHERE COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) IS NOT NULL
+		     GROUP BY 1
+		   ),
+		   selected_input AS (
 		     SELECT DISTINCT unnest($1::text[]) AS selected_uid
 		   ),
 		   selected_candidates AS (
@@ -273,6 +282,8 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		     x.region,
 		     x.district,
 		     x.sub_county,
+		     x.level_of_care,
+		     x.ownership,
 		     x.dataelement
 		   FROM (
 		     SELECT
@@ -303,10 +314,22 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		         WHEN sf.selected_level = '6' THEN COALESCE(MAX(hs.sub_county), '')
 		         ELSE ''
 		       END AS sub_county,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+		         ELSE 'Mixed'
+		       END AS level_of_care,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+		         ELSE 'Mixed'
+		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
 		     JOIN selected_facilities sf
 		       ON sf.facility_uid = hs.org_unit_id
+		     LEFT JOIN org_unit_attrs oa
+		       ON oa.facility_uid = hs.org_unit_id
 		     ` + whereClause + `
 		     GROUP BY
 		       sf.selected_uid,
@@ -335,10 +358,22 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		       '' AS region,
 		       '' AS district,
 		       '' AS sub_county,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+		         ELSE 'Mixed'
+		       END AS level_of_care,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+		         ELSE 'Mixed'
+		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
 		     JOIN selected_units su
 		       ON su.selected_level = '1'
+		     LEFT JOIN org_unit_attrs oa
+		       ON oa.facility_uid = hs.org_unit_id
 		     ` + countryOrgUnitFilterJoin + `
 		     ` + whereClause + `
 		     GROUP BY
@@ -390,11 +425,31 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		      ` + regionExpr + ` AS region,
 	          ` + districtExpr + ` AS district,
 	          ` + subCountyExpr + ` AS sub_county,
+	          CASE
+	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+	              THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+	            ELSE 'Mixed'
+	          END AS level_of_care,
+	          CASE
+	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+	              THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+	            ELSE 'Mixed'
+	          END AS ownership,
 	          hs.dataelement
 	       FROM report.hmis_summary hs
+	       LEFT JOIN (
+	         SELECT
+	           COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) AS facility_uid,
+	           MAX(NULLIF(h.level_of_care, '')) AS level_of_care,
+	           MAX(NULLIF(h.ownership, '')) AS ownership
+	         FROM hiv.organisation_unit h
+	         WHERE COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) IS NOT NULL
+	         GROUP BY 1
+	       ) oa
+	         ON oa.facility_uid = hs.org_unit_id
 	       ` + orgUnitFilterJoin + `
 	       ` + whereClause + `
-	       GROUP BY 1, 2, 3, 4, 6, 7, 8, 9, 10, 11
+	       GROUP BY 1, 2, 3, 4, 6, 7, 8, 9, 10, 13
 	       ORDER BY 
 	          3,
 	          1,
@@ -423,6 +478,8 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 			&row.Region,
 			&row.District,
 			&row.SubCounty,
+			&row.LevelOfCare,
+			&row.Ownership,
 			&row.Dataelement,
 		); err != nil {
 			return DataValuesResponse{}, err
