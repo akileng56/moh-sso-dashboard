@@ -56,6 +56,8 @@ const ChartRenderer = ({
             Region: item.region,
             SubCounty: item.sub_county,
             Value: item?.value,
+            "Level of Care": item?.level_of_care,
+            Ownership: item?.ownership
           })) ?? [];
 
         setChartData(rows);
