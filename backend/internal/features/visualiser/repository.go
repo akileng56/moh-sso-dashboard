@@ -297,7 +297,7 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		           ELSE 0
 		         END
 		       )::bigint AS value,
-		       sf.selected_name AS facility,
+		       COALESCE(MAX(NULLIF(hs.facility, '')), sf.selected_name) AS facility,
 		       sf.selected_level AS "level",
 		       CASE
 		         WHEN sf.selected_level = '2' THEN sf.selected_name
@@ -317,12 +317,12 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		       CASE
 		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
 		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
-		         ELSE 'Mixed'
+		         ELSE 'ALL'
 		       END AS level_of_care,
 		       CASE
 		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
 		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
-		         ELSE 'Mixed'
+		         ELSE 'ALL'
 		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
@@ -353,7 +353,7 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		           ELSE 0
 		         END
 		       )::bigint AS value,
-		       su.selected_name AS facility,
+		       COALESCE(MAX(NULLIF(hs.facility, '')), su.selected_name) AS facility,
 		       su.selected_level AS "level",
 		       '' AS region,
 		       '' AS district,
@@ -361,12 +361,12 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		       CASE
 		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
 		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
-		         ELSE 'Mixed'
+		         ELSE 'ALL'
 		       END AS level_of_care,
 		       CASE
 		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
 		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
-		         ELSE 'Mixed'
+		         ELSE 'ALL'
 		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
@@ -428,12 +428,12 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 	          CASE
 	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
 	              THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
-	            ELSE 'Mixed'
+	            ELSE 'ALL'
 	          END AS level_of_care,
 	          CASE
 	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
 	              THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
-	            ELSE 'Mixed'
+	            ELSE 'ALL'
 	          END AS ownership,
 	          hs.dataelement
 	       FROM report.hmis_summary hs
