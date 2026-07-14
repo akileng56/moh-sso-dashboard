@@ -15,13 +15,21 @@ const ChartRenderer = ({
   loadedData,
   pivotData,
   periods,
+  updateTrigger,
 }) => {
   const utils = createPlotlyRenderers(Plot);
   const intFormat = (val) => Math.round(val).toLocaleString();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!queryParams);
   const [chartData, setChartData] = useState(loadedData);
   const [pivotTableData, setPivotTableData] = useState(pivotData);
   const [triggerGetDataValues] = useLazyGetDataValuesQuery();
+
+  const [prevQueryParams, setPrevQueryParams] = useState(queryParams);
+  if (queryParams !== prevQueryParams) {
+    setPrevQueryParams(queryParams);
+    setLoading(true);
+    setChartData([]);
+  }
 
   const customAggregators = {
     Sum: aggregatorTemplates.sum(intFormat),
@@ -36,7 +44,7 @@ const ChartRenderer = ({
       setChartData([]);
       try {
         const data = await triggerGetDataValues(queryParams).unwrap();
-        const rows = data?.data?.["rows"] || [];
+        const rows = data?.["rows"] || [];
 
         const mappedPivotData =
           rows?.map((item) => ({
@@ -64,7 +72,8 @@ const ChartRenderer = ({
     };
 
     fetchChartData();
-  }, [queryParams, onSaveLoadedData, onSavePivotData, periods, triggerGetDataValues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryParams, updateTrigger]);
 
   return (
     <>

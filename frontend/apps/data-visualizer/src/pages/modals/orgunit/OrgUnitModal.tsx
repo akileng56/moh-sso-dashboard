@@ -147,16 +147,38 @@ function TreeNode({ node, level = 0, selectedUnits, onToggle, onExpand, expanded
   );
 }
 
+interface OrgUnitModalProps {
+  onClose: () => void;
+  selected: string[];
+  selectedLevelOfCare?: string[];
+  selectedOwnership?: string[];
+  onSave: (orgUnits: string[], levelOfCare: string[], ownership: string[]) => void;
+  updateTrigger?: () => void;
+}
+
 export default function OrgUnitModal({
   onClose,
   selected,
   selectedLevelOfCare = [],
   selectedOwnership = [],
   onSave,
-}) {
-  const [selectedUnits, setSelectedUnits] = useState(new Set(selected ?? []));
-  const [levelOfCare, setLevelOfCare] = useState(selectedLevelOfCare);
-  const [ownership, setOwnership] = useState(selectedOwnership);
+  updateTrigger,
+}: OrgUnitModalProps) {
+  const [selectedUnits, setSelectedUnits] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ouParam = params.get("ou");
+    return ouParam ? new Set(ouParam.split(",").filter(Boolean)) : new Set(selected ?? []);
+  });
+  const [levelOfCare, setLevelOfCare] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const careParam = params.get("levelOfCare");
+    return careParam ? careParam.split(",").filter(Boolean) : selectedLevelOfCare;
+  });
+  const [ownership, setOwnership] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const ownershipParam = params.get("ownership");
+    return ownershipParam ? ownershipParam.split(",").filter(Boolean) : selectedOwnership;
+  });
   const [expandedNodes, setExpandedNodes] = useState(new Set());
   const [orgUnits, setOrgUnits] = useState<any>({});
   const [searchTerm, setSearchTerm] = useState("");
@@ -188,16 +210,63 @@ export default function OrgUnitModal({
   }, [hierarchyData, isLoading]);
 
   useEffect(() => {
-    setSelectedUnits(new Set(selected ?? []));
+    const isSame = Array.from(selectedUnits).sort().join(",") === [...(selected ?? [])].sort().join(",");
+    if (!isSame) {
+      setSelectedUnits(new Set(selected ?? []));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   useEffect(() => {
-    setLevelOfCare(selectedLevelOfCare ?? []);
+    const isSame = [...levelOfCare].sort().join(",") === [...(selectedLevelOfCare ?? [])].sort().join(",");
+    if (!isSame) {
+      setLevelOfCare(selectedLevelOfCare ?? []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLevelOfCare]);
 
   useEffect(() => {
-    setOwnership(selectedOwnership ?? []);
+    const isSame = [...ownership].sort().join(",") === [...(selectedOwnership ?? [])].sort().join(",");
+    if (!isSame) {
+      setOwnership(selectedOwnership ?? []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedOwnership]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const selectedUnitsArray = Array.from(selectedUnits);
+
+    if (selectedUnitsArray.length > 0) {
+      params.set("ou", selectedUnitsArray.join(","));
+    } else {
+      params.delete("ou");
+    }
+
+    if (levelOfCare.length > 0) {
+      params.set("levelOfCare", levelOfCare.join(","));
+    } else {
+      params.delete("levelOfCare");
+    }
+
+    if (ownership.length > 0) {
+      params.set("ownership", ownership.join(","));
+    } else {
+      params.delete("ownership");
+    }
+
+    const newSearch = params.toString();
+    const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : "");
+    window.history.replaceState(null, "", newUrl);
+
+    const ouChanged = [...selectedUnitsArray].sort().join(",") !== [...(selected ?? [])].sort().join(",");
+    const careChanged = [...levelOfCare].sort().join(",") !== [...(selectedLevelOfCare ?? [])].sort().join(",");
+    const ownershipChanged = [...ownership].sort().join(",") !== [...(selectedOwnership ?? [])].sort().join(",");
+
+    if (ouChanged || careChanged || ownershipChanged) {
+      onSave(selectedUnitsArray, levelOfCare, ownership);
+    }
+  }, [selectedUnits, levelOfCare, ownership, selected, selectedLevelOfCare, selectedOwnership, onSave]);
 
   const toggleUnit = (unitUid) => {
     const newSelected = new Set(selectedUnits);
@@ -224,7 +293,9 @@ export default function OrgUnitModal({
   };
 
   const save = () => {
-    onSave(Array.from(selectedUnits), levelOfCare, ownership);
+    if (updateTrigger) {
+      updateTrigger();
+    }
     onClose();
   };
 
