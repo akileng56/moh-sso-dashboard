@@ -13,11 +13,6 @@ type Repository interface {
 	ListDatasets(ctx context.Context) ([]DatasetResponse, error)
 	ListDataElements(ctx context.Context, dataSetID *string) ([]DataElementResponse, error)
 	ListDataValues(ctx context.Context, req DataValuesRequest) (DataValuesResponse, error)
-	ListThemes(ctx context.Context) ([]ThemeResponse, error)
-	ListDataElementsByTheme(ctx context.Context, themeID string) ([]DataElementByThemeResponse, error)
-	ListHIVSummary(ctx context.Context) ([]HIVSummaryResponse, error)
-	ListHIVTested(ctx context.Context) ([]HIVTestedResponse, error)
-	ListHIVRegimen(ctx context.Context) ([]HIVRegimenResponse, error)
 }
 
 type postgresRepository struct {
@@ -164,7 +159,16 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		}
 
 		query = `
-		   WITH selected_input AS (
+		   WITH org_unit_attrs AS (
+		     SELECT
+		       COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) AS facility_uid,
+		       MAX(NULLIF(h.level_of_care, '')) AS level_of_care,
+		       MAX(NULLIF(h.ownership, '')) AS ownership
+		     FROM hiv.organisation_unit h
+		     WHERE COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) IS NOT NULL
+		     GROUP BY 1
+		   ),
+		   selected_input AS (
 		     SELECT DISTINCT unnest($1::text[]) AS selected_uid
 		   ),
 		   selected_candidates AS (
@@ -273,6 +277,8 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		     x.region,
 		     x.district,
 		     x.sub_county,
+		     x.level_of_care,
+		     x.ownership,
 		     x.dataelement
 		   FROM (
 		     SELECT
@@ -286,7 +292,7 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		           ELSE 0
 		         END
 		       )::bigint AS value,
-		       sf.selected_name AS facility,
+		       COALESCE(MAX(NULLIF(hs.facility, '')), sf.selected_name) AS facility,
 		       sf.selected_level AS "level",
 		       CASE
 		         WHEN sf.selected_level = '2' THEN sf.selected_name
@@ -303,10 +309,22 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		         WHEN sf.selected_level = '6' THEN COALESCE(MAX(hs.sub_county), '')
 		         ELSE ''
 		       END AS sub_county,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+		         ELSE 'ALL'
+		       END AS level_of_care,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+		         ELSE 'ALL'
+		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
 		     JOIN selected_facilities sf
 		       ON sf.facility_uid = hs.org_unit_id
+		     LEFT JOIN org_unit_attrs oa
+		       ON oa.facility_uid = hs.org_unit_id
 		     ` + whereClause + `
 		     GROUP BY
 		       sf.selected_uid,
@@ -330,15 +348,27 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		           ELSE 0
 		         END
 		       )::bigint AS value,
-		       su.selected_name AS facility,
+		       COALESCE(MAX(NULLIF(hs.facility, '')), su.selected_name) AS facility,
 		       su.selected_level AS "level",
 		       '' AS region,
 		       '' AS district,
 		       '' AS sub_county,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+		         ELSE 'ALL'
+		       END AS level_of_care,
+		       CASE
+		         WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+		           THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+		         ELSE 'ALL'
+		       END AS ownership,
 		       hs.dataelement
 		     FROM report.hmis_summary hs
 		     JOIN selected_units su
 		       ON su.selected_level = '1'
+		     LEFT JOIN org_unit_attrs oa
+		       ON oa.facility_uid = hs.org_unit_id
 		     ` + countryOrgUnitFilterJoin + `
 		     ` + whereClause + `
 		     GROUP BY
@@ -390,11 +420,31 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 		      ` + regionExpr + ` AS region,
 	          ` + districtExpr + ` AS district,
 	          ` + subCountyExpr + ` AS sub_county,
+	          CASE
+	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown')) = 1
+	              THEN MAX(COALESCE(NULLIF(oa.level_of_care, ''), 'Unknown'))
+	            ELSE 'ALL'
+	          END AS level_of_care,
+	          CASE
+	            WHEN COUNT(DISTINCT COALESCE(NULLIF(oa.ownership, ''), 'Unknown')) = 1
+	              THEN MAX(COALESCE(NULLIF(oa.ownership, ''), 'Unknown'))
+	            ELSE 'ALL'
+	          END AS ownership,
 	          hs.dataelement
 	       FROM report.hmis_summary hs
+	       LEFT JOIN (
+	         SELECT
+	           COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) AS facility_uid,
+	           MAX(NULLIF(h.level_of_care, '')) AS level_of_care,
+	           MAX(NULLIF(h.ownership, '')) AS ownership
+	         FROM hiv.organisation_unit h
+	         WHERE COALESCE(NULLIF(h.facility_uid, ''), h.org_unit_id) IS NOT NULL
+	         GROUP BY 1
+	       ) oa
+	         ON oa.facility_uid = hs.org_unit_id
 	       ` + orgUnitFilterJoin + `
 	       ` + whereClause + `
-	       GROUP BY 1, 2, 3, 4, 6, 7, 8, 9, 10, 11
+	       GROUP BY 1, 2, 3, 4, 6, 7, 8, 9, 10, 13
 	       ORDER BY 
 	          3,
 	          1,
@@ -423,6 +473,8 @@ func (r *postgresRepository) ListDataValues(ctx context.Context, req DataValuesR
 			&row.Region,
 			&row.District,
 			&row.SubCounty,
+			&row.LevelOfCare,
+			&row.Ownership,
 			&row.Dataelement,
 		); err != nil {
 			return DataValuesResponse{}, err
@@ -482,159 +534,4 @@ func (r *postgresRepository) resolveAggregationLevel(ctx context.Context, reques
 		return "6"
 	}
 	return level
-}
-
-func (r *postgresRepository) ListThemes(ctx context.Context) ([]ThemeResponse, error) {
-	query := `
-		SELECT theme_id, theme_name,dataset_name
-		FROM report.themes
-	`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]ThemeResponse, 0)
-	for rows.Next() {
-		var theme ThemeResponse
-		if err := rows.Scan(&theme.ThemeID, &theme.ThemeName, &theme.DatasetName); err != nil {
-			continue
-		}
-		results = append(results, theme)
-	}
-	return results, rows.Err()
-}
-
-func (r *postgresRepository) ListDataElementsByTheme(ctx context.Context, themeID string) ([]DataElementByThemeResponse, error) {
-	query := `
-		SELECT 
-			t.theme_category_id, 
-			t.theme_id,
-			n.theme_name,
-			t.data_element_id as data_element_key,
-			m.data_element_id, 
-			m.data_element_short_name
-		FROM report.theme_category t
-		INNER JOIN dwh.dim_hmis_data_element_map_current m ON m.dim_data_element_map_current_key = t.data_element_id
-		INNER JOIN report.themes n ON n.theme_id = t.theme_id 
-		WHERE t.theme_id = $1
-	`
-
-	rows, err := r.db.QueryContext(ctx, query, themeID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]DataElementByThemeResponse, 0)
-	for rows.Next() {
-		var element DataElementByThemeResponse
-		if err := rows.Scan(&element.ThemeCategoryID, &element.ThemeID, &element.ThemeName, &element.DataElementKey, &element.DataElementID, &element.DataElementShortName); err != nil {
-			continue
-		}
-		results = append(results, element)
-	}
-	return results, rows.Err()
-}
-
-func (r *postgresRepository) ListHIVSummary(ctx context.Context) ([]HIVSummaryResponse, error) {
-	query := `
-		SELECT
-			year,
-			quarter,
-			SUM(tested) AS total_tested,
-			SUM(hiv_pos) AS total_hiv_positive,
-			SUM(linked_care) AS total_linked_care,
-			SUM(enrolled_care) AS total_enrolled_care,
-			SUM(art_starts) AS total_art_starts,
-			SUM(art_with_cd4) AS total_art_with_cd4,
-			SUM(tx_curr) AS total_tx_curr,
-			SUM(tx_1st_line) AS total_tx_1st_line,
-			SUM(tx_2nd_line) AS total_tx_2nd_line,
-			SUM(tx_3rd_plus) AS total_tx_3rd_plus,
-			SUM(tb_screened) AS total_tb_screened,
-			SUM(maln_assessed) AS total_malnutrition_assessed
-		FROM hiv.mv_hiv_quarterly_agg
-		GROUP BY year, quarter
-		ORDER BY year
-	`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]HIVSummaryResponse, 0)
-	for rows.Next() {
-		var summary HIVSummaryResponse
-		if err := rows.Scan(&summary.Year, &summary.Quarter, &summary.TotalTested, &summary.TotalHIVPositive, &summary.TotalLinkedCare, &summary.TotalEnrolledCare, &summary.TotalARTStarts, &summary.TotalARTWithCD4, &summary.TotalTXCurr, &summary.TotalTX1stLine, &summary.TotalTX2ndLine, &summary.TotalTX3rdPlus, &summary.TotalTBScreened, &summary.TotalMalnutritionAssessed); err != nil {
-			continue
-		}
-		results = append(results, summary)
-	}
-	return results, rows.Err()
-}
-
-func (r *postgresRepository) ListHIVTested(ctx context.Context) ([]HIVTestedResponse, error) {
-	query := `
-		SELECT year,
-			quarter,
-			sum(total_tested) as tested_hiv,
-			sum(total_positive) as tested_hiv_positive,
-			sum(total_linked_to_care) as total_linked_care
-		FROM hiv.mv_hmis_105_flat
-		GROUP BY year, quarter
-	`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]HIVTestedResponse, 0)
-	for rows.Next() {
-		var tested HIVTestedResponse
-		if err := rows.Scan(&tested.Year, &tested.Quarter, &tested.TestedHIV, &tested.TestedHIVPositive, &tested.TotalLinkedCare); err != nil {
-			continue
-		}
-		results = append(results, tested)
-	}
-	return results, rows.Err()
-}
-
-func (r *postgresRepository) ListHIVRegimen(ctx context.Context) ([]HIVRegimenResponse, error) {
-	query := `
-		SELECT
-			year,
-			quarter,
-			SUM(
-				COALESCE(active_first_line_regimen, 0)
-				+ COALESCE(active_on_art_2nd_line_regimen, 0)
-				+ COALESCE(active_on_art_3rd_line, 0)
-			) AS actives,
-			SUM(total_tested_vl_past_12months) as tested_viral_load,
-			SUM(clients_suppressed_12months) as total_suppressed
-		FROM hiv.mv_hmis_106_flat
-		GROUP BY year, quarter
-	`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	results := make([]HIVRegimenResponse, 0)
-	for rows.Next() {
-		var regimen HIVRegimenResponse
-		if err := rows.Scan(&regimen.Year, &regimen.Quarter, &regimen.Actives, &regimen.TestedViralLoad, &regimen.TotalSuppressed); err != nil {
-			continue
-		}
-		results = append(results, regimen)
-	}
-	return results, rows.Err()
 }

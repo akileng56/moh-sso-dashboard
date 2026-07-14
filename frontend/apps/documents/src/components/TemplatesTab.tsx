@@ -5,9 +5,9 @@ import {
   IconButton,
   InlineLoading,
   InlineNotification,
-  Modal,
   Search,
   Tag,
+  Tile,
 } from "@carbon/react";
 import {
   Add,
@@ -23,7 +23,7 @@ import {
 import * as XLSX from "xlsx";
 
 import { PermissionGuard, PERMISSIONS, selectUser } from "@moh-sso/auth";
-import { useHeaderPanel } from "@moh-sso/ui";
+import { useHeaderPanel, useModal, useToast } from "@moh-sso/ui";
 import { useGetUserQuery } from "@moh-sso/users/api";
 
 import { UploadTemplateModal } from "./UploadTemplateModal";
@@ -37,6 +37,7 @@ import {
   usePublishTemplateMutation,
 } from "../api";
 import type { DocumentTemplate, TemplateStructure } from "../types";
+import "./documents-components.scss";
 
 function formatFileType(raw: string): string {
   switch (raw?.toLowerCase()) {
@@ -158,7 +159,7 @@ function UploaderName({ userId }: { userId?: string }) {
   }
 
   if (isLoading) {
-    return <span style={{ color: "#6f6f6f" }}>Loading…</span>;
+    return <span className="documents-muted">Loading…</span>;
   }
 
   if (!user) {
@@ -174,120 +175,46 @@ function TemplateStructureView({ code }: { code: string }) {
   const { data: structure, isLoading, isError } = useGetTemplateStructureQuery(code);
 
   if (isLoading) {
-    return <InlineLoading description="Loading structure..." style={{ padding: "1rem 1.5rem" }} />;
+    return (
+      <InlineLoading description="Loading structure..." className="documents-loading-inline" />
+    );
   }
 
   if (isError || !structure) {
     return (
-      <p
-        style={{
-          padding: "1rem 1.5rem",
-          color: "#da1e28",
-          margin: 0,
-        }}
-      >
+      <p className="documents-template-structure__message documents-template-structure__message--error">
         Failed to load template structure.
       </p>
     );
   }
 
   if (structure.sheets.length === 0) {
-    return (
-      <p
-        style={{
-          padding: "1rem 1.5rem",
-          color: "#6f6f6f",
-          margin: 0,
-        }}
-      >
-        No sheets defined.
-      </p>
-    );
+    return <p className="documents-template-structure__message">No sheets defined.</p>;
   }
 
   return (
-    <div
-      style={{
-        padding: "1rem 1.5rem 1.25rem",
-        background: "#f4f4f4",
-      }}
-    >
+    <div className="documents-template-structure">
       {structure.sheets.map((sheet, sheetIndex) => (
         <div
           key={sheet.id}
-          style={{
-            marginBottom: sheetIndex === structure.sheets.length - 1 ? 0 : "1.25rem",
-          }}
+          className="documents-template-structure__sheet"
+          data-last={sheetIndex === structure.sheets.length - 1 ? "true" : undefined}
         >
           {structure.sheets.length > 1 && (
-            <p
-              style={{
-                margin: "0 0 0.5rem",
-                fontWeight: 600,
-                fontSize: "0.875rem",
-              }}
-            >
-              Sheet: {sheet.name}
-            </p>
+            <p className="documents-template-structure__sheet-title">Sheet: {sheet.name}</p>
           )}
 
           {sheet.columns.length === 0 ? (
-            <p
-              style={{
-                margin: 0,
-                color: "#6f6f6f",
-                fontSize: "0.875rem",
-              }}
-            >
-              No columns defined.
-            </p>
+            <p className="documents-template-structure__empty">No columns defined.</p>
           ) : (
-            <table
-              style={{
-                borderCollapse: "collapse",
-                fontSize: "0.8125rem",
-                width: "100%",
-                maxWidth: 640,
-              }}
-            >
+            <table className="documents-template-structure__table">
               <thead>
-                <tr
-                  style={{
-                    borderBottom: "1px solid #c6c6c6",
-                  }}
-                >
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "0.35rem 0.75rem",
-                      fontWeight: 600,
-                      color: "#525252",
-                    }}
-                  >
-                    Column
-                  </th>
+                <tr>
+                  <th>Column</th>
 
-                  <th
-                    style={{
-                      textAlign: "left",
-                      padding: "0.35rem 0.75rem",
-                      fontWeight: 600,
-                      color: "#525252",
-                    }}
-                  >
-                    Type
-                  </th>
+                  <th>Type</th>
 
-                  <th
-                    style={{
-                      textAlign: "center",
-                      padding: "0.35rem 0.75rem",
-                      fontWeight: 600,
-                      color: "#525252",
-                    }}
-                  >
-                    Required
-                  </th>
+                  <th>Required</th>
                 </tr>
               </thead>
 
@@ -296,50 +223,18 @@ function TemplateStructureView({ code }: { code: string }) {
                   .slice()
                   .sort((a, b) => (a.column_order ?? 0) - (b.column_order ?? 0))
                   .map((column) => (
-                    <tr
-                      key={column.id}
-                      style={{
-                        borderBottom: "1px solid #e8e8e8",
-                        background: column.required ? "#fff" : undefined,
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "0.35rem 0.75rem",
-                          fontFamily: "monospace",
-                          fontWeight: column.required ? 600 : 400,
-                          color: column.required ? "#161616" : "#525252",
-                        }}
-                      >
-                        {column.column_name}
-                      </td>
+                    <tr key={column.id} className={column.required ? "is-required" : undefined}>
+                      <td className="documents-template-structure__column">{column.column_name}</td>
 
-                      <td
-                        style={{
-                          padding: "0.35rem 0.75rem",
-                          color: "#525252",
-                        }}
-                      >
-                        {column.data_type}
-                      </td>
+                      <td>{column.data_type}</td>
 
-                      <td
-                        style={{
-                          padding: "0.35rem 0.75rem",
-                          textAlign: "center",
-                        }}
-                      >
+                      <td>
                         {column.required ? (
-                          <span
-                            style={{
-                              color: "#198038",
-                              fontWeight: 700,
-                            }}
-                          >
-                            ✓
-                          </span>
+                          <Tag type="green" size="sm">
+                            Required
+                          </Tag>
                         ) : (
-                          <span style={{ color: "#8d8d8d" }}>—</span>
+                          <span className="documents-muted-cell">—</span>
                         )}
                       </td>
                     </tr>
@@ -353,41 +248,13 @@ function TemplateStructureView({ code }: { code: string }) {
   );
 }
 
-type DeleteModalProps = {
-  template: DocumentTemplate | null;
-  onConfirm: () => void;
-  onCancel: () => void;
-  isLoading: boolean;
-};
-
-function DeleteConfirmModal({ template, onConfirm, onCancel, isLoading }: DeleteModalProps) {
-  return (
-    <Modal
-      open={template !== null}
-      danger
-      modalHeading="Delete template"
-      primaryButtonText={isLoading ? "Deleting..." : "Delete"}
-      secondaryButtonText="Cancel"
-      onRequestClose={onCancel}
-      onRequestSubmit={onConfirm}
-      primaryButtonDisabled={isLoading}
-    >
-      {template && (
-        <p>
-          Are you sure you want to delete <strong>{template.name}</strong> ({template.code})? This
-          cannot be undone.
-        </p>
-      )}
-    </Modal>
-  );
-}
-
 export function TemplatesTab() {
   const { openPanel, closePanel } = useHeaderPanel();
+  const { openModal, closeModal } = useModal();
+  const toast = useToast();
 
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [deleteTarget, setDeleteTarget] = useState<DocumentTemplate | null>(null);
 
   const { data: templates = [], isLoading, isError } = useGetTemplatesQuery();
 
@@ -446,43 +313,74 @@ export function TemplatesTab() {
   }
 
   async function handleDownload(template: DocumentTemplate) {
-    const result = await getStructure(template.code);
+    try {
+      const result = await getStructure(template.code);
 
-    if (result.data) {
-      downloadTemplateFile(template, result.data);
+      if (result.data) {
+        downloadTemplateFile(template, result.data);
+        toast.success("Template downloaded", template.name);
+        return;
+      }
+
+      toast.error("Download failed", "Template structure is unavailable.");
+    } catch {
+      toast.error("Download failed", "Please try again.");
     }
   }
 
   async function handlePublish(template: DocumentTemplate) {
     try {
       await publishTemplate(template.id).unwrap();
+      toast.success("Template published", template.name);
     } catch {
-      // Error is exposed through RTK Query state.
+      toast.error("Publish failed", "Please try again.");
     }
   }
 
   async function handleArchive(template: DocumentTemplate) {
     try {
       await archiveTemplate(template.id).unwrap();
+      toast.success("Template archived", template.name);
     } catch {
-      // Error is exposed through RTK Query state.
+      toast.error("Archive failed", "Please try again.");
     }
   }
 
-  async function handleDeleteConfirm() {
-    if (!deleteTarget) {
-      return;
-    }
-
+  async function handleDeleteConfirm(template: DocumentTemplate) {
     try {
-      await deleteTemplate(deleteTarget.id).unwrap();
-    } finally {
-      setDeleteTarget(null);
+      await deleteTemplate(template.id).unwrap();
+      closeModal();
+      toast.success("Template deleted", template.name);
+    } catch {
+      toast.error("Delete failed", "Please try again.");
     }
+  }
+
+  function handleDeleteRequest(template: DocumentTemplate) {
+    openModal({
+      title: "Delete template",
+      onClose: closeModal,
+      content: (
+        <p>
+          Are you sure you want to delete <strong>{template.name}</strong> ({template.code})? This
+          cannot be undone.
+        </p>
+      ),
+      primaryAction: {
+        label: isDeleting ? "Deleting..." : "Delete",
+        kind: "danger",
+        disabled: isDeleting,
+        onClick: () => void handleDeleteConfirm(template),
+      },
+      secondaryAction: {
+        label: "Cancel",
+        onClick: closeModal,
+      },
+    });
   }
 
   if (isLoading) {
-    return <InlineLoading description="Loading templates..." style={{ padding: "2rem 0" }} />;
+    return <InlineLoading description="Loading templates..." className="documents-loading-block" />;
   }
 
   if (isError) {
@@ -509,29 +407,16 @@ export function TemplatesTab() {
       }
     >
       <>
-        <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
-          <DeleteConfirmModal
-            template={deleteTarget}
-            onConfirm={() => void handleDeleteConfirm()}
-            onCancel={() => setDeleteTarget(null)}
-            isLoading={isDeleting}
-          />
-        </PermissionGuard>
-
-        <div
-          style={{
-            marginBottom: "1rem",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <p style={{ margin: 0, color: "#6f6f6f" }}>
-            {templates.length} template
-            {templates.length !== 1 ? "s" : ""} total —{" "}
-            {templates.filter((template) => template.is_active && !template.archived_at).length}{" "}
-            active
-          </p>
+        <div className="documents-templates__toolbar">
+          <div>
+            <h3>Templates</h3>
+            <p>
+              {templates.length} template
+              {templates.length !== 1 ? "s" : ""} total ·{" "}
+              {templates.filter((template) => template.is_active && !template.archived_at).length}{" "}
+              active
+            </p>
+          </div>
 
           <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
             <Button renderIcon={Add} onClick={handleNewTemplate} size="sm">
@@ -540,7 +425,7 @@ export function TemplatesTab() {
           </PermissionGuard>
         </div>
 
-        <div style={{ marginBottom: "0.5rem" }}>
+        <Tile className="documents-templates__filters">
           <Search
             placeholder="Search by name, code, or file type"
             value={search}
@@ -548,355 +433,189 @@ export function TemplatesTab() {
             labelText="Search templates"
             size="lg"
           />
-        </div>
+        </Tile>
 
         {filtered.length === 0 ? (
-          <div
-            style={{
-              padding: "3rem 1rem",
-              textAlign: "center",
-              color: "#6f6f6f",
-              border: "1px dashed #c6c6c6",
-            }}
-          >
+          <div className="documents-templates__empty">
             {templates.length === 0
               ? "No templates are currently available."
               : "No templates match your search."}
           </div>
         ) : (
-          <table
-            style={{
-              width: "100%",
-              borderCollapse: "collapse",
-              fontSize: "0.875rem",
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  borderBottom: "2px solid #e0e0e0",
-                  background: "#f4f4f4",
-                }}
-              >
-                <th style={{ width: 32 }} />
+          <div className="documents-templates__table-scroll">
+            <table className="documents-templates__table">
+              <thead>
+                <tr>
+                  <th />
+                  <th>Name</th>
+                  <th>Code</th>
+                  <th>File type</th>
+                  <th>Uploaded by</th>
+                  <th>Uploaded</th>
+                  <th>Status</th>
+                  <th>Version</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
 
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Name
-                </th>
+              <tbody>
+                {filtered.map((template) => {
+                  const isExpanded = expanded.has(template.id);
+                  const status = getTemplateStatus(template);
 
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Code
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  File type
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Uploaded by
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Uploaded
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Status
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "left",
-                    padding: "0.6rem 1rem",
-                    fontWeight: 600,
-                  }}
-                >
-                  Version
-                </th>
-
-                <th
-                  style={{
-                    textAlign: "right",
-                    padding: "0.6rem 0.75rem",
-                    fontWeight: 600,
-                    width: 150,
-                  }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {filtered.map((template) => {
-                const isExpanded = expanded.has(template.id);
-                const status = getTemplateStatus(template);
-
-                return (
-                  <Fragment key={template.id}>
-                    <tr
-                      style={{
-                        borderBottom: isExpanded ? "none" : "1px solid #e0e0e0",
-                        background: isExpanded ? "#f9f9f9" : "#fff",
-                      }}
-                    >
-                      <td
-                        style={{
-                          padding: "0 0 0 0.75rem",
-                          width: 32,
-                        }}
+                  return (
+                    <Fragment key={template.id}>
+                      <tr
+                        className={
+                          isExpanded
+                            ? "documents-templates__row documents-templates__row--expanded"
+                            : "documents-templates__row"
+                        }
                       >
-                        <button
-                          type="button"
-                          onClick={() => toggleExpand(template.id)}
-                          style={{
-                            background: "none",
-                            border: "none",
-                            cursor: "pointer",
-                            padding: "0.5rem 0.25rem",
-                            color: "#525252",
-                            display: "flex",
-                            alignItems: "center",
-                          }}
-                          aria-expanded={isExpanded}
-                          aria-label={
-                            isExpanded ? `Collapse ${template.name}` : `Expand ${template.name}`
-                          }
-                        >
-                          {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-                        </button>
-                      </td>
-
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {template.name}
-
-                        {template.description && (
-                          <div
-                            style={{
-                              fontSize: "0.8rem",
-                              color: "#6f6f6f",
-                              fontWeight: 400,
-                              marginTop: 2,
-                            }}
+                        <td className="documents-templates__expand-cell">
+                          <button
+                            type="button"
+                            onClick={() => toggleExpand(template.id)}
+                            className="documents-templates__expand-button"
+                            aria-expanded={isExpanded}
+                            aria-label={
+                              isExpanded ? `Collapse ${template.name}` : `Expand ${template.name}`
+                            }
                           >
-                            {template.description}
-                          </div>
-                        )}
-                      </td>
+                            {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                          </button>
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          fontFamily: "monospace",
-                          color: "#525252",
-                        }}
-                      >
-                        {template.code}
-                      </td>
+                        <td className="documents-templates__name-cell">
+                          {template.name}
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          textTransform: "uppercase",
-                          fontSize: "0.8rem",
-                          color: "#525252",
-                        }}
-                      >
-                        {formatFileType(template.file_type)}
-                      </td>
+                          {template.description && (
+                            <div className="documents-templates__description">
+                              {template.description}
+                            </div>
+                          )}
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          fontSize: "0.8rem",
-                          color: "#525252",
-                        }}
-                      >
-                        <UploaderName userId={template.created_by} />
-                      </td>
+                        <td className="documents-templates__code-cell">{template.code}</td>
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          fontSize: "0.8rem",
-                          color: "#525252",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {formatDateTime(template.created_at)}
-                      </td>
+                        <td className="documents-templates__file-type-cell">
+                          {formatFileType(template.file_type)}
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                        }}
-                      >
-                        <StatusTag template={template} />
-                      </td>
+                        <td className="documents-templates__small-cell">
+                          <UploaderName userId={template.created_by} />
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.6rem 1rem",
-                          color: "#525252",
-                        }}
-                      >
-                        v{template.version}
-                      </td>
+                        <td className="documents-templates__date-cell">
+                          {formatDateTime(template.created_at)}
+                        </td>
 
-                      <td
-                        style={{
-                          padding: "0.4rem 0.75rem",
-                          textAlign: "right",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "0.125rem",
-                            justifyContent: "flex-end",
-                            alignItems: "center",
-                          }}
-                        >
-                          {status === "draft" && (
-                            <PermissionGuard permission={PERMISSIONS.documentTemplatesPublish}>
+                        <td className="documents-templates__cell">
+                          <StatusTag template={template} />
+                        </td>
+
+                        <td className="documents-templates__cell documents-muted">
+                          v{template.version}
+                        </td>
+
+                        <td className="documents-templates__actions-cell">
+                          <div className="documents-templates__actions">
+                            {status === "draft" && (
+                              <PermissionGuard permission={PERMISSIONS.documentTemplatesPublish}>
+                                <IconButton
+                                  label="Publish"
+                                  kind="ghost"
+                                  size="sm"
+                                  onClick={() => void handlePublish(template)}
+                                  disabled={isMutating}
+                                >
+                                  <TaskComplete />
+                                </IconButton>
+                              </PermissionGuard>
+                            )}
+
+                            {status === "active" && (
+                              <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
+                                <IconButton
+                                  label="Archive"
+                                  kind="ghost"
+                                  size="sm"
+                                  onClick={() => void handleArchive(template)}
+                                  disabled={isMutating}
+                                >
+                                  <Archive />
+                                </IconButton>
+                              </PermissionGuard>
+                            )}
+
+                            {status === "archived" && (
+                              <PermissionGuard permission={PERMISSIONS.documentTemplatesPublish}>
+                                <IconButton
+                                  label="Re-publish"
+                                  kind="ghost"
+                                  size="sm"
+                                  onClick={() => void handlePublish(template)}
+                                  disabled={isMutating}
+                                >
+                                  <Renew />
+                                </IconButton>
+                              </PermissionGuard>
+                            )}
+
+                            <PermissionGuard permission={PERMISSIONS.documentTemplatesRead}>
                               <IconButton
-                                label="Publish"
+                                label="Download empty template"
                                 kind="ghost"
                                 size="sm"
-                                onClick={() => void handlePublish(template)}
+                                onClick={() => void handleDownload(template)}
                                 disabled={isMutating}
                               >
-                                <TaskComplete />
+                                <Download />
                               </IconButton>
                             </PermissionGuard>
-                          )}
 
-                          {status === "active" && (
                             <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
                               <IconButton
-                                label="Archive"
+                                label="Edit"
                                 kind="ghost"
                                 size="sm"
-                                onClick={() => void handleArchive(template)}
+                                onClick={() => handleEdit(template)}
                                 disabled={isMutating}
                               >
-                                <Archive />
+                                <Edit />
                               </IconButton>
                             </PermissionGuard>
-                          )}
 
-                          {status === "archived" && (
-                            <PermissionGuard permission={PERMISSIONS.documentTemplatesPublish}>
+                            <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
                               <IconButton
-                                label="Re-publish"
+                                label="Delete"
                                 kind="ghost"
                                 size="sm"
-                                onClick={() => void handlePublish(template)}
+                                onClick={() => handleDeleteRequest(template)}
                                 disabled={isMutating}
                               >
-                                <Renew />
+                                <TrashCan />
                               </IconButton>
                             </PermissionGuard>
-                          )}
-
-                          <PermissionGuard permission={PERMISSIONS.documentTemplatesRead}>
-                            <IconButton
-                              label="Download empty template"
-                              kind="ghost"
-                              size="sm"
-                              onClick={() => void handleDownload(template)}
-                              disabled={isMutating}
-                            >
-                              <Download />
-                            </IconButton>
-                          </PermissionGuard>
-
-                          <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
-                            <IconButton
-                              label="Edit"
-                              kind="ghost"
-                              size="sm"
-                              onClick={() => handleEdit(template)}
-                              disabled={isMutating}
-                            >
-                              <Edit />
-                            </IconButton>
-                          </PermissionGuard>
-
-                          <PermissionGuard permission={PERMISSIONS.documentTemplatesWrite}>
-                            <IconButton
-                              label="Delete"
-                              kind="ghost"
-                              size="sm"
-                              onClick={() => setDeleteTarget(template)}
-                              disabled={isMutating}
-                            >
-                              <TrashCan />
-                            </IconButton>
-                          </PermissionGuard>
-                        </div>
-                      </td>
-                    </tr>
-
-                    {isExpanded && (
-                      <tr
-                        style={{
-                          borderBottom: "1px solid #e0e0e0",
-                        }}
-                      >
-                        <td />
-
-                        <td colSpan={8} style={{ padding: 0 }}>
-                          <TemplateStructureView code={template.code} />
+                          </div>
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+
+                      {isExpanded && (
+                        <tr className="documents-templates__expanded-row">
+                          <td />
+
+                          <td colSpan={8} className="documents-templates__expanded-content">
+                            <TemplateStructureView code={template.code} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </>
     </PermissionGuard>

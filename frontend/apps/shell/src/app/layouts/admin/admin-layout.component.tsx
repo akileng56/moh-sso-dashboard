@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentType } from "react";
 import {
   Content,
@@ -31,8 +31,8 @@ import {
   HeaderPanelProvider,
   NotificationsPanel,
   PublicFooter,
-  ToastProvider,
   useHeaderPanel,
+  useFocusTrap,
 } from "@moh-sso/ui";
 
 import { API } from "@moh-sso/config";
@@ -163,6 +163,10 @@ function readStoredSideNavVisible(): boolean {
     return true;
   }
 
+  if (window.matchMedia("(max-width: 1056px)").matches) {
+    return window.localStorage.getItem(ADMIN_SIDENAV_STORAGE_KEY) === "true";
+  }
+
   return window.localStorage.getItem(ADMIN_SIDENAV_STORAGE_KEY) !== "false";
 }
 
@@ -282,12 +286,17 @@ function HeaderActions() {
 type AdminSideNavProps = {
   visible: boolean;
   onToggleVisibility: () => void;
+  onNavigate?: () => void;
 };
 
-function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
+function AdminSideNav({ visible, onToggleVisibility, onNavigate }: AdminSideNavProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { can, canAny } = useAuthorization();
+  const navRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const shouldTrapFocus =
+    visible && typeof window !== "undefined" && window.matchMedia("(max-width: 1056px)").matches;
 
   const navItems = useMemo(
     () =>
@@ -298,6 +307,12 @@ function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
       ),
     [can, canAny],
   );
+
+  useFocusTrap({
+    active: shouldTrapFocus,
+    containerRef: navRef,
+    initialFocusRef: closeButtonRef,
+  });
 
   return (
     <>
@@ -315,6 +330,7 @@ function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
       ) : null}
 
       <SideNav
+        ref={navRef}
         id="admin-sidenav"
         isFixedNav
         expanded
@@ -330,6 +346,7 @@ function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
             </div>
 
             <button
+              ref={closeButtonRef}
               type="button"
               className="admin-layout__sidenav-toggle"
               aria-label="Hide navigation"
@@ -365,6 +382,7 @@ function AdminSideNav({ visible, onToggleVisibility }: AdminSideNavProps) {
                         if (location.pathname !== item.path) {
                           navigate(item.path);
                         }
+                        onNavigate?.();
                       }}
                     >
                       {item.label}
@@ -386,64 +404,92 @@ export default function AdminLayout() {
   const versionInfo = useVersionInfo();
 
   useEffect(() => {
+    if (!isSideNavVisible) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && window.matchMedia("(max-width: 1056px)").matches) {
+        setIsSideNavVisible(false);
+      }
+    };
+
+    const originalOverflow = document.body.style.overflow;
+
+    if (window.matchMedia("(max-width: 1056px)").matches) {
+      document.body.style.overflow = "hidden";
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isSideNavVisible]);
+
+  useEffect(() => {
     window.localStorage.setItem(ADMIN_SIDENAV_STORAGE_KEY, String(isSideNavVisible));
   }, [isSideNavVisible]);
 
   return (
-    <ToastProvider>
-      <HeaderPanelProvider>
-        <div
-          className={`admin-layout${isSideNavVisible ? "" : " admin-layout--sidenav-hidden"}`}
-        >
-          <Header aria-label="MOH Integrated Health Portal" className="admin-layout__header">
-            <div className="admin-layout__brand">
-              <button
-                type="button"
-                className="admin-layout__brand-logo-button"
-                onClick={() => navigate("/admin")}
-                aria-label="Go to admin home"
-              >
-                <img
-                  src={imagePath}
-                  className="admin-layout__brand-logo"
-                  alt=""
-                  aria-hidden="true"
-                />
-              </button>
+    <HeaderPanelProvider>
+      <div className={`admin-layout${isSideNavVisible ? "" : " admin-layout--sidenav-hidden"}`}>
+        <Header aria-label="MOH Integrated Health Portal" className="admin-layout__header">
+          <div className="admin-layout__brand">
+            <button
+              type="button"
+              className="admin-layout__brand-logo-button"
+              onClick={() => navigate("/admin")}
+              aria-label="Go to admin home"
+            >
+              <img src={imagePath} className="admin-layout__brand-logo" alt="" aria-hidden="true" />
+            </button>
 
-              <HeaderName
-                prefix="MOH"
-                onClick={() => navigate("/admin")}
-                className="admin-layout__brand-name"
-              >
-                Integrated Health Portal
-              </HeaderName>
-            </div>
-
-            <HeaderGlobalBar>
-              <HeaderActions />
-            </HeaderGlobalBar>
-          </Header>
-
-          <AdminSideNav
-            visible={isSideNavVisible}
-            onToggleVisibility={() => setIsSideNavVisible((visible) => !visible)}
-          />
-
-          <div className="admin-layout__content-shell">
-            <RouteBreadcrumbBar />
-
-            <Content id="main-content" className="admin-layout__content">
-              <Outlet />
-            </Content>
+            <HeaderName
+              prefix="MOH"
+              onClick={() => navigate("/admin")}
+              className="admin-layout__brand-name"
+            >
+              Integrated Health Portal
+            </HeaderName>
           </div>
-          <PublicFooter
-            frontendVersion={versionInfo.frontend.version}
-            backendVersion={versionInfo.backend?.version}
-            backendUnavailable={!versionInfo.isLoading && !versionInfo.backend}
+
+          <HeaderGlobalBar>
+            <HeaderActions />
+          </HeaderGlobalBar>
+        </Header>
+
+        <AdminSideNav
+          visible={isSideNavVisible}
+          onToggleVisibility={() => setIsSideNavVisible((visible) => !visible)}
+          onNavigate={() => {
+            if (window.matchMedia("(max-width: 1056px)").matches) {
+              setIsSideNavVisible(false);
+            }
+          }}
+        />
+
+        {isSideNavVisible ? (
+          <button
+            type="button"
+            className="admin-layout__sidenav-backdrop"
+            aria-label="Close navigation"
+            onClick={() => setIsSideNavVisible(false)}
           />
+        ) : null}
+
+        <div className="admin-layout__content-shell">
+          <RouteBreadcrumbBar />
+
+          <Content id="main-content" className="admin-layout__content">
+            <Outlet />
+          </Content>
         </div>
-      </HeaderPanelProvider>
-    </ToastProvider>
+        <PublicFooter
+          frontendVersion={versionInfo.frontend.version}
+          backendVersion={versionInfo.backend?.version}
+          backendUnavailable={!versionInfo.isLoading && !versionInfo.backend}
+        />
+      </div>
+    </HeaderPanelProvider>
   );
 }

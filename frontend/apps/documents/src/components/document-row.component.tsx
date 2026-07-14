@@ -10,6 +10,7 @@ import {
 } from "../api";
 import { useGetUserQuery } from "@moh-sso/users/api";
 import { selectUser } from "@moh-sso/auth";
+import { useModal, useToast } from "@moh-sso/ui";
 import type { DocumentProcess, DocumentResponse } from "../types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,6 +91,8 @@ type Props = {
 
 export function DocumentRow({ document }: Props) {
   const navigate = useNavigate();
+  const { openModal, closeModal } = useModal();
+  const toast = useToast();
   const [triggerDownload] = useLazyDownloadDocumentQuery();
   const [deleteDocument, { isLoading: isDeleting }] = useDeleteDocumentMutation();
   const [reprocessDocument, { isLoading: isReprocessing }] = useReprocessDocumentMutation();
@@ -135,52 +138,77 @@ export function DocumentRow({ document }: Props) {
       link.download = document.original_filename;
       link.click();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
-      console.error("Download failed", e);
+      toast.success("Download started", document.original_filename);
+    } catch {
+      toast.error("Download failed", "Please try again.");
     }
   };
 
-  const handleDelete = async () => {
-    if (!window.confirm(`Delete "${document.original_filename}"? This cannot be undone.`)) return;
+  const deleteCurrentDocument = async () => {
     try {
       await deleteDocument(document.id).unwrap();
-    } catch (e) {
-      console.error("Delete failed", e);
+      closeModal();
+      toast.success("Document deleted", document.original_filename);
+    } catch {
+      toast.error("Delete failed", "Please try again.");
     }
+  };
+
+  const handleDelete = () => {
+    openModal({
+      title: "Delete document",
+      onClose: closeModal,
+      content: (
+        <p>
+          Permanently delete <strong>{document.original_filename}</strong>? This cannot be undone.
+        </p>
+      ),
+      primaryAction: {
+        label: isDeleting ? "Deleting..." : "Delete",
+        kind: "danger",
+        disabled: isDeleting,
+        onClick: () => void deleteCurrentDocument(),
+      },
+      secondaryAction: {
+        label: "Cancel",
+        onClick: closeModal,
+      },
+    });
   };
 
   const handleReprocess = async () => {
     try {
       await reprocessDocument(document.id).unwrap();
-    } catch (e) {
-      console.error("Reprocess failed", e);
+      toast.success("Reprocess started", document.original_filename);
+    } catch {
+      toast.error("Reprocess failed", "Please try again.");
     }
   };
 
   return (
     <TableRow>
       <TableCell>
-        <div style={{ fontWeight: 500 }}>{document.original_filename}</div>
-        <div style={{ fontSize: "0.75rem", color: "#6f6f6f", marginTop: 2 }}>
+        <div className="documents-file-cell">
+          <span className="documents-file-cell__name">{document.original_filename}</span>
+        </div>
+        <div className="documents-file-cell__meta">
           {formatFileType(document.content_type, document.original_filename).toUpperCase()}
           {" · "}
           {formatFileSize(document.size_bytes)}
         </div>
       </TableCell>
-      <TableCell
-        style={{ fontSize: "0.875rem", color: reportDate === "—" ? "#8d8d8d" : "#161616" }}
-      >
+      <TableCell className={reportDate === "—" ? "documents-muted-cell" : undefined}>
         {reportDate}
       </TableCell>
-      <TableCell style={{ fontSize: "0.875rem", color: "#525252" }}>{uploaderName}</TableCell>
-      <TableCell style={{ fontSize: "0.875rem", whiteSpace: "nowrap" }}>
+      <TableCell className="documents-secondary-cell">{uploaderName}</TableCell>
+      <TableCell className="documents-nowrap-cell">
         {formatDateTime(document.created_at)}
       </TableCell>
       <TableCell>
         <StatusTag status={status} />
       </TableCell>
       <TableCell>
-        <div style={{ display: "flex", gap: "0.125rem", alignItems: "center" }}>
+        <div className="documents-row-actions">
           <IconButton
             label="View Details"
             kind="ghost"

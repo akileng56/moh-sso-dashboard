@@ -32,6 +32,7 @@
     "audit:packages": "node scripts/audit-package-dependencies.mjs",
     "audit:import-map": "node scripts/audit-import-map.mjs",
     "audit:mf-css": "node scripts/audit-microfrontend-css.mjs",
+    "audit:inline-styles": "node scripts/audit-inline-styles.mjs",
     "audit:publishability": "node scripts/audit-package-publishability.mjs",
     "bundle:budget": "node scripts/bundle-budget.mjs",
     "runtime:verify": "node scripts/verify-production-runtime.mjs",
@@ -159,7 +160,8 @@
     "sass": "^1.99.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.55.0",
-    "vite": "^7.2.2"
+    "vite": "^7.2.2",
+    "vite-plugin-pwa": "^1.3.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-musl": "^4.62.2"

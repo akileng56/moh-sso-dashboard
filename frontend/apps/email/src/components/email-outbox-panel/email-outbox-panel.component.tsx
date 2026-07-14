@@ -4,6 +4,7 @@ import {
   Checkbox,
   Form,
   Loading,
+  MultiSelect,
   Select,
   SelectItem,
   Stack,
@@ -17,6 +18,7 @@ import { TrashCan } from "@carbon/react/icons";
 import { useQueueEmailMutation, useSendEmailMutation } from "../../api";
 import type { EmailAttachment } from "../../types";
 import { useToast } from "@moh-sso/ui";
+import { useListRbacGroupsQuery } from "@moh-sso/rbac";
 import "./email-outbox-panel.scss";
 
 type DeliveryMode = "send" | "queue";
@@ -78,6 +80,26 @@ function hasInvalidEmailList(value: string) {
     .filter(Boolean);
 
   return emails.some((email) => !isValidEmail(email));
+}
+
+function getApiErrorMessage(error: unknown) {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "data" in error &&
+    typeof (error as { data?: unknown }).data === "object" &&
+    (error as { data?: unknown }).data !== null
+  ) {
+    const data = (error as { data: { error?: { message?: unknown }; message?: unknown } }).data;
+    if (typeof data.error?.message === "string" && data.error.message.trim()) {
+      return data.error.message;
+    }
+    if (typeof data.message === "string" && data.message.trim()) {
+      return data.message;
+    }
+  }
+
+  return undefined;
 }
 
 function getRecipientDisplayName(name: string, email: string) {
@@ -229,6 +251,7 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
 
   const [recipient, setRecipient] = useState("");
   const [recipientName, setRecipientName] = useState("");
+  const [recipientGroupIds, setRecipientGroupIds] = useState<string[]>([]);
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState("");
@@ -249,10 +272,28 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
 
   const [sendEmail, sendState] = useSendEmailMutation();
   const [queueEmail, queueState] = useQueueEmailMutation();
+  const {
+    data: groups = [],
+    isLoading: groupsLoading,
+    isError: groupsError,
+  } = useListRbacGroupsQuery();
 
   const isSubmitting = sendState.isLoading || queueState.isLoading;
+  const groupItems = useMemo(
+    () =>
+      groups
+        .filter((group) => group.enabled)
+        .map((group) => ({
+          id: group.id,
+          text: group.displayName || group.path || group.name,
+        })),
+    [groups],
+  );
+  const hasDirectRecipient = recipient.trim().length > 0;
+  const hasGroupRecipients = recipientGroupIds.length > 0;
 
-  const recipientError = submitted && !isValidEmail(recipient);
+  const recipientError = submitted && hasDirectRecipient && !isValidEmail(recipient);
+  const recipientRequiredError = submitted && !hasDirectRecipient && !hasGroupRecipients;
   const subjectError = submitted && subject.trim().length === 0;
   const messageError = submitted && message.trim().length === 0;
   const templateError = submitted && useTemplate && templateName === "";
@@ -262,7 +303,8 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
 
   const canSubmit = useMemo(() => {
     return (
-      isValidEmail(recipient) &&
+      (hasDirectRecipient || hasGroupRecipients) &&
+      (!hasDirectRecipient || isValidEmail(recipient)) &&
       subject.trim().length > 0 &&
       message.trim().length > 0 &&
       (!useTemplate || templateName !== "") &&
@@ -271,11 +313,24 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
       !attachmentValidationError &&
       !isSubmitting
     );
-  }, [recipient, subject, message, cc, bcc, useTemplate, templateName, attachmentValidationError, isSubmitting]);
+  }, [
+    recipient,
+    hasDirectRecipient,
+    hasGroupRecipients,
+    subject,
+    message,
+    cc,
+    bcc,
+    useTemplate,
+    templateName,
+    attachmentValidationError,
+    isSubmitting,
+  ]);
 
   const resetForm = () => {
     setRecipient("");
     setRecipientName("");
+    setRecipientGroupIds([]);
     setCc("");
     setBcc("");
     setSubject("");
@@ -378,7 +433,8 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
           ? {
               ...attachment,
               ...patch,
-              content_id: patch.inline === false ? undefined : patch.content_id ?? attachment.content_id,
+              content_id:
+                patch.inline === false ? undefined : (patch.content_id ?? attachment.content_id),
             }
           : attachment,
       ),
@@ -398,12 +454,15 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
         : undefined;
 
     return {
-      to: [
-        {
-          name: recipientName.trim() || undefined,
-          email: recipient.trim(),
-        },
-      ],
+      to: hasDirectRecipient
+        ? [
+            {
+              name: recipientName.trim() || undefined,
+              email: recipient.trim(),
+            },
+          ]
+        : undefined,
+      to_groups: recipientGroupIds.length > 0 ? recipientGroupIds : undefined,
       cc: cc.trim() ? parseEmailList(cc) : undefined,
       bcc: bcc.trim() ? parseEmailList(bcc) : undefined,
       subject: subject.trim(),
@@ -429,7 +488,9 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
     if (!canSubmit) {
       toast.error({
         title: "Missing or invalid fields",
-        subtitle: attachmentValidationError || "Please provide a valid recipient email, subject, message, valid CC/BCC emails, and a template if enabled.",
+        subtitle:
+          attachmentValidationError ||
+          "Please provide a valid recipient email, subject, message, valid CC/BCC emails, and a template if enabled.",
       });
       return;
     }
@@ -460,11 +521,9 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
       resetForm();
       onSuccess?.();
     } catch (error) {
-      console.error(error);
-
       toast.error({
         title: deliveryMode === "send" ? "Failed to send email" : "Failed to queue email",
-        subtitle: "Please check the email service logs and try again.",
+        subtitle: getApiErrorMessage(error) ?? "Please check the email service logs and try again.",
       });
     }
   };
@@ -525,10 +584,28 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
                     value={recipient}
                     onChange={(event) => setRecipient(event.target.value)}
                     placeholder="user@example.com"
-                    invalid={recipientError}
-                    invalidText="Enter a valid recipient email address"
+                    invalid={recipientError || recipientRequiredError}
+                    invalidText={
+                      recipientRequiredError
+                        ? "Enter a recipient email or select at least one group."
+                        : "Enter a valid recipient email address"
+                    }
                     disabled={isSubmitting}
-                    required
+                  />
+
+                  <MultiSelect
+                    id="recipient-groups"
+                    titleText="Recipient groups"
+                    label={groupsError ? "Unable to load groups" : "Select groups"}
+                    items={groupItems}
+                    itemToString={(item) => item?.text ?? ""}
+                    selectedItems={groupItems.filter((item) => recipientGroupIds.includes(item.id))}
+                    disabled={isSubmitting || groupsLoading || groupsError}
+                    invalid={recipientRequiredError}
+                    invalidText="Enter a recipient email or select at least one group."
+                    onChange={({ selectedItems }) =>
+                      setRecipientGroupIds((selectedItems ?? []).map((item) => item.id))
+                    }
                   />
 
                   <TextInput
@@ -762,7 +839,9 @@ const EmailPanelComponent: React.FC<EmailPanelComponentProps> = ({ onSuccess }) 
                             <strong>{attachment.file_name}</strong>
                             <span>
                               {attachment.content_type || "application/octet-stream"}
-                              {attachment.file_size ? ` · ${formatFileSize(attachment.file_size)}` : ""}
+                              {attachment.file_size
+                                ? ` · ${formatFileSize(attachment.file_size)}`
+                                : ""}
                             </span>
                             <Tag type={attachment.source === "file" ? "blue" : "purple"} size="sm">
                               {attachment.source === "file" ? "File" : "Path"}

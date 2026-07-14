@@ -4,3 +4,5 @@
 app.env
 secrets/*.txt
 !secrets/.gitkeep
+backend/go.mod
+backend/go.sum
