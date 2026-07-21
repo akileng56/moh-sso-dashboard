@@ -55,3 +55,21 @@ export type IssueTransactionPayload = {
   updated_by?: string;
   [key: string]: unknown;
 };
+
+export type IssueProgramSummary = {
+  program: string;
+  issue_count: number;
+};
+
+export type GetIssuesParams = {
+  limit: number;
+  offset: number;
+  program?: string;
+};
+
+export type GetIssuesResponse = {
+  items: Issue[];
+  totalCount: number;
+};
+
+

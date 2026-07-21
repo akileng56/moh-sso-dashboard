@@ -4,6 +4,9 @@ import type {
   IssuePayload,
   IssueTransaction,
   IssueTransactionPayload,
+  IssueProgramSummary,
+  GetIssuesParams,
+  GetIssuesResponse,
 } from "../types";
 
 import { baseApi } from "@moh-sso/api";
@@ -15,13 +18,43 @@ type ApiEnvelope<T> = {
 
 export const issuesApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getIssues: builder.query<Issue[], void>({
+    getIssues: builder.query<GetIssuesResponse, GetIssuesParams | void>({
+      query: (params) => {
+        let url = API.issue.list();
+        const queryParams = new URLSearchParams();
+        if (params) {
+          if (params.limit !== undefined) queryParams.append("limit", String(params.limit));
+          if (params.offset !== undefined) queryParams.append("offset", String(params.offset));
+          if (params.program) queryParams.append("program", params.program);
+        }
+        const queryString = queryParams.toString();
+        if (queryString) {
+          url += `?${queryString}`;
+        }
+        return {
+          url,
+          method: "GET",
+          credentials: "include",
+        };
+      },
+      transformResponse: (res: ApiEnvelope<Issue[]>, meta: any) => {
+        const totalHeader = meta?.response?.headers?.get("X-Total-Count");
+        const totalCount = totalHeader ? parseInt(totalHeader, 10) : (res.data?.length ?? 0);
+        return {
+          items: res.data ?? [],
+          totalCount,
+        };
+      },
+      providesTags: ["Issues"],
+    }),
+
+    getIssuesSummaryByProgram: builder.query<IssueProgramSummary[], void>({
       query: () => ({
-        url: API.issue.list(),
+        url: `${API.issue.list()}/summary-by-program`,
         method: "GET",
         credentials: "include",
       }),
-      transformResponse: (res: ApiEnvelope<Issue[]>) => res.data,
+      transformResponse: (res: ApiEnvelope<IssueProgramSummary[]>) => res.data,
       providesTags: ["Issues"],
     }),
 
@@ -84,6 +117,8 @@ export const issuesApi = baseApi.injectEndpoints({
 
 export const {
   useGetIssuesQuery,
+  useLazyGetIssuesQuery,
+  useGetIssuesSummaryByProgramQuery,
   useCreateIssueMutation,
   useUpdateIssueMutation,
   useGetTransactionsQuery,

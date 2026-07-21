@@ -7,11 +7,18 @@ import {
   PopoverContent,
   Search,
   TreeView,
+  DataTable,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@carbon/react";
-import { Add, ChevronDown, Download, Filter, Upload } from "@carbon/react/icons";
+import { Add, ChevronDown, Download, Filter, Upload, ChartBar, List } from "@carbon/react/icons";
 import * as XLSX from "xlsx";
 
-import { useGetIssuesQuery } from "../api";
+import { useGetIssuesQuery, useLazyGetIssuesQuery, useGetIssuesSummaryByProgramQuery } from "../api";
 import { PERMISSIONS, PermissionGuard } from "@moh-sso/auth";
 
 import DataList from "../../../data-visualizer/src/pages/components/data-table/data-table.component.tsx";
@@ -94,7 +101,38 @@ const IssueTracker = () => {
 
   const [tableSearchTerm, setTableSearchTerm] = useState("");
 
-  const { data, isLoading, error } = useGetIssuesQuery();
+  const [selectedProgram, setSelectedProgram] = useState<string | undefined>();
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const { data, isLoading, error } = useGetIssuesQuery({
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+    program: selectedProgram,
+  });
+
+  const [triggerGetIssues] = useLazyGetIssuesQuery();
+
+  const [activeTab, setActiveTab] = useState<"summary" | "all">("summary");
+
+  const { data: summaryData, isLoading: isLoadingSummary, error: summaryError } = useGetIssuesSummaryByProgramQuery();
+
+  const summaryHeaders = useMemo(
+    () => [
+      { key: "program", header: "Program" },
+      { key: "issue_count", header: "Issue Count" },
+    ],
+    [],
+  );
+
+  const summaryRows = useMemo(() => {
+    return (summaryData ?? []).map((item, index) => ({
+      id: item.program || `unspecified-${index}`,
+      program: item.program || "Unspecified",
+      issue_count: item.issue_count,
+    }));
+  }, [summaryData]);
 
   /*
    * Period filters
@@ -167,7 +205,12 @@ const IssueTracker = () => {
     Boolean(selectedPeriod) ||
     Boolean(selectedDataset) ||
     Boolean(selectedDataElement) ||
-    Boolean(selectedOrgUnit);
+    Boolean(selectedOrgUnit) ||
+    Boolean(selectedProgram);
+
+  useEffect(() => {
+    setPage(1);
+  }, [selectedProgram, selectedYear, selectedPeriod, selectedDataset, selectedDataElement, selectedOrgUnit]);
 
   const closeIssueModal = () => {
     setShowModal(false);
@@ -221,29 +264,59 @@ const IssueTracker = () => {
     XLSX.writeFile(workbook, "issue-import-template.xlsx");
   };
 
-  const downloadIssues = () => {
-    const headerRow = EXPORT_COLUMNS.map((col) => col.header);
+  const downloadIssues = async () => {
+    try {
+      const allIssuesResponse = await triggerGetIssues({
+        limit: 10000,
+        offset: 0,
+        program: selectedProgram,
+      }).unwrap();
 
-    const dataRows = filteredIssues.map((issue) =>
-      EXPORT_COLUMNS.map((col) => {
-        if (col.key === "time_period") {
-          return (issue as Record<string, unknown>)["time_period"] ??
-                 (issue as Record<string, unknown>)["time_Period"] ??
-                 "";
-        }
-        return (issue as Record<string, unknown>)[col.key] ?? "";
-      }),
-    );
+      const normalizedAll = normalizeIssueRows(allIssuesResponse.items);
 
-    const workbook = XLSX.utils.book_new();
+      const searchTerm = tableSearchTerm.trim().toLowerCase();
+      const issuesToDownload = searchTerm
+        ? normalizedAll.filter((issue) =>
+            [
+              issue.issue_code,
+              issue.dataset,
+              issue.data_element,
+              issue.issue,
+              issue.status,
+              issue.org_unit,
+              issue.date_reported,
+              issue.issue_type,
+              issue.priority,
+              issue.severity,
+            ].some((field) => containsSearchTerm(field, searchTerm)),
+          )
+        : normalizedAll;
 
-    const worksheet = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+      const headerRow = EXPORT_COLUMNS.map((col) => col.header);
 
-    worksheet["!cols"] = EXPORT_COLUMNS.map(() => ({ wch: 22 }));
+      const dataRows = issuesToDownload.map((issue) =>
+        EXPORT_COLUMNS.map((col) => {
+          if (col.key === "time_period") {
+            return (issue as Record<string, unknown>)["time_period"] ??
+                   (issue as Record<string, unknown>)["time_Period"] ??
+                   "";
+          }
+          return (issue as Record<string, unknown>)[col.key] ?? "";
+        }),
+      );
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Issues");
+      const workbook = XLSX.utils.book_new();
 
-    XLSX.writeFile(workbook, `issues-${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const worksheet = XLSX.utils.aoa_to_sheet([headerRow, ...dataRows]);
+
+      worksheet["!cols"] = EXPORT_COLUMNS.map(() => ({ wch: 22 }));
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Issues");
+
+      XLSX.writeFile(workbook, `issues-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error("Failed to download issues:", err);
+    }
   };
 
   useEffect(() => {
@@ -271,8 +344,8 @@ const IssueTracker = () => {
   }, []);
 
   useEffect(() => {
-    if (!isLoading) {
-      setIssues(normalizeIssueRows(data as Issue[] | undefined));
+    if (!isLoading && data) {
+      setIssues(normalizeIssueRows(data.items));
     }
 
     if (error) {
@@ -312,6 +385,11 @@ const IssueTracker = () => {
 
     setSelectedIssue(selectedItem);
     setIsViewIssueDetail(true);
+  };
+
+  const handleProgramClick = (programName: string) => {
+    setSelectedProgram(programName === "Unspecified" ? "" : programName);
+    setActiveTab("all");
   };
 
   const handleYearChange = ({ selectedItem }: SelectEvent<number>) => {
@@ -476,6 +554,7 @@ const IssueTracker = () => {
     setSelectedOrgUnit("");
     setOrgSearchTerm("");
     setTableSearchTerm("");
+    setSelectedProgram(undefined);
 
     setIssues(normalizeIssueRows(data as Issue[] | undefined));
 
@@ -536,238 +615,363 @@ const IssueTracker = () => {
           </div>
         </div>
 
-        <div className="issue-filter-container">
-          <div ref={periodPopoverRef} className="issue-filter-wrapper">
-            <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
-              <Button
-                size="md"
-                kind="tertiary"
-                renderIcon={ChevronDown}
-                onClick={() => {
-                  setIsPeriodPopoverOpen((current) => !current);
-                  setIsDataPopoverOpen(false);
-                  setIsOrgPopoverOpen(false);
-                }}
-              >
-                Period
-              </Button>
-
-              <PopoverContent className="filter-popover-content">
-                <div className="popover-inner">
-                  <Dropdown
-                    id="issue-filter-year"
-                    titleText="Year"
-                    label="Select year"
-                    items={years}
-                    selectedItem={selectedYear}
-                    itemToString={(item) => (item == null ? "" : String(item))}
-                    onChange={handleYearChange}
-                  />
-
-                  <Dropdown
-                    id="issue-filter-period-type"
-                    titleText="Period type"
-                    label="Select period type"
-                    items={periodType}
-                    selectedItem={periodType.find((item) => item.value === selectedPeriodType)}
-                    itemToString={(item) => item?.label ?? ""}
-                    onChange={handlePeriodTypeChange}
-                  />
-
-                  <ComboBox
-                    id="issue-filter-period"
-                    titleText="Period"
-                    placeholder="Select period"
-                    items={availablePeriods}
-                    selectedItem={
-                      availablePeriods.find((item) => item.label === selectedPeriod) ?? null
-                    }
-                    itemToString={(item) => item?.label ?? ""}
-                    onChange={handlePeriodChange}
-                  />
-
-                  <div className="popover-footer">
-                    <Button
-                      size="sm"
-                      kind="ghost"
-                      onClick={() => {
-                        setSelectedPeriod("");
-                        handleFilter({
-                          period: "",
-                        });
-                      }}
-                    >
-                      Clear
-                    </Button>
-
-                    <Button size="sm" onClick={() => handleFilter()}>
-                      Update
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div ref={dataPopoverRef} className="issue-filter-wrapper">
-            <Popover open={isDataPopoverOpen} align="bottom-left" dropShadow>
-              <Button
-                size="md"
-                kind="tertiary"
-                renderIcon={ChevronDown}
-                onClick={() => {
-                  setIsDataPopoverOpen((current) => !current);
-                  setIsPeriodPopoverOpen(false);
-                  setIsOrgPopoverOpen(false);
-                }}
-              >
-                Data
-              </Button>
-
-              <PopoverContent className="filter-popover-content">
-                <div className="popover-inner">
-                  <ComboBox
-                    id="issue-filter-dataset"
-                    titleText="Dataset"
-                    placeholder="Select dataset"
-                    items={datasetNames}
-                    selectedItem={selectedDataset || null}
-                    onChange={handleDatasetChange}
-                  />
-
-                  <ComboBox
-                    id="issue-filter-data-element"
-                    titleText="Data element"
-                    placeholder="Select data element"
-                    items={dataElementNames}
-                    selectedItem={selectedDataElement || null}
-                    disabled={!selectedDataset || dataElementNames.length === 0}
-                    onChange={({ selectedItem }: SelectEvent<string>) =>
-                      setSelectedDataElement(selectedItem ?? "")
-                    }
-                  />
-
-                  <div className="popover-footer">
-                    <Button
-                      size="sm"
-                      kind="ghost"
-                      onClick={() => {
-                        setSelectedDataset("");
-                        setSelectedDataElement("");
-                        setDataElements([]);
-
-                        handleFilter({
-                          dataset: "",
-                          dataElement: "",
-                        });
-                      }}
-                    >
-                      Clear
-                    </Button>
-
-                    <Button size="sm" onClick={() => handleFilter()}>
-                      Update
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <div ref={orgPopoverRef} className="issue-filter-wrapper">
-            <Popover open={isOrgPopoverOpen} align="bottom-left" dropShadow>
-              <Button
-                size="md"
-                kind="tertiary"
-                renderIcon={ChevronDown}
-                onClick={() => {
-                  setIsOrgPopoverOpen((current) => !current);
-                  setIsPeriodPopoverOpen(false);
-                  setIsDataPopoverOpen(false);
-                }}
-              >
-                Organisation Unit
-              </Button>
-
-              <PopoverContent className="filter-popover-content">
-                <div className="popover-inner org-filter-inner">
-                  <Search
-                    labelText="Search organisation unit"
-                    placeholder="Search..."
-                    value={orgSearchTerm}
-                    onChange={(event) => setOrgSearchTerm(event.target.value)}
-                    size="sm"
-                  />
-
-                  <div className="org-tree-container">
-                    <TreeView label="Organisation Units" hideLabel>
-                      {renderRecursive(hierarchyData as OrgUnit[], "filter-org")}
-                    </TreeView>
-                  </div>
-
-                  <div className="popover-footer">
-                    <Button
-                      size="sm"
-                      kind="ghost"
-                      onClick={() => {
-                        setSelectedOrgUnit("");
-                        setOrgSearchTerm("");
-
-                        handleFilter({
-                          orgUnit: "",
-                        });
-                      }}
-                    >
-                      Clear
-                    </Button>
-
-                    <Button size="sm" onClick={() => handleFilter()}>
-                      Update
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-
-          <Button
-            size="md"
-            kind="ghost"
-            renderIcon={Filter}
-            disabled={!hasActiveFilters}
-            onClick={handleReset}
+        <div className="gmail-tabs-container">
+          <button
+            type="button"
+            className={`gmail-tab ${activeTab === "summary" ? "active" : ""}`}
+            onClick={() => setActiveTab("summary")}
           >
-            Reset Filters
-          </Button>
+            <ChartBar className="gmail-tab-icon" />
+            <span>Summary by Program</span>
+          </button>
+          <button
+            type="button"
+            className={`gmail-tab ${activeTab === "all" ? "active" : ""}`}
+            onClick={() => setActiveTab("all")}
+          >
+            <List className="gmail-tab-icon" />
+            <span>All Issues</span>
+          </button>
         </div>
 
-        <div className="issue-table-search">
-          <div className="issue-table-search-bar">
-            <Search
-              labelText="Search issues"
-              placeholder="Search by issue code, dataset, data element, issue, status, or organisation unit"
-              value={tableSearchTerm}
-              onChange={(event) => setTableSearchTerm(event.target.value)}
-              size="lg"
-              closeButtonLabelText="Clear search"
-            />
-            <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
-              <Button size="md" kind="ghost" renderIcon={Download} onClick={downloadIssues}>
-                Download
-              </Button>
-            </PermissionGuard>
+        {activeTab === "summary" ? (
+          <div className="issue-table-container">
+            {isLoadingSummary ? (
+              <div className="issue-loading-state">
+                <p>Loading program summary...</p>
+              </div>
+            ) : summaryError ? (
+              <div className="issue-empty-state">
+                <h4>Failed to load summary</h4>
+                <p>An error occurred while fetching the issues summary by program.</p>
+              </div>
+            ) : summaryRows.length === 0 ? (
+              <div className="issue-empty-state">
+                <h4>No data available</h4>
+                <p>There are no issues registered to display a summary.</p>
+              </div>
+            ) : (
+              <DataTable rows={summaryRows} headers={summaryHeaders}>
+                {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
+                  <Table {...getTableProps()}>
+                    <TableHead>
+                      <TableRow>
+                        {headers.map((header) => {
+                          const { key, ...headerProps } = getHeaderProps({ header });
+                          return (
+                            <TableHeader key={key} {...headerProps}>
+                              {header.header}
+                            </TableHeader>
+                          );
+                        })}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {rows.map((row) => {
+                        const { key, ...rowProps } = getRowProps({ row });
+                        return (
+                          <TableRow key={key} {...rowProps}>
+                            {row.cells.map((cell) => {
+                              if (cell.info.header === "program") {
+                                return (
+                                  <TableCell key={cell.id}>
+                                    <button
+                                      type="button"
+                                      className="issue-clickable-cell"
+                                      onClick={() => handleProgramClick(cell.value as string)}
+                                    >
+                                      {cell.value}
+                                    </button>
+                                  </TableCell>
+                                );
+                              }
+                              return <TableCell key={cell.id}>{cell.value}</TableCell>;
+                            })}
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+              </DataTable>
+            )}
           </div>
-        </div>
+        ) : (
+          <>
+            {selectedProgram && (
+              <div
+                className="program-filter-banner"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  marginBottom: "1rem",
+                  padding: "0.75rem 1rem",
+                  backgroundColor: "#edf5ff",
+                  borderRadius: "4px",
+                  border: "1px solid #d0e2ff",
+                  color: "#0f62fe",
+                }}
+              >
+                <div>
+                  Filtered by Program: <strong>{selectedProgram}</strong>
+                </div>
+                <Button
+                  size="sm"
+                  kind="ghost"
+                  onClick={() => setSelectedProgram(undefined)}
+                  style={{
+                    minHeight: "unset",
+                    padding: "4px 8px",
+                    color: "#0f62fe",
+                  }}
+                >
+                  Clear Program Filter
+                </Button>
+              </div>
+            )}
+            <div className="issue-filter-container">
+              <div ref={periodPopoverRef} className="issue-filter-wrapper">
+                <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
+                  <Button
+                    size="md"
+                    kind="tertiary"
+                    renderIcon={ChevronDown}
+                    onClick={() => {
+                      setIsPeriodPopoverOpen((current) => !current);
+                      setIsDataPopoverOpen(false);
+                      setIsOrgPopoverOpen(false);
+                    }}
+                  >
+                    Period
+                  </Button>
 
-        <DataList
-          columns={headers}
-          data={filteredIssues}
-          handleIssueClick={handleIssueClick}
-          closeView={() => {
-            setSelectedIssue(undefined);
-            setIsViewIssueDetail(false);
-          }}
-        />
+                  <PopoverContent className="filter-popover-content">
+                    <div className="popover-inner">
+                      <Dropdown
+                        id="issue-filter-year"
+                        titleText="Year"
+                        label="Select year"
+                        items={years}
+                        selectedItem={selectedYear}
+                        itemToString={(item) => (item == null ? "" : String(item))}
+                        onChange={handleYearChange}
+                      />
+
+                      <Dropdown
+                        id="issue-filter-period-type"
+                        titleText="Period type"
+                        label="Select period type"
+                        items={periodType}
+                        selectedItem={periodType.find((item) => item.value === selectedPeriodType)}
+                        itemToString={(item) => item?.label ?? ""}
+                        onChange={handlePeriodTypeChange}
+                      />
+
+                      <ComboBox
+                        id="issue-filter-period"
+                        titleText="Period"
+                        placeholder="Select period"
+                        items={availablePeriods}
+                        selectedItem={
+                          availablePeriods.find((item) => item.label === selectedPeriod) ?? null
+                        }
+                        itemToString={(item) => item?.label ?? ""}
+                        onChange={handlePeriodChange}
+                      />
+
+                      <div className="popover-footer">
+                        <Button
+                          size="sm"
+                          kind="ghost"
+                          onClick={() => {
+                            setSelectedPeriod("");
+                            handleFilter({
+                              period: "",
+                            });
+                          }}
+                        >
+                          Clear
+                        </Button>
+
+                        <Button size="sm" onClick={() => handleFilter()}>
+                          Update
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div ref={dataPopoverRef} className="issue-filter-wrapper">
+                <Popover open={isDataPopoverOpen} align="bottom-left" dropShadow>
+                  <Button
+                    size="md"
+                    kind="tertiary"
+                    renderIcon={ChevronDown}
+                    onClick={() => {
+                      setIsDataPopoverOpen((current) => !current);
+                      setIsPeriodPopoverOpen(false);
+                      setIsOrgPopoverOpen(false);
+                    }}
+                  >
+                    Data
+                  </Button>
+
+                  <PopoverContent className="filter-popover-content">
+                    <div className="popover-inner">
+                      <ComboBox
+                        id="issue-filter-dataset"
+                        titleText="Dataset"
+                        placeholder="Select dataset"
+                        items={datasetNames}
+                        selectedItem={selectedDataset || null}
+                        onChange={handleDatasetChange}
+                      />
+
+                      <ComboBox
+                        id="issue-filter-data-element"
+                        titleText="Data element"
+                        placeholder="Select data element"
+                        items={dataElementNames}
+                        selectedItem={selectedDataElement || null}
+                        disabled={!selectedDataset || dataElementNames.length === 0}
+                        onChange={({ selectedItem }: SelectEvent<string>) =>
+                          setSelectedDataElement(selectedItem ?? "")
+                        }
+                      />
+
+                      <div className="popover-footer">
+                        <Button
+                          size="sm"
+                          kind="ghost"
+                          onClick={() => {
+                            setSelectedDataset("");
+                            setSelectedDataElement("");
+                            setDataElements([]);
+
+                            handleFilter({
+                              dataset: "",
+                              dataElement: "",
+                            });
+                          }}
+                        >
+                          Clear
+                        </Button>
+
+                        <Button size="sm" onClick={() => handleFilter()}>
+                          Update
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div ref={orgPopoverRef} className="issue-filter-wrapper">
+                <Popover open={isOrgPopoverOpen} align="bottom-left" dropShadow>
+                  <Button
+                    size="md"
+                    kind="tertiary"
+                    renderIcon={ChevronDown}
+                    onClick={() => {
+                      setIsOrgPopoverOpen((current) => !current);
+                      setIsPeriodPopoverOpen(false);
+                      setIsDataPopoverOpen(false);
+                    }}
+                  >
+                    Organisation Unit
+                  </Button>
+
+                  <PopoverContent className="filter-popover-content">
+                    <div className="popover-inner org-filter-inner">
+                      <Search
+                        labelText="Search organisation unit"
+                        placeholder="Search..."
+                        value={orgSearchTerm}
+                        onChange={(event) => setOrgSearchTerm(event.target.value)}
+                        size="sm"
+                      />
+
+                      <div className="org-tree-container">
+                        <TreeView label="Organisation Units" hideLabel>
+                          {renderRecursive(hierarchyData as OrgUnit[], "filter-org")}
+                        </TreeView>
+                      </div>
+
+                      <div className="popover-footer">
+                        <Button
+                          size="sm"
+                          kind="ghost"
+                          onClick={() => {
+                            setSelectedOrgUnit("");
+                            setOrgSearchTerm("");
+
+                            handleFilter({
+                              orgUnit: "",
+                            });
+                          }}
+                        >
+                          Clear
+                        </Button>
+
+                        <Button size="sm" onClick={() => handleFilter()}>
+                          Update
+                        </Button>
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <Button
+                size="md"
+                kind="ghost"
+                renderIcon={Filter}
+                disabled={!hasActiveFilters}
+                onClick={handleReset}
+              >
+                Reset Filters
+              </Button>
+            </div>
+
+            <div className="issue-table-search">
+              <div className="issue-table-search-bar">
+                <Search
+                  labelText="Search issues"
+                  placeholder="Search by issue code, dataset, data element, issue, status, or organisation unit"
+                  value={tableSearchTerm}
+                  onChange={(event) => setTableSearchTerm(event.target.value)}
+                  size="lg"
+                  closeButtonLabelText="Clear search"
+                />
+                <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
+                  <Button size="md" kind="ghost" renderIcon={Download} onClick={downloadIssues}>
+                    Download
+                  </Button>
+                </PermissionGuard>
+              </div>
+            </div>
+
+            <DataList
+              columns={headers}
+              data={filteredIssues}
+              totalItems={data?.totalCount ?? 0}
+              currentPage={page}
+              currentPageSize={pageSize}
+              onPageChange={(newPage, newPageSize) => {
+                setPage(newPage);
+                setPageSize(newPageSize);
+              }}
+              handleIssueClick={handleIssueClick}
+              closeView={() => {
+                setSelectedIssue(undefined);
+                setIsViewIssueDetail(false);
+              }}
+            />
+          </>
+        )}
 
         {showModal && (
           <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>

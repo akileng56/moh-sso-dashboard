@@ -488,3 +488,81 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Gmail-style tabs with Carbon theme integration */
+.gmail-tabs-container {
+  display: flex;
+  border-bottom: 1px solid #e0e0e0;
+  margin-bottom: 1.5rem;
+  background-color: #f4f4f4;
+  padding: 0;
+  border-radius: 4px 4px 0 0;
+  width: 100%;
+}
+
+.gmail-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: #525252;
+  font-weight: 500;
+  font-size: 0.875rem;
+  position: relative;
+  transition: all 0.15s cubic-bezier(0.2, 0, 0.38, 0.9);
+  user-select: none;
+  border-bottom: 3px solid transparent;
+
+  &:hover {
+    background-color: #e8e8e8;
+    color: #161616;
+  }
+
+  &.active {
+    color: #0f62fe;
+    background-color: #ffffff;
+    border-bottom-color: #0f62fe;
+    font-weight: 600;
+
+    .gmail-tab-icon {
+      fill: #0f62fe;
+    }
+  }
+
+  .gmail-tab-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    fill: #525252;
+  }
+
+  .gmail-tab-badge {
+    background-color: #da1e28; /* Carbon error/red color for high visibility */
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
+    line-height: 1;
+    margin-left: 0.5rem;
+  }
+}
+
+/* Add margin/padding spacing below tables and pagination controls */
+.issue-table-container {
+  margin-bottom: 2.5rem;
+}
+
+.cds--data-table-container {
+  margin-bottom: 1.5rem;
+}
+
+.cds--pagination {
+  margin-bottom: 3.5rem;
+}
+

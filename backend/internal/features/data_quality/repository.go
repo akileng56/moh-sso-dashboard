@@ -17,6 +17,7 @@ type Repository interface {
 	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error)
 	ImportValidationRules(ctx context.Context, inputs []validationRuleInput) (validationRuleImportResult, error)
 	ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error)
+	CountIssues(ctx context.Context, program string) (int64, error)
 }
 
 type postgresRepository struct {
@@ -506,4 +507,14 @@ func isUniqueViolation(err error) bool {
 	}
 
 	return string(pqErr.Code) == "23505"
+}
+
+func (r *postgresRepository) CountIssues(ctx context.Context, program string) (int64, error) {
+	var count int64
+	err := r.dwhDB.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*)::bigint FROM hiv.issue WHERE ($1 = '' OR LOWER(BTRIM(program)) = LOWER(BTRIM($1)))`,
+		program,
+	).Scan(&count)
+	return count, err
 }

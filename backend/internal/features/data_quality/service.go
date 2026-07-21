@@ -11,6 +11,7 @@ type Service interface {
 	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error)
 	ImportValidationRules(ctx context.Context, inputs []validationRuleInput) (validationRuleImportResult, error)
 	ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error)
+	CountIssues(ctx context.Context, program string) (int64, error)
 }
 
 type service struct {
@@ -51,4 +52,8 @@ func (s *service) ImportValidationRules(ctx context.Context, inputs []validation
 
 func (s *service) ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error) {
 	return s.repository.ListValidationRules(ctx, limit, offset)
+}
+
+func (s *service) CountIssues(ctx context.Context, program string) (int64, error) {
+	return s.repository.CountIssues(ctx, program)
 }
