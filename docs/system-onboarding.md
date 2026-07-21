@@ -8,6 +8,43 @@ For the full RBAC and Keycloak sync operating model, see [RBAC And Keycloak Sync
 
 Portal systems explicitly declare `systemType` (`platform` or `external`), `displayInLauncher`, `displayInSideNav`, and `launchMode` (`internal`, `new_tab`, or `same_tab`). Platform systems use an internal `/portal` or `/apps` path and may provide navigation. External systems require an absolute HTTP or HTTPS URL and never provide portal side navigation.
 
+A single platform system may also expose selected navigation modules as individual application-launcher cards. These entries remain modules of the parent Keycloak client: do not create a Keycloak client or duplicate roles for each module. The user's access to the parent system still comes from `accessibleSystems`; module visibility is then filtered by the module's permission metadata.
+
+Navigation items accept these optional fields:
+
+```json
+{
+  "id": "documents",
+  "label": "Document Management",
+  "path": "/apps/dwh/documents",
+  "description": "Upload and process health data files.",
+  "icon": "document",
+  "order": 30,
+  "requiredAnyPermissions": ["documents:read", "documents:write"],
+  "displayInLauncher": true,
+  "displayInSideNav": true,
+  "launchMode": "internal"
+}
+```
+
+- `permission` requires one permission.
+- `requiredPermissions` requires every listed permission.
+- `requiredAnyPermissions` requires at least one listed permission.
+- `displayInLauncher` defaults to `false` for navigation items, preserving existing behavior.
+- `displayInSideNav` defaults to `true` for navigation items.
+- A launcher item must have a valid `path`.
+- `launchMode` accepts `internal`, `new_tab`, or `same_tab`.
+- Nested `children` use the same contract and are evaluated recursively.
+
+Useful display combinations are:
+
+- System card only: system `displayInLauncher: true`; no module has `displayInLauncher: true`.
+- Module cards only: system `displayInLauncher: false`; selected modules set `displayInLauncher: true`.
+- Both: enable the system card and selected module cards.
+- Side navigation only: leave module `displayInLauncher` false and `displayInSideNav` true.
+
+The shell assigns module cards stable synthetic IDs in the form `<clientId>:<moduleId>`, but activates the parent client when a module is launched. Direct routes remain protected by the route permission guards; launcher visibility is not an authorization boundary.
+
 Keycloak clients must set `portal.system=true` for automatic enrollment. Configure `portal.accessRoles` as a comma-separated list of roles that expose the system, plus `ui.systemType`, `ui.displayInLauncher`, `ui.displayInSideNav`, `ui.launchMode`, `ui.launchUrl`, `ui.icon`, `ui.category`, and optional `ui.navigation`.
 
 Newly discovered roles remain inert until they are explicitly configured as access roles. Development fixtures demonstrate all modes through `demo-platform-system`, `demo-external-new-tab`, and `demo-external-same-tab`; they are absent from the production realm export.

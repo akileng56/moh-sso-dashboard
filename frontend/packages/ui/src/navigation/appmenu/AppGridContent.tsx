@@ -12,6 +12,7 @@ import {
   Settings,
   Task,
   User,
+  WarningAlt,
   WatsonHealthTextAnnotationToggle,
 } from "@carbon/react/icons";
 
@@ -41,6 +42,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   tasks: Task,
   action: Task,
   tracker: Task,
+  "warning-alt": WarningAlt,
   terminology: WatsonHealthTextAnnotationToggle,
 };
 
@@ -144,6 +146,7 @@ const AppGridContent: React.FC<AppGridContentProps> = ({
             <AppTile
               icon={Icon}
               name={getClientName(client)}
+              description={client.description}
               href={getClientHref(client)}
               clientId={client.clientId}
               onSelect={onSelect}

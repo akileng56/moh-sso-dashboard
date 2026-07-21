@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -14,6 +14,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  TextArea,
   TextInput,
   Toggle,
 } from "@carbon/react";
@@ -50,6 +51,7 @@ import {
 import { PERMISSIONS, PermissionGuard, useAuthorization } from "@moh-sso/auth";
 import { useListUsersQuery, type User } from "@moh-sso/users";
 import { useModal, useToast } from "@moh-sso/ui";
+import type { SystemNavigationItem } from "@moh-sso/types";
 import type { RbacGroup, RbacGroupMember, RbacPermission, RbacSystem, RbacSystemRole } from "../types";
 
 import { EffectiveAccessPanel } from "../components/EffectiveAccessPanel";
@@ -70,9 +72,76 @@ type SystemDraft = {
   documentationUrl: string;
   environment: string;
   criticality: string;
+  navigation: string;
+  systemType: "platform" | "external";
+  displayInLauncher: boolean;
+  displayInSideNav: boolean;
+  launchMode: "internal" | "new_tab" | "same_tab";
   enabled: boolean;
   sortOrder: number;
 };
+
+type NavigationPreview = {
+  error?: string;
+  launcherItems: SystemNavigationItem[];
+  sideNavItems: SystemNavigationItem[];
+};
+
+function parseNavigationPreview(rawNavigation: string): NavigationPreview {
+  if (!rawNavigation.trim()) {
+    return { launcherItems: [], sideNavItems: [] };
+  }
+
+  try {
+    const parsed: unknown = JSON.parse(rawNavigation);
+
+    if (!Array.isArray(parsed)) {
+      return { error: "Navigation must be a JSON array.", launcherItems: [], sideNavItems: [] };
+    }
+
+    const launcherItems: SystemNavigationItem[] = [];
+    const sideNavItems: SystemNavigationItem[] = [];
+    const ids = new Set<string>();
+
+    const visit = (items: unknown[]) => {
+      for (const value of items) {
+        if (!value || typeof value !== "object") {
+          throw new Error("Each navigation item must be an object.");
+        }
+
+        const item = value as SystemNavigationItem;
+        const id = item.id?.trim();
+        const label = item.label?.trim();
+
+        if (!id || !label) {
+          throw new Error("Every navigation item requires a non-empty id and label.");
+        }
+        if (ids.has(id)) {
+          throw new Error(`Navigation item id "${id}" is duplicated.`);
+        }
+        ids.add(id);
+
+        if (item.displayInLauncher === true && !item.path?.trim()) {
+          throw new Error(`Launcher item "${label}" requires a path.`);
+        }
+
+        if (item.displayInLauncher === true) launcherItems.push(item);
+        if (item.displayInSideNav !== false) sideNavItems.push(item);
+        if (item.children?.length) visit(item.children);
+      }
+    };
+
+    visit(parsed);
+    return { launcherItems, sideNavItems };
+  } catch (navigationError) {
+    return {
+      error:
+        navigationError instanceof Error ? navigationError.message : "Navigation JSON is invalid.",
+      launcherItems: [],
+      sideNavItems: [],
+    };
+  }
+}
 
 function permissionLabel(permission: RbacPermission) {
   return permission.displayName || permission.key;
@@ -115,6 +184,11 @@ function toDraft(system?: RbacSystem): SystemDraft {
     documentationUrl: system?.documentationUrl ?? "",
     environment: system?.environment ?? "",
     criticality: system?.criticality ?? "",
+    navigation: system?.navigation ?? "",
+    systemType: system?.systemType ?? "platform",
+    displayInLauncher: system?.displayInLauncher ?? true,
+    displayInSideNav: system?.displayInSideNav ?? true,
+    launchMode: system?.launchMode ?? "internal",
     enabled: system?.enabled ?? true,
     sortOrder: system?.sortOrder ?? 0,
   };
@@ -176,6 +250,19 @@ export default function RbacManagementPage() {
   const canWriteSystems = can(PERMISSIONS.rbacWrite);
   const canWriteRoles = can(PERMISSIONS.rbacRolesWrite);
   const canWritePermissions = can(PERMISSIONS.rbacPermissionsWrite);
+  const navigationPreview = useMemo(
+    () => parseNavigationPreview(draft.navigation),
+    [draft.navigation],
+  );
+
+  useEffect(() => {
+    if (!systemDetail || draftClientId === systemDetail.clientId) {
+      return;
+    }
+
+    setDraftClientId(systemDetail.clientId);
+    setDraft(toDraft(systemDetail));
+  }, [draftClientId, systemDetail]);
 
   const selectedRole = useMemo(
     () => systemDetail?.roles.find((role) => role.id === selectedRoleId) ?? systemDetail?.roles[0],
@@ -247,6 +334,10 @@ export default function RbacManagementPage() {
   const handleSaveSystem = async () => {
     const clientId = draftClientId || activeClientId;
     if (!clientId) return;
+    if (navigationPreview.error) {
+      setError(navigationPreview.error);
+      return;
+    }
     try {
       setError(null);
       await updateSystem({ clientId, data: draft }).unwrap();
@@ -686,6 +777,83 @@ export default function RbacManagementPage() {
                 disabled={!canWriteSystems}
                 onChange={(event) => setDraft({ ...draft, criticality: event.target.value })}
               />
+              <Dropdown
+                id="rbac-system-type"
+                titleText="System type"
+                label="Select system type"
+                items={["platform", "external"] as const}
+                selectedItem={draft.systemType}
+                disabled={!canWriteSystems}
+                onChange={({ selectedItem }) =>
+                  selectedItem && setDraft({ ...draft, systemType: selectedItem })
+                }
+              />
+              <Dropdown
+                id="rbac-launch-mode"
+                titleText="Launch mode"
+                label="Select launch mode"
+                items={["internal", "new_tab", "same_tab"] as const}
+                selectedItem={draft.launchMode}
+                disabled={!canWriteSystems}
+                onChange={({ selectedItem }) =>
+                  selectedItem && setDraft({ ...draft, launchMode: selectedItem })
+                }
+              />
+              <Toggle
+                id="rbac-display-in-launcher"
+                labelText="Show system in launcher"
+                toggled={draft.displayInLauncher}
+                disabled={!canWriteSystems}
+                onToggle={(displayInLauncher) => setDraft({ ...draft, displayInLauncher })}
+              />
+              <Toggle
+                id="rbac-display-in-side-nav"
+                labelText="Show system side navigation"
+                toggled={draft.displayInSideNav}
+                disabled={!canWriteSystems}
+                onToggle={(displayInSideNav) => setDraft({ ...draft, displayInSideNav })}
+              />
+              <div className="rbac-form-grid__wide">
+                <TextArea
+                  id="rbac-navigation"
+                  labelText="Navigation JSON"
+                  helperText="Module entries may independently set displayInLauncher and displayInSideNav."
+                  rows={10}
+                  value={draft.navigation}
+                  invalid={Boolean(navigationPreview.error)}
+                  invalidText={navigationPreview.error}
+                  disabled={!canWriteSystems}
+                  onChange={(event) => setDraft({ ...draft, navigation: event.target.value })}
+                />
+                {!navigationPreview.error && draft.navigation.trim() ? (
+                  <div className="rbac-navigation-preview" aria-live="polite">
+                    <span>Launcher preview</span>
+                    <div className="rbac-tag-list">
+                      {navigationPreview.launcherItems.length ? (
+                        navigationPreview.launcherItems.map((item) => (
+                          <Tag key={`launcher-${item.id}`} type="blue">
+                            {item.label}
+                          </Tag>
+                        ))
+                      ) : (
+                        <small>No module launcher entries.</small>
+                      )}
+                    </div>
+                    <span>Side navigation preview</span>
+                    <div className="rbac-tag-list">
+                      {navigationPreview.sideNavItems.length ? (
+                        navigationPreview.sideNavItems.map((item) => (
+                          <Tag key={`sidenav-${item.id}`} type="gray">
+                            {item.label}
+                          </Tag>
+                        ))
+                      ) : (
+                        <small>No visible side-navigation entries.</small>
+                      )}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
               <Toggle
                 id="rbac-enabled"
                 labelText="Enabled"
