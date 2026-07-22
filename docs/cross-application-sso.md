@@ -2,6 +2,23 @@
 
 The Integrated Health Portal uses Keycloak for identity and a backend-managed `sso_session` cookie for its application session. Opening `/portal/` directly is intentionally public and does not create that backend session.
 
+## Production Route Ownership
+
+`dashboards.health.go.ug` is a shared origin. Report Browser owns the origin root;
+the Integrated Health Portal does not:
+
+| URL path | Owner |
+| --- | --- |
+| `/` | Report Browser |
+| `/report-browser` and `/report-browser/*` | Report Browser |
+| `/portal` and `/portal/*` | Integrated Health Portal frontend |
+| `/ssobackend` and `/ssobackend/*` | Integrated Health Portal backend |
+
+Consequently, `https://dashboards.health.go.ug/` and
+`https://dashboards.health.go.ug/report-browser` both opening Report Browser is
+expected. Portal links must begin with `/portal`. Portal authentication links must
+begin with `/ssobackend` after runtime resolution.
+
 ## Launch Contract
 
 Applications that launch the portal and need an authenticated destination must use the registry's `authenticatedLaunchUrl`:
@@ -17,6 +34,12 @@ https://dashboards.health.go.ug/ssobackend/api/v1/auth/launch?returnTo=%2Fportal
 ```
 
 The backend redirects to Keycloak. An existing Keycloak SSO session is reused, the fixed callback creates the portal `sso_session`, and the browser returns to the validated portal route. Tokens, authorization codes, and session identifiers are never added to launcher URLs.
+
+An external launcher must not navigate directly to the registry value
+`/api/v1/auth/launch?...` on the shared production origin. Doing that requests
+`https://dashboards.health.go.ug/api/v1/...`, which belongs to neither portal route.
+It must resolve the value against the portal API base first, producing the
+`/ssobackend/api/v1/...` URL shown above.
 
 ## Registry Metadata
 
@@ -66,3 +89,7 @@ The portal and the launching application must use the same Keycloak realm and br
 6. Confirm portal menus reflect that user's effective RBAC permissions.
 
 If the public News page appears unauthenticated, inspect the launcher URL first. A direct `/portal/` link bypasses portal session creation by design.
+
+If the browser returns to Report Browser instead, inspect the final path. `/` and
+`/report-browser` intentionally belong to Report Browser; only `/portal/*` is a portal
+frontend destination.

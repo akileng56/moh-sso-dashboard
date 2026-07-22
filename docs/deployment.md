@@ -39,6 +39,24 @@ API_BASE_URL=/ssobackend
 
 Do not use Docker or Kubernetes service names in browser-facing values.
 
+### Shared production host routing
+
+The production reverse proxy must keep these path owners distinct:
+
+```text
+/                         -> Report Browser
+/report-browser/*         -> Report Browser
+/portal/*                 -> Integrated Health Portal frontend
+/ssobackend/*             -> Integrated Health Portal backend
+```
+
+The bare origin redirecting to Report Browser is intentional. Do not configure the
+portal frontend base as `https://dashboards.health.go.ug/`, and do not strip
+`/ssobackend` from browser-facing login or callback URLs. The repository's simple
+`nginx/app.conf` is suitable when this frontend owns the whole host; the shared
+production host needs an upstream reverse-proxy configuration that implements the
+path table above.
+
 For syntax validation without real production values:
 
 ```bash
