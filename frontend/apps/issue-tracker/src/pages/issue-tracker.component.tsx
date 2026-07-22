@@ -7,15 +7,8 @@ import {
   PopoverContent,
   Search,
   TreeView,
-  DataTable,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
 } from "@carbon/react";
-import { Add, ChevronDown, Download, Filter, Upload, ChartBar, List } from "@carbon/react/icons";
+import { Add, ChevronDown, Download, Filter, Upload } from "@carbon/react/icons";
 import * as XLSX from "xlsx";
 
 import { useGetIssuesQuery, useLazyGetIssuesQuery, useGetIssuesSummaryByProgramQuery } from "../api";
@@ -89,6 +82,17 @@ function containsSearchTerm(value: unknown, searchTerm: string): boolean {
     .includes(searchTerm);
 }
 
+const PROGRAM_COLORS = [
+  "#0f62fe", // Blue
+  "#008575", // Teal
+  "#d07000", // Amber
+  "#8a3ffc", // Purple
+  "#da1e28", // Red/Ruby
+  "#1192e8", // Cyan
+  "#005d5d", // Dark Teal
+  "#6f6f6f", // Slate/Grey
+];
+
 const IssueTracker = () => {
   const currentYear = new Date().getFullYear();
 
@@ -114,23 +118,15 @@ const IssueTracker = () => {
 
   const [triggerGetIssues] = useLazyGetIssuesQuery();
 
-  const [activeTab, setActiveTab] = useState<"summary" | "all">("summary");
-
   const { data: summaryData, isLoading: isLoadingSummary, error: summaryError } = useGetIssuesSummaryByProgramQuery();
-
-  const summaryHeaders = useMemo(
-    () => [
-      { key: "program", header: "Program" },
-      { key: "issue_count", header: "Issue Count" },
-    ],
-    [],
-  );
 
   const summaryRows = useMemo(() => {
     return (summaryData ?? []).map((item, index) => ({
       id: item.program || `unspecified-${index}`,
       program: item.program || "Unspecified",
       issue_count: item.issue_count,
+      open_count: item.open_count,
+      resolved_count: item.resolved_count,
     }));
   }, [summaryData]);
 
@@ -387,11 +383,6 @@ const IssueTracker = () => {
     setIsViewIssueDetail(true);
   };
 
-  const handleProgramClick = (programName: string) => {
-    setSelectedProgram(programName === "Unspecified" ? "" : programName);
-    setActiveTab("all");
-  };
-
   const handleYearChange = ({ selectedItem }: SelectEvent<number>) => {
     if (selectedItem == null) {
       return;
@@ -578,6 +569,56 @@ const IssueTracker = () => {
   return (
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
       <>
+        <div className="program-summary-tiles-container">
+          {isLoadingSummary ? (
+            <div className="issue-loading-state">
+              <p>Loading program summary...</p>
+            </div>
+          ) : summaryError ? (
+            <div className="issue-empty-state">
+              <h4>Failed to load summary</h4>
+              <p>An error occurred while fetching the issues summary by program.</p>
+            </div>
+          ) : (
+            <div className="summary-tiles-grid">
+              {summaryRows.map((tile, index) => {
+                const isActive = selectedProgram === (tile.program === "Unspecified" ? "" : tile.program);
+                const tileColor = PROGRAM_COLORS[index % PROGRAM_COLORS.length];
+                return (
+                  <button
+                    key={tile.id}
+                    type="button"
+                    className={`summary-tile ${isActive ? "active" : ""}`}
+                    style={{ borderLeftColor: tileColor }}
+                    onClick={() => {
+                      if (isActive) {
+                        setSelectedProgram(undefined);
+                      } else {
+                        setSelectedProgram(tile.program === "Unspecified" ? "" : tile.program);
+                      }
+                    }}
+                  >
+                    <div className="summary-tile-header">
+                      <span className="summary-tile-program">{tile.program}</span>
+                      <span className="summary-tile-count">{tile.issue_count}</span>
+                    </div>
+                    <div className="summary-tile-substats">
+                      <span className="summary-substat open">
+                        <span className="dot open-dot" />
+                        <span className="label">Open:</span> <strong>{tile.open_count}</strong>
+                      </span>
+                      <span className="summary-substat resolved">
+                        <span className="dot resolved-dot" />
+                        <span className="label">Resolved:</span> <strong>{tile.resolved_count}</strong>
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div className="dv-toolbar issue-label-container">
           <div>
             <span className="issue-label">Registered Issues</span>
@@ -615,122 +656,39 @@ const IssueTracker = () => {
           </div>
         </div>
 
-        <div className="gmail-tabs-container">
-          <button
-            type="button"
-            className={`gmail-tab ${activeTab === "summary" ? "active" : ""}`}
-            onClick={() => setActiveTab("summary")}
+        {selectedProgram !== undefined && (
+          <div
+            className="program-filter-banner"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "1rem",
+              marginBottom: "1rem",
+              padding: "0.75rem 1rem",
+              backgroundColor: "#edf5ff",
+              borderRadius: "4px",
+              border: "1px solid #d0e2ff",
+              color: "#0f62fe",
+            }}
           >
-            <ChartBar className="gmail-tab-icon" />
-            <span>Summary by Program</span>
-          </button>
-          <button
-            type="button"
-            className={`gmail-tab ${activeTab === "all" ? "active" : ""}`}
-            onClick={() => setActiveTab("all")}
-          >
-            <List className="gmail-tab-icon" />
-            <span>All Issues</span>
-          </button>
-        </div>
-
-        {activeTab === "summary" ? (
-          <div className="issue-table-container">
-            {isLoadingSummary ? (
-              <div className="issue-loading-state">
-                <p>Loading program summary...</p>
-              </div>
-            ) : summaryError ? (
-              <div className="issue-empty-state">
-                <h4>Failed to load summary</h4>
-                <p>An error occurred while fetching the issues summary by program.</p>
-              </div>
-            ) : summaryRows.length === 0 ? (
-              <div className="issue-empty-state">
-                <h4>No data available</h4>
-                <p>There are no issues registered to display a summary.</p>
-              </div>
-            ) : (
-              <DataTable rows={summaryRows} headers={summaryHeaders}>
-                {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-                  <Table {...getTableProps()}>
-                    <TableHead>
-                      <TableRow>
-                        {headers.map((header) => {
-                          const { key, ...headerProps } = getHeaderProps({ header });
-                          return (
-                            <TableHeader key={key} {...headerProps}>
-                              {header.header}
-                            </TableHeader>
-                          );
-                        })}
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {rows.map((row) => {
-                        const { key, ...rowProps } = getRowProps({ row });
-                        return (
-                          <TableRow key={key} {...rowProps}>
-                            {row.cells.map((cell) => {
-                              if (cell.info.header === "program") {
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <button
-                                      type="button"
-                                      className="issue-clickable-cell"
-                                      onClick={() => handleProgramClick(cell.value as string)}
-                                    >
-                                      {cell.value}
-                                    </button>
-                                  </TableCell>
-                                );
-                              }
-                              return <TableCell key={cell.id}>{cell.value}</TableCell>;
-                            })}
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                )}
-              </DataTable>
-            )}
+            <div>
+              Filtered by Program: <strong>{selectedProgram || "Unspecified"}</strong>
+            </div>
+            <Button
+              size="sm"
+              kind="ghost"
+              onClick={() => setSelectedProgram(undefined)}
+              style={{
+                minHeight: "unset",
+                padding: "4px 8px",
+                color: "#0f62fe",
+              }}
+            >
+              Clear Program Filter
+            </Button>
           </div>
-        ) : (
-          <>
-            {selectedProgram && (
-              <div
-                className="program-filter-banner"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "1rem",
-                  marginBottom: "1rem",
-                  padding: "0.75rem 1rem",
-                  backgroundColor: "#edf5ff",
-                  borderRadius: "4px",
-                  border: "1px solid #d0e2ff",
-                  color: "#0f62fe",
-                }}
-              >
-                <div>
-                  Filtered by Program: <strong>{selectedProgram}</strong>
-                </div>
-                <Button
-                  size="sm"
-                  kind="ghost"
-                  onClick={() => setSelectedProgram(undefined)}
-                  style={{
-                    minHeight: "unset",
-                    padding: "4px 8px",
-                    color: "#0f62fe",
-                  }}
-                >
-                  Clear Program Filter
-                </Button>
-              </div>
-            )}
+        )}
             <div className="issue-filter-container">
               <div ref={periodPopoverRef} className="issue-filter-wrapper">
                 <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
@@ -970,8 +928,6 @@ const IssueTracker = () => {
                 setIsViewIssueDetail(false);
               }}
             />
-          </>
-        )}
 
         {showModal && (
           <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>

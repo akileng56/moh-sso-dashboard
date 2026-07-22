@@ -59,6 +59,8 @@ export type IssueTransactionPayload = {
 export type IssueProgramSummary = {
   program: string;
   issue_count: number;
+  open_count: number;
+  resolved_count: number;
 };
 
 export type GetIssuesParams = {
