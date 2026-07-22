@@ -2,17 +2,10 @@ import { useMemo, useRef } from "react";
 import { SideNav, SideNavItems, SideNavLink, SideNavMenu } from "@carbon/react";
 import { Menu } from "@carbon/react/icons";
 
-import type { Client } from "@moh-sso/types";
+import type { Client, SystemNavigationItem } from "@moh-sso/types";
 import { useFocusTrap } from "../../accessibility";
 
-type SideNavItem = {
-  id: string;
-  label: string;
-  path?: string;
-  permission?: string;
-  order?: number;
-  children?: SideNavItem[];
-};
+type SideNavItem = SystemNavigationItem;
 
 /* --------------------------------
  * Helpers
@@ -178,11 +171,33 @@ function filterByPermission(
 ): SideNavItem[] {
   return items
     .filter((item) => {
+      if (item.displayInSideNav === false) {
+        return false;
+      }
+
       if (!item.permission) {
         return true;
       }
 
       return hasPermission?.(item.permission) ?? true;
+    })
+    .filter((item) => {
+      if (!hasPermission) {
+        return true;
+      }
+
+      if (item.requiredPermissions?.some((permission) => !hasPermission(permission))) {
+        return false;
+      }
+
+      if (
+        item.requiredAnyPermissions?.length &&
+        !item.requiredAnyPermissions.some((permission) => hasPermission(permission))
+      ) {
+        return false;
+      }
+
+      return true;
     })
     .map((item) => ({
       ...item,

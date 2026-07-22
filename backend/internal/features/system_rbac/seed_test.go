@@ -49,6 +49,33 @@ func TestDefaultSeedGivesManagerSurveillanceDataStatisticsRole(t *testing.T) {
 	t.Fatal("default seed does not define manager realm role")
 }
 
+func TestDefaultSeedIncludesDataStatisticsModuleLauncherMetadata(t *testing.T) {
+	seed := DefaultSeed()
+
+	for _, system := range seed.Systems {
+		if system.ClientID != authz.SystemDataStatistics {
+			continue
+		}
+
+		items, err := parseNavigation(system.Navigation)
+		if err != nil {
+			t.Fatalf("parse data statistics navigation: %v", err)
+		}
+		launcherCount := 0
+		for _, item := range items {
+			if item.DisplayInLauncher != nil && *item.DisplayInLauncher {
+				launcherCount++
+			}
+		}
+		if launcherCount != 5 {
+			t.Fatalf("expected five module launcher entries, got %d", launcherCount)
+		}
+		return
+	}
+
+	t.Fatal("default seed does not define data-statistics")
+}
+
 func TestValidateSeedRejectsUnknownDefaultSystemRole(t *testing.T) {
 	seed := DefaultSeed()
 	for index := range seed.RealmRoles {
@@ -150,6 +177,51 @@ func TestValidateSystemBehaviorRejectsUnsafeOrInconsistentConfiguration(t *testi
 	for _, system := range cases {
 		if err := ValidateSystemBehavior(system); err == nil {
 			t.Fatalf("expected invalid behavior %+v", system)
+		}
+	}
+}
+
+func TestValidateSystemBehaviorAcceptsLegacyAndLauncherNavigation(t *testing.T) {
+	trueValue := true
+	cases := []string{
+		`[{"id":"documents","label":"Documents","path":"/apps/dwh/documents","permission":"documents:read"}]`,
+		`[{"id":"data","label":"Data","children":[{"id":"validation","label":"Data Validation","path":"/apps/dwh/data-validation","requiredPermissions":["data_quality:read"],"icon":"action","order":20,"displayInLauncher":true}]}]`,
+		`[{"id":"support","label":"Support","path":"https://example.org/support","launchMode":"new_tab","displayInLauncher":true,"displayInSideNav":false}]`,
+	}
+	for _, navigation := range cases {
+		system := SeedSystem{
+			SystemType:       "platform",
+			LaunchMode:       "internal",
+			LaunchURL:        "/portal/apps/dwh",
+			DisplayInSideNav: &trueValue,
+			Navigation:       navigation,
+		}
+		if err := ValidateSystemBehavior(system); err != nil {
+			t.Fatalf("expected valid navigation %s: %v", navigation, err)
+		}
+	}
+}
+
+func TestValidateSystemBehaviorRejectsInvalidNavigationMetadata(t *testing.T) {
+	cases := []string{
+		`[{"id":"","label":"Missing ID","path":"/apps/dwh"}]`,
+		`[{"id":"missing-label","label":"","path":"/apps/dwh"}]`,
+		`[{"id":"duplicate","label":"One","path":"/apps/one"},{"id":"duplicate","label":"Two","path":"/apps/two"}]`,
+		`[{"id":"launcher","label":"Launcher","displayInLauncher":true}]`,
+		`[{"id":"unsafe","label":"Unsafe","path":"javascript:alert(1)","displayInLauncher":true}]`,
+		`[{"id":"external","label":"External","path":"https://example.org","launchMode":"internal","displayInLauncher":true}]`,
+		`[{"id":"mode","label":"Mode","path":"/apps/dwh","launchMode":"popup"}]`,
+		`[{"id":"permissions","label":"Permissions","path":"/apps/dwh","requiredAnyPermissions":[""]}]`,
+	}
+	for _, navigation := range cases {
+		system := SeedSystem{
+			SystemType: "platform",
+			LaunchMode: "internal",
+			LaunchURL:  "/portal/apps/dwh",
+			Navigation: navigation,
+		}
+		if err := ValidateSystemBehavior(system); err == nil {
+			t.Fatalf("expected invalid navigation %s", navigation)
 		}
 	}
 }

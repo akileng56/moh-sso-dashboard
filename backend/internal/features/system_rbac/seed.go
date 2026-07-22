@@ -44,6 +44,22 @@ type SeedSystem struct {
 	Roles             []SeedRole `json:"roles,omitempty" yaml:"roles,omitempty"`
 }
 
+type NavigationItem struct {
+	ID                     string           `json:"id"`
+	Label                  string           `json:"label"`
+	Path                   string           `json:"path,omitempty"`
+	Permission             string           `json:"permission,omitempty"`
+	RequiredPermissions    []string         `json:"requiredPermissions,omitempty"`
+	RequiredAnyPermissions []string         `json:"requiredAnyPermissions,omitempty"`
+	Order                  *int32           `json:"order,omitempty"`
+	Icon                   string           `json:"icon,omitempty"`
+	Description            string           `json:"description,omitempty"`
+	DisplayInLauncher      *bool            `json:"displayInLauncher,omitempty"`
+	DisplayInSideNav       *bool            `json:"displayInSideNav,omitempty"`
+	LaunchMode             string           `json:"launchMode,omitempty"`
+	Children               []NavigationItem `json:"children,omitempty"`
+}
+
 type SeedRole struct {
 	Name        string   `json:"name" yaml:"name"`
 	DisplayName string   `json:"displayName,omitempty" yaml:"displayName,omitempty"`
@@ -80,12 +96,12 @@ type SeedGroupMembership struct {
 }
 
 const dataStatisticsNavigation = `[
-  {"id":"dashboards","label":"Dashboards","path":"/apps/dwh/dashboards","permission":"report_browser:read"},
-  {"id":"data-validation","label":"Data Validation","path":"/apps/dwh/data-validation","permission":"data_quality:read"},
-  {"id":"data-visualizer","label":"Data Visualizer","path":"/apps/dwh/data-visualizer","permission":"data_quality:read"},
-  {"id":"documents","label":"Document Management","path":"/apps/dwh/documents","permission":"documents:read"},
-  {"id":"surveillance","label":"Surveillance","path":"/apps/dwh/surveillance","permission":"surveillance:read"},
-  {"id":"issue-tracker","label":"Issue Tracking","path":"/apps/dwh/issue-tracker","permission":"issue_tracker:read"}
+  {"id":"dashboards","label":"Dashboards","path":"/apps/dwh/dashboards","permission":"report_browser:read","icon":"dashboard","description":"Browse approved data and reporting dashboards.","order":10,"displayInLauncher":true},
+  {"id":"data-validation","label":"Data Validation","path":"/apps/dwh/data-validation","permission":"data_quality:read","icon":"action","description":"Define and run data quality validation rules.","order":20,"displayInLauncher":true},
+  {"id":"data-visualizer","label":"Data Visualizer","path":"/apps/dwh/data-visualizer","permission":"data_quality:read","icon":"chart","order":30,"displayInLauncher":false},
+  {"id":"documents","label":"Document Management","path":"/apps/dwh/documents","permission":"documents:read","icon":"documents","description":"Upload and manage health data documents.","order":40,"displayInLauncher":true},
+  {"id":"surveillance","label":"Surveillance","path":"/apps/dwh/surveillance","permission":"surveillance:read","icon":"warning-alt","description":"Review surveillance indicators, alerts, and reports.","order":50,"displayInLauncher":true},
+  {"id":"issue-tracker","label":"Issue Tracking","path":"/apps/dwh/issue-tracker","permission":"issue_tracker:read","icon":"tracker","description":"Track and resolve data quality issues.","order":60,"displayInLauncher":true}
 ]`
 
 const utilitiesNavigation = `[
@@ -417,13 +433,100 @@ func ValidateSystemBehavior(system SeedSystem) error {
 			return fmt.Errorf("external systems cannot define portal side navigation")
 		}
 	}
+	items, err := parseNavigation(system.Navigation)
+	if err != nil {
+		return err
+	}
+	if len(items) > 0 {
+		if system.SystemType != "platform" {
+			return fmt.Errorf("navigation requires a platform system")
+		}
+		if err := validateNavigationItems(items, map[string]struct{}{}); err != nil {
+			return err
+		}
+	}
 	if system.DisplayInSideNav != nil && *system.DisplayInSideNav {
 		if system.SystemType != "platform" {
 			return fmt.Errorf("side navigation requires a platform system")
 		}
-		var items []map[string]any
-		if err := json.Unmarshal([]byte(system.Navigation), &items); err != nil || len(items) == 0 {
+		if len(items) == 0 {
 			return fmt.Errorf("side navigation requires a non-empty navigation JSON array")
+		}
+	}
+	return nil
+}
+
+func parseNavigation(raw string) ([]NavigationItem, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil, nil
+	}
+
+	var items []NavigationItem
+	if err := json.Unmarshal([]byte(raw), &items); err != nil {
+		return nil, fmt.Errorf("navigation must be a valid JSON array: %w", err)
+	}
+	if items == nil {
+		return nil, fmt.Errorf("navigation must be a JSON array")
+	}
+	return items, nil
+}
+
+func validateNavigationItems(items []NavigationItem, seen map[string]struct{}) error {
+	for index, item := range items {
+		item.ID = strings.TrimSpace(item.ID)
+		item.Label = strings.TrimSpace(item.Label)
+		item.Path = strings.TrimSpace(item.Path)
+		item.LaunchMode = strings.ToLower(strings.TrimSpace(item.LaunchMode))
+
+		if item.ID == "" {
+			return fmt.Errorf("navigation item %d has an empty id", index)
+		}
+		if _, exists := seen[item.ID]; exists {
+			return fmt.Errorf("navigation item id %q is duplicated", item.ID)
+		}
+		seen[item.ID] = struct{}{}
+		if item.Label == "" {
+			return fmt.Errorf("navigation item %q has an empty label", item.ID)
+		}
+		if strings.TrimSpace(item.Permission) == "" && item.Permission != "" {
+			return fmt.Errorf("navigation item %q has an empty permission", item.ID)
+		}
+		if err := validateNavigationPermissions(item.ID, "requiredPermissions", item.RequiredPermissions); err != nil {
+			return err
+		}
+		if err := validateNavigationPermissions(item.ID, "requiredAnyPermissions", item.RequiredAnyPermissions); err != nil {
+			return err
+		}
+		if item.LaunchMode != "" && item.LaunchMode != "internal" && item.LaunchMode != "new_tab" && item.LaunchMode != "same_tab" {
+			return fmt.Errorf("navigation item %q has invalid launchMode %q", item.ID, item.LaunchMode)
+		}
+		if item.DisplayInLauncher != nil && *item.DisplayInLauncher && item.Path == "" {
+			return fmt.Errorf("launcher navigation item %q requires a path", item.ID)
+		}
+		if item.Path != "" {
+			external := isHTTPURL(item.Path)
+			if !external && !isPortalPath(item.Path) {
+				return fmt.Errorf("navigation item %q path must begin with /portal or /apps, or be an absolute HTTP or HTTPS URL", item.ID)
+			}
+			if external && item.LaunchMode != "new_tab" && item.LaunchMode != "same_tab" {
+				return fmt.Errorf("external navigation item %q must use new_tab or same_tab launchMode", item.ID)
+			}
+			if !external && item.LaunchMode != "" && item.LaunchMode != "internal" {
+				return fmt.Errorf("internal navigation item %q must use internal launchMode", item.ID)
+			}
+		}
+		if err := validateNavigationItems(item.Children, seen); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateNavigationPermissions(itemID, field string, permissions []string) error {
+	for _, permission := range permissions {
+		if strings.TrimSpace(permission) == "" {
+			return fmt.Errorf("navigation item %q has an empty %s value", itemID, field)
 		}
 	}
 	return nil

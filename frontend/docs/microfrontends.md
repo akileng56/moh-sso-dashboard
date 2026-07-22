@@ -108,6 +108,20 @@ Related files:
 - `lifecycles.ts`: local lifecycle imports
 - `containers.ts`: shell-owned DOM containers for orchestrated mode
 
+## Launcher Entries And System Ownership
+
+A deployable microfrontend and a Keycloak client are related but not identical concepts. One registered platform system may own several route-level microfrontends or modules. Its `ui.navigation` metadata can mark selected items with `displayInLauncher: true`, allowing those modules to appear as separate launcher cards without changing the system registry or Keycloak model.
+
+Module launcher entries:
+
+- use `<parentClientId>:<moduleId>` as a stable UI identity;
+- retain the parent system as the active client for side navigation and authorization;
+- inherit system metadata unless the item supplies its own icon, order, description, or launch mode;
+- are filtered by the item's permission requirements;
+- do not replace route guards or create a new client role boundary.
+
+Existing systems are unchanged unless navigation metadata explicitly opts a module into the launcher.
+
 ## Local Vs Remote
 
 Local mode uses workspace imports and local lifecycle modules.

@@ -7,6 +7,7 @@ import "./AppMenu.scss";
 interface AppTileProps {
   icon: React.ElementType;
   name: string;
+  description?: string;
   href: string;
   clientId?: string;
   onSelect?: () => void;
@@ -30,7 +31,16 @@ function getTileId(name: string) {
     .replace(/(^-|-$)/g, "")}`;
 }
 
-const AppTile: React.FC<AppTileProps> = ({ icon: Icon, name, href, clientId, onSelect, onOpen, launchMode = "internal" }) => {
+const AppTile: React.FC<AppTileProps> = ({
+  icon: Icon,
+  name,
+  description,
+  href,
+  clientId,
+  onSelect,
+  onOpen,
+  launchMode = "internal",
+}) => {
   const disabled = !isValidHref(href);
   const external = isValidHref(href) && isExternalUrl(href);
   const opensNewTab = external && launchMode === "new_tab";
@@ -60,6 +70,7 @@ const AppTile: React.FC<AppTileProps> = ({ icon: Icon, name, href, clientId, onS
       </span>
 
       <span className="app-menu-tile__label">{name}</span>
+      {description ? <span className="app-menu-tile__description">{description}</span> : null}
 
       {opensNewTab && (
         <span className="app-menu-tile__external" aria-hidden="true">

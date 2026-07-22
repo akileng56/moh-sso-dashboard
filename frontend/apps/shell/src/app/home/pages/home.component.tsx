@@ -1,7 +1,7 @@
 import { Add, UserFollow, Security, Notification, Need } from "@carbon/react/icons";
 import { Tile, Button, Tag, Stack, InlineLoading } from "@carbon/react";
 import { lazy, Suspense, useMemo, type ReactNode } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import "./home.scss";
 
 import { EmptyState, useHeaderPanel, getSeverityTagType } from "@moh-sso/ui";
@@ -12,7 +12,8 @@ import {
   useMarkNotificationAsReadMutation,
 } from "../../api";
 import { selectUser, useAuthorization } from "@moh-sso/auth";
-import { buildAccessibleClients } from "@/app/access/accessClients";
+import { setActiveClient } from "@moh-sso/state";
+import { buildAccessibleLauncherEntries } from "@/app/access/accessClients";
 
 const ClientFormPanel = lazy(() =>
   import("@moh-sso/clients").then((module) => ({ default: module.ClientFormPanel })),
@@ -55,7 +56,8 @@ function lazyPanel(content: ReactNode) {
 
 export default function HomePage() {
   const { openPanel } = useHeaderPanel();
-  const { accessibleSystems } = useAuthorization();
+  const dispatch = useDispatch();
+  const { accessibleSystems, can } = useAuthorization();
 
   /* -----------------------------
    * Identity
@@ -67,10 +69,11 @@ export default function HomePage() {
    * ----------------------------- */
   const visibleClients = useMemo(
     () =>
-      buildAccessibleClients({
+      buildAccessibleLauncherEntries({
         accessibleSystems,
+        can: (permission) => can(permission as never),
       }),
-    [accessibleSystems],
+    [accessibleSystems, can],
   );
 
   const { data: notifications = [], isLoading: notificationsLoading } = useGetNotificationsQuery({
@@ -141,6 +144,13 @@ export default function HomePage() {
                 enabled={client?.enabled}
                 rootUrl={normalizePortalPath(client.baseUrl)}
                 launchMode={(client.attributes?.["ui.launchMode"] as "internal" | "new_tab" | "same_tab") || "internal"}
+                onLaunch={() =>
+                  dispatch(
+                    setActiveClient(
+                      client.attributes?.["ui.parentClientId"] || client.clientId,
+                    ),
+                  )
+                }
               />
             ))}
           </div>

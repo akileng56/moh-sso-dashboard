@@ -6,7 +6,10 @@ import { useAuthorization } from "@moh-sso/auth";
 import { AppGridContent } from "@moh-sso/ui";
 import { setActiveClient, setClients } from "@moh-sso/state";
 
-import { buildAccessibleClients } from "@/app/access/accessClients";
+import {
+  buildAccessibleLauncherEntries,
+  buildAccessibleSideNavClients,
+} from "@/app/access/accessClients";
 
 type ConnectedAppGridContentProps = {
   onSelect?: () => void;
@@ -35,25 +38,40 @@ function normalizePortalPath(href: string): string {
 export function ConnectedAppGridContent({ onSelect }: ConnectedAppGridContentProps) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { accessibleSystems } = useAuthorization();
+  const { accessibleSystems, can } = useAuthorization();
   const visibleClients = useMemo(
     () =>
-      buildAccessibleClients({
+      buildAccessibleLauncherEntries({
         accessibleSystems,
+        can: (permission) => can(permission as never),
       }),
-    [accessibleSystems],
+    [accessibleSystems, can],
   );
+  const stateClients = useMemo(() => {
+    const clients = buildAccessibleSideNavClients({ accessibleSystems });
+    const clientIds = new Set(clients.map((client) => client.clientId));
 
-  useEffect(() => {
-    dispatch(setClients(visibleClients));
-  }, [dispatch, visibleClients]);
-
-  const handleOpenClient = (href: string, clientId?: string) => {
-    if (clientId) {
-      dispatch(setActiveClient(clientId));
+    for (const client of visibleClients) {
+      if (!clientIds.has(client.clientId)) {
+        clients.push(client);
+      }
     }
 
+    return clients;
+  }, [accessibleSystems, visibleClients]);
+
+  useEffect(() => {
+    dispatch(setClients(stateClients));
+  }, [dispatch, stateClients]);
+
+  const handleOpenClient = (href: string, clientId?: string) => {
     const client = visibleClients.find((item) => item.clientId === clientId);
+    const parentClientId = client?.attributes?.["ui.parentClientId"] || clientId;
+
+    if (parentClientId) {
+      dispatch(setActiveClient(parentClientId));
+    }
+
     const launchMode = client?.attributes?.["ui.launchMode"] ?? "internal";
     const targetHref = normalizePortalPath(href);
 

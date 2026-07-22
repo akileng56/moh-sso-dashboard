@@ -107,6 +107,8 @@ App launcher and side navigation should use:
 
 A Keycloak client should not appear only because it exists. It must be mapped through portal RBAC and assigned to the user.
 
+Selected modules within an accessible system may appear as separate launcher cards when their `ui.navigation` item sets `displayInLauncher: true`. They do not become separate systems and do not receive separate Keycloak clients. The shell filters those cards using `permission`, `requiredPermissions`, and `requiredAnyPermissions`, while route guards continue to enforce access when a URL is opened directly. See [System Onboarding](./system-onboarding.md#launch-and-navigation-model) for the complete metadata contract.
+
 ## Debugging
 
 Use the backend CLI to explain expected access:

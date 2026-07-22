@@ -196,6 +196,69 @@ func TestParseRealmExportKeepsKnownLegacySystem(t *testing.T) {
 	}
 }
 
+func TestParseRealmExportPreservesModuleLauncherNavigation(t *testing.T) {
+	navigation := `[{"id":"documents","label":"Documents","path":"/apps/dwh/documents","permission":"documents:read","displayInLauncher":true,"displayInSideNav":false}]`
+	payload, err := json.Marshal(map[string]any{
+		"roles": map[string]any{
+			"realm": []any{},
+			"client": map[string]any{
+				"data-statistics": []map[string]string{{"name": "data-statistics_access"}},
+			},
+		},
+		"clients": []map[string]any{{
+			"clientId": "data-statistics",
+			"name":     "Data & Statistics",
+			"enabled":  true,
+			"attributes": map[string]string{
+				"portal.system":       "true",
+				"ui.systemType":       "platform",
+				"ui.launchMode":       "internal",
+				"ui.launchUrl":        "/portal/apps/dwh",
+				"ui.navigation":       navigation,
+				"ui.displayInSideNav": "true",
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("marshal realm export: %v", err)
+	}
+
+	discovered, err := parseRealmExport(payload)
+	if err != nil {
+		t.Fatalf("parseRealmExport returned error: %v", err)
+	}
+	if len(discovered.Systems) != 1 {
+		t.Fatalf("expected one discovered system, got %d", len(discovered.Systems))
+	}
+	if discovered.Systems[0].Navigation != navigation {
+		t.Fatalf("navigation changed during discovery: %q", discovered.Systems[0].Navigation)
+	}
+}
+
+func TestSystemConfigurationDifferencesDetectsModuleLauncherMetadataChanges(t *testing.T) {
+	discovered := KeycloakDiscoveredSystem{
+		SystemType:        "platform",
+		DisplayInLauncher: false,
+		DisplayInSideNav:  true,
+		LaunchMode:        "internal",
+		LaunchURL:         "/portal/apps/dwh",
+		Navigation:        `[{"id":"documents","label":"Documents","path":"/apps/dwh/documents","displayInLauncher":true}]`,
+	}
+	current := System{
+		SystemType:        "platform",
+		DisplayInLauncher: false,
+		DisplayInSideNav:  true,
+		LaunchMode:        "internal",
+		LaunchURL:         "/portal/apps/dwh",
+		Navigation:        `[{"id":"documents","label":"Documents","path":"/apps/dwh/documents"}]`,
+	}
+
+	differences := systemConfigurationDifferences(discovered, current)
+	if !containsString(differences, "navigation") {
+		t.Fatalf("expected navigation drift, got %#v", differences)
+	}
+}
+
 func TestParseRealmExportDiscoversGroupsRolesAndMembers(t *testing.T) {
 	payload := []byte(`{
 		"roles":{"realm":[{"name":"user"}],"client":{"data-statistics":[{"name":"data-statistics_access"},{"name":"document_viewer"}]}},
