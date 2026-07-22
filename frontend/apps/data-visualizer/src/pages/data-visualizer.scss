@@ -571,3 +571,19 @@
     min-width: 28rem;
   }
 }
+
+.dwh-chart-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  min-height: 400px;
+}
+
+.dv-loading-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 350px;
+}
+
