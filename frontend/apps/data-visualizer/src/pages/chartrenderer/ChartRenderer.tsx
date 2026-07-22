@@ -32,9 +32,7 @@ const ChartRenderer = ({
   }
 
   const customAggregators = {
-    Sum: aggregatorTemplates.sum(intFormat),
-    Average: aggregatorTemplates.average(intFormat),
-    Count: aggregatorTemplates.count(intFormat),
+    Sum: aggregatorTemplates.sum(intFormat)
   };
   useEffect(() => {
     if (!queryParams) return;
