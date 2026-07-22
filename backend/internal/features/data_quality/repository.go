@@ -17,6 +17,7 @@ type Repository interface {
 	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error)
 	ImportValidationRules(ctx context.Context, inputs []validationRuleInput) (validationRuleImportResult, error)
 	ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error)
+	CountIssues(ctx context.Context, program string) (int64, error)
 }
 
 type postgresRepository struct {
@@ -100,7 +101,9 @@ func (r *postgresRepository) ListIssueSummaryByProgram(ctx context.Context, limi
 		ctx,
 		`SELECT
 			COALESCE(NULLIF(BTRIM(program), ''), 'Unspecified') AS program,
-			COUNT(*)::bigint AS issue_count
+			COUNT(*)::bigint AS issue_count,
+			COUNT(CASE WHEN UPPER(BTRIM(status)) NOT IN ('RESOLVED', 'CLOSED') THEN 1 END)::bigint AS open_count,
+			COUNT(CASE WHEN UPPER(BTRIM(status)) IN ('RESOLVED', 'CLOSED') THEN 1 END)::bigint AS resolved_count
 		FROM hiv.issue
 		GROUP BY 1
 		ORDER BY issue_count DESC, program ASC
@@ -116,7 +119,7 @@ func (r *postgresRepository) ListIssueSummaryByProgram(ctx context.Context, limi
 	summary := make([]issueProgramSummaryResponse, 0)
 	for rows.Next() {
 		var row issueProgramSummaryResponse
-		if err := rows.Scan(&row.Program, &row.IssueCount); err != nil {
+		if err := rows.Scan(&row.Program, &row.IssueCount, &row.OpenCount, &row.ResolvedCount); err != nil {
 			return nil, err
 		}
 		summary = append(summary, row)
@@ -506,4 +509,14 @@ func isUniqueViolation(err error) bool {
 	}
 
 	return string(pqErr.Code) == "23505"
+}
+
+func (r *postgresRepository) CountIssues(ctx context.Context, program string) (int64, error) {
+	var count int64
+	err := r.dwhDB.QueryRowContext(
+		ctx,
+		`SELECT COUNT(*)::bigint FROM hiv.issue WHERE ($1 = '' OR LOWER(BTRIM(program)) = LOWER(BTRIM($1)))`,
+		program,
+	).Scan(&count)
+	return count, err
 }

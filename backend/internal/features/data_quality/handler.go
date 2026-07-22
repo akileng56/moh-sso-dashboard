@@ -105,7 +105,7 @@ func (h *Handler) CreateIssue(c *gin.Context) {
 }
 
 func (h *Handler) ListIssues(c *gin.Context) {
-	limit := parseListLimit(c, 20, 100)
+	limit := parseListLimit(c, 20, 10000)
 	offset := parseListOffset(c)
 	program := strings.TrimSpace(c.Query("program"))
 
@@ -114,6 +114,15 @@ func (h *Handler) ListIssues(c *gin.Context) {
 		response.Fail(c, http.StatusInternalServerError, "LIST_ISSUES_FAILED", issueDBErrorMessage(err, "failed to list issues"))
 		return
 	}
+
+	total, err := h.service.CountIssues(c.Request.Context(), program)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, "LIST_ISSUES_FAILED", issueDBErrorMessage(err, "failed to count issues"))
+		return
+	}
+
+	c.Header("X-Total-Count", strconv.FormatInt(total, 10))
+	c.Header("Access-Control-Expose-Headers", "X-Total-Count")
 
 	response.OK(c, http.StatusOK, toIssueResponses(issues))
 }

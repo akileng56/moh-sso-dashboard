@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Loading } from "@carbon/react";
 import PivotTableUI from "react-pivottable/PivotTableUI";
 import createPlotlyRenderers from "react-pivottable/PlotlyRenderers";
 import TableRenderers from "react-pivottable/TableRenderers";
@@ -32,9 +33,7 @@ const ChartRenderer = ({
   }
 
   const customAggregators = {
-    Sum: aggregatorTemplates.sum(intFormat),
-    Average: aggregatorTemplates.average(intFormat),
-    Count: aggregatorTemplates.count(intFormat),
+    Sum: aggregatorTemplates.sum(intFormat)
   };
   useEffect(() => {
     if (!queryParams) return;
@@ -76,9 +75,10 @@ const ChartRenderer = ({
   return (
     <>
       {loading ? (
-        <div> Loading... </div>
+        <div className="dv-loading-container">
+          <Loading description="Loading data..." withOverlay={false} />
+        </div>
       ) : (
-        // <StackedBarChart data={[]} options={emptyChartOptions} />
         <>
           {chartData.length === 0 && !loading && (
             <div className="dv-canvas-placeholder">

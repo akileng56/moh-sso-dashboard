@@ -79,8 +79,10 @@ type issueStageResponse struct {
 }
 
 type issueProgramSummaryResponse struct {
-	Program    string `json:"program"`
-	IssueCount int64  `json:"issue_count"`
+	Program       string `json:"program"`
+	IssueCount    int64  `json:"issue_count"`
+	OpenCount     int64  `json:"open_count"`
+	ResolvedCount int64  `json:"resolved_count"`
 }
 
 type createIssueInput struct {

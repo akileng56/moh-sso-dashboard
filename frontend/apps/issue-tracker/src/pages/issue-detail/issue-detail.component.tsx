@@ -30,7 +30,7 @@ const IssueDetail = ({
   const { data: latestIssues } = useGetIssuesQuery();
 
   const selectedIssue =
-    latestIssues?.find((issueItem: Issue) => issueItem?.issue_code === initialIssue?.issue_code) ??
+    latestIssues?.items?.find((issueItem: Issue) => issueItem?.issue_code === initialIssue?.issue_code) ??
     initialIssue;
 
   const [comment, setComment] = useState("");
