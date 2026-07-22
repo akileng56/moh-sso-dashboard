@@ -216,23 +216,6 @@ const DataVisualizer = () => {
 
   return (
     <div className="dv-container">
-      {/*/!* Left Sidebar *!/*/}
-      {/*<div className="dv-sidebar demension-container">*/}
-      {/*    <TreeView*/}
-      {/*        label="MAIN DIMENSIONS"*/}
-      {/*    >*/}
-      {/*        {mainDimension.map((item) => (*/}
-      {/*            <TreeNode*/}
-      {/*                id={item?.id}*/}
-      {/*                label={item?.label}*/}
-      {/*                renderIcon={item.icon}*/}
-      {/*                value={item?.value}*/}
-      {/*                onSelect={() => open(item?.value)}*/}
-      {/*            />*/}
-      {/*        ))}*/}
-      {/*    </TreeView>*/}
-      {/*</div>*/}
-
       {/* Main Workspace */}
       <div className="dv-workspace">
         {/* Toolbar */}
@@ -240,10 +223,8 @@ const DataVisualizer = () => {
           <Button
             size="sm"
             kind="tertiary"
-            // disabled={!isDataReady}
             renderIcon={UpdateNow}
             className={`dwh-btn-width`}
-            // onClick={() => open("general")}
             onClick={() => {
               setUpdateTrigger((prev) => prev + 1);
             }}
@@ -252,7 +233,6 @@ const DataVisualizer = () => {
           </Button>
 
           {loadedChartData?.length > 0 && (
-            <>
               <Button
                 size="sm"
                 kind="primary"
@@ -262,31 +242,17 @@ const DataVisualizer = () => {
               >
                 Download
               </Button>
-
-              <Button
-                size="sm"
-                kind="danger--tertiary"
-                renderIcon={FilterRemove}
-                className={`dwh-btn-width`}
-                onClick={() => setIsClearModalOpen(true)}
-              >
-                Clear All
-              </Button>
-            </>
           )}
 
-          {/*<OverflowMenu aria-label="overflow-menu" align="bottom" flipped>*/}
-          {/*  <OverflowMenuItem hasDivider itemText="More Options" />*/}
-          {/*  <OverflowMenuItem hasDivider itemText="Download" />*/}
-          {/*  {isDataReady && (*/}
-          {/*    <OverflowMenuItem*/}
-          {/*      hasDivider*/}
-          {/*      isDelete*/}
-          {/*      onClick={clearAllSelections}*/}
-          {/*      itemText="Clear All"*/}
-          {/*    />*/}
-          {/*  )}*/}
-          {/*</OverflowMenu>*/}
+         <Button
+            size="sm"
+            kind="danger--tertiary"
+            renderIcon={FilterRemove}
+            className={`dwh-btn-width`}
+            onClick={() => setIsClearModalOpen(true)}
+          >
+            Clear All
+          </Button>
         </div>
 
         {/* Layout Area */}
