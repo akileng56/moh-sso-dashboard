@@ -27,6 +27,18 @@ Both compose files expect:
 - `./secrets/keycloak_admin_client_secret.txt`
 - `./secrets/keycloak_web_client_secret.txt`
 
+Cross-application SSO also requires `AUTH_RETURN_URL_ALLOWED_ORIGINS` to contain exact browser origins, without paths. For the current production host:
+
+```env
+FRONTEND_BASE_URL=https://dashboards.health.go.ug/portal
+AUTH_RETURN_URL_ALLOWED_ORIGINS=https://dashboards.health.go.ug
+LOGIN_URL=https://dashboards.health.go.ug/ssobackend/api/v1/auth/login
+KEYCLOAK_REDIRECT_URI=https://dashboards.health.go.ug/ssobackend/api/v1/auth/callback
+API_BASE_URL=/ssobackend
+```
+
+Do not use Docker or Kubernetes service names in browser-facing values.
+
 For syntax validation without real production values:
 
 ```bash

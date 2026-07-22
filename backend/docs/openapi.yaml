@@ -61,6 +61,63 @@ paths:
                     properties:
                       data:
                         $ref: "#/components/schemas/BuildInfo"
+  /api/v1/auth/login:
+    get:
+      summary: Start Keycloak login
+      description: Starts the authorization-code flow and redirects to Keycloak.
+      tags:
+        - auth
+      responses:
+        "302":
+          description: Redirect to Keycloak.
+  /api/v1/auth/launch:
+    get:
+      summary: Start Keycloak login for a portal destination
+      description: >
+        Starts the authorization-code flow and, after the fixed Keycloak callback,
+        returns the browser to a validated /portal path or an allowlisted absolute
+        origin. The return target is bound to OAuth state in an HttpOnly cookie.
+      tags:
+        - auth
+      parameters:
+        - name: returnTo
+          in: query
+          required: true
+          description: URL-encoded /portal path or allowlisted absolute return URL.
+          schema:
+            type: string
+            example: /portal/apps/news
+      responses:
+        "302":
+          description: Redirect to Keycloak.
+        "400":
+          description: Unsafe or invalid return target.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /api/v1/auth/callback:
+    get:
+      summary: Complete Keycloak login
+      description: Handles the fixed Keycloak callback, creates the portal session, and redirects to the state-bound return target when present.
+      tags:
+        - auth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the validated portal destination.
+        "400":
+          description: Invalid callback parameters or OAuth state.
   /api/v1/auth/me:
     get:
       summary: Current authenticated user

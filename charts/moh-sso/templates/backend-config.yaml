@@ -10,6 +10,7 @@ data:
   GIN_MODE: {{ include "moh-sso.ginMode" . | quote }}
 
   FRONTEND_BASE_URL: {{ include "moh-sso.frontend.baseUrl" . | quote }}
+  AUTH_RETURN_URL_ALLOWED_ORIGINS: {{ .Values.backend.env.AUTH_RETURN_URL_ALLOWED_ORIGINS | quote }}
   LOGIN_URL: {{ include "moh-sso.keycloak.loginRedirectUri" . | quote }}
 
 
@@ -81,6 +82,7 @@ data:
     GIN_MODE={{ include "moh-sso.ginMode" . }}
 
     FRONTEND_BASE_URL={{ include "moh-sso.frontend.baseUrl" . }}
+    AUTH_RETURN_URL_ALLOWED_ORIGINS={{ .Values.backend.env.AUTH_RETURN_URL_ALLOWED_ORIGINS }}
 
     LOGIN_URL={{ include "moh-sso.keycloak.loginRedirectUri" . }}
 

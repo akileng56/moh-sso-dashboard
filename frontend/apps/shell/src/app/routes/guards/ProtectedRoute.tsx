@@ -6,6 +6,7 @@ import { Outlet } from "react-router-dom";
 
 import { API } from "@moh-sso/config";
 import {
+  buildLoginURL,
   selectAuthenticated,
   selectAuthLoaded,
   selectAuthLoading,
@@ -29,7 +30,7 @@ export const ProtectedRoute = ({ children }: { children?: JSX.Element }) => {
 
     redirectStarted.current = true;
 
-    window.location.assign(API.auth.login());
+    window.location.assign(buildLoginURL(API.auth.login()));
   }, [loaded, loading, authenticated]);
 
   if (!loaded || loading) {

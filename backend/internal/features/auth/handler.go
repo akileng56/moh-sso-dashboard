@@ -85,12 +85,25 @@ func (h *Handler) HandleAuthLogin(c *gin.Context) {
 	codeVerifier, _ := c.Cookie(cookiePKCEVerifier)
 	state, _ := c.Cookie(cookieOAuthState)
 
-	if codeVerifier == "" || state == "" {
+	newFlow := codeVerifier == "" || state == ""
+	if newFlow {
 		codeVerifier = utils.GenerateCodeVerifier()
 		state = uuid.NewString()
 
-		h.setCookie(c, cookiePKCEVerifier, codeVerifier, 300, true)
-		h.setCookie(c, cookieOAuthState, state, 300, true)
+		h.setCookie(c, cookiePKCEVerifier, codeVerifier, oauthFlowCookieTTL, true)
+		h.setCookie(c, cookieOAuthState, state, oauthFlowCookieTTL, true)
+	}
+
+	if rawReturnTo, present := c.GetQuery("returnTo"); present {
+		returnTo, err := h.normalizeReturnURL(rawReturnTo)
+		if err != nil || returnTo == "" {
+			h.clearCookie(c, cookieOAuthReturnTo, true)
+			response.Fail(c, http.StatusBadRequest, "INVALID_INPUT", "invalid returnTo URL")
+			return
+		}
+		h.setCookie(c, cookieOAuthReturnTo, encodeReturnCookie(state, returnTo), oauthFlowCookieTTL, true)
+	} else {
+		h.clearCookie(c, cookieOAuthReturnTo, true)
 	}
 
 	codeChallenge := utils.GenerateCodeChallenge(codeVerifier)
@@ -120,6 +133,12 @@ func (h *Handler) HandleAuthLogin(c *gin.Context) {
 	authURL.RawQuery = q.Encode()
 
 	c.Redirect(http.StatusTemporaryRedirect, authURL.String())
+}
+
+// HandleAuthLaunch starts the same fixed-callback OAuth flow as /auth/login.
+// It exists as the stable entrypoint exposed by the system registry to external apps.
+func (h *Handler) HandleAuthLaunch(c *gin.Context) {
+	h.HandleAuthLogin(c)
 }
 
 // ----------------------------------------------------
@@ -212,6 +231,7 @@ func (h *Handler) applyResolvedAccess(c *gin.Context, user interface {
 func (h *Handler) HandleAuthCallback(c *gin.Context) {
 	if kcErr := c.Query("error"); kcErr != "" {
 		h.auditLoginFailure(c)
+		h.clearOAuthCookies(c)
 
 		c.Redirect(
 			http.StatusTemporaryRedirect,
@@ -223,6 +243,7 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 	code := c.Query("code")
 	if code == "" {
 		h.auditLoginFailure(c)
+		h.clearOAuthCookies(c)
 
 		c.Redirect(
 			http.StatusTemporaryRedirect,
@@ -238,6 +259,7 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 		cookieState == "" ||
 		returnedState == "" ||
 		returnedState != cookieState {
+		h.clearOAuthCookies(c)
 		c.Redirect(
 			http.StatusTemporaryRedirect,
 			h.defaultFrontendRedirect(),
@@ -247,6 +269,7 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 
 	codeVerifier, err := c.Cookie(cookiePKCEVerifier)
 	if err != nil || codeVerifier == "" {
+		h.clearOAuthCookies(c)
 		c.Redirect(
 			http.StatusTemporaryRedirect,
 			h.defaultFrontendRedirect(),
@@ -254,8 +277,20 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 		return
 	}
 
+	returnCookie, _ := c.Cookie(cookieOAuthReturnTo)
+	returnTo := decodeReturnCookie(returnCookie, cookieState)
+	if returnTo != "" {
+		validatedReturnTo, validationErr := h.normalizeReturnURL(returnTo)
+		if validationErr != nil {
+			returnTo = ""
+		} else {
+			returnTo = validatedReturnTo
+		}
+	}
+
 	tokens, err := h.authService.ProcessAuthCode(code, codeVerifier)
 	if err != nil {
+		h.clearOAuthCookies(c)
 		if h.isCodeAlreadyUsedError(err) {
 			c.Redirect(
 				http.StatusTemporaryRedirect,
@@ -285,6 +320,7 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 
 	if tokens == nil || tokens.AccessToken == "" {
 		h.auditLoginFailure(c)
+		h.clearOAuthCookies(c)
 
 		response.Fail(
 			c,
@@ -347,7 +383,10 @@ func (h *Handler) HandleAuthCallback(c *gin.Context) {
 		true,
 	)
 
-	redirectURL := h.redirectAfterLogin(tokens.AccessToken)
+	redirectURL := returnTo
+	if redirectURL == "" {
+		redirectURL = h.redirectAfterLogin(tokens.AccessToken)
+	}
 
 	c.Redirect(
 		http.StatusTemporaryRedirect,
@@ -805,6 +844,7 @@ func (h *Handler) clearLegacyTokenCookies(c *gin.Context) {
 func (h *Handler) clearOAuthCookies(c *gin.Context) {
 	h.clearCookie(c, cookiePKCEVerifier, true)
 	h.clearCookie(c, cookieOAuthState, true)
+	h.clearCookie(c, cookieOAuthReturnTo, true)
 }
 
 // ----------------------------------------------------

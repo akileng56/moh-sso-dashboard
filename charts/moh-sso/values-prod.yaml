@@ -29,6 +29,7 @@ backend:
 
   env:
     ALLOWED_ORIGINS: "https://sso.moh.go.ug"
+    AUTH_RETURN_URL_ALLOWED_ORIGINS: "https://sso.moh.go.ug"
 
   secrets:
     KEYCLOAK_ADMIN_CLIENT_SECRET: ""

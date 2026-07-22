@@ -16,6 +16,7 @@ export type RbacSystem = {
   description?: string;
   icon?: string;
   launchUrl?: string;
+  authenticatedLaunchUrl?: string;
   category?: string;
   ownerTeam?: string;
   ownerName?: string;
@@ -127,6 +128,7 @@ export type UpsertRbacSystemPayload = {
   description?: string;
   icon?: string;
   launchUrl?: string;
+  authenticatedLaunchUrl?: string;
   category?: string;
   ownerTeam?: string;
   ownerName?: string;
@@ -226,7 +228,13 @@ export type RbacEffectiveAccessUser = {
 
 export type RbacPermissionGrantSource = {
   permissionKey: string;
-  grantedByType: "realmRole" | "clientRole" | "groupPermission" | "groupRealmRole" | "groupClientRole" | string;
+  grantedByType:
+    | "realmRole"
+    | "clientRole"
+    | "groupPermission"
+    | "groupRealmRole"
+    | "groupClientRole"
+    | string;
   role: string;
   systemClientId?: string;
   systemName?: string;
@@ -239,6 +247,7 @@ export type RbacSystemAccessSummary = {
   clientId: string;
   displayName: string;
   launchUrl?: string;
+  authenticatedLaunchUrl?: string;
   icon?: string;
   category?: string;
   navigation?: string;
@@ -277,6 +286,7 @@ export type RbacAssignableSystemAccess = {
   clientId: string;
   displayName: string;
   launchUrl?: string;
+  authenticatedLaunchUrl?: string;
   icon?: string;
   category?: string;
   systemType?: "platform" | "external";

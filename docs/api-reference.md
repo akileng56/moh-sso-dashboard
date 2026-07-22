@@ -48,12 +48,18 @@ Handlers should return feature DTOs and safe error messages. They should not exp
 | Method | Path | Auth | Purpose |
 | --- | --- | --- | --- |
 | `GET` | `/api/v1/auth/login` | Public, rate limited | Start Keycloak login. |
+| `GET` | `/api/v1/auth/launch?returnTo=<portal-path>` | Public, rate limited | Start Keycloak login and return to a validated portal route after authentication. |
 | `GET` | `/api/v1/auth/callback` | Public, rate limited | Handle Keycloak authorization callback. |
 | `GET` | `/api/v1/auth/me` | Session | Return current user, realm roles, client roles, permissions, and accessible systems. |
 | `POST` | `/api/v1/auth/refresh` | Session, rate limited | Refresh portal session. |
 | `GET` | `/api/v1/auth/logout` | Session | Log out current browser session. |
 
 `auth/me` is the primary frontend bootstrap endpoint. It is the source for menu visibility, app launcher visibility, permissions, and accessible systems.
+
+`auth/launch` accepts only `/portal` paths or absolute URLs whose origin is listed in
+`AUTH_RETURN_URL_ALLOWED_ORIGINS`. The backend binds the target to the OAuth state and
+uses the normal fixed Keycloak callback URI; callers must not register arbitrary return
+paths as Keycloak redirect URIs.
 
 ## Users
 

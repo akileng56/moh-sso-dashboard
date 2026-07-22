@@ -173,7 +173,8 @@ func upsertSystem(ctx context.Context, tx *sql.Tx, system SeedSystem) (string, e
 	}
 
 	metadata, err := json.Marshal(map[string]string{
-		"navigation": strings.TrimSpace(system.Navigation),
+		"navigation":             strings.TrimSpace(system.Navigation),
+		"authenticatedLaunchUrl": strings.TrimSpace(system.AuthenticatedLaunchURL),
 	})
 	if err != nil {
 		return "", err
@@ -210,7 +211,8 @@ func upsertSystem(ctx context.Context, tx *sql.Tx, system SeedSystem) (string, e
 			enabled = EXCLUDED.enabled,
 			sort_order = EXCLUDED.sort_order,
 			metadata = CASE
-				WHEN NULLIF(EXCLUDED.metadata->>'navigation', '') IS NULL THEN ihp_systems.metadata
+				WHEN NULLIF(EXCLUDED.metadata->>'navigation', '') IS NULL
+				 AND NULLIF(EXCLUDED.metadata->>'authenticatedLaunchUrl', '') IS NULL THEN ihp_systems.metadata
 				ELSE COALESCE(ihp_systems.metadata, '{}'::jsonb) || EXCLUDED.metadata
 			END,
 			updated_at = now()

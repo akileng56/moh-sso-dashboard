@@ -26,6 +26,7 @@ backend:
   env:
     # Frontend will be accessed via localhost:3000
     ALLOWED_ORIGINS: "https://portal.local"
+    AUTH_RETURN_URL_ALLOWED_ORIGINS: "https://portal.local"
 
   baseUrl: "https://portal.local"
 

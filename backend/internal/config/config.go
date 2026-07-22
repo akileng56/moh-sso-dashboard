@@ -20,10 +20,11 @@ type Config struct {
 	// ==================================================
 	// Frontend
 	// ==================================================
-	FrontendBaseURL     string `mapstructure:"FRONTEND_BASE_URL"`
-	FrontendRedirectURI string `mapstructure:"FRONTEND_REDIRECT_URI"`
-	LoginURL            string `mapstructure:"LOGIN_URL"`
-	CookieDomain        string `mapstructure:"COOKIE_DOMAIN"`
+	FrontendBaseURL             string `mapstructure:"FRONTEND_BASE_URL"`
+	FrontendRedirectURI         string `mapstructure:"FRONTEND_REDIRECT_URI"`
+	LoginURL                    string `mapstructure:"LOGIN_URL"`
+	AuthReturnURLAllowedOrigins string `mapstructure:"AUTH_RETURN_URL_ALLOWED_ORIGINS"`
+	CookieDomain                string `mapstructure:"COOKIE_DOMAIN"`
 
 	// ==================================================
 	// Keycloak (Infrastructure)
@@ -258,6 +259,7 @@ func setDefaults() {
 	viper.SetDefault("FRONTEND_BASE_URL", "http://localhost:3000")
 	viper.SetDefault("FRONTEND_REDIRECT_URI", "http://localhost:3000")
 	viper.SetDefault("LOGIN_URL", "http://localhost:9000/api/v1/auth/login")
+	viper.SetDefault("AUTH_RETURN_URL_ALLOWED_ORIGINS", "http://localhost:3000")
 	viper.SetDefault("COOKIE_DOMAIN", "")
 
 	// ==================================================
@@ -338,6 +340,7 @@ func envBindings() map[string]string {
 		"FRONTEND_REDIRECT_URI":                 "FRONTEND_REDIRECT_URI",
 		"COOKIE_DOMAIN":                         "COOKIE_DOMAIN",
 		"LOGIN_URL":                             "LOGIN_URL",
+		"AUTH_RETURN_URL_ALLOWED_ORIGINS":       "AUTH_RETURN_URL_ALLOWED_ORIGINS",
 		"KEYCLOAK_VERSION":                      "KEYCLOAK_VERSION",
 		"KEYCLOAK_DB":                           "KEYCLOAK_DB",
 		"KEYCLOAK_DB_NAME":                      "KEYCLOAK_DB_NAME",
@@ -464,6 +467,7 @@ func normalizeConfig(c *Config) {
 	c.FrontendBaseURL = trimURL(c.FrontendBaseURL)
 	c.FrontendRedirectURI = strings.TrimSpace(c.FrontendRedirectURI)
 	c.LoginURL = strings.TrimSpace(c.LoginURL)
+	c.AuthReturnURLAllowedOrigins = strings.TrimSpace(c.AuthReturnURLAllowedOrigins)
 	c.CookieDomain = normalizeCookieDomain(c.CookieDomain, c.Environment)
 
 	// ==================================================
@@ -819,6 +823,17 @@ func validateFrontendConfig(c *Config) error {
 	if strings.TrimSpace(c.FrontendRedirectURI) != "" {
 		if err := validateHTTPURL("FRONTEND_REDIRECT_URI", c.FrontendRedirectURI); err != nil {
 			return err
+		}
+	}
+
+	for _, rawOrigin := range strings.Split(c.AuthReturnURLAllowedOrigins, ",") {
+		origin := strings.TrimSpace(rawOrigin)
+		if origin == "" {
+			continue
+		}
+		parsed, err := url.Parse(origin)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+			return fmt.Errorf("AUTH_RETURN_URL_ALLOWED_ORIGINS contains invalid origin %q", origin)
 		}
 	}
 

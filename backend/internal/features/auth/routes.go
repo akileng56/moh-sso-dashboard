@@ -22,6 +22,11 @@ func RegisterRoutes(
 			handler.HandleAuthLogin,
 		)
 		auth.GET(
+			"/launch",
+			ratelimit.MiddlewareForPolicy(limiter, ratelimit.LoginPolicy(loginRateLimitPerMin)),
+			handler.HandleAuthLaunch,
+		)
+		auth.GET(
 			"/callback",
 			ratelimit.MiddlewareForPolicy(
 				limiter,

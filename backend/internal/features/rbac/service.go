@@ -79,6 +79,7 @@ func (s *Service) UpsertSystem(ctx context.Context, input UpsertSystemInput) (Sy
 	input.Description = strings.TrimSpace(input.Description)
 	input.Icon = strings.TrimSpace(input.Icon)
 	input.LaunchURL = strings.TrimSpace(input.LaunchURL)
+	input.AuthenticatedLaunchURL = strings.TrimSpace(input.AuthenticatedLaunchURL)
 	input.Category = strings.TrimSpace(input.Category)
 	input.OwnerTeam = strings.TrimSpace(input.OwnerTeam)
 	input.OwnerName = strings.TrimSpace(input.OwnerName)
@@ -89,12 +90,13 @@ func (s *Service) UpsertSystem(ctx context.Context, input UpsertSystemInput) (Sy
 	input.Criticality = strings.TrimSpace(input.Criticality)
 	input.Navigation = strings.TrimSpace(input.Navigation)
 	behavior := systemrbac.NormalizeSystemBehavior(systemrbac.SeedSystem{
-		LaunchURL:         input.LaunchURL,
-		Navigation:        input.Navigation,
-		SystemType:        input.SystemType,
-		DisplayInLauncher: input.DisplayInLauncher,
-		DisplayInSideNav:  input.DisplayInSideNav,
-		LaunchMode:        input.LaunchMode,
+		LaunchURL:              input.LaunchURL,
+		AuthenticatedLaunchURL: input.AuthenticatedLaunchURL,
+		Navigation:             input.Navigation,
+		SystemType:             input.SystemType,
+		DisplayInLauncher:      input.DisplayInLauncher,
+		DisplayInSideNav:       input.DisplayInSideNav,
+		LaunchMode:             input.LaunchMode,
 	})
 	if err := systemrbac.ValidateSystemBehavior(behavior); err != nil {
 		return System{}, fmt.Errorf("%w: %v", ErrInvalidInput, err)
@@ -1118,28 +1120,29 @@ func (s *Service) ExportSeed(ctx context.Context) (systemrbac.SeedFile, error) {
 		}
 		enabled := system.Enabled
 		seedSystem := systemrbac.SeedSystem{
-			ClientID:          system.ClientID,
-			DisplayName:       system.DisplayName,
-			Description:       system.Description,
-			Icon:              system.Icon,
-			LaunchURL:         system.LaunchURL,
-			Category:          system.Category,
-			OwnerTeam:         system.OwnerTeam,
-			OwnerName:         system.OwnerName,
-			OwnerEmail:        system.OwnerEmail,
-			SupportURL:        system.SupportURL,
-			DocumentationURL:  system.DocumentationURL,
-			Environment:       system.Environment,
-			Criticality:       system.Criticality,
-			Navigation:        system.Navigation,
-			SystemType:        system.SystemType,
-			DisplayInLauncher: boolPointer(system.DisplayInLauncher),
-			DisplayInSideNav:  boolPointer(system.DisplayInSideNav),
-			LaunchMode:        system.LaunchMode,
-			Enabled:           &enabled,
-			SortOrder:         system.SortOrder,
-			AccessRoles:       detail.AccessRoles,
-			Roles:             make([]systemrbac.SeedRole, 0, len(detail.Roles)),
+			ClientID:               system.ClientID,
+			DisplayName:            system.DisplayName,
+			Description:            system.Description,
+			Icon:                   system.Icon,
+			LaunchURL:              system.LaunchURL,
+			AuthenticatedLaunchURL: system.AuthenticatedLaunchURL,
+			Category:               system.Category,
+			OwnerTeam:              system.OwnerTeam,
+			OwnerName:              system.OwnerName,
+			OwnerEmail:             system.OwnerEmail,
+			SupportURL:             system.SupportURL,
+			DocumentationURL:       system.DocumentationURL,
+			Environment:            system.Environment,
+			Criticality:            system.Criticality,
+			Navigation:             system.Navigation,
+			SystemType:             system.SystemType,
+			DisplayInLauncher:      boolPointer(system.DisplayInLauncher),
+			DisplayInSideNav:       boolPointer(system.DisplayInSideNav),
+			LaunchMode:             system.LaunchMode,
+			Enabled:                &enabled,
+			SortOrder:              system.SortOrder,
+			AccessRoles:            detail.AccessRoles,
+			Roles:                  make([]systemrbac.SeedRole, 0, len(detail.Roles)),
 		}
 		for _, role := range detail.Roles {
 			permissions := make([]string, 0, len(role.Permissions))
@@ -1217,26 +1220,27 @@ func (s *Service) ApplyImport(ctx context.Context, input ImportPreviewRequest) (
 	}
 	for _, system := range seed.Systems {
 		_, err := s.UpsertSystem(ctx, UpsertSystemInput{
-			ClientID:          system.ClientID,
-			DisplayName:       system.DisplayName,
-			Description:       system.Description,
-			Icon:              system.Icon,
-			LaunchURL:         system.LaunchURL,
-			Category:          system.Category,
-			OwnerTeam:         system.OwnerTeam,
-			OwnerName:         system.OwnerName,
-			OwnerEmail:        system.OwnerEmail,
-			SupportURL:        system.SupportURL,
-			DocumentationURL:  system.DocumentationURL,
-			Environment:       system.Environment,
-			Criticality:       system.Criticality,
-			Navigation:        system.Navigation,
-			SystemType:        system.SystemType,
-			DisplayInLauncher: system.DisplayInLauncher,
-			DisplayInSideNav:  system.DisplayInSideNav,
-			LaunchMode:        system.LaunchMode,
-			Enabled:           system.Enabled,
-			SortOrder:         system.SortOrder,
+			ClientID:               system.ClientID,
+			DisplayName:            system.DisplayName,
+			Description:            system.Description,
+			Icon:                   system.Icon,
+			LaunchURL:              system.LaunchURL,
+			AuthenticatedLaunchURL: system.AuthenticatedLaunchURL,
+			Category:               system.Category,
+			OwnerTeam:              system.OwnerTeam,
+			OwnerName:              system.OwnerName,
+			OwnerEmail:             system.OwnerEmail,
+			SupportURL:             system.SupportURL,
+			DocumentationURL:       system.DocumentationURL,
+			Environment:            system.Environment,
+			Criticality:            system.Criticality,
+			Navigation:             system.Navigation,
+			SystemType:             system.SystemType,
+			DisplayInLauncher:      system.DisplayInLauncher,
+			DisplayInSideNav:       system.DisplayInSideNav,
+			LaunchMode:             system.LaunchMode,
+			Enabled:                system.Enabled,
+			SortOrder:              system.SortOrder,
 		})
 		if err != nil {
 			return ImportApplyResponse{}, err

@@ -60,6 +60,7 @@ backend:
   env:
     PORT: "9000"
     ALLOWED_ORIGINS: ""
+    AUTH_RETURN_URL_ALLOWED_ORIGINS: "http://localhost:3000"
 
   sms:
     enabled: false

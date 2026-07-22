@@ -65,6 +65,7 @@ function toDraft(system: RbacSystem): SystemDraft {
     description: system.description || "",
     icon: system.icon || "",
     launchUrl: system.launchUrl || "",
+    authenticatedLaunchUrl: system.authenticatedLaunchUrl || "",
     category: system.category || "",
     ownerTeam: system.ownerTeam || "",
     ownerName: system.ownerName || "",
@@ -315,7 +316,12 @@ function SystemPanel({ clientId, onClose }: { clientId: string; onClose: () => v
       <Stack gap={6}>
         <FormGroup legendText="System metadata">
           <Stack gap={4}>
-            <TextInput id="system-client-id" labelText="Client ID" value={system.clientId} disabled />
+            <TextInput
+              id="system-client-id"
+              labelText="Client ID"
+              value={system.clientId}
+              disabled
+            />
             <TextInput
               id="system-display-name"
               labelText="Display name"
@@ -362,6 +368,13 @@ function SystemPanel({ clientId, onClose }: { clientId: string; onClose: () => v
               labelText="Launch URL"
               value={currentDraft.launchUrl}
               onChange={(event) => updateField("launchUrl", event.target.value)}
+            />
+            <TextInput
+              id="system-authenticated-launch-url"
+              labelText="Authenticated launch URL"
+              helperText="Optional backend login URL used when another application launches this system."
+              value={currentDraft.authenticatedLaunchUrl ?? ""}
+              onChange={(event) => updateField("authenticatedLaunchUrl", event.target.value)}
             />
             <Stack orientation="horizontal" gap={4}>
               <TextInput
@@ -495,6 +508,7 @@ function CreateSystemPanel({ onClose }: { onClose: () => void }) {
     description: "",
     icon: "application",
     launchUrl: "/portal",
+    authenticatedLaunchUrl: "",
     category: "platform",
     ownerTeam: "",
     ownerName: "",
@@ -551,24 +565,73 @@ function CreateSystemPanel({ onClose }: { onClose: () => void }) {
   return (
     <Form className="system-panel">
       <Stack gap={5}>
-        <TextInput id="new-system-client-id" labelText="Client ID" value={clientId} onChange={(event) => setClientId(event.target.value)} />
-        <TextInput id="new-system-display-name" labelText="Display name" value={draft.displayName} onChange={(event) => setDraft({ ...draft, displayName: event.target.value })} />
-        <ContentSwitcher selectedIndex={draft.systemType === "external" ? 1 : 0} onChange={({ index }) => setSystemType(index === 1)}>
+        <TextInput
+          id="new-system-client-id"
+          labelText="Client ID"
+          value={clientId}
+          onChange={(event) => setClientId(event.target.value)}
+        />
+        <TextInput
+          id="new-system-display-name"
+          labelText="Display name"
+          value={draft.displayName}
+          onChange={(event) => setDraft({ ...draft, displayName: event.target.value })}
+        />
+        <ContentSwitcher
+          selectedIndex={draft.systemType === "external" ? 1 : 0}
+          onChange={({ index }) => setSystemType(index === 1)}
+        >
           <Switch name="platform" text="Platform" />
           <Switch name="external" text="External" />
         </ContentSwitcher>
-        <TextInput id="new-system-launch-url" labelText="Launch URL" value={draft.launchUrl} onChange={(event) => setDraft({ ...draft, launchUrl: event.target.value })} />
+        <TextInput
+          id="new-system-launch-url"
+          labelText="Launch URL"
+          value={draft.launchUrl}
+          onChange={(event) => setDraft({ ...draft, launchUrl: event.target.value })}
+        />
+        <TextInput
+          id="new-system-authenticated-launch-url"
+          labelText="Authenticated launch URL"
+          helperText="Optional backend login URL used for cross-application SSO."
+          value={draft.authenticatedLaunchUrl ?? ""}
+          onChange={(event) => setDraft({ ...draft, authenticatedLaunchUrl: event.target.value })}
+        />
         {draft.systemType === "external" && (
-          <Select id="new-system-launch-mode" labelText="Launch mode" value={draft.launchMode} onChange={(event) => setDraft({ ...draft, launchMode: event.target.value as "new_tab" | "same_tab" })}>
+          <Select
+            id="new-system-launch-mode"
+            labelText="Launch mode"
+            value={draft.launchMode}
+            onChange={(event) =>
+              setDraft({ ...draft, launchMode: event.target.value as "new_tab" | "same_tab" })
+            }
+          >
             <SelectItem value="new_tab" text="Open in a new tab" />
             <SelectItem value="same_tab" text="Open in the current tab" />
           </Select>
         )}
-        <Toggle id="new-system-display-launcher" labelText="Display in application launcher" toggled={draft.displayInLauncher} onToggle={(value) => setDraft({ ...draft, displayInLauncher: value })} />
+        <Toggle
+          id="new-system-display-launcher"
+          labelText="Display in application launcher"
+          toggled={draft.displayInLauncher}
+          onToggle={(value) => setDraft({ ...draft, displayInLauncher: value })}
+        />
         {draft.systemType === "platform" && (
           <>
-            <Toggle id="new-system-display-sidenav" labelText="Display in side navigation" toggled={draft.displayInSideNav} onToggle={(value) => setDraft({ ...draft, displayInSideNav: value })} />
-            {draft.displayInSideNav && <TextArea id="new-system-navigation" labelText="Navigation JSON" value={draft.navigation} onChange={(event) => setDraft({ ...draft, navigation: event.target.value })} />}
+            <Toggle
+              id="new-system-display-sidenav"
+              labelText="Display in side navigation"
+              toggled={draft.displayInSideNav}
+              onToggle={(value) => setDraft({ ...draft, displayInSideNav: value })}
+            />
+            {draft.displayInSideNav && (
+              <TextArea
+                id="new-system-navigation"
+                labelText="Navigation JSON"
+                value={draft.navigation}
+                onChange={(event) => setDraft({ ...draft, navigation: event.target.value })}
+              />
+            )}
           </>
         )}
         {validationError && <p className="system-panel__validation-error">{validationError}</p>}
@@ -581,6 +644,15 @@ function CreateSystemPanel({ onClose }: { onClose: () => void }) {
 }
 
 function validateSystemDraft(draft: SystemDraft): string {
+  const authenticatedLaunchUrl = draft.authenticatedLaunchUrl?.trim();
+  if (
+    authenticatedLaunchUrl &&
+    !authenticatedLaunchUrl.startsWith("/api/v1/auth/launch") &&
+    !isSafeAbsoluteURL(authenticatedLaunchUrl)
+  ) {
+    return "Authenticated launch URL must use /api/v1/auth/launch or a safe absolute HTTP or HTTPS URL.";
+  }
+
   if (draft.systemType === "platform") {
     if (draft.launchMode !== "internal") return "Platform systems must use internal launch mode.";
     if (draft.launchUrl && !/^\/(portal|apps)(\/|$)/.test(draft.launchUrl)) {
@@ -600,13 +672,19 @@ function validateSystemDraft(draft: SystemDraft): string {
   if (draft.displayInSideNav || (draft.navigation ?? "").trim()) {
     return "External systems cannot define portal side navigation.";
   }
-  try {
-    const url = new URL(draft.launchUrl ?? "");
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error("unsafe");
-  } catch {
+  if (!isSafeAbsoluteURL(draft.launchUrl ?? "")) {
     return "External launch URLs must be safe absolute HTTP or HTTPS URLs.";
   }
   return "";
+}
+
+function isSafeAbsoluteURL(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !url.username && !url.password;
+  } catch {
+    return false;
+  }
 }
 
 function getCriticalityTag(criticality?: string) {

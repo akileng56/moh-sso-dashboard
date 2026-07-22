@@ -25,7 +25,11 @@ function inferSystemType(system: SystemAccess): "platform" | "external" {
 }
 
 function inferLaunchMode(system: SystemAccess, systemType: "platform" | "external") {
-  if (system.launchMode === "internal" || system.launchMode === "new_tab" || system.launchMode === "same_tab") {
+  if (
+    system.launchMode === "internal" ||
+    system.launchMode === "new_tab" ||
+    system.launchMode === "same_tab"
+  ) {
     return system.launchMode;
   }
 
@@ -215,6 +219,7 @@ export function mapAccessibleSystemToClient(system: SystemAccess): Client {
     attributes: {
       "ui.icon": system.icon ?? "",
       "ui.home": system.launchUrl ?? "",
+      "ui.authenticatedLaunchUrl": system.authenticatedLaunchUrl ?? "",
       "ui.category": system.category ?? "",
       "ui.navigation": normalizePath(system.navigation),
       "ui.sidenav": normalizePath(system.navigation),
@@ -236,12 +241,7 @@ export function buildAccessibleClients({
 }): Client[] {
   return [...accessibleSystems]
     .sort(compareAccessibleSystems)
-    .filter(
-      (system) =>
-        system.clientId &&
-        system.launchUrl &&
-        (system.displayInLauncher ?? true),
-    )
+    .filter((system) => system.clientId && system.launchUrl && (system.displayInLauncher ?? true))
     .map(mapAccessibleSystemToClient);
 }
 

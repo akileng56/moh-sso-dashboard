@@ -47,6 +47,8 @@ The shell assigns module cards stable synthetic IDs in the form `<clientId>:<mod
 
 Keycloak clients must set `portal.system=true` for automatic enrollment. Configure `portal.accessRoles` as a comma-separated list of roles that expose the system, plus `ui.systemType`, `ui.displayInLauncher`, `ui.displayInSideNav`, `ui.launchMode`, `ui.launchUrl`, `ui.icon`, `ui.category`, and optional `ui.navigation`.
 
+For the Integrated Health Portal itself, keep the ordinary public URL in `ui.launchUrl` and configure `ui.authenticatedLaunchUrl` separately. External applications should use the authenticated launch URL when they do not already hold a portal backend session. See [Cross-Application SSO](./cross-application-sso.md).
+
 Newly discovered roles remain inert until they are explicitly configured as access roles. Development fixtures demonstrate all modes through `demo-platform-system`, `demo-external-new-tab`, and `demo-external-same-tab`; they are absent from the production realm export.
 
 ## 1. Create or Confirm Keycloak Client

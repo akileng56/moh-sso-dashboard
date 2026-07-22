@@ -20,28 +20,29 @@ type SeedFile struct {
 }
 
 type SeedSystem struct {
-	ClientID          string     `json:"clientId" yaml:"clientId"`
-	DisplayName       string     `json:"displayName" yaml:"displayName"`
-	Description       string     `json:"description,omitempty" yaml:"description,omitempty"`
-	Icon              string     `json:"icon,omitempty" yaml:"icon,omitempty"`
-	LaunchURL         string     `json:"launchUrl,omitempty" yaml:"launchUrl,omitempty"`
-	Category          string     `json:"category,omitempty" yaml:"category,omitempty"`
-	OwnerTeam         string     `json:"ownerTeam,omitempty" yaml:"ownerTeam,omitempty"`
-	OwnerName         string     `json:"ownerName,omitempty" yaml:"ownerName,omitempty"`
-	OwnerEmail        string     `json:"ownerEmail,omitempty" yaml:"ownerEmail,omitempty"`
-	SupportURL        string     `json:"supportUrl,omitempty" yaml:"supportUrl,omitempty"`
-	DocumentationURL  string     `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
-	Environment       string     `json:"environment,omitempty" yaml:"environment,omitempty"`
-	Criticality       string     `json:"criticality,omitempty" yaml:"criticality,omitempty"`
-	Navigation        string     `json:"navigation,omitempty" yaml:"navigation,omitempty"`
-	SystemType        string     `json:"systemType,omitempty" yaml:"systemType,omitempty"`
-	DisplayInLauncher *bool      `json:"displayInLauncher,omitempty" yaml:"displayInLauncher,omitempty"`
-	DisplayInSideNav  *bool      `json:"displayInSideNav,omitempty" yaml:"displayInSideNav,omitempty"`
-	LaunchMode        string     `json:"launchMode,omitempty" yaml:"launchMode,omitempty"`
-	Enabled           *bool      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
-	SortOrder         int32      `json:"sortOrder,omitempty" yaml:"sortOrder,omitempty"`
-	AccessRoles       []string   `json:"accessRoles,omitempty" yaml:"accessRoles,omitempty"`
-	Roles             []SeedRole `json:"roles,omitempty" yaml:"roles,omitempty"`
+	ClientID               string     `json:"clientId" yaml:"clientId"`
+	DisplayName            string     `json:"displayName" yaml:"displayName"`
+	Description            string     `json:"description,omitempty" yaml:"description,omitempty"`
+	Icon                   string     `json:"icon,omitempty" yaml:"icon,omitempty"`
+	LaunchURL              string     `json:"launchUrl,omitempty" yaml:"launchUrl,omitempty"`
+	AuthenticatedLaunchURL string     `json:"authenticatedLaunchUrl,omitempty" yaml:"authenticatedLaunchUrl,omitempty"`
+	Category               string     `json:"category,omitempty" yaml:"category,omitempty"`
+	OwnerTeam              string     `json:"ownerTeam,omitempty" yaml:"ownerTeam,omitempty"`
+	OwnerName              string     `json:"ownerName,omitempty" yaml:"ownerName,omitempty"`
+	OwnerEmail             string     `json:"ownerEmail,omitempty" yaml:"ownerEmail,omitempty"`
+	SupportURL             string     `json:"supportUrl,omitempty" yaml:"supportUrl,omitempty"`
+	DocumentationURL       string     `json:"documentationUrl,omitempty" yaml:"documentationUrl,omitempty"`
+	Environment            string     `json:"environment,omitempty" yaml:"environment,omitempty"`
+	Criticality            string     `json:"criticality,omitempty" yaml:"criticality,omitempty"`
+	Navigation             string     `json:"navigation,omitempty" yaml:"navigation,omitempty"`
+	SystemType             string     `json:"systemType,omitempty" yaml:"systemType,omitempty"`
+	DisplayInLauncher      *bool      `json:"displayInLauncher,omitempty" yaml:"displayInLauncher,omitempty"`
+	DisplayInSideNav       *bool      `json:"displayInSideNav,omitempty" yaml:"displayInSideNav,omitempty"`
+	LaunchMode             string     `json:"launchMode,omitempty" yaml:"launchMode,omitempty"`
+	Enabled                *bool      `json:"enabled,omitempty" yaml:"enabled,omitempty"`
+	SortOrder              int32      `json:"sortOrder,omitempty" yaml:"sortOrder,omitempty"`
+	AccessRoles            []string   `json:"accessRoles,omitempty" yaml:"accessRoles,omitempty"`
+	Roles                  []SeedRole `json:"roles,omitempty" yaml:"roles,omitempty"`
 }
 
 type NavigationItem struct {
@@ -380,6 +381,7 @@ func NormalizeSystemBehavior(system SeedSystem) SeedSystem {
 	system.SystemType = strings.ToLower(strings.TrimSpace(system.SystemType))
 	system.LaunchMode = strings.ToLower(strings.TrimSpace(system.LaunchMode))
 	system.LaunchURL = strings.TrimSpace(system.LaunchURL)
+	system.AuthenticatedLaunchURL = strings.TrimSpace(system.AuthenticatedLaunchURL)
 	system.Navigation = strings.TrimSpace(system.Navigation)
 
 	if system.SystemType == "" {
@@ -421,6 +423,9 @@ func ValidateSystemBehavior(system SeedSystem) error {
 		}
 		if system.LaunchURL != "" && !isPortalPath(system.LaunchURL) {
 			return fmt.Errorf("platform launchUrl must begin with /portal or /apps")
+		}
+		if system.AuthenticatedLaunchURL != "" && !isAuthLaunchURL(system.AuthenticatedLaunchURL) {
+			return fmt.Errorf("authenticatedLaunchUrl must be an /api/v1/auth/launch URL or an absolute HTTP or HTTPS URL")
 		}
 	} else {
 		if system.LaunchMode == "internal" {
@@ -544,20 +549,28 @@ func isHTTPURL(value string) bool {
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != "" && parsed.User == nil
 }
 
+func isAuthLaunchURL(value string) bool {
+	if strings.HasPrefix(value, "/api/v1/auth/launch") {
+		return true
+	}
+	return isHTTPURL(value)
+}
+
 func DefaultSeed() SeedFile {
 	enabled := true
 
 	seed := SeedFile{
 		Systems: []SeedSystem{
 			{
-				ClientID:    authz.SystemDashboardWeb,
-				DisplayName: "Integrated Health Portal",
-				Description: "Central portal shell",
-				Icon:        "dashboard",
-				LaunchURL:   "/portal",
-				Category:    "platform",
-				Enabled:     &enabled,
-				AccessRoles: []string{authz.DashboardWebAccess},
+				ClientID:               authz.SystemDashboardWeb,
+				DisplayName:            "Integrated Health Portal",
+				Description:            "Central portal shell",
+				Icon:                   "dashboard",
+				LaunchURL:              "/portal",
+				AuthenticatedLaunchURL: "/api/v1/auth/launch?returnTo=%2Fportal%2Fapps%2Fnews",
+				Category:               "platform",
+				Enabled:                &enabled,
+				AccessRoles:            []string{authz.DashboardWebAccess},
 				Roles: []SeedRole{
 					{
 						Name:        authz.DashboardWebAccess,

@@ -4,6 +4,7 @@ systems:
     description: Central portal shell
     icon: dashboard
     launchUrl: /portal
+    authenticatedLaunchUrl: /api/v1/auth/launch?returnTo=%2Fportal%2Fapps%2Fnews
     category: platform
     systemType: platform
     displayInLauncher: true

@@ -64,6 +64,7 @@ type SystemDraft = {
   description: string;
   icon: string;
   launchUrl: string;
+  authenticatedLaunchUrl: string;
   category: string;
   ownerTeam: string;
   ownerName: string;
@@ -176,6 +177,7 @@ function toDraft(system?: RbacSystem): SystemDraft {
     description: system?.description ?? "",
     icon: system?.icon ?? "",
     launchUrl: system?.launchUrl ?? "",
+    authenticatedLaunchUrl: system?.authenticatedLaunchUrl ?? "",
     category: system?.category ?? "",
     ownerTeam: system?.ownerTeam ?? "",
     ownerName: system?.ownerName ?? "",
@@ -244,7 +246,8 @@ export default function RbacManagementPage() {
   const [assignGroupSystemRole] = useAssignGroupSystemRoleMutation();
   const [removeGroupSystemRole] = useRemoveGroupSystemRoleMutation();
   const [addGroupMember, { isLoading: addingGroupMember }] = useAddRbacGroupMemberMutation();
-  const [removeGroupMember, { isLoading: removingGroupMember }] = useRemoveRbacGroupMemberMutation();
+  const [removeGroupMember, { isLoading: removingGroupMember }] =
+    useRemoveRbacGroupMemberMutation();
   const [syncGroupMembers, { isLoading: syncingGroupMembers }] = useSyncRbacGroupMembersMutation();
 
   const canWriteSystems = can(PERMISSIONS.rbacWrite);
@@ -297,7 +300,9 @@ export default function RbacManagementPage() {
     }, {});
   }, [permissions]);
 
-  const rolePermissionKeys = new Set(selectedRole?.permissions.map((permission) => permission.key) ?? []);
+  const rolePermissionKeys = new Set(
+    selectedRole?.permissions.map((permission) => permission.key) ?? [],
+  );
   const realmPermissionKeys = new Set(
     selectedRealmRoleGroup?.permissions.map((permission) => permission.key) ?? [],
   );
@@ -407,7 +412,10 @@ export default function RbacManagementPage() {
     try {
       setError(null);
       if (checked) {
-        await assignRealmPermission({ realmRole, data: { permissionKey: permission.key } }).unwrap();
+        await assignRealmPermission({
+          realmRole,
+          data: { permissionKey: permission.key },
+        }).unwrap();
       } else {
         await removeRealmPermission({ realmRole, permissionKey: permission.key }).unwrap();
       }
@@ -515,7 +523,11 @@ export default function RbacManagementPage() {
     }
   };
 
-  const handleRemoveGroupSystemRole = async (group: RbacGroup, clientId: string, roleName: string) => {
+  const handleRemoveGroupSystemRole = async (
+    group: RbacGroup,
+    clientId: string,
+    roleName: string,
+  ) => {
     try {
       setError(null);
       await removeGroupSystemRole({ groupId: group.id, clientId, roleName }).unwrap();
@@ -703,6 +715,16 @@ export default function RbacManagementPage() {
                 value={draft.launchUrl}
                 disabled={!canWriteSystems}
                 onChange={(event) => setDraft({ ...draft, launchUrl: event.target.value })}
+              />
+              <TextInput
+                id="rbac-authenticated-launch-url"
+                labelText="Authenticated launch URL"
+                helperText="Optional backend login URL used for cross-application SSO."
+                value={draft.authenticatedLaunchUrl}
+                disabled={!canWriteSystems}
+                onChange={(event) =>
+                  setDraft({ ...draft, authenticatedLaunchUrl: event.target.value })
+                }
               />
               <TextInput
                 id="rbac-icon"
