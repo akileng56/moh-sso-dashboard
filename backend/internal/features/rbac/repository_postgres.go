@@ -23,6 +23,7 @@ func (r *postgresRepository) ListSystems(ctx context.Context) ([]System, error) 
 		       COALESCE(owner_name, ''), COALESCE(owner_email, ''), COALESCE(support_url, ''),
 		       COALESCE(documentation_url, ''), COALESCE(environment, ''), COALESCE(criticality, ''),
 		       COALESCE(metadata->>'navigation', ''),
+		       COALESCE(metadata->>'authenticatedLaunchUrl', ''),
 		       system_type, display_in_launcher, display_in_sidenav, launch_mode,
 		       enabled, sort_order
 		FROM ihp_systems
@@ -52,6 +53,7 @@ func (r *postgresRepository) ListSystems(ctx context.Context) ([]System, error) 
 			&system.Environment,
 			&system.Criticality,
 			&system.Navigation,
+			&system.AuthenticatedLaunchURL,
 			&system.SystemType,
 			&system.DisplayInLauncher,
 			&system.DisplayInSideNav,
@@ -74,6 +76,7 @@ func (r *postgresRepository) GetSystem(ctx context.Context, clientID string) (Sy
 		       COALESCE(owner_name, ''), COALESCE(owner_email, ''), COALESCE(support_url, ''),
 		       COALESCE(documentation_url, ''), COALESCE(environment, ''), COALESCE(criticality, ''),
 		       COALESCE(metadata->>'navigation', ''),
+		       COALESCE(metadata->>'authenticatedLaunchUrl', ''),
 		       system_type, display_in_launcher, display_in_sidenav, launch_mode,
 		       enabled, sort_order
 		FROM ihp_systems
@@ -94,6 +97,7 @@ func (r *postgresRepository) GetSystem(ctx context.Context, clientID string) (Sy
 		&detail.Environment,
 		&detail.Criticality,
 		&detail.Navigation,
+		&detail.AuthenticatedLaunchURL,
 		&detail.SystemType,
 		&detail.DisplayInLauncher,
 		&detail.DisplayInSideNav,
@@ -124,7 +128,8 @@ func (r *postgresRepository) UpsertSystem(ctx context.Context, input UpsertSyste
 		enabled = *input.Enabled
 	}
 	metadata, err := json.Marshal(map[string]string{
-		"navigation": input.Navigation,
+		"navigation":             input.Navigation,
+		"authenticatedLaunchUrl": input.AuthenticatedLaunchURL,
 	})
 	if err != nil {
 		return System{}, err
@@ -161,7 +166,8 @@ func (r *postgresRepository) UpsertSystem(ctx context.Context, input UpsertSyste
 			enabled = EXCLUDED.enabled,
 			sort_order = EXCLUDED.sort_order,
 			metadata = CASE
-				WHEN NULLIF(EXCLUDED.metadata->>'navigation', '') IS NULL THEN ihp_systems.metadata
+				WHEN NULLIF(EXCLUDED.metadata->>'navigation', '') IS NULL
+				 AND NULLIF(EXCLUDED.metadata->>'authenticatedLaunchUrl', '') IS NULL THEN ihp_systems.metadata
 				ELSE COALESCE(ihp_systems.metadata, '{}'::jsonb) || EXCLUDED.metadata
 			END,
 			updated_at = now()
@@ -169,7 +175,7 @@ func (r *postgresRepository) UpsertSystem(ctx context.Context, input UpsertSyste
 		          COALESCE(launch_url, ''), COALESCE(category, ''), COALESCE(owner_team, ''),
 		          COALESCE(owner_name, ''), COALESCE(owner_email, ''), COALESCE(support_url, ''),
 		          COALESCE(documentation_url, ''), COALESCE(environment, ''), COALESCE(criticality, ''),
-		          COALESCE(metadata->>'navigation', ''), system_type, display_in_launcher,
+		          COALESCE(metadata->>'navigation', ''), COALESCE(metadata->>'authenticatedLaunchUrl', ''), system_type, display_in_launcher,
 		          display_in_sidenav, launch_mode, enabled, sort_order
 	`, input.ClientID, input.DisplayName, input.Description, input.Icon, input.LaunchURL, input.Category, input.OwnerTeam, input.OwnerName, input.OwnerEmail, input.SupportURL, input.DocumentationURL, input.Environment, input.Criticality, input.SystemType, *input.DisplayInLauncher, *input.DisplayInSideNav, input.LaunchMode, enabled, input.SortOrder, metadata).Scan(
 		&system.ID,
@@ -187,6 +193,7 @@ func (r *postgresRepository) UpsertSystem(ctx context.Context, input UpsertSyste
 		&system.Environment,
 		&system.Criticality,
 		&system.Navigation,
+		&system.AuthenticatedLaunchURL,
 		&system.SystemType,
 		&system.DisplayInLauncher,
 		&system.DisplayInSideNav,

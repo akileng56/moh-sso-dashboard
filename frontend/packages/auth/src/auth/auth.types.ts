@@ -24,6 +24,7 @@ export interface SystemAccess {
   clientId: string;
   displayName: string;
   launchUrl?: string;
+  authenticatedLaunchUrl?: string;
   icon?: string;
   category?: string;
   navigation?: string;

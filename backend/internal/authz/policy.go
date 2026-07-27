@@ -350,16 +350,17 @@ func AccessibleSystemDetailsForContext(clientRoles map[string][]string) []System
 		system = strings.TrimSpace(system)
 		metadata := staticSystemMetadata[system]
 		return SystemAccess{
-			ClientID:          system,
-			DisplayName:       metadata.DisplayName,
-			LaunchURL:         metadata.LaunchURL,
-			Icon:              metadata.Icon,
-			Category:          metadata.Category,
-			SystemType:        "platform",
-			DisplayInLauncher: true,
-			DisplayInSideNav:  false,
-			LaunchMode:        "internal",
-			Roles:             roles,
+			ClientID:               system,
+			DisplayName:            metadata.DisplayName,
+			LaunchURL:              metadata.LaunchURL,
+			AuthenticatedLaunchURL: metadata.AuthenticatedLaunchURL,
+			Icon:                   metadata.Icon,
+			Category:               metadata.Category,
+			SystemType:             "platform",
+			DisplayInLauncher:      true,
+			DisplayInSideNav:       false,
+			LaunchMode:             "internal",
+			Roles:                  roles,
 		}
 	}
 
@@ -380,18 +381,20 @@ func AccessibleSystemDetailsForContext(clientRoles map[string][]string) []System
 }
 
 type systemMetadata struct {
-	DisplayName string
-	LaunchURL   string
-	Icon        string
-	Category    string
+	DisplayName            string
+	LaunchURL              string
+	AuthenticatedLaunchURL string
+	Icon                   string
+	Category               string
 }
 
 var staticSystemMetadata = map[string]systemMetadata{
 	SystemDashboardWeb: {
-		DisplayName: "Integrated Health Portal",
-		LaunchURL:   "/portal",
-		Icon:        "dashboard",
-		Category:    "platform",
+		DisplayName:            "Integrated Health Portal",
+		LaunchURL:              "/portal",
+		AuthenticatedLaunchURL: "/api/v1/auth/launch?returnTo=%2Fportal%2Fapps%2Fnews",
+		Icon:                   "dashboard",
+		Category:               "platform",
 	},
 	SystemOutbreakManagement: {
 		DisplayName: "Outbreak Management",

@@ -140,18 +140,19 @@ func (s *Service) ApplyRealmExportSync(ctx context.Context, payload []byte) (Syn
 	for _, system := range discovered.Systems {
 		enabled := system.Enabled
 		if _, err := s.UpsertSystem(ctx, UpsertSystemInput{
-			ClientID:          system.ClientID,
-			DisplayName:       system.DisplayName,
-			Description:       system.Description,
-			Icon:              system.Icon,
-			LaunchURL:         system.LaunchURL,
-			Category:          system.Category,
-			Navigation:        system.Navigation,
-			SystemType:        system.SystemType,
-			DisplayInLauncher: boolPointer(system.DisplayInLauncher),
-			DisplayInSideNav:  boolPointer(system.DisplayInSideNav),
-			LaunchMode:        system.LaunchMode,
-			Enabled:           &enabled,
+			ClientID:               system.ClientID,
+			DisplayName:            system.DisplayName,
+			Description:            system.Description,
+			Icon:                   system.Icon,
+			LaunchURL:              system.LaunchURL,
+			AuthenticatedLaunchURL: system.AuthenticatedLaunchURL,
+			Category:               system.Category,
+			Navigation:             system.Navigation,
+			SystemType:             system.SystemType,
+			DisplayInLauncher:      boolPointer(system.DisplayInLauncher),
+			DisplayInSideNav:       boolPointer(system.DisplayInSideNav),
+			LaunchMode:             system.LaunchMode,
+			Enabled:                &enabled,
 		}); err != nil {
 			return SyncApplyResponse{}, err
 		}
@@ -368,29 +369,31 @@ func parseRealmExport(payload []byte, knownSystems ...map[string]bool) (discover
 		}
 
 		behavior := systemrbac.NormalizeSystemBehavior(systemrbac.SeedSystem{
-			LaunchURL:         firstNonEmpty(client.Attributes["ui.launchUrl"], client.Attributes["ui.home"], client.BaseURL, client.RootURL),
-			Navigation:        firstNonEmpty(client.Attributes["ui.navigation"], client.Attributes["ui.sidenav"]),
-			SystemType:        client.Attributes["ui.systemType"],
-			DisplayInLauncher: boolAttributePointer(client.Attributes, "ui.displayInLauncher"),
-			DisplayInSideNav:  boolAttributePointer(client.Attributes, "ui.displayInSideNav"),
-			LaunchMode:        client.Attributes["ui.launchMode"],
+			LaunchURL:              firstNonEmpty(client.Attributes["ui.launchUrl"], client.Attributes["ui.home"], client.BaseURL, client.RootURL),
+			AuthenticatedLaunchURL: client.Attributes["ui.authenticatedLaunchUrl"],
+			Navigation:             firstNonEmpty(client.Attributes["ui.navigation"], client.Attributes["ui.sidenav"]),
+			SystemType:             client.Attributes["ui.systemType"],
+			DisplayInLauncher:      boolAttributePointer(client.Attributes, "ui.displayInLauncher"),
+			DisplayInSideNav:       boolAttributePointer(client.Attributes, "ui.displayInSideNav"),
+			LaunchMode:             client.Attributes["ui.launchMode"],
 		})
 		system := KeycloakDiscoveredSystem{
-			ClientID:          clientID,
-			DisplayName:       firstNonEmpty(client.Name, client.Description, clientID),
-			Description:       client.Description,
-			Icon:              client.Attributes["ui.icon"],
-			LaunchURL:         behavior.LaunchURL,
-			Category:          client.Attributes["ui.category"],
-			Navigation:        behavior.Navigation,
-			SystemType:        behavior.SystemType,
-			DisplayInLauncher: *behavior.DisplayInLauncher,
-			DisplayInSideNav:  *behavior.DisplayInSideNav,
-			LaunchMode:        behavior.LaunchMode,
-			SortOrder:         int32Attribute(client.Attributes, "ui.order"),
-			AccessRoles:       splitAttributeList(client.Attributes["portal.accessRoles"]),
-			Enabled:           client.Enabled,
-			Roles:             make([]KeycloakDiscoveredRole, 0, len(roles)),
+			ClientID:               clientID,
+			DisplayName:            firstNonEmpty(client.Name, client.Description, clientID),
+			Description:            client.Description,
+			Icon:                   client.Attributes["ui.icon"],
+			LaunchURL:              behavior.LaunchURL,
+			AuthenticatedLaunchURL: behavior.AuthenticatedLaunchURL,
+			Category:               client.Attributes["ui.category"],
+			Navigation:             behavior.Navigation,
+			SystemType:             behavior.SystemType,
+			DisplayInLauncher:      *behavior.DisplayInLauncher,
+			DisplayInSideNav:       *behavior.DisplayInSideNav,
+			LaunchMode:             behavior.LaunchMode,
+			SortOrder:              int32Attribute(client.Attributes, "ui.order"),
+			AccessRoles:            splitAttributeList(client.Attributes["portal.accessRoles"]),
+			Enabled:                client.Enabled,
+			Roles:                  make([]KeycloakDiscoveredRole, 0, len(roles)),
 		}
 		for _, role := range roles {
 			roleName := normalize(role.Name)
@@ -783,6 +786,9 @@ func systemConfigurationDifferences(discovered KeycloakDiscoveredSystem, current
 	}
 	if strings.TrimSpace(discovered.LaunchURL) != strings.TrimSpace(current.LaunchURL) {
 		differences = append(differences, "launchUrl")
+	}
+	if strings.TrimSpace(discovered.AuthenticatedLaunchURL) != strings.TrimSpace(current.AuthenticatedLaunchURL) {
+		differences = append(differences, "authenticatedLaunchUrl")
 	}
 	if strings.TrimSpace(discovered.Navigation) != strings.TrimSpace(current.Navigation) {
 		differences = append(differences, "navigation")

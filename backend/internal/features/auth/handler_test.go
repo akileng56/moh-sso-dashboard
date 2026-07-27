@@ -119,6 +119,7 @@ func TestHandleAuthLoginReusesExistingFlowCookies(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/auth/login", nil)
 	req.AddCookie(&http.Cookie{Name: cookieOAuthState, Value: "existing-state"})
 	req.AddCookie(&http.Cookie{Name: cookiePKCEVerifier, Value: "existing-verifier"})
+	req.AddCookie(&http.Cookie{Name: cookieOAuthReturnTo, Value: encodeReturnCookie("old-state", "https://portal.example.test/portal/admin/home")})
 
 	router.ServeHTTP(res, req)
 
@@ -133,6 +134,86 @@ func TestHandleAuthLoginReusesExistingFlowCookies(t *testing.T) {
 		if cookie.Name == cookieOAuthState || cookie.Name == cookiePKCEVerifier {
 			t.Fatalf("expected login to reuse existing %s cookie without re-setting it", cookie.Name)
 		}
+	}
+	if !strings.Contains(strings.Join(res.Header().Values("Set-Cookie"), "\n"), cookieOAuthReturnTo+"=;") {
+		t.Fatal("expected login without returnTo to clear a stale destination")
+	}
+}
+
+func TestHandleAuthLoginStoresStateBoundReturnTarget(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	handler := newTestHandler(&fakeAuthService{})
+	router := gin.New()
+	router.GET("/auth/launch", handler.HandleAuthLaunch)
+
+	res := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/auth/launch?returnTo=%2Fportal%2Fapps%2Fdwh%2Fdashboards%3Ftab%3Dmine", nil)
+	router.ServeHTTP(res, req)
+
+	if res.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusTemporaryRedirect, res.Code, res.Body.String())
+	}
+
+	var state, encodedReturn string
+	for _, cookie := range res.Result().Cookies() {
+		switch cookie.Name {
+		case cookieOAuthState:
+			state = cookie.Value
+		case cookieOAuthReturnTo:
+			encodedReturn = cookie.Value
+		}
+	}
+	if state == "" || encodedReturn == "" {
+		t.Fatal("expected state and return target cookies")
+	}
+	if got := decodeReturnCookie(encodedReturn, state); got != "https://portal.example.test/portal/apps/dwh/dashboards?tab=mine" {
+		t.Fatalf("unexpected normalized return target %q", got)
+	}
+	if got := decodeReturnCookie(encodedReturn, "different-state"); got != "" {
+		t.Fatalf("expected state mismatch to reject return target, got %q", got)
+	}
+}
+
+func TestHandleAuthLoginRejectsUnsafeReturnTargets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	unsafeTargets := []string{
+		"https://evil.example/portal/apps/news",
+		"//evil.example/portal/apps/news",
+		"/admin/home",
+		"/portal/../admin/home",
+		"/portal/%2e%2e/admin/home",
+		"/portal%2f..%2fadmin/home",
+		"/portal/%252e%252e/admin",
+		"/portal/%5Cevil",
+	}
+
+	for _, target := range unsafeTargets {
+		t.Run(target, func(t *testing.T) {
+			handler := newTestHandler(&fakeAuthService{})
+			router := gin.New()
+			router.GET("/auth/login", handler.HandleAuthLogin)
+
+			res := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/auth/login?returnTo="+url.QueryEscape(target), nil)
+			router.ServeHTTP(res, req)
+
+			assertErrorCode(t, res, http.StatusBadRequest, "INVALID_INPUT")
+		})
+	}
+}
+
+func TestNormalizeReturnURLAllowsConfiguredAbsoluteOrigin(t *testing.T) {
+	handler := newTestHandler(&fakeAuthService{})
+	handler.config.AuthReturnURLAllowedOrigins = "https://portal.example.test, https://staging.example.test"
+
+	got, err := handler.normalizeReturnURL("https://staging.example.test/portal/apps/news#latest")
+	if err != nil {
+		t.Fatalf("normalize allowed absolute return target: %v", err)
+	}
+	if got != "https://staging.example.test/portal/apps/news#latest" {
+		t.Fatalf("unexpected normalized target %q", got)
 	}
 }
 
@@ -239,6 +320,9 @@ func TestHandleAuthCallbackRejectsMissingCode(t *testing.T) {
 	}
 	if authSvc.processAuthCodeCalled {
 		t.Fatal("expected missing code to stop before token exchange")
+	}
+	if !strings.Contains(strings.Join(res.Header().Values("Set-Cookie"), "\n"), cookieOAuthReturnTo+"=;") {
+		t.Fatal("expected terminal callback failure to clear the return target")
 	}
 }
 
@@ -420,5 +504,8 @@ func TestClearOAuthCookiesExpiresFlowCookies(t *testing.T) {
 	}
 	if !strings.Contains(header, cookiePKCEVerifier+"=;") {
 		t.Fatalf("expected pkce verifier cookie to be cleared, got %q", header)
+	}
+	if !strings.Contains(header, cookieOAuthReturnTo+"=;") {
+		t.Fatalf("expected oauth return target cookie to be cleared, got %q", header)
 	}
 }

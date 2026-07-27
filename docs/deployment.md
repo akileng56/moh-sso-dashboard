@@ -27,6 +27,36 @@ Both compose files expect:
 - `./secrets/keycloak_admin_client_secret.txt`
 - `./secrets/keycloak_web_client_secret.txt`
 
+Cross-application SSO also requires `AUTH_RETURN_URL_ALLOWED_ORIGINS` to contain exact browser origins, without paths. For the current production host:
+
+```env
+FRONTEND_BASE_URL=https://dashboards.health.go.ug/portal
+AUTH_RETURN_URL_ALLOWED_ORIGINS=https://dashboards.health.go.ug
+LOGIN_URL=https://dashboards.health.go.ug/ssobackend/api/v1/auth/login
+KEYCLOAK_REDIRECT_URI=https://dashboards.health.go.ug/ssobackend/api/v1/auth/callback
+API_BASE_URL=/ssobackend
+```
+
+Do not use Docker or Kubernetes service names in browser-facing values.
+
+### Shared production host routing
+
+The production reverse proxy must keep these path owners distinct:
+
+```text
+/                         -> Report Browser
+/report-browser/*         -> Report Browser
+/portal/*                 -> Integrated Health Portal frontend
+/ssobackend/*             -> Integrated Health Portal backend
+```
+
+The bare origin redirecting to Report Browser is intentional. Do not configure the
+portal frontend base as `https://dashboards.health.go.ug/`, and do not strip
+`/ssobackend` from browser-facing login or callback URLs. The repository's simple
+`nginx/app.conf` is suitable when this frontend owns the whole host; the shared
+production host needs an upstream reverse-proxy configuration that implements the
+path table above.
+
 For syntax validation without real production values:
 
 ```bash

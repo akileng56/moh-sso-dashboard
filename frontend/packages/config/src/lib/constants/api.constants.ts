@@ -21,8 +21,7 @@ const API_VERSION = "v1";
 const API_BASE = `${API_ROOT}/${API_VERSION}`;
 
 // Use local proxy for visualizer endpoints in development if VITE_VISUALIZER_API_BASE is configured
-const VISUALIZER_API_BASE =
-  import.meta.env.VITE_VISUALIZER_API_BASE || API_BASE;
+const VISUALIZER_API_BASE = import.meta.env.VITE_VISUALIZER_API_BASE || API_BASE;
 
 export const API = {
   serviceBase: API_BASE_URL,
@@ -39,6 +38,7 @@ export const API = {
   auth: {
     base: `${API_BASE}/auth`,
     login: () => `${API_BASE}/auth/login`,
+    launch: () => `${API_BASE}/auth/launch`,
     callback: () => `${API_BASE}/auth/callback`,
     refresh: () => `${API_BASE}/auth/refresh`,
     logout: () => `${API_BASE}/auth/logout`,

@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { API } from "@moh-sso/config";
+import { buildLoginURL } from "@moh-sso/auth";
 import { PublicHeader } from "@moh-sso/ui";
 
 export function ConnectedPublicHeader() {
@@ -14,7 +15,7 @@ export function ConnectedPublicHeader() {
     }
 
     loginStartedRef.current = true;
-    window.location.assign(API.auth.login());
+    window.location.assign(buildLoginURL(API.auth.login()));
   };
 
   return <PublicHeader onNavigateHome={() => navigate("/")} onLogin={handleLogin} />;

@@ -2,7 +2,8 @@ import { useEffect, useMemo } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
-import { useAuthorization } from "@moh-sso/auth";
+import { resolveSystemLaunchUrl, useAuthorization } from "@moh-sso/auth";
+import { API } from "@moh-sso/config";
 import { AppGridContent } from "@moh-sso/ui";
 import { setActiveClient, setClients } from "@moh-sso/state";
 
@@ -73,7 +74,15 @@ export function ConnectedAppGridContent({ onSelect }: ConnectedAppGridContentPro
     }
 
     const launchMode = client?.attributes?.["ui.launchMode"] ?? "internal";
-    const targetHref = normalizePortalPath(href);
+    const targetHref = normalizePortalPath(
+      resolveSystemLaunchUrl(
+        {
+          launchUrl: href,
+          authenticatedLaunchUrl: client?.attributes?.["ui.authenticatedLaunchUrl"],
+        },
+        { apiBaseUrl: API.serviceBase, hasPortalSession: true },
+      ),
+    );
 
     if (launchMode === "new_tab") {
       window.open(targetHref, "_blank", "noopener,noreferrer");
@@ -89,10 +98,6 @@ export function ConnectedAppGridContent({ onSelect }: ConnectedAppGridContentPro
   };
 
   return (
-    <AppGridContent
-      clients={visibleClients}
-      onSelect={onSelect}
-      onOpenClient={handleOpenClient}
-    />
+    <AppGridContent clients={visibleClients} onSelect={onSelect} onOpenClient={handleOpenClient} />
   );
 }

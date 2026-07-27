@@ -27,6 +27,7 @@ backend:
   env:
     PORT: "9000"
     ALLOWED_ORIGINS: "http://localhost:3000"
+    AUTH_RETURN_URL_ALLOWED_ORIGINS: "http://localhost:3000"
 
   secrets:
     KEYCLOAK_ADMIN_CLIENT_SECRET: ""
