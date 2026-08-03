@@ -71,8 +71,8 @@ func (r *postgresRepository) CreateIssue(ctx context.Context, input createIssueI
 func (r *postgresRepository) ListIssues(ctx context.Context, limit int, offset int, program string) ([]issueResponse, error) {
 	rows, err := r.dwhDB.QueryContext(
 		ctx,
-		`SELECT issue_id, issue_code, dataset, data_element, org_unit, issue, date_reported, reported_by, status, priority, severity, updated_date, updated_by, issue_type,time_period
-		FROM hiv.issue
+		`SELECT issue_id, issue_code, dataset, data_element,org.region,org.district, org_unit, issue, date_reported, reported_by, status, priority, severity, updated_date, updated_by, issue_type,time_period
+		FROM hiv.issue inner join hiv.organisation_unit org  ON org.org_unit_name=org_unit
 		WHERE ($3 = '' OR LOWER(BTRIM(program)) = LOWER(BTRIM($3)))
 		ORDER BY date_reported DESC, issue_id DESC
 		LIMIT $1 OFFSET $2`,

@@ -7,6 +7,8 @@ type issueResponse struct {
 	IssueCode    *string `json:"issue_code,omitempty"`
 	Dataset      *string `json:"dataset,omitempty"`
 	DataElement  *string `json:"data_element,omitempty"`
+	Region       *string `json:"region,omitempty"`
+	District     *string `json:"district,omitempty"`
 	OrgUnit      *string `json:"org_unit,omitempty"`
 	Issue        *string `json:"issue,omitempty"`
 	IssueType    *string `json:"issue_type,omitempty"`
