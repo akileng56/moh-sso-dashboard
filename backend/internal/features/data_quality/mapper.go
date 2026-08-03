@@ -196,6 +196,8 @@ func scanIssue(scanner interface {
 		issueCode    sql.NullString
 		dataset      sql.NullString
 		dataElement  sql.NullString
+		region       sql.NullString
+		district     sql.NullString
 		orgUnit      sql.NullString
 		issueText    sql.NullString
 		dateReported time.Time
@@ -214,6 +216,8 @@ func scanIssue(scanner interface {
 		&issueCode,
 		&dataset,
 		&dataElement,
+		&region,
+		&district,
 		&orgUnit,
 		&issueText,
 		&dateReported,
@@ -234,6 +238,8 @@ func scanIssue(scanner interface {
 		IssueCode:    dqNullStringPtr(issueCode),
 		Dataset:      dqNullStringPtr(dataset),
 		DataElement:  dqNullStringPtr(dataElement),
+		Region:       dqNullStringPtr(region),
+		District:     dqNullStringPtr(district),
 		OrgUnit:      dqNullStringPtr(orgUnit),
 		Issue:        dqNullStringPtr(issueText),
 		IssueType:    dqNullStringPtr(issueType),
