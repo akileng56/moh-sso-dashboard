@@ -7,12 +7,36 @@ import {
   PopoverContent,
   Search,
   TreeView,
+  Tabs,
+  TabList,
+  Tab,
 } from "@carbon/react";
-import { Add, ChevronDown, Download, Filter, Upload } from "@carbon/react/icons";
+import { Add, ChevronDown, Download, Filter, Upload, User, List } from "@carbon/react/icons";
 import * as XLSX from "xlsx";
+import { useSelector } from "react-redux";
 
-import { useGetIssuesQuery, useLazyGetIssuesQuery, useGetIssuesSummaryByProgramQuery } from "../api";
-import { PERMISSIONS, PermissionGuard } from "@moh-sso/auth";
+import {
+  useGetIssuesQuery,
+  useLazyGetIssuesQuery,
+  useGetIssuesSummaryByProgramQuery,
+  useGetIssueByCodeQuery,
+} from "../api";
+import { PERMISSIONS, PermissionGuard, selectUser } from "@moh-sso/auth";
+
+function getIssueCodeFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  const codeParam = params.get("issueCode") || params.get("issue") || params.get("code");
+  if (codeParam && codeParam.trim()) {
+    return codeParam.trim();
+  }
+  const parts = window.location.pathname.split("/").filter(Boolean);
+  const lastPart = parts[parts.length - 1];
+  if (lastPart && /^HMIS-\d+$/i.test(lastPart)) {
+    return lastPart.trim();
+  }
+  return "";
+}
 
 import DataList from "../../../data-visualizer/src/pages/components/data-table/data-table.component.tsx";
 import { getAvailablePeriods, periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
@@ -140,6 +164,7 @@ const PROGRAM_COLORS = [
 ];
 
 const IssueTracker = () => {
+  const user = useSelector(selectUser);
   const currentYear = new Date().getFullYear();
 
   const [showModal, setShowModal] = useState(false);
@@ -147,9 +172,25 @@ const IssueTracker = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
+  const [activeTab, setActiveTab] = useState<"assigned_to_me" | "all_issues">("assigned_to_me");
+
   const [issues, setIssues] = useState<Issue[]>([]);
   const [selectedIssue, setSelectedIssue] = useState<Issue>();
   const [isViewIssueDetail, setIsViewIssueDetail] = useState(false);
+
+  const [urlIssueCode, setUrlIssueCode] = useState<string>(() => getIssueCodeFromUrl());
+
+  const { data: directIssueData, isLoading: isLoadingDirectIssue } = useGetIssueByCodeQuery(
+    urlIssueCode,
+    { skip: !urlIssueCode },
+  );
+
+  useEffect(() => {
+    if (directIssueData && urlIssueCode) {
+      setSelectedIssue(directIssueData);
+      setIsViewIssueDetail(true);
+    }
+  }, [directIssueData, urlIssueCode]);
 
   const [tableSearchTerm, setTableSearchTerm] = useState("");
 
@@ -487,6 +528,43 @@ const IssueTracker = () => {
     tableSearchTerm,
   ]);
 
+  const isAssignedToUser = useCallback(
+    (issue: Issue) => {
+      if (!issue?.assigned_to || !user) return false;
+      const target = issue.assigned_to.trim().toLowerCase();
+      const userEmail = (user.email ?? "").trim().toLowerCase();
+      const username = (user.username ?? "").trim().toLowerCase();
+      const userId = (user.id ?? "").trim().toLowerCase();
+      return (
+        (userEmail !== "" && target === userEmail) ||
+        (username !== "" && target === username) ||
+        (userId !== "" && target === userId)
+      );
+    },
+    [user],
+  );
+
+  const assignedToMeCount = useMemo(() => {
+    return issues.filter(isAssignedToUser).length;
+  }, [issues, isAssignedToUser]);
+
+  const allIssuesCount = useMemo(() => {
+    if (data?.totalCount !== undefined && data.totalCount > 0) {
+      return data.totalCount;
+    }
+    if (summaryData && summaryData.length > 0) {
+      return summaryData.reduce((sum, item) => sum + (item.issue_count || 0), 0);
+    }
+    return issues.length;
+  }, [data?.totalCount, summaryData, issues.length]);
+
+  const tabFilteredIssues = useMemo(() => {
+    if (activeTab === "assigned_to_me") {
+      return filteredIssues.filter(isAssignedToUser);
+    }
+    return filteredIssues;
+  }, [activeTab, filteredIssues, isAssignedToUser]);
+
   const handleSelectRow = useCallback((rowId: string, checked: boolean) => {
     setSelectedRowIds((prev) => {
       if (checked) {
@@ -499,21 +577,31 @@ const IssueTracker = () => {
   const handleSelectAll = useCallback(
     (checked: boolean) => {
       if (checked) {
-        const allIds = filteredIssues.map((item) => String(item.id ?? item.issue_id));
+        const allIds = tabFilteredIssues.map((item) => String(item.id ?? item.issue_id));
         setSelectedRowIds(allIds);
       } else {
         setSelectedRowIds([]);
       }
     },
-    [filteredIssues],
+    [tabFilteredIssues],
   );
 
+  const selectedIssueObjects = useMemo(() => {
+    return tabFilteredIssues.filter((item) => selectedRowIds.includes(String(item.id ?? item.issue_id)));
+  }, [tabFilteredIssues, selectedRowIds]);
+
   const selectedIssueCodes = useMemo(() => {
-    return issues
-      .filter((item) => selectedRowIds.includes(String(item.id ?? item.issue_id)))
+    return selectedIssueObjects
       .map((item) => item.issue_code)
       .filter(Boolean);
-  }, [issues, selectedRowIds]);
+  }, [selectedIssueObjects]);
+
+  const areAllSelectedAssigned = useMemo(() => {
+    return (
+      selectedIssueObjects.length > 0 &&
+      selectedIssueObjects.every((item) => Boolean(item.assigned_to))
+    );
+  }, [selectedIssueObjects]);
 
   const handleIssueClick = (row: { id?: string }) => {
     const selectedItem = issues.find((item) => String(item.issue_id) === String(row.id ?? ""));
@@ -524,6 +612,12 @@ const IssueTracker = () => {
 
     setSelectedIssue(selectedItem);
     setIsViewIssueDetail(true);
+
+    if (selectedItem.issue_code && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("issueCode", selectedItem.issue_code);
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
   };
 
   const handleYearChange = ({ selectedItem }: SelectEvent<number>) => {
@@ -711,15 +805,36 @@ const IssueTracker = () => {
     closeAllPopovers();
   };
 
+  const handleBackFromDetail = () => {
+    setSelectedIssue(undefined);
+    setIsViewIssueDetail(false);
+    setUrlIssueCode("");
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("issueCode");
+      url.searchParams.delete("issue");
+      url.searchParams.delete("code");
+      window.history.replaceState({}, "", url.pathname + url.search);
+    }
+  };
+
+  if (isLoadingDirectIssue && urlIssueCode && !selectedIssue) {
+    return (
+      <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
+        <div style={{ padding: "3rem 2rem", textAlign: "center", color: "#525252" }}>
+          <h4>Loading Issue Details...</h4>
+          <p style={{ marginTop: "0.5rem" }}>Fetching issue [{urlIssueCode}] from server.</p>
+        </div>
+      </PermissionGuard>
+    );
+  }
+
   if (isViewIssueDetail && selectedIssue) {
     return (
       <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
         <IssueDetail
           selectedIssue={selectedIssue}
-          goToBack={() => {
-            setSelectedIssue(undefined);
-            setIsViewIssueDetail(false);
-          }}
+          goToBack={handleBackFromDetail}
         />
       </PermissionGuard>
     );
@@ -728,55 +843,76 @@ const IssueTracker = () => {
   return (
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
       <>
-        <div className="program-summary-tiles-container">
-          {isLoadingSummary ? (
-            <div className="issue-loading-state">
-              <p>Loading program summary...</p>
-            </div>
-          ) : summaryError ? (
-            <div className="issue-empty-state">
-              <h4>Failed to load summary</h4>
-              <p>An error occurred while fetching the issues summary by program.</p>
-            </div>
-          ) : (
-            <div className="summary-tiles-grid">
-              {summaryRows.map((tile, index) => {
-                const isActive = selectedProgram === (tile.program === "Unspecified" ? "" : tile.program);
-                const tileColor = PROGRAM_COLORS[index % PROGRAM_COLORS.length];
-                return (
-                  <button
-                    key={tile.id}
-                    type="button"
-                    className={`summary-tile ${isActive ? "active" : ""}`}
-                    style={{ borderLeftColor: tileColor }}
-                    onClick={() => {
-                      if (isActive) {
-                        setSelectedProgram(undefined);
-                      } else {
-                        setSelectedProgram(tile.program === "Unspecified" ? "" : tile.program);
-                      }
-                    }}
-                  >
-                    <div className="summary-tile-header">
-                      <span className="summary-tile-program">{tile.program}</span>
-                      <span className="summary-tile-count">{tile.issue_count}</span>
-                    </div>
-                    <div className="summary-tile-substats">
-                      <span className="summary-substat open">
-                        <span className="dot open-dot" />
-                        <span className="label">Open:</span> <strong>{tile.open_count}</strong>
-                      </span>
-                      <span className="summary-substat resolved">
-                        <span className="dot resolved-dot" />
-                        <span className="label">Resolved:</span> <strong>{tile.resolved_count}</strong>
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        <div style={{ marginBottom: "1rem" }}>
+          <Tabs
+            selectedIndex={activeTab === "assigned_to_me" ? 0 : 1}
+            onChange={({ selectedIndex }) => {
+              setActiveTab(selectedIndex === 0 ? "assigned_to_me" : "all_issues");
+              setSelectedRowIds([]);
+            }}
+          >
+            <TabList aria-label="Issue tracker view options" contained>
+              <Tab renderIcon={User}>
+                Assigned to me ({assignedToMeCount})
+              </Tab>
+              <Tab renderIcon={List}>
+                All Issues ({allIssuesCount})
+              </Tab>
+            </TabList>
+          </Tabs>
         </div>
+
+        {activeTab === "all_issues" && (
+          <div className="program-summary-tiles-container">
+            {isLoadingSummary ? (
+              <div className="issue-loading-state">
+                <p>Loading program summary...</p>
+              </div>
+            ) : summaryError ? (
+              <div className="issue-empty-state">
+                <h4>Failed to load summary</h4>
+                <p>An error occurred while fetching the issues summary by program.</p>
+              </div>
+            ) : (
+              <div className="summary-tiles-grid">
+                {summaryRows.map((tile, index) => {
+                  const isActive = selectedProgram === (tile.program === "Unspecified" ? "" : tile.program);
+                  const tileColor = PROGRAM_COLORS[index % PROGRAM_COLORS.length];
+                  return (
+                    <button
+                      key={tile.id}
+                      type="button"
+                      className={`summary-tile ${isActive ? "active" : ""}`}
+                      style={{ borderLeftColor: tileColor }}
+                      onClick={() => {
+                        if (isActive) {
+                          setSelectedProgram(undefined);
+                        } else {
+                          setSelectedProgram(tile.program === "Unspecified" ? "" : tile.program);
+                        }
+                      }}
+                    >
+                      <div className="summary-tile-header">
+                        <span className="summary-tile-program">{tile.program}</span>
+                        <span className="summary-tile-count">{tile.issue_count}</span>
+                      </div>
+                      <div className="summary-tile-substats">
+                        <span className="summary-substat open">
+                          <span className="dot open-dot" />
+                          <span className="label">Open:</span> <strong>{tile.open_count}</strong>
+                        </span>
+                        <span className="summary-substat resolved">
+                          <span className="dot resolved-dot" />
+                          <span className="label">Resolved:</span> <strong>{tile.resolved_count}</strong>
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="dv-toolbar issue-label-container">
           <div>
@@ -791,7 +927,8 @@ const IssueTracker = () => {
                 disabled={selectedIssueCodes.length === 0}
                 onClick={() => setShowAssignModal(true)}
               >
-                Assign Selected {selectedIssueCodes.length > 0 ? `(${selectedIssueCodes.length})` : ""}
+                {areAllSelectedAssigned ? "Re-assign Selected" : "Assign Selected"}{" "}
+                {selectedIssueCodes.length > 0 ? `(${selectedIssueCodes.length})` : ""}
               </Button>
             </PermissionGuard>
 
@@ -1082,10 +1219,26 @@ const IssueTracker = () => {
               </div>
             </div>
 
+            {activeTab === "assigned_to_me" && tabFilteredIssues.length === 0 && !isLoading && (
+              <div
+                style={{
+                  padding: "1.25rem 1.5rem",
+                  marginBottom: "1.25rem",
+                  backgroundColor: "#edf5ff",
+                  borderRadius: "4px",
+                  borderLeft: "4px solid #0f62fe",
+                  color: "#161616",
+                  fontSize: "0.875rem",
+                }}
+              >
+                <strong>No issues currently assigned to you.</strong> Switch to the <em>All Issues</em> tab to view all registered issues.
+              </div>
+            )}
+
             <DataList
               columns={headers}
-              data={filteredIssues}
-              totalItems={hasActiveFilters || Boolean(tableSearchTerm) ? filteredIssues.length : (data?.totalCount ?? 0)}
+              data={tabFilteredIssues}
+              totalItems={hasActiveFilters || Boolean(tableSearchTerm) || activeTab === "assigned_to_me" ? tabFilteredIssues.length : (data?.totalCount ?? 0)}
               currentPage={page}
               currentPageSize={pageSize}
               onPageChange={(newPage, newPageSize) => {
@@ -1118,6 +1271,7 @@ const IssueTracker = () => {
           <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
             <AssignModal
               issueCodes={selectedIssueCodes}
+              isReassign={areAllSelectedAssigned}
               onClose={() => setShowAssignModal(false)}
               onSuccess={() => setSelectedRowIds([])}
             />

@@ -89,7 +89,7 @@ const IssueDetail = ({
       id: selectedIssue.issue_code,
       body: {
         resolution_action: trimmedComment,
-        resolved_by: user?.username ?? "",
+        resolved_by: user?.email || user?.username || "",
         status,
       },
     };
@@ -294,7 +294,7 @@ const IssueDetail = ({
                           }}
                         >
                           <div style={{ fontWeight: "bold" }}>
-                            {transaction?.resolution_date} - {transaction?.resolved_by}
+                            {transaction?.resolution_date || "N/A"} - {transaction?.resolved_by || "System / Unknown"}
                           </div>
 
                           <div style={{ color: "#525252" }}>
@@ -358,7 +358,7 @@ const IssueDetail = ({
                     kind="tertiary"
                     onClick={() => setIsAssignModalOpen(true)}
                   >
-                    Assign Issue
+                    {selectedIssue?.assigned_to ? "Re-assign Issue" : "Assign Issue"}
                   </Button>
                 </PermissionGuard>
               )}
@@ -424,6 +424,7 @@ const IssueDetail = ({
           {isAssignModalOpen && selectedIssue?.issue_code && (
             <AssignModal
               issueCodes={[selectedIssue.issue_code]}
+              isReassign={Boolean(selectedIssue?.assigned_to)}
               onClose={() => setIsAssignModalOpen(false)}
             />
           )}
