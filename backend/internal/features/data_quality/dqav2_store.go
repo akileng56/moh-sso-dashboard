@@ -17,10 +17,10 @@ import (
 )
 
 const dqaSchemaDDL = `
-CREATE SCHEMA IF NOT EXISTS dqa;
+CREATE SCHEMA IF NOT EXISTS dqa_v2;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE IF NOT EXISTS dqa.dqa_tables (
+CREATE TABLE IF NOT EXISTS dqa_v2.dqa_tables (
     table_id      TEXT PRIMARY KEY,
     physical_table TEXT NOT NULL,
     description   TEXT NOT NULL DEFAULT '',
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_tables (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS dqa.dqa_rules (
+CREATE TABLE IF NOT EXISTS dqa_v2.dqa_rules (
     id           BIGSERIAL PRIMARY KEY,
     identity     UUID        NOT NULL DEFAULT gen_random_uuid(),
     code         TEXT        NOT NULL,
@@ -49,10 +49,10 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_rules (
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (table_id, code)
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_rules_table    ON dqa.dqa_rules (table_id) WHERE enabled;
-CREATE INDEX IF NOT EXISTS idx_dqa_rules_defn_gin ON dqa.dqa_rules USING GIN (definition);
+CREATE INDEX IF NOT EXISTS idx_dqa_rules_table    ON dqa_v2.dqa_rules (table_id) WHERE enabled;
+CREATE INDEX IF NOT EXISTS idx_dqa_rules_defn_gin ON dqa_v2.dqa_rules USING GIN (definition);
 
-CREATE TABLE IF NOT EXISTS dqa.dqa_runs (
+CREATE TABLE IF NOT EXISTS dqa_v2.dqa_runs (
     id           BIGSERIAL PRIMARY KEY,
     table_id     TEXT NOT NULL,
     run_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -64,11 +64,11 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_runs (
     period_end   TEXT,
     triggered_by TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_runs_table_id ON dqa.dqa_runs (table_id, run_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dqa_runs_table_id ON dqa_v2.dqa_runs (table_id, run_at DESC);
 
-CREATE TABLE IF NOT EXISTS dqa.dqa_flags (
+CREATE TABLE IF NOT EXISTS dqa_v2.dqa_flags (
     id          BIGSERIAL PRIMARY KEY,
-    run_id      BIGINT NOT NULL REFERENCES dqa.dqa_runs(id) ON DELETE CASCADE,
+    run_id      BIGINT NOT NULL REFERENCES dqa_v2.dqa_runs(id) ON DELETE CASCADE,
     table_id    TEXT NOT NULL,
     rule_code   TEXT NOT NULL,
     severity    TEXT NOT NULL CHECK (severity IN ('warn','fail')),
@@ -82,13 +82,13 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_flags (
     dims        JSONB NOT NULL DEFAULT '{}'::jsonb,
     comment     TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_run_id   ON dqa.dqa_flags (run_id);
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_category ON dqa.dqa_flags (category);
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_severity ON dqa.dqa_flags (severity);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_run_id   ON dqa_v2.dqa_flags (run_id);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_category ON dqa_v2.dqa_flags (category);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_severity ON dqa_v2.dqa_flags (severity);
 
-CREATE TABLE IF NOT EXISTS dqa.dqa_measurements (
+CREATE TABLE IF NOT EXISTS dqa_v2.dqa_measurements (
     id             BIGSERIAL PRIMARY KEY,
-    run_id         BIGINT REFERENCES dqa.dqa_runs(id) ON DELETE CASCADE,
+    run_id         BIGINT REFERENCES dqa_v2.dqa_runs(id) ON DELETE CASCADE,
     table_id       TEXT NOT NULL,
     rule_code      TEXT NOT NULL,
     metric_value   DOUBLE PRECISION,
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_measurements (
     measured_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_dqa_meas_series
-    ON dqa.dqa_measurements (table_id, rule_code, measured_at DESC);
+    ON dqa_v2.dqa_measurements (table_id, rule_code, measured_at DESC);
 `
 
 // DQAStore is the DWH-side persistence for the v2 rule engine.
@@ -131,7 +131,7 @@ type TableMapping struct {
 
 func (s *DQAStore) UpsertTable(ctx context.Context, m TableMapping) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO dqa.dqa_tables (table_id, physical_table, description, is_active, updated_at)
+		INSERT INTO dqa_v2.dqa_tables (table_id, physical_table, description, is_active, updated_at)
 		VALUES ($1,$2,$3,$4, now())
 		ON CONFLICT (table_id) DO UPDATE SET
 		  physical_table = EXCLUDED.physical_table,
@@ -143,7 +143,7 @@ func (s *DQAStore) UpsertTable(ctx context.Context, m TableMapping) error {
 }
 
 func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM dqa.dqa_tables WHERE table_id = $1`, tableID)
+	res, err := s.db.ExecContext(ctx, `DELETE FROM dqa_v2.dqa_tables WHERE table_id = $1`, tableID)
 	if err != nil {
 		return false, err
 	}
@@ -155,7 +155,7 @@ func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error
 func (s *DQAStore) ListTables(ctx context.Context) ([]TableMapping, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT table_id, physical_table, description, is_active
-		FROM dqa.dqa_tables ORDER BY table_id`)
+		FROM dqa_v2.dqa_tables ORDER BY table_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (s *DQAStore) ListTables(ctx context.Context) ([]TableMapping, error) {
 // the shape CompileRule needs.
 func (s *DQAStore) TableMap(ctx context.Context) (map[string]string, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT table_id, physical_table FROM dqa.dqa_tables WHERE is_active`)
+		SELECT table_id, physical_table FROM dqa_v2.dqa_tables WHERE is_active`)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (s *DQAStore) UpsertRule(ctx context.Context, rule dqa.Rule, compiledSQL, c
 	}
 
 	row := s.db.QueryRowContext(ctx, `
-		INSERT INTO dqa.dqa_rules
+		INSERT INTO dqa_v2.dqa_rules
 		  (code, table_id, category, name, rule_type, enabled, row_filter,
 		   zones, definition, compiled_sql, created_by, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11, now())
@@ -246,7 +246,7 @@ func (s *DQAStore) UpsertRule(ctx context.Context, rule dqa.Rule, compiledSQL, c
 
 func (s *DQAStore) DeleteRule(ctx context.Context, tableID, code string) (bool, error) {
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM dqa.dqa_rules WHERE table_id = $1 AND code = $2`, tableID, code)
+		`DELETE FROM dqa_v2.dqa_rules WHERE table_id = $1 AND code = $2`, tableID, code)
 	if err != nil {
 		return false, err
 	}
@@ -260,7 +260,7 @@ func (s *DQAStore) DeleteRule(ctx context.Context, tableID, code string) (bool, 
 func (s *DQAStore) ListRules(ctx context.Context, tableID string) ([]RuleRecord, error) {
 	q := `SELECT id, identity, code, table_id, category, name, rule_type, enabled,
 	             row_filter, zones, definition, compiled_sql, created_by, created_at, updated_at
-	      FROM dqa.dqa_rules`
+	      FROM dqa_v2.dqa_rules`
 	args := []any{}
 	if tableID != "" {
 		q += ` WHERE table_id = $1`
@@ -349,7 +349,7 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	var runID int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO dqa.dqa_runs (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by)
+		INSERT INTO dqa_v2.dqa_runs (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by)
 		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
 		tableID, rulesEvaluated, len(flags), fails, warns, nullIfEmpty(triggeredBy)).Scan(&runID)
 	if err != nil {
@@ -358,7 +358,7 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	if len(flags) > 0 {
 		stmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO dqa.dqa_flags
+			INSERT INTO dqa_v2.dqa_flags
 			  (run_id, table_id, rule_code, severity, category, detail,
 			   entity_id, period_date, district, entity_name, row_id, dims)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`)
@@ -379,7 +379,7 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	if len(measurements) > 0 {
 		mstmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO dqa.dqa_measurements (run_id, table_id, rule_code, metric_value, metric_detail)
+			INSERT INTO dqa_v2.dqa_measurements (run_id, table_id, rule_code, metric_value, metric_detail)
 			VALUES ($1,$2,$3,$4,$5::jsonb)`)
 		if err != nil {
 			return 0, err
@@ -432,7 +432,7 @@ type RunSummary struct {
 func (s *DQAStore) ListRuns(ctx context.Context, tableID string, limit, offset int) ([]RunSummary, error) {
 	q := `SELECT id, table_id, run_at, rules_evaluated, total_flags, errors, warnings,
 	             COALESCE(triggered_by, '')
-	      FROM dqa.dqa_runs`
+	      FROM dqa_v2.dqa_runs`
 	args := []any{}
 	if tableID != "" {
 		q += ` WHERE table_id = $1`
@@ -481,7 +481,7 @@ func (s *DQAStore) ListFlags(ctx context.Context, runID int64, severity string, 
 	q := `SELECT id, run_id, table_id, rule_code, severity, category, detail,
 	             COALESCE(entity_id,''), COALESCE(period_date,''), COALESCE(district,''),
 	             COALESCE(entity_name,''), COALESCE(row_id,''), dims, COALESCE(comment,'')
-	      FROM dqa.dqa_flags WHERE run_id = $1`
+	      FROM dqa_v2.dqa_flags WHERE run_id = $1`
 	args := []any{runID}
 	if severity != "" {
 		q += fmt.Sprintf(` AND severity = $%d`, len(args)+1)
