@@ -202,6 +202,10 @@ export const baseApi = createApi({
     "Datasets",
     "DataElements",
     "DataValidationRules",
+    "DQATables",
+    "DQARules",
+    "DQARuns",
+    "DQAFlags",
   ],
 
   endpoints: () => ({}),

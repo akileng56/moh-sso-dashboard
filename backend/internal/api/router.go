@@ -114,6 +114,12 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 		AuthSessionRateLimitPerMinute: rateLimits.AuthSessionPerMinute,
 	}
 
+	// LOCAL DEV ONLY: DEV_AUTH_BYPASS=true serves a synthetic admin session
+	// and skips the Keycloak redirect entirely.
+	if middleware.DevAuthBypassEnabled() {
+		r.Use(middleware.DevAuthBypassRoutes())
+	}
+
 	api := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(api, routeDeps)
 	routes.RegisterPublicAnnouncementRoutes(api, routeDeps)

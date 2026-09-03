@@ -19,6 +19,12 @@ func ExtractAuthContext(
 	resolver authz.PermissionResolver,
 ) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// LOCAL DEV ONLY: DEV_AUTH_BYPASS=true skips Keycloak entirely.
+		if DevAuthBypassEnabled() {
+			applyDevBypass(c, resolver)
+			return
+		}
+
 		accessToken := extractAccessToken(c, sessions)
 		if accessToken == "" {
 			abortWithError(c, http.StatusUnauthorized, "UNAUTHORIZED", "missing token")

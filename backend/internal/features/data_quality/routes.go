@@ -13,6 +13,8 @@ func RegisterProtectedRoutes(
 ) {
 	registerValidationRuleRoutes(protected.Group("/data-quality"), handler)
 	registerValidationRuleRoutes(protected.Group("/data-validation"), handler)
+	registerDQAv2Routes(protected.Group("/data-quality/dqa"), handler)
+	registerDQAv2Routes(protected.Group("/data-validation/dqa"), handler)
 
 	issues := protected.Group("/issues")
 	{
@@ -111,4 +113,29 @@ func registerValidationRuleRoutes(group *gin.RouterGroup, handler *Handler) {
 			handler.ImportValidationRules,
 		)
 	}
+}
+
+// registerDQAv2Routes wires the ported declarative rule engine (see the
+// dqa subpackage): table registration, rule CRUD + compile preview, seeding
+// the built-in eCHIS check pack, and triggering/browsing scans.
+func registerDQAv2Routes(group *gin.RouterGroup, handler *Handler) {
+	tables := group.Group("/tables")
+	{
+		tables.GET("", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQATables)
+		tables.POST("", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.UpsertDQATable)
+		tables.DELETE("/:tableId", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.DeleteDQATable)
+	}
+
+	rules := group.Group("/rules")
+	{
+		rules.GET("", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQARules)
+		rules.POST("", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.UpsertDQARule)
+		rules.POST("/compile", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.CompileDQARule)
+		rules.POST("/seed", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.SeedDQABuiltinRules)
+		rules.DELETE("/:tableId/:code", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.DeleteDQARule)
+	}
+
+	group.POST("/run", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.RunDQATable)
+	group.GET("/runs", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQARuns)
+	group.GET("/runs/:runId/flags", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAFlags)
 }

@@ -9,6 +9,7 @@ import (
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
 	logger "github.com/moh-sso-dashboard/internal/log"
+	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/storage"
 	"github.com/moh-sso-dashboard/internal/version"
 
@@ -89,7 +90,14 @@ func Run() {
 	// ==================================================
 	keycloakClients, err := initKeycloak(cfg, cacheAdapter)
 	if err != nil {
-		appLogger.Fatal("Keycloak admin authentication failed: ", err)
+		// LOCAL DEV ONLY: with DEV_AUTH_BYPASS=true the portal runs without
+		// Keycloak, so a failed admin auth is a warning instead of fatal.
+		// Endpoints that call Keycloak directly (user/client admin) will error.
+		if middleware.DevAuthBypassEnabled() {
+			appLogger.Warn("DEV_AUTH_BYPASS enabled - starting without Keycloak: ", err)
+		} else {
+			appLogger.Fatal("Keycloak admin authentication failed: ", err)
+		}
 	}
 	adminKC := keycloakClients.Admin
 	webKC := keycloakClients.Web
