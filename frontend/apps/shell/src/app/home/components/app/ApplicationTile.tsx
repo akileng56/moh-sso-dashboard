@@ -30,10 +30,9 @@ export function ApplicationTile({
   const handleLaunch = () => {
     if (!enabled) return;
 
-    if (onLaunch) {
-      onLaunch();
-      return;
-    }
+    // onLaunch is a side effect to run alongside navigation (e.g. marking
+    // this client active in state) -- it must not skip the actual launch.
+    onLaunch?.();
 
     if (rootUrl) {
       if (launchMode === "new_tab") {

@@ -19,6 +19,8 @@ import (
 type Handler struct {
 	service        Service
 	keyAdminClient *keycloak.KeyAdminClient
+	dwhDB          *sql.DB
+	dqaStore       *DQAStore
 }
 
 func NewHandler(
@@ -35,6 +37,8 @@ func NewHandler(
 	return &Handler{
 		service:        NewService(NewRepository(dwhDB, primaryDB), emailService, keyAdminClient, appCfg),
 		keyAdminClient: keyAdminClient,
+		dwhDB:          dwhDB,
+		dqaStore:       NewDQAStore(dwhDB),
 	}
 }
 

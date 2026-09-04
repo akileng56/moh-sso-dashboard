@@ -8,6 +8,11 @@ import {
   TableHead,
   TableHeader,
   TableRow,
+  Tab,
+  TabList,
+  TabPanel,
+  TabPanels,
+  Tabs,
 } from "@carbon/react";
 import { Add } from "@carbon/react/icons";
 import { useEffect, useMemo, useState } from "react";
@@ -22,6 +27,7 @@ import {
   useHeaderPanel,
   useToast,
 } from "@moh-sso/ui";
+import { DQAEnginePanel } from "../components/dqa/dqa-engine-panel";
 import { ValidationRuleActionsMenu } from "../components/validation-rule-actions-menu";
 import { ValidationRuleDetailsPanel } from "../components/validation-rule-details-panel";
 import { ValidationRulePanel } from "../components/validation-rule-panel";
@@ -235,6 +241,13 @@ export default function DataValidationPage() {
 
   return (
     <div className="data-validation-page">
+      <Tabs>
+        <TabList aria-label="Data validation views" contained>
+          <Tab>Validation rules</Tab>
+          <Tab>DQA engine</Tab>
+        </TabList>
+        <TabPanels>
+          <TabPanel>
       <DataTableShell
         title="Validation rules"
         description="Built-in and custom rules applied during validation."
@@ -359,6 +372,12 @@ export default function DataValidationPage() {
           </DataTable>
         )}
       </DataTableShell>
+          </TabPanel>
+          <TabPanel>
+            <DQAEnginePanel />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
     </div>
   );
 }
