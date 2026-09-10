@@ -103,10 +103,6 @@ export const API = {
   // Data validation
   // --------------------------------------------------
   dataValidation: {
-    rules: {
-      list: () => `${API_BASE}/data-validation/rules`,
-      import: () => `${API_BASE}/data-validation/rules/import`,
-    },
     dqa: {
       tables: {
         list: () => `${API_BASE}/data-validation/dqa/tables`,
