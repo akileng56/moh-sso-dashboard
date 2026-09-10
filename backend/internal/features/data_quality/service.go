@@ -36,8 +36,6 @@ type Service interface {
 	ResolveIssue(ctx context.Context, input resolveIssueInput) (issueStageResponse, error)
 	AssignIssues(ctx context.Context, input assignIssuesInput) ([]issueStageResponse, error)
 	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error)
-	ImportValidationRules(ctx context.Context, inputs []validationRuleInput) (validationRuleImportResult, error)
-	ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error)
 	CountIssues(ctx context.Context, program string) (int64, error)
 }
 
@@ -444,14 +442,6 @@ func (s *service) ListIssueResolutionTransactions(ctx context.Context, issueCode
 	}
 
 	return transactions, nil
-}
-
-func (s *service) ImportValidationRules(ctx context.Context, inputs []validationRuleInput) (validationRuleImportResult, error) {
-	return s.repository.ImportValidationRules(ctx, inputs)
-}
-
-func (s *service) ListValidationRules(ctx context.Context, limit int, offset int) ([]validationRuleResponse, error) {
-	return s.repository.ListValidationRules(ctx, limit, offset)
 }
 
 func (s *service) CountIssues(ctx context.Context, program string) (int64, error) {

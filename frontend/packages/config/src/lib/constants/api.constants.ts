@@ -103,9 +103,34 @@ export const API = {
   // Data validation
   // --------------------------------------------------
   dataValidation: {
-    rules: {
-      list: () => `${API_BASE}/data-validation/rules`,
-      import: () => `${API_BASE}/data-validation/rules/import`,
+    dqa: {
+      tables: {
+        list: () => `${API_BASE}/data-validation/dqa/tables`,
+        upsert: () => `${API_BASE}/data-validation/dqa/tables`,
+        remove: (tableId: string) => `${API_BASE}/data-validation/dqa/tables/${tableId}`,
+      },
+      rules: {
+        list: (tableId?: string) =>
+          tableId
+            ? `${API_BASE}/data-validation/dqa/rules?table_id=${encodeURIComponent(tableId)}`
+            : `${API_BASE}/data-validation/dqa/rules`,
+        upsert: () => `${API_BASE}/data-validation/dqa/rules`,
+        compile: () => `${API_BASE}/data-validation/dqa/rules/compile`,
+        seed: () => `${API_BASE}/data-validation/dqa/rules/seed`,
+        remove: (tableId: string, code: string) =>
+          `${API_BASE}/data-validation/dqa/rules/${encodeURIComponent(tableId)}/${encodeURIComponent(code)}`,
+      },
+      run: () => `${API_BASE}/data-validation/dqa/run`,
+      runs: {
+        list: (tableId?: string) =>
+          tableId
+            ? `${API_BASE}/data-validation/dqa/runs?table_id=${encodeURIComponent(tableId)}`
+            : `${API_BASE}/data-validation/dqa/runs`,
+        flags: (runId: number | string, severity?: string) =>
+          severity
+            ? `${API_BASE}/data-validation/dqa/runs/${runId}/flags?severity=${encodeURIComponent(severity)}`
+            : `${API_BASE}/data-validation/dqa/runs/${runId}/flags`,
+      },
     },
     dqa: {
       tables: {

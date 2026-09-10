@@ -201,7 +201,6 @@ export const baseApi = createApi({
     "RbacAudit",
     "Datasets",
     "DataElements",
-    "DataValidationRules",
     "DQATables",
     "DQARules",
     "DQARuns",
