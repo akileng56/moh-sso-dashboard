@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -20,6 +21,70 @@ import (
 var DefaultIdentity = map[string]string{
 	"entity": "vht_uuid", "period": "period_date",
 	"district": "district", "name": "chw_name", "id": "id",
+}
+
+// dimAliases maps each promoted flag dimension to the source column names that
+// carry it. The eCHIS datasets disagree on spelling: the facility-level 097b
+// matview uses "Health Facility"/"subcounty", the VHT-level form uses
+// "facility"/"sub_county", and only the latter identifies a VHT at all.
+var dimAliases = map[string][]string{
+	"year":      {"year"},
+	"month":     {"month"},
+	"region":    {"region"},
+	"district":  {"district", "district_norm"},
+	"subcounty": {"sub_county", "subcounty"},
+	"village":   {"village"},
+	"facility":  {"health facility", "facility", "facility_name", "dhis2_facility_id"},
+	"vht":       {"vht_uuid", "vht", "vht_name", "chw_name", "username"},
+}
+
+// lowerIndex maps lower-cased column names back to their actual key in rec, so
+// aliases resolve regardless of how the source spells the case.
+func lowerIndex(rec map[string]any) map[string]string {
+	idx := make(map[string]string, len(rec))
+	for k := range rec {
+		idx[strings.ToLower(strings.TrimSpace(k))] = k
+	}
+	return idx
+}
+
+// resolveDim returns the first aliased, non-empty value present in rec.
+func resolveDim(rec map[string]any, idx map[string]string, field string) string {
+	for _, alias := range dimAliases[field] {
+		key, ok := idx[alias]
+		if !ok {
+			continue
+		}
+		if v := rec[key]; v != nil {
+			if s := strings.TrimSpace(fmt.Sprintf("%v", v)); s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
+func resolveDimInt(rec map[string]any, idx map[string]string, field string) *int {
+	s := resolveDim(rec, idx, field)
+	if s == "" {
+		return nil
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return nil
+	}
+	return &n
+}
+
+// isDimensionValue reports whether a sampled value identifies a row rather than
+// measuring it. Measures are the numbers rules are written against; keeping them
+// out of dims stops every indicator column landing in the JSONB blob.
+func isDimensionValue(v any) bool {
+	switch v.(type) {
+	case nil, int, int32, int64, float32, float64:
+		return false
+	}
+	return true
 }
 
 // Querier is the subset of *sql.DB / *sql.Tx / *sql.Conn the executor needs.
@@ -87,10 +152,21 @@ func flagFromSample(rule Rule, state string, rec map[string]any, identity map[st
 		}
 		return fmt.Sprintf("%v", v)
 	}
+	idx := lowerIndex(rec)
 	dims := map[string]any{}
-	for _, c := range dimColumns {
-		if v, ok := rec[c]; ok {
-			dims[c] = v
+	if len(dimColumns) > 0 {
+		for _, c := range dimColumns {
+			if v, ok := rec[c]; ok {
+				dims[c] = v
+			}
+		}
+	} else {
+		// No explicit list: keep every identifying value on the row so a
+		// violation can be traced on datasets we have no dedicated column for.
+		for k, v := range rec {
+			if isDimensionValue(v) {
+				dims[k] = v
+			}
 		}
 	}
 	detail := rule.Name
@@ -105,11 +181,29 @@ func flagFromSample(rule Rule, state string, rec map[string]any, identity map[st
 		Detail:     detail,
 		EntityID:   get(idn["entity"]),
 		PeriodDate: get(idn["period"]),
-		District:   get(idn["district"]),
+		District:   firstNonEmpty(get(idn["district"]), resolveDim(rec, idx, "district")),
 		EntityName: get(idn["name"]),
 		RowID:      get(idn["id"]),
-		Dims:       dims,
+
+		Year:      resolveDimInt(rec, idx, "year"),
+		Month:     resolveDimInt(rec, idx, "month"),
+		Region:    resolveDim(rec, idx, "region"),
+		Subcounty: resolveDim(rec, idx, "subcounty"),
+		Village:   resolveDim(rec, idx, "village"),
+		Facility:  resolveDim(rec, idx, "facility"),
+		VHT:       resolveDim(rec, idx, "vht"),
+
+		Dims: dims,
 	}
+}
+
+func firstNonEmpty(vals ...string) string {
+	for _, v := range vals {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 func scanRow(rows *sql.Rows) (map[string]any, error) {

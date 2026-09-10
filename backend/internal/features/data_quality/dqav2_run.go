@@ -62,9 +62,11 @@ func (s *DQAStore) RunTable(ctx context.Context, dwhDB *sql.DB, tableID string, 
 		compiled = append(compiled, c)
 	}
 
+	// No DimColumns: capture every identifying value on the flagged row. The
+	// datasets disagree on which columns exist — the facility-level matview has
+	// no VHT, the VHT form has no region — so a fixed list loses detail.
 	flags, measurements := dqa.Execute(ctx, dwhDB, compiled, dqa.ExecuteOptions{
 		CollectSamples: true,
-		DimColumns:     []string{"facility", "sub_county", "village"},
 	})
 
 	runID, err := s.StoreRun(ctx, tableID, len(compiled), flags, measurements, triggeredBy)

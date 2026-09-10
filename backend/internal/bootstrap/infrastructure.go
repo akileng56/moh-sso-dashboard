@@ -18,6 +18,7 @@ type databases struct {
 	Primary *sql.DB
 	Remote  *sql.DB
 	DWH     *sql.DB
+	DQA     *sql.DB
 }
 
 func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
@@ -50,10 +51,19 @@ func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
 		return databases{}, err
 	}
 
+	dqaDB, err := db.InitDB(ctx, dbConfig(cfg.DqaDbSource()))
+	if err != nil {
+		primaryDB.Close()
+		remoteDB.Close()
+		dwhDB.Close()
+		return databases{}, err
+	}
+
 	if err := db.MigrateDB(primaryDB, "file://internal/db/migrations"); err != nil {
 		primaryDB.Close()
 		remoteDB.Close()
 		dwhDB.Close()
+		dqaDB.Close()
 		return databases{}, err
 	}
 
@@ -61,6 +71,7 @@ func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
 		Primary: primaryDB,
 		Remote:  remoteDB,
 		DWH:     dwhDB,
+		DQA:     dqaDB,
 	}, nil
 }
 
@@ -73,6 +84,9 @@ func (dbs databases) Close() {
 	}
 	if dbs.DWH != nil {
 		dbs.DWH.Close()
+	}
+	if dbs.DQA != nil {
+		dbs.DQA.Close()
 	}
 }
 

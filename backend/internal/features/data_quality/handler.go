@@ -20,8 +20,11 @@ type Handler struct {
 	dqaStore       *DQAStore
 }
 
+// NewHandler wires the feature. dqaDB persists DQA results as the role that owns
+// the dqa schema; dwhDB still reads the source tables during a scan.
 func NewHandler(
 	dwhDB *sql.DB,
+	dqaDB *sql.DB,
 	primaryDB *sql.DB,
 	keyAdminClient *keycloak.KeyAdminClient,
 	emailService sharedservice.EmailService,
@@ -31,11 +34,14 @@ func NewHandler(
 	if len(cfg) > 0 {
 		appCfg = cfg[0]
 	}
+	if dqaDB == nil {
+		dqaDB = dwhDB
+	}
 	return &Handler{
 		service:        NewService(NewRepository(dwhDB, primaryDB), emailService, keyAdminClient, appCfg),
 		keyAdminClient: keyAdminClient,
 		dwhDB:          dwhDB,
-		dqaStore:       NewDQAStore(dwhDB),
+		dqaStore:       NewDQAStore(dqaDB),
 	}
 }
 

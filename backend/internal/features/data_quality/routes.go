@@ -119,4 +119,5 @@ func registerDQAv2Routes(group *gin.RouterGroup, handler *Handler) {
 	group.POST("/run", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.RunDQATable)
 	group.GET("/runs", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQARuns)
 	group.GET("/runs/:runId/flags", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAFlags)
+	group.GET("/runs/:runId/flag-filters", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAFlagFilters)
 }
