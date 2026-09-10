@@ -141,6 +141,11 @@ type Config struct {
 	DWHPassword string `mapstructure:"DWH_PASSWORD"`
 	DWHDBName   string `mapstructure:"DWH_DB"`
 
+	// DQA results are written by the role that owns the dqa schema, which is
+	// not the role used to read source data. Same host/database as the DWH.
+	DQADBUsername string `mapstructure:"DQA_DB_USERNAME"`
+	DQADBPassword string `mapstructure:"DQA_DB_PASSWORD"`
+
 	// ==================================================
 	// SMTP / Retry / Notifications
 	// ==================================================
@@ -420,6 +425,8 @@ func envBindings() map[string]string {
 		"DWH_USERNAME":                          "DWH_USERNAME",
 		"DWH_PASSWORD":                          "DWH_PASSWORD",
 		"DWH_DB":                                "DWH_DB",
+		"DQA_DB_USERNAME":                       "DQA_DB_USERNAME",
+		"DQA_DB_PASSWORD":                       "DQA_DB_PASSWORD",
 		"SMTP_HOST":                             "SMTP_HOST",
 		"SMTP_PORT":                             "SMTP_PORT",
 		"SMTP_USERNAME":                         "SMTP_USERNAME",
@@ -757,6 +764,32 @@ func (c *Config) DwhDbSource() string {
 		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
 		c.DWHUsername,
 		dbPassEscaped,
+		c.DWHHost,
+		c.DWHPort,
+		c.DWHDBName,
+		sslMode,
+	)
+}
+
+// DqaDbSource is the connection the DQA store persists results with. It targets
+// the same DWH database as DwhDbSource but authenticates as the role that owns
+// the dqa schema; source data is still read over the DWH connection, so this
+// role needs no access to the source schemas. Falls back to the DWH credentials
+// when DQA_DB_USERNAME is unset.
+func (c *Config) DqaDbSource() string {
+	if c.DQADBUsername == "" {
+		return c.DwhDbSource()
+	}
+
+	sslMode := "disable"
+	if c.DBEnableSSL {
+		sslMode = "require"
+	}
+
+	return fmt.Sprintf(
+		"postgresql://%s:%s@%s:%s/%s?sslmode=%s",
+		c.DQADBUsername,
+		url.QueryEscape(c.DQADBPassword),
 		c.DWHHost,
 		c.DWHPort,
 		c.DWHDBName,

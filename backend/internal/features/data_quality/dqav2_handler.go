@@ -3,6 +3,7 @@ package data_quality
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -248,13 +249,54 @@ func (h *Handler) ListDQAFlags(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, "INVALID_RUN_ID", "runId must be an integer")
 		return
 	}
-	severity := c.Query("severity")
+	filter := FlagFilter{
+		Severity:  c.Query("severity"),
+		District:  c.Query("district"),
+		Facility:  c.Query("facility"),
+		VHT:       c.Query("vht"),
+		Region:    c.Query("region"),
+		Subcounty: c.Query("subcounty"),
+		Year:      parseOptionalInt(c.Query("year")),
+		Month:     parseOptionalInt(c.Query("month")),
+	}
 	limit := parseListLimit(c, 100, 1000)
 	offset := parseListOffset(c)
-	flags, err := h.dqaStore.ListFlags(c.Request.Context(), runID, severity, limit, offset)
+	flags, err := h.dqaStore.ListFlags(c.Request.Context(), runID, filter, limit, offset)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, "DQA_FLAGS_LIST_FAILED", err.Error())
 		return
 	}
 	response.OK(c, http.StatusOK, flags)
+}
+
+func parseOptionalInt(raw string) *int {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil {
+		return nil
+	}
+	return &v
+}
+
+// ListDQAFlagFilters returns the distinct filter values present in a run, so the
+// dashboard's Year/Month/District/Facility/VHT dropdowns reflect real data.
+func (h *Handler) ListDQAFlagFilters(c *gin.Context) {
+	if h.dqaStore == nil {
+		response.Fail(c, http.StatusServiceUnavailable, "DWH_UNAVAILABLE", "DWH connection is not configured")
+		return
+	}
+	runID, err := strconv.ParseInt(c.Param("runId"), 10, 64)
+	if err != nil {
+		response.Fail(c, http.StatusBadRequest, "INVALID_RUN_ID", "runId must be an integer")
+		return
+	}
+	opts, err := h.dqaStore.FlagFilterOptions(c.Request.Context(), runID)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, "DQA_FLAG_FILTERS_FAILED", err.Error())
+		return
+	}
+	response.OK(c, http.StatusOK, opts)
 }

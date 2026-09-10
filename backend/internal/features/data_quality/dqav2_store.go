@@ -16,11 +16,14 @@ import (
 	"github.com/moh-sso-dashboard/internal/features/data_quality/dqa"
 )
 
-const dqaSchemaDDL = `
-CREATE SCHEMA IF NOT EXISTS dqa_v2;
-CREATE EXTENSION IF NOT EXISTS pgcrypto;
+// dqaPreambleDDL is best-effort. On the MoH DWH the dqa schema is pre-provisioned
+// and owned by a role with no database-level CREATE, and Postgres checks that
+// privilege before the IF NOT EXISTS short-circuit — so this must be run
+// separately from the table DDL and its failure ignored.
+const dqaPreambleDDL = `CREATE SCHEMA IF NOT EXISTS dqa;`
 
-CREATE TABLE IF NOT EXISTS dqa_v2.dqa_tables (
+const dqaSchemaDDL = `
+CREATE TABLE IF NOT EXISTS dqa.dqa_tables (
     table_id      TEXT PRIMARY KEY,
     physical_table TEXT NOT NULL,
     description   TEXT NOT NULL DEFAULT '',
@@ -29,7 +32,7 @@ CREATE TABLE IF NOT EXISTS dqa_v2.dqa_tables (
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS dqa_v2.dqa_rules (
+CREATE TABLE IF NOT EXISTS dqa.dqa_rules (
     id           BIGSERIAL PRIMARY KEY,
     identity     UUID        NOT NULL DEFAULT gen_random_uuid(),
     code         TEXT        NOT NULL,
@@ -49,10 +52,10 @@ CREATE TABLE IF NOT EXISTS dqa_v2.dqa_rules (
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (table_id, code)
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_rules_table    ON dqa_v2.dqa_rules (table_id) WHERE enabled;
-CREATE INDEX IF NOT EXISTS idx_dqa_rules_defn_gin ON dqa_v2.dqa_rules USING GIN (definition);
+CREATE INDEX IF NOT EXISTS idx_dqa_rules_table    ON dqa.dqa_rules (table_id) WHERE enabled;
+CREATE INDEX IF NOT EXISTS idx_dqa_rules_defn_gin ON dqa.dqa_rules USING GIN (definition);
 
-CREATE TABLE IF NOT EXISTS dqa_v2.dqa_runs (
+CREATE TABLE IF NOT EXISTS dqa.dqa_runs (
     id           BIGSERIAL PRIMARY KEY,
     table_id     TEXT NOT NULL,
     run_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -64,11 +67,11 @@ CREATE TABLE IF NOT EXISTS dqa_v2.dqa_runs (
     period_end   TEXT,
     triggered_by TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_runs_table_id ON dqa_v2.dqa_runs (table_id, run_at DESC);
+CREATE INDEX IF NOT EXISTS idx_dqa_runs_table_id ON dqa.dqa_runs (table_id, run_at DESC);
 
-CREATE TABLE IF NOT EXISTS dqa_v2.dqa_flags (
+CREATE TABLE IF NOT EXISTS dqa.dqa_flags (
     id          BIGSERIAL PRIMARY KEY,
-    run_id      BIGINT NOT NULL REFERENCES dqa_v2.dqa_runs(id) ON DELETE CASCADE,
+    run_id      BIGINT NOT NULL REFERENCES dqa.dqa_runs(id) ON DELETE CASCADE,
     table_id    TEXT NOT NULL,
     rule_code   TEXT NOT NULL,
     severity    TEXT NOT NULL CHECK (severity IN ('warn','fail')),
@@ -79,16 +82,27 @@ CREATE TABLE IF NOT EXISTS dqa_v2.dqa_flags (
     district    TEXT,
     entity_name TEXT,
     row_id      TEXT,
+    year        INTEGER,
+    month       INTEGER,
+    region      TEXT,
+    subcounty   TEXT,
+    village     TEXT,
+    facility    TEXT,
+    vht         TEXT,
     dims        JSONB NOT NULL DEFAULT '{}'::jsonb,
     comment     TEXT
 );
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_run_id   ON dqa_v2.dqa_flags (run_id);
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_category ON dqa_v2.dqa_flags (category);
-CREATE INDEX IF NOT EXISTS idx_dqa_flags_severity ON dqa_v2.dqa_flags (severity);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_period   ON dqa.dqa_flags (year, month);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_district ON dqa.dqa_flags (district);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_facility ON dqa.dqa_flags (facility);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_vht      ON dqa.dqa_flags (vht);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_run_id   ON dqa.dqa_flags (run_id);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_category ON dqa.dqa_flags (category);
+CREATE INDEX IF NOT EXISTS idx_dqa_flags_severity ON dqa.dqa_flags (severity);
 
-CREATE TABLE IF NOT EXISTS dqa_v2.dqa_measurements (
+CREATE TABLE IF NOT EXISTS dqa.dqa_measurements (
     id             BIGSERIAL PRIMARY KEY,
-    run_id         BIGINT REFERENCES dqa_v2.dqa_runs(id) ON DELETE CASCADE,
+    run_id         BIGINT REFERENCES dqa.dqa_runs(id) ON DELETE CASCADE,
     table_id       TEXT NOT NULL,
     rule_code      TEXT NOT NULL,
     metric_value   DOUBLE PRECISION,
@@ -96,7 +110,7 @@ CREATE TABLE IF NOT EXISTS dqa_v2.dqa_measurements (
     measured_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_dqa_meas_series
-    ON dqa_v2.dqa_measurements (table_id, rule_code, measured_at DESC);
+    ON dqa.dqa_measurements (table_id, rule_code, measured_at DESC);
 `
 
 // DQAStore is the DWH-side persistence for the v2 rule engine.
@@ -110,7 +124,10 @@ type DQAStore struct {
 func NewDQAStore(db *sql.DB) *DQAStore {
 	s := &DQAStore{db: db}
 	if db != nil {
-		if _, err := db.ExecContext(context.Background(), dqaSchemaDDL); err != nil {
+		ctx := context.Background()
+		// Ignored on purpose — see dqaPreambleDDL.
+		_, _ = db.ExecContext(ctx, dqaPreambleDDL)
+		if _, err := db.ExecContext(ctx, dqaSchemaDDL); err != nil {
 			// Non-fatal: surfaced on first real use instead of at boot, matching
 			// the existing ensureSchema() convention for hiv.issue.
 			fmt.Printf("dqa: schema init warning: %v\n", err)
@@ -131,7 +148,7 @@ type TableMapping struct {
 
 func (s *DQAStore) UpsertTable(ctx context.Context, m TableMapping) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO dqa_v2.dqa_tables (table_id, physical_table, description, is_active, updated_at)
+		INSERT INTO dqa.dqa_tables (table_id, physical_table, description, is_active, updated_at)
 		VALUES ($1,$2,$3,$4, now())
 		ON CONFLICT (table_id) DO UPDATE SET
 		  physical_table = EXCLUDED.physical_table,
@@ -143,7 +160,7 @@ func (s *DQAStore) UpsertTable(ctx context.Context, m TableMapping) error {
 }
 
 func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error) {
-	res, err := s.db.ExecContext(ctx, `DELETE FROM dqa_v2.dqa_tables WHERE table_id = $1`, tableID)
+	res, err := s.db.ExecContext(ctx, `DELETE FROM dqa.dqa_tables WHERE table_id = $1`, tableID)
 	if err != nil {
 		return false, err
 	}
@@ -155,7 +172,7 @@ func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error
 func (s *DQAStore) ListTables(ctx context.Context) ([]TableMapping, error) {
 	rows, err := s.db.QueryContext(ctx, `
 		SELECT table_id, physical_table, description, is_active
-		FROM dqa_v2.dqa_tables ORDER BY table_id`)
+		FROM dqa.dqa_tables ORDER BY table_id`)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +192,7 @@ func (s *DQAStore) ListTables(ctx context.Context) ([]TableMapping, error) {
 // the shape CompileRule needs.
 func (s *DQAStore) TableMap(ctx context.Context) (map[string]string, error) {
 	rows, err := s.db.QueryContext(ctx, `
-		SELECT table_id, physical_table FROM dqa_v2.dqa_tables WHERE is_active`)
+		SELECT table_id, physical_table FROM dqa.dqa_tables WHERE is_active`)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +233,7 @@ func (s *DQAStore) UpsertRule(ctx context.Context, rule dqa.Rule, compiledSQL, c
 	}
 
 	row := s.db.QueryRowContext(ctx, `
-		INSERT INTO dqa_v2.dqa_rules
+		INSERT INTO dqa.dqa_rules
 		  (code, table_id, category, name, rule_type, enabled, row_filter,
 		   zones, definition, compiled_sql, created_by, updated_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11, now())
@@ -246,7 +263,7 @@ func (s *DQAStore) UpsertRule(ctx context.Context, rule dqa.Rule, compiledSQL, c
 
 func (s *DQAStore) DeleteRule(ctx context.Context, tableID, code string) (bool, error) {
 	res, err := s.db.ExecContext(ctx,
-		`DELETE FROM dqa_v2.dqa_rules WHERE table_id = $1 AND code = $2`, tableID, code)
+		`DELETE FROM dqa.dqa_rules WHERE table_id = $1 AND code = $2`, tableID, code)
 	if err != nil {
 		return false, err
 	}
@@ -260,7 +277,7 @@ func (s *DQAStore) DeleteRule(ctx context.Context, tableID, code string) (bool, 
 func (s *DQAStore) ListRules(ctx context.Context, tableID string) ([]RuleRecord, error) {
 	q := `SELECT id, identity, code, table_id, category, name, rule_type, enabled,
 	             row_filter, zones, definition, compiled_sql, created_by, created_at, updated_at
-	      FROM dqa_v2.dqa_rules`
+	      FROM dqa.dqa_rules`
 	args := []any{}
 	if tableID != "" {
 		q += ` WHERE table_id = $1`
@@ -325,6 +342,13 @@ func nullIfEmpty(s string) any {
 	return s
 }
 
+func nullIfNilInt(v *int) any {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
 // ── run + flag persistence ───────────────────────────────────────────────
 
 // StoreRun persists one scan: a dqa_runs row, one dqa_flags row per flag,
@@ -349,7 +373,7 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	var runID int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO dqa_v2.dqa_runs (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by)
+		INSERT INTO dqa.dqa_runs (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by)
 		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
 		tableID, rulesEvaluated, len(flags), fails, warns, nullIfEmpty(triggeredBy)).Scan(&runID)
 	if err != nil {
@@ -358,10 +382,11 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	if len(flags) > 0 {
 		stmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO dqa_v2.dqa_flags
+			INSERT INTO dqa.dqa_flags
 			  (run_id, table_id, rule_code, severity, category, detail,
-			   entity_id, period_date, district, entity_name, row_id, dims)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`)
+			   entity_id, period_date, district, entity_name, row_id,
+			   year, month, region, subcounty, village, facility, vht, dims)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19::jsonb)`)
 		if err != nil {
 			return 0, err
 		}
@@ -371,7 +396,9 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 			if _, err := stmt.ExecContext(ctx, runID, f.TableID, f.RuleCode, f.Severity,
 				f.Category, f.Detail, nullIfEmpty(f.EntityID), nullIfEmpty(f.PeriodDate),
 				nullIfEmpty(f.District), nullIfEmpty(f.EntityName), nullIfEmpty(f.RowID),
-				string(dimsJSON)); err != nil {
+				nullIfNilInt(f.Year), nullIfNilInt(f.Month), nullIfEmpty(f.Region),
+				nullIfEmpty(f.Subcounty), nullIfEmpty(f.Village), nullIfEmpty(f.Facility),
+				nullIfEmpty(f.VHT), string(dimsJSON)); err != nil {
 				return 0, err
 			}
 		}
@@ -379,7 +406,7 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	if len(measurements) > 0 {
 		mstmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO dqa_v2.dqa_measurements (run_id, table_id, rule_code, metric_value, metric_detail)
+			INSERT INTO dqa.dqa_measurements (run_id, table_id, rule_code, metric_value, metric_detail)
 			VALUES ($1,$2,$3,$4,$5::jsonb)`)
 		if err != nil {
 			return 0, err
@@ -432,7 +459,7 @@ type RunSummary struct {
 func (s *DQAStore) ListRuns(ctx context.Context, tableID string, limit, offset int) ([]RunSummary, error) {
 	q := `SELECT id, table_id, run_at, rules_evaluated, total_flags, errors, warnings,
 	             COALESCE(triggered_by, '')
-	      FROM dqa_v2.dqa_runs`
+	      FROM dqa.dqa_runs`
 	args := []any{}
 	if tableID != "" {
 		q += ` WHERE table_id = $1`
@@ -473,20 +500,63 @@ type FlagRecord struct {
 	District   string         `json:"district,omitempty"`
 	EntityName string         `json:"entity_name,omitempty"`
 	RowID      string         `json:"row_id,omitempty"`
+	Year       *int           `json:"year,omitempty"`
+	Month      *int           `json:"month,omitempty"`
+	Region     string         `json:"region,omitempty"`
+	Subcounty  string         `json:"subcounty,omitempty"`
+	Village    string         `json:"village,omitempty"`
+	Facility   string         `json:"facility,omitempty"`
+	VHT        string         `json:"vht,omitempty"`
 	Dims       map[string]any `json:"dims,omitempty"`
 	Comment    string         `json:"comment,omitempty"`
 }
 
-func (s *DQAStore) ListFlags(ctx context.Context, runID int64, severity string, limit, offset int) ([]FlagRecord, error) {
+// FlagFilter narrows a flag listing. Zero values mean "no filter".
+type FlagFilter struct {
+	Severity  string
+	Year      *int
+	Month     *int
+	District  string
+	Facility  string
+	VHT       string
+	Region    string
+	Subcounty string
+}
+
+func (s *DQAStore) ListFlags(ctx context.Context, runID int64, filter FlagFilter, limit, offset int) ([]FlagRecord, error) {
 	q := `SELECT id, run_id, table_id, rule_code, severity, category, detail,
 	             COALESCE(entity_id,''), COALESCE(period_date,''), COALESCE(district,''),
-	             COALESCE(entity_name,''), COALESCE(row_id,''), dims, COALESCE(comment,'')
-	      FROM dqa_v2.dqa_flags WHERE run_id = $1`
+	             COALESCE(entity_name,''), COALESCE(row_id,''),
+	             year, month, COALESCE(region,''), COALESCE(subcounty,''),
+	             COALESCE(village,''), COALESCE(facility,''), COALESCE(vht,''),
+	             dims, COALESCE(comment,'')
+	      FROM dqa.dqa_flags WHERE run_id = $1`
 	args := []any{runID}
-	if severity != "" {
-		q += fmt.Sprintf(` AND severity = $%d`, len(args)+1)
-		args = append(args, severity)
+
+	addStr := func(col, val string) {
+		if val == "" {
+			return
+		}
+		q += fmt.Sprintf(` AND %s = $%d`, col, len(args)+1)
+		args = append(args, val)
 	}
+	addInt := func(col string, val *int) {
+		if val == nil {
+			return
+		}
+		q += fmt.Sprintf(` AND %s = $%d`, col, len(args)+1)
+		args = append(args, *val)
+	}
+
+	addStr("severity", filter.Severity)
+	addStr("district", filter.District)
+	addStr("facility", filter.Facility)
+	addStr("vht", filter.VHT)
+	addStr("region", filter.Region)
+	addStr("subcounty", filter.Subcounty)
+	addInt("year", filter.Year)
+	addInt("month", filter.Month)
+
 	q += fmt.Sprintf(` ORDER BY id LIMIT $%d OFFSET $%d`, len(args)+1, len(args)+2)
 	args = append(args, limit, offset)
 
@@ -500,10 +570,20 @@ func (s *DQAStore) ListFlags(ctx context.Context, runID int64, severity string, 
 	for rows.Next() {
 		var f FlagRecord
 		var dimsRaw []byte
+		var year, month sql.NullInt64
 		if err := rows.Scan(&f.ID, &f.RunID, &f.TableID, &f.RuleCode, &f.Severity, &f.Category,
 			&f.Detail, &f.EntityID, &f.PeriodDate, &f.District, &f.EntityName, &f.RowID,
+			&year, &month, &f.Region, &f.Subcounty, &f.Village, &f.Facility, &f.VHT,
 			&dimsRaw, &f.Comment); err != nil {
 			return nil, err
+		}
+		if year.Valid {
+			v := int(year.Int64)
+			f.Year = &v
+		}
+		if month.Valid {
+			v := int(month.Int64)
+			f.Month = &v
 		}
 		if len(dimsRaw) > 0 {
 			_ = json.Unmarshal(dimsRaw, &f.Dims)
@@ -511,4 +591,83 @@ func (s *DQAStore) ListFlags(ctx context.Context, runID int64, severity string, 
 		out = append(out, f)
 	}
 	return out, rows.Err()
+}
+
+// FlagFilterOptions are the distinct values available to filter a run's flags
+// by, so the dashboard can populate its dropdowns from real data.
+type FlagFilterOptions struct {
+	Years       []int    `json:"years"`
+	Months      []int    `json:"months"`
+	Districts   []string `json:"districts"`
+	Facilities  []string `json:"facilities"`
+	VHTs        []string `json:"vhts"`
+	Regions     []string `json:"regions"`
+	Subcounties []string `json:"subcounties"`
+}
+
+func (s *DQAStore) FlagFilterOptions(ctx context.Context, runID int64) (FlagFilterOptions, error) {
+	out := FlagFilterOptions{
+		Years: []int{}, Months: []int{}, Districts: []string{},
+		Facilities: []string{}, VHTs: []string{}, Regions: []string{},
+		Subcounties: []string{},
+	}
+
+	ints := func(col string) ([]int, error) {
+		rows, err := s.db.QueryContext(ctx, fmt.Sprintf(
+			`SELECT DISTINCT %s FROM dqa.dqa_flags WHERE run_id=$1 AND %s IS NOT NULL ORDER BY 1`, col, col), runID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		vals := []int{}
+		for rows.Next() {
+			var v int
+			if err := rows.Scan(&v); err != nil {
+				return nil, err
+			}
+			vals = append(vals, v)
+		}
+		return vals, rows.Err()
+	}
+	strs := func(col string) ([]string, error) {
+		rows, err := s.db.QueryContext(ctx, fmt.Sprintf(
+			`SELECT DISTINCT %s FROM dqa.dqa_flags WHERE run_id=$1 AND %s <> '' AND %s IS NOT NULL ORDER BY 1`, col, col, col), runID)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		vals := []string{}
+		for rows.Next() {
+			var v string
+			if err := rows.Scan(&v); err != nil {
+				return nil, err
+			}
+			vals = append(vals, v)
+		}
+		return vals, rows.Err()
+	}
+
+	var err error
+	if out.Years, err = ints("year"); err != nil {
+		return out, err
+	}
+	if out.Months, err = ints("month"); err != nil {
+		return out, err
+	}
+	if out.Districts, err = strs("district"); err != nil {
+		return out, err
+	}
+	if out.Facilities, err = strs("facility"); err != nil {
+		return out, err
+	}
+	if out.VHTs, err = strs("vht"); err != nil {
+		return out, err
+	}
+	if out.Regions, err = strs("region"); err != nil {
+		return out, err
+	}
+	if out.Subcounties, err = strs("subcounty"); err != nil {
+		return out, err
+	}
+	return out, nil
 }

@@ -269,8 +269,19 @@ type RuleFlag struct {
 	District   string `json:"district,omitempty"`
 	EntityName string `json:"entity_name,omitempty"`
 	RowID      string `json:"row_id,omitempty"`
-	// Dims captures the identifying dimensions of the flagged row (facility,
-	// village, subcounty, period, VHT id, …) that violations are traced by.
+
+	// Promoted filter dimensions: first-class columns rather than dims entries
+	// because the dashboard filters and groups by them.
+	Year      *int   `json:"year,omitempty"`
+	Month     *int   `json:"month,omitempty"`
+	Region    string `json:"region,omitempty"`
+	Subcounty string `json:"subcounty,omitempty"`
+	Village   string `json:"village,omitempty"`
+	Facility  string `json:"facility,omitempty"`
+	VHT       string `json:"vht,omitempty"`
+
+	// Dims captures every remaining identifying dimension of the flagged row, so
+	// a violation stays traceable on datasets we have no dedicated column for.
 	Dims map[string]any `json:"dims,omitempty"`
 }
 
