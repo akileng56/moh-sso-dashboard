@@ -38,6 +38,18 @@ function getIssueCodeFromUrl(): string {
   return "";
 }
 
+function getViewFromUrl(): "dashboard" | "issues" | "" {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  const viewParam = params.get("view") || params.get("tab");
+  if (viewParam === "dashboard") return "dashboard";
+  if (viewParam === "issues" || viewParam === "registered-issues") return "issues";
+  const path = window.location.pathname;
+  if (path.endsWith("/dashboard")) return "dashboard";
+  if (path.endsWith("/issues") || path.endsWith("/registered-issues")) return "issues";
+  return "";
+}
+
 import DataList from "../../../data-visualizer/src/pages/components/data-table/data-table.component.tsx";
 import { getAvailablePeriods, periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
 import {
@@ -191,6 +203,22 @@ const IssueTracker = () => {
       setIsViewIssueDetail(true);
     }
   }, [directIssueData, urlIssueCode]);
+
+  useEffect(() => {
+    const handleUrlView = () => {
+      const view = getViewFromUrl();
+      if (view === "dashboard" || view === "issues") {
+        setActiveTab("all_issues");
+      }
+    };
+
+    handleUrlView();
+
+    window.addEventListener("popstate", handleUrlView);
+    return () => {
+      window.removeEventListener("popstate", handleUrlView);
+    };
+  }, []);
 
   const [tableSearchTerm, setTableSearchTerm] = useState("");
 

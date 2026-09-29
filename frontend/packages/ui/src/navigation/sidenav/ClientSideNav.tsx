@@ -32,7 +32,18 @@ function isActivePath(currentPath: string, itemPath?: string): boolean {
     return false;
   }
 
-  return currentPath === normalizedItemPath || currentPath.startsWith(`${normalizedItemPath}/`);
+  if (currentPath === normalizedItemPath) {
+    return true;
+  }
+
+  const currentWithoutQuery = currentPath.split("?")[0];
+  const itemWithoutQuery = normalizedItemPath.split("?")[0];
+
+  if (normalizedItemPath.includes("?")) {
+    return currentPath === normalizedItemPath;
+  }
+
+  return currentWithoutQuery === itemWithoutQuery || currentWithoutQuery.startsWith(`${itemWithoutQuery}/`);
 }
 
 function sortItems(items: SideNavItem[]): SideNavItem[] {
@@ -94,6 +105,29 @@ function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
           label: item.label === "File Upload" ? "Documents" : item.label,
           path: "/apps/dwh/documents",
           children,
+        };
+      }
+
+      if (itemPath === "/apps/dwh/issue-tracker" || item.id === "issue-tracker" || item.id === "issue-tracking") {
+        return {
+          ...item,
+          id: "issue-tracking",
+          label: "Issue Tracking",
+          path: undefined,
+          children: children && children.length > 0 ? children : [
+            {
+              id: "issue-dashboard",
+              label: "Issue Dashboard",
+              path: "/apps/dwh/issue-tracker?view=dashboard",
+              permission: item.permission ?? "issue_tracker:read",
+            },
+            {
+              id: "registered-issues",
+              label: "Registered Issues",
+              path: "/apps/dwh/issue-tracker?view=issues",
+              permission: item.permission ?? "issue_tracker:read",
+            },
+          ],
         };
       }
 

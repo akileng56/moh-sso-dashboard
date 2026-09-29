@@ -28,7 +28,7 @@ export function ConnectedClientSideNav({
     <ClientSideNav
       clients={visibleClients}
       activeClient={activeClient}
-      currentPath={location.pathname}
+      currentPath={location.pathname + location.search}
       hasPermission={checkPermission}
       visible={visible}
       onToggleVisibility={onToggleVisibility}
