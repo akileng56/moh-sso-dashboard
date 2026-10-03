@@ -107,17 +107,36 @@ func registerDQAv2Routes(group *gin.RouterGroup, handler *Handler) {
 		tables.DELETE("/:tableId", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.DeleteDQATable)
 	}
 
+	group.GET("/columns", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAPhysicalColumns)
+
 	rules := group.Group("/rules")
 	{
 		rules.GET("", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQARules)
 		rules.POST("", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.UpsertDQARule)
 		rules.POST("/compile", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.CompileDQARule)
-		rules.POST("/seed", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.SeedDQABuiltinRules)
+		rules.POST("/mapping/preview", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.PreviewRuleMapping)
+		rules.POST("/mapping/apply", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.ApplyRuleMapping)
 		rules.DELETE("/:tableId/:code", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.DeleteDQARule)
 	}
 
 	group.POST("/run", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.RunDQATable)
+
+	schedules := group.Group("/schedules")
+	{
+		schedules.POST("", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.ScheduleDQARun)
+		schedules.GET("", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAScheduledRuns)
+		schedules.DELETE("/:scheduleId", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.CancelDQAScheduledRun)
+	}
 	group.GET("/runs", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQARuns)
 	group.GET("/runs/:runId/flags", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAFlags)
 	group.GET("/runs/:runId/flag-filters", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListDQAFlagFilters)
+
+	completeness := group.Group("/completeness")
+	{
+		completeness.POST("/run", middleware.RequirePermission(authz.PermissionDataQualityWrite), handler.RunCompleteness)
+		completeness.GET("/runs", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListCompletenessRuns)
+		completeness.GET("/runs/:runId", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.GetCompletenessRun)
+		completeness.GET("/runs/:runId/districts", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListCompletenessDistricts)
+		completeness.GET("/runs/:runId/vhts", middleware.RequirePermission(authz.PermissionDataQualityRead), handler.ListCompletenessVHTs)
+	}
 }

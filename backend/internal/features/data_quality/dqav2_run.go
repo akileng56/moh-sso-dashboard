@@ -34,13 +34,31 @@ type RuleCompileErr struct {
 // RunTable compiles and executes every enabled rule registered for tableID,
 // against dwhDB, and persists the results. triggeredBy is an optional
 // username/email for audit.
-func (s *DQAStore) RunTable(ctx context.Context, dwhDB *sql.DB, tableID string, triggeredBy string) (RunResult, error) {
+func (s *DQAStore) RunTable(ctx context.Context, dwhDB *sql.DB, tableID string, scope RunScope, triggeredBy string) (RunResult, error) {
 	tables, err := s.TableMap(ctx)
 	if err != nil {
 		return RunResult{}, fmt.Errorf("loading table registry: %w", err)
 	}
 	if _, ok := tables[tableID]; !ok {
 		return RunResult{}, fmt.Errorf("table_id %q is not registered (see /data-quality/dqa/tables)", tableID)
+	}
+
+	cfg, found, err := s.GetTable(ctx, tableID)
+	if err != nil {
+		return RunResult{}, fmt.Errorf("loading table config: %w", err)
+	}
+
+	scopePredicate := ""
+	if !scope.IsEmpty() {
+		if !found {
+			return RunResult{}, fmt.Errorf("table_id %q is not configured, so a run cannot be scoped", tableID)
+		}
+		if err := validatePeriodColumn(ctx, dwhDB, cfg, scope); err != nil {
+			return RunResult{}, err
+		}
+		if scopePredicate, err = scope.Predicate(cfg); err != nil {
+			return RunResult{}, err
+		}
 	}
 
 	records, err := s.ListRules(ctx, tableID)
@@ -54,7 +72,9 @@ func (s *DQAStore) RunTable(ctx context.Context, dwhDB *sql.DB, tableID string, 
 		if !rec.Enabled {
 			continue
 		}
-		c, err := dqa.CompileRule(rec.Rule, tables, nil)
+		rule := rec.Rule
+		rule.RowFilter = combinePredicates(rule.RowFilter, scopePredicate)
+		c, err := dqa.CompileRule(rule, tables, nil)
 		if err != nil {
 			compileErrs = append(compileErrs, RuleCompileErr{Code: rec.Code, Error: err.Error()})
 			continue
@@ -62,14 +82,25 @@ func (s *DQAStore) RunTable(ctx context.Context, dwhDB *sql.DB, tableID string, 
 		compiled = append(compiled, c)
 	}
 
-	// No DimColumns: capture every identifying value on the flagged row. The
-	// datasets disagree on which columns exist — the facility-level matview has
-	// no VHT, the VHT form has no region — so a fixed list loses detail.
-	flags, measurements := dqa.Execute(ctx, dwhDB, compiled, dqa.ExecuteOptions{
-		CollectSamples: true,
-	})
+	opts := dqa.ExecuteOptions{CollectSamples: true}
+	if found {
+		// Empty DimColumns keeps every identifying value on the row; a configured
+		// list narrows it to the columns the table owner chose to keep.
+		opts.DimColumns = cfg.DimColumns
+		if cfg.PeriodColumn != "" {
+			identity := make(map[string]string, len(dqa.DefaultIdentity))
+			for k, v := range dqa.DefaultIdentity {
+				identity[k] = v
+			}
+			identity["period"] = cfg.PeriodColumn
+			opts.Identity = identity
+		}
+	}
 
-	runID, err := s.StoreRun(ctx, tableID, len(compiled), flags, measurements, triggeredBy)
+	flags, measurements := dqa.Execute(ctx, dwhDB, compiled, opts)
+
+	periodStart, periodEnd := scope.Range()
+	runID, err := s.StoreRun(ctx, tableID, len(compiled), flags, measurements, triggeredBy, periodStart, periodEnd)
 	if err != nil {
 		return RunResult{}, fmt.Errorf("persisting run: %w", err)
 	}

@@ -204,6 +204,7 @@ export const baseApi = createApi({
     "DQATables",
     "DQARules",
     "DQARuns",
+    "DQASchedules",
     "DQAFlags",
   ],
 

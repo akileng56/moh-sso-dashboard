@@ -4,11 +4,15 @@ import { API } from "@moh-sso/config";
 import type {
   DQACompilePreview,
   DQAFlag,
+  DQAPhysicalColumn,
   DQARule,
   DQARuleInput,
+  DQARuleMappingCandidate,
+  DQARuleMappingResult,
   DQARunResult,
+  DQARunScope,
   DQARunSummary,
-  DQASeedResult,
+  DQAScheduledRun,
   DQATableMapping,
 } from "../dqa.types";
 
@@ -29,6 +33,15 @@ export const dqaApi = baseApi.injectEndpoints({
       query: (body) => ({ url: API.dataValidation.dqa.tables.upsert(), method: "POST", body, credentials: "include" }),
       transformResponse: (res: ApiEnvelope<DQATableMapping>) => res.data,
       invalidatesTags: ["DQATables"],
+    }),
+
+    listDQAPhysicalColumns: builder.query<DQAPhysicalColumn[], string>({
+      query: (table) => ({
+        url: API.dataValidation.dqa.columns(table),
+        method: "GET",
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQAPhysicalColumn[]>) => res.data,
     }),
 
     deleteDQATable: builder.mutation<void, string>({
@@ -53,10 +66,59 @@ export const dqaApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiEnvelope<DQACompilePreview>) => res.data,
     }),
 
-    seedDQABuiltinRules: builder.mutation<DQASeedResult, { table_id?: string; physical_table: string }>({
-      query: (body) => ({ url: API.dataValidation.dqa.rules.seed(), method: "POST", body, credentials: "include" }),
-      transformResponse: (res: ApiEnvelope<DQASeedResult>) => res.data,
-      invalidatesTags: ["DQARules", "DQATables"],
+    scheduleDQARun: builder.mutation<
+      DQAScheduledRun,
+      { table_id: string; scope: DQARunScope; scheduled_at: string }
+    >({
+      query: (body) => ({
+        url: API.dataValidation.dqa.schedules.create(),
+        method: "POST",
+        body,
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQAScheduledRun>) => res.data,
+      invalidatesTags: ["DQASchedules"],
+    }),
+
+    listDQAScheduledRuns: builder.query<DQAScheduledRun[], { status?: string } | void>({
+      query: (args) => ({
+        url: API.dataValidation.dqa.schedules.list(args?.status),
+        method: "GET",
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQAScheduledRun[]>) => res.data,
+      providesTags: ["DQASchedules"],
+    }),
+
+    cancelDQAScheduledRun: builder.mutation<DQAScheduledRun, number>({
+      query: (scheduleId) => ({
+        url: API.dataValidation.dqa.schedules.cancel(scheduleId),
+        method: "DELETE",
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQAScheduledRun>) => res.data,
+      invalidatesTags: ["DQASchedules"],
+    }),
+
+    previewRuleMapping: builder.mutation<DQARuleMappingCandidate[], { table_id: string }>({
+      query: (body) => ({
+        url: API.dataValidation.dqa.rules.mapping.preview(),
+        method: "POST",
+        body,
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQARuleMappingCandidate[]>) => res.data,
+    }),
+
+    applyRuleMapping: builder.mutation<DQARuleMappingResult, { table_id: string; codes: string[] }>({
+      query: (body) => ({
+        url: API.dataValidation.dqa.rules.mapping.apply(),
+        method: "POST",
+        body,
+        credentials: "include",
+      }),
+      transformResponse: (res: ApiEnvelope<DQARuleMappingResult>) => res.data,
+      invalidatesTags: ["DQARules"],
     }),
 
     deleteDQARule: builder.mutation<void, { tableId: string; code: string }>({
@@ -68,11 +130,11 @@ export const dqaApi = baseApi.injectEndpoints({
       invalidatesTags: ["DQARules"],
     }),
 
-    runDQATable: builder.mutation<DQARunResult, string>({
-      query: (tableId) => ({
+    runDQATable: builder.mutation<DQARunResult, { tableId: string; scope?: DQARunScope }>({
+      query: ({ tableId, scope }) => ({
         url: API.dataValidation.dqa.run(),
         method: "POST",
-        body: { table_id: tableId },
+        body: { table_id: tableId, scope },
         credentials: "include",
       }),
       transformResponse: (res: ApiEnvelope<DQARunResult>) => res.data,
@@ -101,12 +163,17 @@ export const {
   useListDQATablesQuery,
   useUpsertDQATableMutation,
   useDeleteDQATableMutation,
+  useLazyListDQAPhysicalColumnsQuery,
   useListDQARulesQuery,
   useUpsertDQARuleMutation,
   useCompileDQARuleMutation,
-  useSeedDQABuiltinRulesMutation,
+  usePreviewRuleMappingMutation,
+  useApplyRuleMappingMutation,
   useDeleteDQARuleMutation,
   useRunDQATableMutation,
+  useScheduleDQARunMutation,
+  useListDQAScheduledRunsQuery,
+  useCancelDQAScheduledRunMutation,
   useListDQARunsQuery,
   useListDQAFlagsQuery,
 } = dqaApi;

@@ -1,6 +1,9 @@
 import {
   Button,
+  ComposedModal,
   DataTable,
+  ModalBody,
+  ModalHeader,
   Select,
   SelectItem,
   Table,
@@ -10,18 +13,16 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TextInput,
 } from "@carbon/react";
-import { Add, TrashCan, Renew } from "@carbon/react/icons";
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
 
-import { TableStatusTag, useHeaderPanel, useToast } from "@moh-sso/ui";
+import { TableStatusTag, useToast } from "@moh-sso/ui";
 
 import {
   useDeleteDQARuleMutation,
   useListDQARulesQuery,
   useListDQATablesQuery,
-  useSeedDQABuiltinRulesMutation,
   useUpsertDQARuleMutation,
 } from "../../api";
 import type { DQARule, DQARuleInput } from "../../dqa.types";
@@ -37,15 +38,16 @@ const headers = [
   { key: "actions", header: "" },
 ];
 
+type RuleEditorState = { mode: "create" } | { mode: "edit"; rule: DQARule };
+
 export function DQARulesPanel() {
-  const { openPanel, closePanel } = useHeaderPanel();
   const toast = useToast();
+  const [editor, setEditor] = useState<RuleEditorState | null>(null);
   const { data: tables = [] } = useListDQATablesQuery();
   const [tableFilter, setTableFilter] = useState("");
   const { data: rules = [], isLoading } = useListDQARulesQuery({ tableId: tableFilter || undefined });
   const [upsertRule, { isLoading: isSaving }] = useUpsertDQARuleMutation();
   const [deleteRule] = useDeleteDQARuleMutation();
-  const [seedBuiltinRules, { isLoading: isSeeding }] = useSeedDQABuiltinRulesMutation();
 
   const tableOptions = tables.map((t) => t.table_id);
 
@@ -53,59 +55,9 @@ export function DQARulesPanel() {
     try {
       await upsertRule(input).unwrap();
       toast.success("Rule saved", `${input.code} is now active on ${input.table_id}.`);
-      closePanel();
+      setEditor(null);
     } catch {
       toast.error("Rule not saved", "Check the definition JSON and try again.");
-    }
-  };
-
-  const openCreatePanel = () => {
-    openPanel({
-      title: "Add DQA rule",
-      size: "md",
-      content: (
-        <DQARuleForm
-          tableOptions={tableOptions}
-          isSubmitting={isSaving}
-          onSubmit={handleSave}
-          onClose={closePanel}
-        />
-      ),
-    });
-  };
-
-  const openEditPanel = (rule: DQARule) => {
-    openPanel({
-      title: `Edit rule: ${rule.code}`,
-      size: "md",
-      content: (
-        <DQARuleForm
-          tableOptions={tableOptions}
-          initialRule={rule}
-          isSubmitting={isSaving}
-          onSubmit={handleSave}
-          onClose={closePanel}
-        />
-      ),
-    });
-  };
-
-  const [seedTableId, setSeedTableId] = useState("vht_monthly");
-  const [seedPhysicalTable, setSeedPhysicalTable] = useState("");
-
-  const handleSeed = async () => {
-    if (!seedPhysicalTable.trim()) {
-      toast.error("Physical table required", "Enter the real DWH table the built-in checks should scan.");
-      return;
-    }
-    try {
-      const result = await seedBuiltinRules({
-        table_id: seedTableId.trim() || "vht_monthly",
-        physical_table: seedPhysicalTable.trim(),
-      }).unwrap();
-      toast.success("Built-in checks seeded", `${result.seeded} rule(s) added, ${result.failed} failed.`);
-    } catch {
-      toast.error("Seeding failed", "Please try again.");
     }
   };
 
@@ -122,30 +74,6 @@ export function DQARulesPanel() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          gap: "1rem",
-          alignItems: "flex-end",
-          marginBottom: "1rem",
-          flexWrap: "wrap",
-          padding: "1rem",
-          border: "1px solid var(--cds-border-subtle)",
-        }}
-      >
-        <TextInput id="dqa-seed-table-id" labelText="Seed table_id" value={seedTableId} onChange={(e) => setSeedTableId(e.target.value)} />
-        <TextInput
-          id="dqa-seed-physical-table"
-          labelText="Physical table for the built-in eCHIS checks"
-          placeholder="e.g. report.echis_vht_monthly"
-          value={seedPhysicalTable}
-          onChange={(e) => setSeedPhysicalTable(e.target.value)}
-        />
-        <Button kind="tertiary" renderIcon={Renew} onClick={handleSeed} disabled={isSeeding}>
-          {isSeeding ? "Seeding…" : "Seed built-in eCHIS checks"}
-        </Button>
-      </div>
-
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "1rem" }}>
         <div style={{ minWidth: "16rem" }}>
           <Select id="dqa-rules-table-filter" labelText="Filter by table" value={tableFilter} onChange={(e) => setTableFilter(e.target.value)}>
@@ -155,7 +83,7 @@ export function DQARulesPanel() {
             ))}
           </Select>
         </div>
-        <Button renderIcon={Add} onClick={openCreatePanel}>
+        <Button renderIcon={Add} onClick={() => setEditor({ mode: "create" })}>
           Add rule
         </Button>
       </div>
@@ -202,7 +130,11 @@ export function DQARulesPanel() {
                               return (
                                 <TableCell key={cell.id}>
                                   <div style={{ display: "flex", gap: "0.5rem" }}>
-                                    <Button kind="ghost" size="sm" onClick={() => ruleRaw && openEditPanel(ruleRaw)}>
+                                    <Button
+                                      kind="ghost"
+                                      size="sm"
+                                      onClick={() => ruleRaw && setEditor({ mode: "edit", rule: ruleRaw })}
+                                    >
                                       Edit
                                     </Button>
                                     <Button
@@ -229,6 +161,25 @@ export function DQARulesPanel() {
           )}
         </DataTable>
       )}
+
+      {editor ? (
+        <ComposedModal open size="lg" onClose={() => setEditor(null)}>
+          <ModalHeader
+            title={editor.mode === "edit" ? `Edit rule: ${editor.rule.code}` : "Add DQA rule"}
+          />
+          <ModalBody hasScrollingContent>
+            <DQARuleForm
+              // Remount per rule so the form never shows the previously opened one.
+              key={editor.mode === "edit" ? `${editor.rule.table_id}:${editor.rule.code}` : "new"}
+              tableOptions={tableOptions}
+              initialRule={editor.mode === "edit" ? editor.rule : undefined}
+              isSubmitting={isSaving}
+              onSubmit={handleSave}
+              onClose={() => setEditor(null)}
+            />
+          </ModalBody>
+        </ComposedModal>
+      ) : null}
     </div>
   );
 }
