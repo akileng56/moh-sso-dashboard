@@ -2,10 +2,12 @@ package bootstrap
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
 	"github.com/moh-sso-dashboard/internal/config"
+	dataqualityfeature "github.com/moh-sso-dashboard/internal/features/data_quality"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	emailRepo "github.com/moh-sso-dashboard/internal/repository/email"
 	notificationDeliveryRepo "github.com/moh-sso-dashboard/internal/repository/notification_delivery"
@@ -28,9 +30,27 @@ type workerDependencies struct {
 	SMSService                     service.SMSService
 	AuditService                   *service.AuditService
 	Logger                         *logger.Logger
+	DQADB                          *sql.DB
+	DWHDB                          *sql.DB
 }
 
 func startBackgroundWorkers(ctx context.Context, deps workerDependencies) {
+	if deps.DQADB != nil && deps.DWHDB != nil {
+		dqaWorker := dataqualityfeature.NewScheduleWorker(
+			dataqualityfeature.NewDQAStore(deps.DQADB),
+			deps.DWHDB,
+			time.Minute,
+			deps.Logger.Error,
+		)
+		go func() {
+			deps.Logger.Info("DQA scheduled run worker started")
+
+			if err := dqaWorker.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				deps.Logger.Error("DQA scheduled run worker stopped with error: ", err)
+			}
+		}()
+	}
+
 	documentWorker, err := worker.NewDocumentWorker(
 		deps.ProcessRepository,
 		deps.ImportService,

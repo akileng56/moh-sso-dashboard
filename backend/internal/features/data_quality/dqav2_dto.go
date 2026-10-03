@@ -95,7 +95,9 @@ type dqaCompilePreviewResponse struct {
 	SampleSQL  string `json:"sample_sql,omitempty"`
 }
 
-// dqaRunRequest triggers a scan of one registered table.
+// dqaRunRequest triggers a scan of one registered table, optionally narrowed to
+// chosen periods and filter values.
 type dqaRunRequest struct {
-	TableID string `json:"table_id" binding:"required"`
+	TableID string   `json:"table_id" binding:"required"`
+	Scope   RunScope `json:"scope"`
 }

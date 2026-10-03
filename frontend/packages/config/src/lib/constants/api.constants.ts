@@ -109,6 +109,8 @@ export const API = {
         upsert: () => `${API_BASE}/data-validation/dqa/tables`,
         remove: (tableId: string) => `${API_BASE}/data-validation/dqa/tables/${tableId}`,
       },
+      columns: (table: string) =>
+        `${API_BASE}/data-validation/dqa/columns?table=${encodeURIComponent(table)}`,
       rules: {
         list: (tableId?: string) =>
           tableId
@@ -116,11 +118,23 @@ export const API = {
             : `${API_BASE}/data-validation/dqa/rules`,
         upsert: () => `${API_BASE}/data-validation/dqa/rules`,
         compile: () => `${API_BASE}/data-validation/dqa/rules/compile`,
-        seed: () => `${API_BASE}/data-validation/dqa/rules/seed`,
+        mapping: {
+          preview: () => `${API_BASE}/data-validation/dqa/rules/mapping/preview`,
+          apply: () => `${API_BASE}/data-validation/dqa/rules/mapping/apply`,
+        },
         remove: (tableId: string, code: string) =>
           `${API_BASE}/data-validation/dqa/rules/${encodeURIComponent(tableId)}/${encodeURIComponent(code)}`,
       },
       run: () => `${API_BASE}/data-validation/dqa/run`,
+      schedules: {
+        create: () => `${API_BASE}/data-validation/dqa/schedules`,
+        list: (status?: string) =>
+          status
+            ? `${API_BASE}/data-validation/dqa/schedules?status=${encodeURIComponent(status)}`
+            : `${API_BASE}/data-validation/dqa/schedules`,
+        cancel: (scheduleId: number | string) =>
+          `${API_BASE}/data-validation/dqa/schedules/${scheduleId}`,
+      },
       runs: {
         list: (tableId?: string) =>
           tableId

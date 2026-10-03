@@ -1,6 +1,9 @@
 import {
   Button,
+  ComposedModal,
   DataTable,
+  ModalBody,
+  ModalHeader,
   Table,
   TableBody,
   TableCell,
@@ -8,58 +11,54 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-  TextInput,
 } from "@carbon/react";
-import { TrashCan } from "@carbon/react/icons";
+import { Add, TrashCan } from "@carbon/react/icons";
 import { useState } from "react";
 
 import { useToast } from "@moh-sso/ui";
 
 import { useDeleteDQATableMutation, useListDQATablesQuery, useUpsertDQATableMutation } from "../../api";
+import type { DQATableMapping } from "../../dqa.types";
+import { DQATableForm } from "./dqa-table-form";
 
 const headers = [
   { key: "table_id", header: "Table ID" },
   { key: "physical_table", header: "Physical table" },
-  { key: "description", header: "Description" },
+  { key: "period_column", header: "Period column" },
+  { key: "dim_columns", header: "Dimensions" },
+  { key: "filter_columns", header: "Filters" },
   { key: "actions", header: "" },
 ];
+
+type TableEditorState = { mode: "create" } | { mode: "edit"; table: DQATableMapping };
 
 export function DQATablesPanel() {
   const { data: tables = [], isLoading } = useListDQATablesQuery();
   const [upsertTable, { isLoading: isSaving }] = useUpsertDQATableMutation();
   const [deleteTable] = useDeleteDQATableMutation();
   const toast = useToast();
+  const [editor, setEditor] = useState<TableEditorState | null>(null);
 
-  const [tableId, setTableId] = useState("");
-  const [physicalTable, setPhysicalTable] = useState("");
-  const [description, setDescription] = useState("");
-
-  const handleAdd = async () => {
-    if (!tableId.trim() || !physicalTable.trim()) {
-      toast.error("Missing fields", "Table ID and physical table are required.");
-      return;
-    }
+  const handleSave = async (table: DQATableMapping) => {
     try {
-      await upsertTable({
-        table_id: tableId.trim(),
-        physical_table: physicalTable.trim(),
-        description: description.trim(),
-        is_active: true,
-      }).unwrap();
-      toast.success("Table registered", `${tableId} now maps to ${physicalTable}.`);
-      setTableId("");
-      setPhysicalTable("");
-      setDescription("");
+      await upsertTable(table).unwrap();
+      toast.success("Table saved", `${table.table_id} now maps to ${table.physical_table}.`);
+      setEditor(null);
     } catch {
       toast.error("Could not save table mapping", "Please try again.");
     }
   };
 
+  const summarise = (columns: string[]) =>
+    columns.length === 0 ? "All" : columns.length <= 2 ? columns.join(", ") : `${columns.length} columns`;
+
   const rows = tables.map((t) => ({
     id: t.table_id,
     table_id: t.table_id,
     physical_table: t.physical_table,
-    description: t.description || "—",
+    period_column: t.period_column || "—",
+    dim_columns: summarise(t.dim_columns ?? []),
+    filter_columns: summarise(t.filter_columns ?? []),
   }));
 
   return (
@@ -69,22 +68,9 @@ export function DQATablesPanel() {
         <code>vht_monthly</code> → <code>report.echis_vht_monthly</code>.
       </p>
 
-      <div style={{ display: "flex", gap: "1rem", alignItems: "flex-end", marginBottom: "1.5rem", flexWrap: "wrap" }}>
-        <TextInput id="dqa-new-table-id" labelText="Table ID" value={tableId} onChange={(e) => setTableId(e.target.value)} />
-        <TextInput
-          id="dqa-new-physical-table"
-          labelText="Physical table (schema.table)"
-          value={physicalTable}
-          onChange={(e) => setPhysicalTable(e.target.value)}
-        />
-        <TextInput
-          id="dqa-new-table-desc"
-          labelText="Description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-        <Button onClick={handleAdd} disabled={isSaving}>
-          {isSaving ? "Saving…" : "Register table"}
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1.5rem" }}>
+        <Button renderIcon={Add} onClick={() => setEditor({ mode: "create" })}>
+          Register table
         </Button>
       </div>
 
@@ -120,14 +106,26 @@ export function DQATablesPanel() {
                           {row.cells.map((cell) =>
                             cell.info.header === "actions" ? (
                               <TableCell key={cell.id}>
-                                <Button
-                                  kind="ghost"
-                                  size="sm"
-                                  hasIconOnly
-                                  iconDescription="Remove"
-                                  renderIcon={TrashCan}
-                                  onClick={() => deleteTable(row.id)}
-                                />
+                                <div style={{ display: "flex", gap: "0.5rem" }}>
+                                  <Button
+                                    kind="ghost"
+                                    size="sm"
+                                    onClick={() => {
+                                      const table = tables.find((t) => t.table_id === row.id);
+                                      if (table) setEditor({ mode: "edit", table });
+                                    }}
+                                  >
+                                    Configure
+                                  </Button>
+                                  <Button
+                                    kind="ghost"
+                                    size="sm"
+                                    hasIconOnly
+                                    iconDescription="Remove"
+                                    renderIcon={TrashCan}
+                                    onClick={() => deleteTable(row.id)}
+                                  />
+                                </div>
                               </TableCell>
                             ) : (
                               <TableCell key={cell.id}>{cell.value}</TableCell>
@@ -143,6 +141,23 @@ export function DQATablesPanel() {
           )}
         </DataTable>
       )}
+
+      {editor ? (
+        <ComposedModal open size="lg" onClose={() => setEditor(null)}>
+          <ModalHeader
+            title={editor.mode === "edit" ? `Configure ${editor.table.table_id}` : "Register a table"}
+          />
+          <ModalBody hasScrollingContent>
+            <DQATableForm
+              key={editor.mode === "edit" ? editor.table.table_id : "new"}
+              initialTable={editor.mode === "edit" ? editor.table : undefined}
+              isSubmitting={isSaving}
+              onSubmit={handleSave}
+              onClose={() => setEditor(null)}
+            />
+          </ModalBody>
+        </ComposedModal>
+      ) : null}
     </div>
   );
 }

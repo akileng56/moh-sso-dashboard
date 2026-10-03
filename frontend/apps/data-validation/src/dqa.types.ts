@@ -27,6 +27,17 @@ export type DQATableMapping = {
   physical_table: string;
   description?: string;
   is_active: boolean;
+  /** Column holding the reporting period, used to scope a run. */
+  period_column?: string;
+  /** Columns kept on each flag. Empty keeps every identifying column. */
+  dim_columns: string[];
+  /** Columns offered as filters when launching a run. */
+  filter_columns: string[];
+};
+
+export type DQAPhysicalColumn = {
+  name: string;
+  type: string;
 };
 
 export type DQARule = {
@@ -105,10 +116,50 @@ export type DQAFlag = {
   comment?: string;
 };
 
-export type DQASeedResult = {
+export type DQARunPeriod = {
+  year: number;
+  month: number;
+};
+
+export type DQARunFilter = {
+  column: string;
+  value: string;
+};
+
+/** Narrows a scan to chosen reporting periods and filter values. */
+export type DQARunScope = {
+  periods: DQARunPeriod[];
+  filters: DQARunFilter[];
+};
+
+export type DQAScheduledRun = {
+  id: number;
   table_id: string;
-  seeded: number;
-  failed: number;
-  rules: DQARule[];
-  errors: { code: string; error: string }[];
+  scope: DQARunScope;
+  scheduled_at: string;
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
+  created_by?: string;
+  created_at: string;
+  started_at?: string;
+  finished_at?: string;
+  run_id?: number;
+  error?: string;
+};
+
+/** An existing rule from another table, checked against a target table. */
+export type DQARuleMappingCandidate = {
+  code: string;
+  source_table_id: string;
+  type: string;
+  category?: string;
+  name?: string;
+  mappable: boolean;
+  reason?: string;
+  already_on_table: boolean;
+};
+
+export type DQARuleMappingResult = {
+  table_id: string;
+  applied: string[];
+  failed: { code: string; error: string }[];
 };
