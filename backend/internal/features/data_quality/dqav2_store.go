@@ -10,8 +10,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 
 	"github.com/moh-sso-dashboard/internal/features/data_quality/dqa"
 )
@@ -31,6 +34,9 @@ CREATE TABLE IF NOT EXISTS dqa.dqa_tables (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE dqa.dqa_tables ADD COLUMN IF NOT EXISTS period_column  TEXT;
+ALTER TABLE dqa.dqa_tables ADD COLUMN IF NOT EXISTS dim_columns    TEXT[] NOT NULL DEFAULT '{}';
+ALTER TABLE dqa.dqa_tables ADD COLUMN IF NOT EXISTS filter_columns TEXT[] NOT NULL DEFAULT '{}';
 
 CREATE TABLE IF NOT EXISTS dqa.dqa_rules (
     id           BIGSERIAL PRIMARY KEY,
@@ -132,31 +138,79 @@ func NewDQAStore(db *sql.DB) *DQAStore {
 			// the existing ensureSchema() convention for hiv.issue.
 			fmt.Printf("dqa: schema init warning: %v\n", err)
 		}
+		if _, err := db.ExecContext(ctx, completenessSchemaDDL); err != nil {
+			fmt.Printf("dqa: completeness schema init warning: %v\n", err)
+		}
+		if _, err := db.ExecContext(ctx, scheduledRunsSchemaDDL); err != nil {
+			fmt.Printf("dqa: scheduled runs schema init warning: %v\n", err)
+		}
 	}
 	return s
 }
 
 // ── table registry ──────────────────────────────────────────────────────
 
-// TableMapping is one table_id -> physical table registration.
+// TableMapping is one table_id -> physical table registration. PeriodColumn,
+// DimColumns and FilterColumns are chosen per table because the datasets differ:
+// one carries a VHT, another a facility.
 type TableMapping struct {
-	TableID       string `json:"table_id"`
-	PhysicalTable string `json:"physical_table"`
-	Description   string `json:"description,omitempty"`
-	IsActive      bool   `json:"is_active"`
+	TableID       string   `json:"table_id"`
+	PhysicalTable string   `json:"physical_table"`
+	Description   string   `json:"description,omitempty"`
+	IsActive      bool     `json:"is_active"`
+	PeriodColumn  string   `json:"period_column,omitempty"`
+	DimColumns    []string `json:"dim_columns"`
+	FilterColumns []string `json:"filter_columns"`
 }
 
 func (s *DQAStore) UpsertTable(ctx context.Context, m TableMapping) error {
 	_, err := s.db.ExecContext(ctx, `
-		INSERT INTO dqa.dqa_tables (table_id, physical_table, description, is_active, updated_at)
-		VALUES ($1,$2,$3,$4, now())
+		INSERT INTO dqa.dqa_tables
+		  (table_id, physical_table, description, is_active, period_column,
+		   dim_columns, filter_columns, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7, now())
 		ON CONFLICT (table_id) DO UPDATE SET
 		  physical_table = EXCLUDED.physical_table,
 		  description    = EXCLUDED.description,
 		  is_active      = EXCLUDED.is_active,
+		  period_column  = EXCLUDED.period_column,
+		  dim_columns    = EXCLUDED.dim_columns,
+		  filter_columns = EXCLUDED.filter_columns,
 		  updated_at     = now()`,
-		m.TableID, m.PhysicalTable, m.Description, m.IsActive)
+		m.TableID, m.PhysicalTable, m.Description, m.IsActive,
+		nullIfEmpty(m.PeriodColumn), pq.Array(m.DimColumns), pq.Array(m.FilterColumns))
 	return err
+}
+
+// GetTable returns one registration, or false when it is not registered.
+func (s *DQAStore) GetTable(ctx context.Context, tableID string) (TableMapping, bool, error) {
+	m, err := scanTableMapping(s.db.QueryRowContext(ctx,
+		`SELECT `+tableMappingColumns+` FROM dqa.dqa_tables WHERE table_id = $1`, tableID))
+	if errors.Is(err, sql.ErrNoRows) {
+		return TableMapping{}, false, nil
+	}
+	if err != nil {
+		return TableMapping{}, false, err
+	}
+	return m, true, nil
+}
+
+const tableMappingColumns = `table_id, physical_table, description, is_active,
+	COALESCE(period_column, ''), dim_columns, filter_columns`
+
+func scanTableMapping(row interface{ Scan(...any) error }) (TableMapping, error) {
+	var m TableMapping
+	if err := row.Scan(&m.TableID, &m.PhysicalTable, &m.Description, &m.IsActive,
+		&m.PeriodColumn, pq.Array(&m.DimColumns), pq.Array(&m.FilterColumns)); err != nil {
+		return TableMapping{}, err
+	}
+	if m.DimColumns == nil {
+		m.DimColumns = []string{}
+	}
+	if m.FilterColumns == nil {
+		m.FilterColumns = []string{}
+	}
+	return m, nil
 }
 
 func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error) {
@@ -170,17 +224,16 @@ func (s *DQAStore) DeleteTable(ctx context.Context, tableID string) (bool, error
 
 // ListTables returns every registered table_id -> physical table mapping.
 func (s *DQAStore) ListTables(ctx context.Context) ([]TableMapping, error) {
-	rows, err := s.db.QueryContext(ctx, `
-		SELECT table_id, physical_table, description, is_active
-		FROM dqa.dqa_tables ORDER BY table_id`)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT `+tableMappingColumns+` FROM dqa.dqa_tables ORDER BY table_id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	out := []TableMapping{}
 	for rows.Next() {
-		var m TableMapping
-		if err := rows.Scan(&m.TableID, &m.PhysicalTable, &m.Description, &m.IsActive); err != nil {
+		m, err := scanTableMapping(rows)
+		if err != nil {
 			return nil, err
 		}
 		out = append(out, m)
@@ -354,7 +407,8 @@ func nullIfNilInt(v *int) any {
 // StoreRun persists one scan: a dqa_runs row, one dqa_flags row per flag,
 // and per-rule measurements for history. Returns the run id.
 func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated int,
-	flags []dqa.RuleFlag, measurements map[string]any, triggeredBy string) (int64, error) {
+	flags []dqa.RuleFlag, measurements map[string]any, triggeredBy string,
+	periodStart, periodEnd string) (int64, error) {
 
 	fails, warns := 0, 0
 	for _, f := range flags {
@@ -373,9 +427,11 @@ func (s *DQAStore) StoreRun(ctx context.Context, tableID string, rulesEvaluated 
 
 	var runID int64
 	err = tx.QueryRowContext(ctx, `
-		INSERT INTO dqa.dqa_runs (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by)
-		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		tableID, rulesEvaluated, len(flags), fails, warns, nullIfEmpty(triggeredBy)).Scan(&runID)
+		INSERT INTO dqa.dqa_runs
+		  (table_id, rules_evaluated, total_flags, errors, warnings, triggered_by, period_start, period_end)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+		tableID, rulesEvaluated, len(flags), fails, warns, nullIfEmpty(triggeredBy),
+		nullIfEmpty(periodStart), nullIfEmpty(periodEnd)).Scan(&runID)
 	if err != nil {
 		return 0, err
 	}

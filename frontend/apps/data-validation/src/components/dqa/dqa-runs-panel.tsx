@@ -16,8 +16,17 @@ import { useState } from "react";
 
 import { useToast } from "@moh-sso/ui";
 
-import { useListDQARunsQuery, useListDQATablesQuery, useRunDQATableMutation } from "../../api";
+import {
+  useCancelDQAScheduledRunMutation,
+  useListDQARunsQuery,
+  useListDQAScheduledRunsQuery,
+  useListDQATablesQuery,
+  useRunDQATableMutation,
+  useScheduleDQARunMutation,
+} from "../../api";
+import type { DQARunScope } from "../../dqa.types";
 import { DQAFlagsPanel } from "./dqa-flags-panel";
+import { DQAScheduleRunModal } from "./dqa-schedule-run-modal";
 
 const headers = [
   { key: "expand", header: "" },
@@ -35,22 +44,47 @@ export function DQARunsPanel() {
   const [selectedTable, setSelectedTable] = useState("");
   const { data: runs = [], isLoading } = useListDQARunsQuery({ tableId: selectedTable || undefined });
   const [runDQATable, { isLoading: isRunning }] = useRunDQATableMutation();
+  const [scheduleRun, { isLoading: isScheduling }] = useScheduleDQARunMutation();
+  const [cancelSchedule] = useCancelDQAScheduledRunMutation();
+  const { data: pending = [] } = useListDQAScheduledRunsQuery({ status: "pending" });
   const [expandedRunId, setExpandedRunId] = useState<number | null>(null);
+  const [scheduling, setScheduling] = useState(false);
   const toast = useToast();
 
-  const handleRun = async () => {
+  const activeTable = tables.find((t) => t.table_id === selectedTable);
+
+  const openScheduler = () => {
     if (!selectedTable) {
       toast.error("Select a table", "Choose a table to scan first.");
       return;
     }
+    setScheduling(true);
+  };
+
+  const handleRunNow = async (scope: DQARunScope) => {
     try {
-      const result = await runDQATable(selectedTable).unwrap();
+      const result = await runDQATable({ tableId: selectedTable, scope }).unwrap();
       toast.success(
         "Scan complete",
         `${result.rules_evaluated} rule(s) evaluated, ${result.total_flags} flag(s) (${result.fails} fail, ${result.warns} warn).`,
       );
+      setScheduling(false);
     } catch {
       toast.error("Scan failed", "Check the table mapping and rule definitions, then try again.");
+    }
+  };
+
+  const handleRunLater = async (scope: DQARunScope, scheduledAt: Date) => {
+    try {
+      await scheduleRun({
+        table_id: selectedTable,
+        scope,
+        scheduled_at: scheduledAt.toISOString(),
+      }).unwrap();
+      toast.success("Run scheduled", `${selectedTable} will be scanned at ${scheduledAt.toLocaleString()}.`);
+      setScheduling(false);
+    } catch {
+      toast.error("Could not schedule the run", "Check the period and filters, then try again.");
     }
   };
 
@@ -82,10 +116,59 @@ export function DQARunsPanel() {
             ))}
           </Select>
         </div>
-        <Button renderIcon={Play} onClick={handleRun} disabled={isRunning || !selectedTable}>
-          {isRunning ? "Running…" : "Run now"}
+        <Button renderIcon={Play} onClick={openScheduler} disabled={isRunning || !selectedTable}>
+          Schedule run
         </Button>
       </div>
+
+      {pending.length > 0 ? (
+        <div style={{ marginBottom: "1.5rem" }}>
+          <TableContainer title="Scheduled runs" description="Queued scans that have not executed yet.">
+            <Table size="sm">
+              <TableHead>
+                <TableRow>
+                  <TableHeader>Table</TableHeader>
+                  <TableHeader>Scheduled for</TableHeader>
+                  <TableHeader>Scope</TableHeader>
+                  <TableHeader>Created by</TableHeader>
+                  <TableHeader />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {pending.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell>{s.table_id}</TableCell>
+                    <TableCell>{new Date(s.scheduled_at).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {s.scope?.periods?.length
+                        ? `${s.scope.periods.length} period(s)`
+                        : "Whole table"}
+                      {s.scope?.filters?.length ? `, ${s.scope.filters.length} filter(s)` : ""}
+                    </TableCell>
+                    <TableCell>{s.created_by || "—"}</TableCell>
+                    <TableCell>
+                      <Button kind="ghost" size="sm" onClick={() => cancelSchedule(s.id)}>
+                        Cancel
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </div>
+      ) : null}
+
+      {scheduling && activeTable ? (
+        <DQAScheduleRunModal
+          table={activeTable}
+          isRunning={isRunning}
+          isScheduling={isScheduling}
+          onRunNow={handleRunNow}
+          onRunLater={handleRunLater}
+          onClose={() => setScheduling(false)}
+        />
+      ) : null}
 
       {isLoading ? (
         <p>Loading…</p>

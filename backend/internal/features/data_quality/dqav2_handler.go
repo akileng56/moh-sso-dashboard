@@ -146,61 +146,23 @@ func (h *Handler) CompileDQARule(c *gin.Context) {
 	})
 }
 
-// ── seed ─────────────────────────────────────────────────────────────────
-
-func (h *Handler) SeedDQABuiltinRules(c *gin.Context) {
-	if h.dqaStore == nil {
+// ListDQAPhysicalColumns backs the column pickers in table configuration.
+func (h *Handler) ListDQAPhysicalColumns(c *gin.Context) {
+	if h.dwhDB == nil {
 		response.Fail(c, http.StatusServiceUnavailable, "DWH_UNAVAILABLE", "DWH connection is not configured")
 		return
 	}
-	var req dqaSeedRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Fail(c, http.StatusBadRequest, "INVALID_BODY", err.Error())
+	table := strings.TrimSpace(c.Query("table"))
+	if table == "" {
+		response.Fail(c, http.StatusBadRequest, "INVALID_TABLE", "table is required")
 		return
 	}
-	if req.TableID == "" {
-		req.TableID = "vht_monthly"
-	}
-	if req.PhysicalTable == "" {
-		response.Fail(c, http.StatusBadRequest, "INVALID_BODY", "physical_table is required")
+	columns, err := ListPhysicalColumns(c.Request.Context(), h.dwhDB, table)
+	if err != nil {
+		response.Fail(c, http.StatusNotFound, "TABLE_NOT_FOUND", err.Error())
 		return
 	}
-
-	ctx := c.Request.Context()
-	if err := h.dqaStore.UpsertTable(ctx, TableMapping{
-		TableID: req.TableID, PhysicalTable: req.PhysicalTable,
-		Description: "eCHIS VHT monthly report extract", IsActive: true,
-	}); err != nil {
-		response.Fail(c, http.StatusInternalServerError, "DQA_TABLE_SAVE_FAILED", err.Error())
-		return
-	}
-
-	rules := BuiltinVHTMonthlyRules(req.TableID, req.PhysicalTable)
-	saved := make([]dqaRuleResponse, 0, len(rules))
-	var errs []RuleCompileErr
-	for _, rule := range rules {
-		compiled, err := h.dqaStore.CompilePreview(ctx, rule)
-		if err != nil {
-			errs = append(errs, RuleCompileErr{Code: rule.Code, Error: err.Error()})
-			continue
-		}
-		rec, err := h.dqaStore.UpsertRule(ctx, rule, compiled.MeasureSQL, getUserEmailOrUsername(c))
-		if err != nil {
-			errs = append(errs, RuleCompileErr{Code: rule.Code, Error: err.Error()})
-			continue
-		}
-		saved = append(saved, ruleRecordToResponse(rec))
-	}
-
-	response.OK(c, http.StatusOK, gin.H{
-		"table_id": req.TableID, "seeded": len(saved), "failed": len(errs),
-		"rules": saved, "errors": errs,
-	})
-}
-
-type dqaSeedRequest struct {
-	TableID       string `json:"table_id"`
-	PhysicalTable string `json:"physical_table" binding:"required"`
+	response.OK(c, http.StatusOK, columns)
 }
 
 // ── runs + flags ─────────────────────────────────────────────────────────
@@ -215,7 +177,7 @@ func (h *Handler) RunDQATable(c *gin.Context) {
 		response.Fail(c, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
-	result, err := h.dqaStore.RunTable(c.Request.Context(), h.dwhDB, req.TableID, getUserEmailOrUsername(c))
+	result, err := h.dqaStore.RunTable(c.Request.Context(), h.dwhDB, req.TableID, req.Scope, getUserEmailOrUsername(c))
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, "DQA_RUN_FAILED", err.Error())
 		return
