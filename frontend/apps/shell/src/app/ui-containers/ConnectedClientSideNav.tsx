@@ -24,6 +24,11 @@ export function ConnectedClientSideNav({
   const visibleClients = buildAccessibleSideNavClients({ accessibleSystems });
   const checkPermission = hasPermission ?? ((permission: string) => can(permission as never));
 
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  };
+
   return (
     <ClientSideNav
       clients={visibleClients}
@@ -32,7 +37,7 @@ export function ConnectedClientSideNav({
       hasPermission={checkPermission}
       visible={visible}
       onToggleVisibility={onToggleVisibility}
-      onNavigate={navigate}
+      onNavigate={handleNavigate}
     />
   );
 }

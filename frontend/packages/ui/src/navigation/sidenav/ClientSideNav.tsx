@@ -114,6 +114,30 @@ function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
         };
       }
 
+      if (
+        itemPath === "/apps/dwh/issue-tracker?view=dashboard" ||
+        item.id === "issue-dashboard"
+      ) {
+        return {
+          ...item,
+          id: "issue-dashboard",
+          label: item.label || "Issue Dashboard",
+          path: "/apps/dwh/issue-tracker/dashboard",
+        };
+      }
+
+      if (
+        itemPath === "/apps/dwh/issue-tracker?view=issues" ||
+        item.id === "registered-issues"
+      ) {
+        return {
+          ...item,
+          id: "registered-issues",
+          label: item.label || "Registered Issues",
+          path: "/apps/dwh/issue-tracker/issues",
+        };
+      }
+
       if (itemPath === "/apps/dwh/issue-tracker" || item.id === "issue-tracker" || item.id === "issue-tracking") {
         return {
           ...item,
@@ -124,13 +148,13 @@ function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
             {
               id: "issue-dashboard",
               label: "Issue Dashboard",
-              path: "/apps/dwh/issue-tracker?view=dashboard",
+              path: "/apps/dwh/issue-tracker/dashboard",
               permission: item.permission ?? "issue_tracker:read",
             },
             {
               id: "registered-issues",
               label: "Registered Issues",
-              path: "/apps/dwh/issue-tracker?view=issues",
+              path: "/apps/dwh/issue-tracker/issues",
               permission: item.permission ?? "issue_tracker:read",
             },
           ],
