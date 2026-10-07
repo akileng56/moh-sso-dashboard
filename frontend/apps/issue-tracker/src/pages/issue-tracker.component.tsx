@@ -11,9 +11,10 @@ import {
   TabList,
   Tab,
 } from "@carbon/react";
-import { Add, ChevronDown, Download, Filter, Upload, User, List } from "@carbon/react/icons";
+import { Add, ChevronDown, Dashboard, Download, Filter, Upload, User, List } from "@carbon/react/icons";
 import * as XLSX from "xlsx";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 import {
   useGetIssuesQuery,
@@ -35,6 +36,18 @@ function getIssueCodeFromUrl(): string {
   if (lastPart && /^HMIS-\d+$/i.test(lastPart)) {
     return lastPart.trim();
   }
+  return "";
+}
+
+function getViewFromUrl(): "dashboard" | "issues" | "" {
+  if (typeof window === "undefined") return "";
+  const params = new URLSearchParams(window.location.search);
+  const viewParam = params.get("view") || params.get("tab");
+  if (viewParam === "dashboard") return "dashboard";
+  if (viewParam === "issues" || viewParam === "registered-issues") return "issues";
+  const path = window.location.pathname;
+  if (path.endsWith("/dashboard")) return "dashboard";
+  if (path.endsWith("/issues") || path.endsWith("/registered-issues")) return "issues";
   return "";
 }
 
@@ -164,6 +177,7 @@ const PROGRAM_COLORS = [
 ];
 
 const IssueTracker = () => {
+  const navigate = useNavigate();
   const user = useSelector(selectUser);
   const currentYear = new Date().getFullYear();
 
@@ -191,6 +205,22 @@ const IssueTracker = () => {
       setIsViewIssueDetail(true);
     }
   }, [directIssueData, urlIssueCode]);
+
+  useEffect(() => {
+    const handleUrlView = () => {
+      const view = getViewFromUrl();
+      if (view === "dashboard" || view === "issues") {
+        setActiveTab("all_issues");
+      }
+    };
+
+    handleUrlView();
+
+    window.addEventListener("popstate", handleUrlView);
+    return () => {
+      window.removeEventListener("popstate", handleUrlView);
+    };
+  }, []);
 
   const [tableSearchTerm, setTableSearchTerm] = useState("");
 
@@ -256,7 +286,11 @@ const IssueTracker = () => {
   /*
    * Organisation-unit filters
    */
-  const [selectedOrgUnit, setSelectedOrgUnit] = useState("");
+  const [selectedOrgUnit, setSelectedOrgUnit] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    const params = new URLSearchParams(window.location.search);
+    return params.get("region") || params.get("orgUnit") || "";
+  });
 
   const [orgSearchTerm, setOrgSearchTerm] = useState("");
 
@@ -931,6 +965,15 @@ const IssueTracker = () => {
                 {selectedIssueCodes.length > 0 ? `(${selectedIssueCodes.length})` : ""}
               </Button>
             </PermissionGuard>
+
+            <Button
+              size="md"
+              kind="ghost"
+              renderIcon={Dashboard}
+              onClick={() => navigate("/dashboard")}
+            >
+              Summary Dashboard
+            </Button>
 
             <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
               <Button size="md" kind="ghost" renderIcon={Download} onClick={downloadTemplate}>
