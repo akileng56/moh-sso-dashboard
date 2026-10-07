@@ -222,8 +222,8 @@ const IssueDashboard = () => {
         const nodeName = safeString(node.name);
         const nodeId = safeString(node.id);
 
-        let nodeRegion = currentRegion;
-        let nodeDistrict = currentDistrict;
+        const nodeRegion = currentRegion;
+        const nodeDistrict = currentDistrict;
 
         // If top root (Level 1 e.g. "MOH - Uganda"), its children are Level 2 Regions
         if (!currentRegion) {
