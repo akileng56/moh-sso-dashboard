@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, Fragment, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, Fragment } from "react";
 import {
   Button,
   ComboBox,
@@ -40,12 +40,6 @@ import {
 import { useGetHierarchyQuery } from "../../../data-visualizer/src/pages/modals/orgunit/org-unit.ts";
 
 import "./issue-dashboard.scss";
-
-type OrgUnit = {
-  id: string;
-  name: string;
-  children?: OrgUnit[];
-};
 
 type DistrictSummary = {
   district: string;
@@ -325,7 +319,7 @@ const IssueDashboard = () => {
   /* -------------------------------------------------------------
    * Group and Aggregate by Region & Severity
    * ------------------------------------------------------------- */
-  const { regionalSummary, severitiesPresent, grandTotals } = useMemo(() => {
+  const { regionalSummary, grandTotals } = useMemo(() => {
     const regionGroups = new Map<
       string,
       {
@@ -519,7 +513,6 @@ const IssueDashboard = () => {
 
     return {
       regionalSummary: rows,
-      severitiesPresent: Array.from(detectedSeverities),
       grandTotals: {
         high: totalHigh,
         moderate: totalModerate,
@@ -1031,7 +1024,6 @@ const IssueDashboard = () => {
                   <TableHead>
                     <TableRow>
                       <TableExpandHeader
-                        aria-label="Expand region for district breakdown"
                         {...getExpandHeaderProps()}
                       />
                       {headers.map((header) => {
@@ -1066,7 +1058,6 @@ const IssueDashboard = () => {
                           <TableExpandRow
                             key={rowKey}
                             {...rowProps}
-                            aria-label={`Expand ${summaryItem?.region} region details`}
                           >
                             {row.cells.map((cell) => {
                               const headerKey = cell.info.header;
