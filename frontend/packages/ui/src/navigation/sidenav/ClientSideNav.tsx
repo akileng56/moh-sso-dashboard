@@ -116,12 +116,13 @@ function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
 
       if (
         itemPath === "/apps/dwh/issue-tracker?view=dashboard" ||
-        item.id === "issue-dashboard"
+        item.id === "issue-dashboard" ||
+        item.id === "issue-summary"
       ) {
         return {
           ...item,
-          id: "issue-dashboard",
-          label: item.label || "Issue Dashboard",
+          id: "issue-summary",
+          label: "Issue Summary",
           path: "/apps/dwh/issue-tracker/dashboard",
         };
       }
@@ -146,8 +147,8 @@ function normalizeLegacySideNavItems(items: SideNavItem[]): SideNavItem[] {
           path: undefined,
           children: children && children.length > 0 ? children : [
             {
-              id: "issue-dashboard",
-              label: "Issue Dashboard",
+              id: "issue-summary",
+              label: "Issue Summary",
               path: "/apps/dwh/issue-tracker/dashboard",
               permission: item.permission ?? "issue_tracker:read",
             },
