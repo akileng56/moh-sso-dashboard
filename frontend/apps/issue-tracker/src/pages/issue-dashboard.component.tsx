@@ -20,6 +20,7 @@ import {
 } from "@carbon/react";
 import {
   ChevronDown,
+  ChevronRight,
   Download,
   Filter,
   ArrowRight,
@@ -41,26 +42,27 @@ import { useGetHierarchyQuery } from "../../../data-visualizer/src/pages/modals/
 
 import "./issue-dashboard.scss";
 
-type DistrictSummary = {
-  district: string;
-  high: number;
-  moderate: number;
-  low: number;
-  other: number;
+type FacilitySummary = {
+  facility: string;
+  critical: number;
   open: number;
   resolved: number;
   total: number;
 };
 
+type DistrictSummary = {
+  district: string;
+  critical: number;
+  open: number;
+  resolved: number;
+  total: number;
+  facilities: FacilitySummary[];
+};
+
 type RegionSummaryRow = {
   id: string;
   region: string;
-  high: number;
-  moderate: number;
-  low: number;
-  critical?: number;
-  info?: number;
-  unspecified?: number;
+  critical: number;
   open: number;
   resolved: number;
   total: number;
@@ -78,7 +80,7 @@ type PeriodOption = {
   value?: string;
 };
 
-type SortHeader = "region" | "high" | "moderate" | "low" | "open" | "resolved" | "total" | "percentage" | string;
+type SortHeader = "region" | "critical" | "open" | "resolved" | "total" | "percentage" | string;
 
 function safeString(val: unknown): string {
   if (val == null) return "";
@@ -89,22 +91,16 @@ function safeLower(val: unknown): string {
   return safeString(val).toLowerCase();
 }
 
-function normalizeSeverity(val?: string | null): string {
-  if (!val) return "Unspecified";
-  const trimmed = safeLower(val);
-  if (trimmed === "high") return "High";
-  if (trimmed === "moderate" || trimmed === "medium") return "Moderate";
-  if (trimmed === "low") return "Low";
-  if (trimmed === "critical") return "Critical";
-  if (trimmed === "info") return "Info";
-  const str = safeString(val);
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 function isIssueResolved(status?: string | null): boolean {
   if (!status) return false;
   const s = safeLower(status);
   return s === "resolved" || s === "closed" || s === "done";
+}
+
+function isCriticalIssue(issue: Issue): boolean {
+  const sev = safeLower(issue.severity);
+  const prio = safeLower(issue.priority);
+  return sev === "critical" || prio === "critical";
 }
 
 const IssueDashboard = () => {
@@ -150,6 +146,49 @@ const IssueDashboard = () => {
   const [sortHeader, setSortHeader] = useState<SortHeader>("total");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
 
+  /* Expanded districts state for facility breakdown */
+  const [expandedDistricts, setExpandedDistricts] = useState<Record<string, boolean>>({});
+
+  const isDistrictExpanded = (region: string, d: DistrictSummary) => {
+    const districtKey = `${region}-${d.district}`;
+    if (expandedDistricts[districtKey] !== undefined) {
+      return expandedDistricts[districtKey];
+    }
+    if (regionSearchTerm.trim()) {
+      const term = safeLower(regionSearchTerm);
+      return (
+        safeLower(d.district).includes(term) ||
+        d.facilities.some((f) => safeLower(f.facility).includes(term))
+      );
+    }
+    return false;
+  };
+
+  const toggleDistrict = (region: string, d: DistrictSummary) => {
+    const districtKey = `${region}-${d.district}`;
+    const currentlyExpanded = isDistrictExpanded(region, d);
+    setExpandedDistricts((prev) => ({
+      ...prev,
+      [districtKey]: !currentlyExpanded,
+    }));
+  };
+
+  const isEveryDistrictExpanded = (region: string, districts: DistrictSummary[]) => {
+    if (districts.length === 0) return false;
+    return districts.every((d) => isDistrictExpanded(region, d));
+  };
+
+  const toggleAllDistrictsInRegion = (region: string, districts: DistrictSummary[]) => {
+    const allExpanded = isEveryDistrictExpanded(region, districts);
+    setExpandedDistricts((prev) => {
+      const next = { ...prev };
+      for (const d of districts) {
+        next[`${region}-${d.district}`] = !allExpanded;
+      }
+      return next;
+    });
+  };
+
   const years = useMemo(
     () => Array.from({ length: 10 }, (_, index) => currentYear - index),
     [currentYear],
@@ -189,12 +228,13 @@ const IssueDashboard = () => {
   /* -------------------------------------------------------------
    * Hierarchy Org-to-Region & Org-to-District mapping
    * ------------------------------------------------------------- */
-  const { orgToRegionMap, orgToDistrictMap } = useMemo(() => {
+  const { orgToRegionMap, orgToDistrictMap, orgIdToNameMap } = useMemo(() => {
     const regionMap = new Map<string, string>();
     const districtMap = new Map<string, string>();
+    const idToNameMap = new Map<string, string>();
 
     if (!hierarchyData) {
-      return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap };
+      return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap, orgIdToNameMap: idToNameMap };
     }
 
     const rootList: any[] = Array.isArray(hierarchyData)
@@ -216,6 +256,10 @@ const IssueDashboard = () => {
         const nodeName = safeString(node.name);
         const nodeId = safeString(node.id);
 
+        if (nodeName && nodeId) {
+          idToNameMap.set(nodeId.toLowerCase(), nodeName);
+        }
+
         const nodeRegion = currentRegion;
         const nodeDistrict = currentDistrict;
 
@@ -230,7 +274,10 @@ const IssueDashboard = () => {
 
               if (regName) {
                 regionMap.set(regName.toLowerCase(), regName);
-                if (regId) regionMap.set(regId.toLowerCase(), regName);
+                if (regId) {
+                  regionMap.set(regId.toLowerCase(), regName);
+                  idToNameMap.set(regId.toLowerCase(), regName);
+                }
               }
 
               // Children of region are Level 3 Districts
@@ -247,6 +294,7 @@ const IssueDashboard = () => {
                     if (distId) {
                       districtMap.set(distId.toLowerCase(), distName);
                       if (regName) regionMap.set(distId.toLowerCase(), regName);
+                      idToNameMap.set(distId.toLowerCase(), distName);
                     }
                   }
                   // Any facility or sub-county under district
@@ -276,7 +324,7 @@ const IssueDashboard = () => {
     }
 
     traverseTree(rootList, null, null);
-    return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap };
+    return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap, orgIdToNameMap: idToNameMap };
   }, [hierarchyData]);
 
   /* -------------------------------------------------------------
@@ -317,45 +365,38 @@ const IssueDashboard = () => {
   }, [rawIssues, selectedDataset, selectedPeriod, selectedYear, currentYear]);
 
   /* -------------------------------------------------------------
-   * Group and Aggregate by Region & Severity
+   * Group and Aggregate by Region & Status
    * ------------------------------------------------------------- */
   const { regionalSummary, grandTotals } = useMemo(() => {
     const regionGroups = new Map<
       string,
       {
-        high: number;
-        moderate: number;
-        low: number;
         critical: number;
-        info: number;
-        unspecified: number;
-        otherSeverities: Record<string, number>;
         open: number;
         resolved: number;
         total: number;
         districtGroups: Map<
           string,
           {
-            high: number;
-            moderate: number;
-            low: number;
-            other: number;
+            critical: number;
             open: number;
             resolved: number;
             total: number;
+            facilityGroups: Map<
+              string,
+              {
+                critical: number;
+                open: number;
+                resolved: number;
+                total: number;
+              }
+            >;
           }
         >;
       }
     >();
 
-    const detectedSeverities = new Set<string>();
-
-    let totalHigh = 0;
-    let totalModerate = 0;
-    let totalLow = 0;
     let totalCritical = 0;
-    let totalInfo = 0;
-    let totalUnspecified = 0;
     let totalOpen = 0;
     let totalResolved = 0;
     let totalAll = 0;
@@ -363,6 +404,9 @@ const IssueDashboard = () => {
     for (const issue of filteredIssues) {
       // 1. Resolve Region
       let regionName = safeString(issue.region);
+      if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
+        regionName = orgIdToNameMap.get(safeLower(regionName))!;
+      }
       if (!regionName && issue.org_unit) {
         regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
       }
@@ -375,6 +419,9 @@ const IssueDashboard = () => {
 
       // 2. Resolve District
       let districtName = safeString(issue.district);
+      if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
+        districtName = orgIdToNameMap.get(safeLower(districtName))!;
+      }
       if (!districtName && issue.org_unit) {
         districtName = orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
       }
@@ -382,23 +429,25 @@ const IssueDashboard = () => {
         districtName = "Unspecified";
       }
 
-      // 3. Resolve Severity
-      const normalizedSev = normalizeSeverity(issue.severity);
-      detectedSeverities.add(normalizedSev);
+      // 3. Resolve Facility
+      let facilityName = safeString(issue.org_unit);
+      if (!facilityName) {
+        facilityName = "Unspecified Facility";
+      } else {
+        const mappedName = orgIdToNameMap.get(safeLower(facilityName));
+        if (mappedName) {
+          facilityName = mappedName;
+        }
+      }
 
-      // 4. Resolve Status
+      // 4. Resolve Status & Critical (Open)
       const resolved = isIssueResolved(issue.status);
+      const isCriticalOpen = !resolved && isCriticalIssue(issue);
 
       // Init Region group if absent
       if (!regionGroups.has(regionName)) {
         regionGroups.set(regionName, {
-          high: 0,
-          moderate: 0,
-          low: 0,
           critical: 0,
-          info: 0,
-          unspecified: 0,
-          otherSeverities: {},
           open: 0,
           resolved: 0,
           total: 0,
@@ -418,38 +467,19 @@ const IssueDashboard = () => {
         totalOpen += 1;
       }
 
-      if (normalizedSev === "High") {
-        rGroup.high += 1;
-        totalHigh += 1;
-      } else if (normalizedSev === "Moderate") {
-        rGroup.moderate += 1;
-        totalModerate += 1;
-      } else if (normalizedSev === "Low") {
-        rGroup.low += 1;
-        totalLow += 1;
-      } else if (normalizedSev === "Critical") {
+      if (isCriticalOpen) {
         rGroup.critical += 1;
         totalCritical += 1;
-      } else if (normalizedSev === "Info") {
-        rGroup.info += 1;
-        totalInfo += 1;
-      } else if (normalizedSev === "Unspecified") {
-        rGroup.unspecified += 1;
-        totalUnspecified += 1;
-      } else {
-        rGroup.otherSeverities[normalizedSev] = (rGroup.otherSeverities[normalizedSev] || 0) + 1;
       }
 
       // District aggregation inside Region
       if (!rGroup.districtGroups.has(districtName)) {
         rGroup.districtGroups.set(districtName, {
-          high: 0,
-          moderate: 0,
-          low: 0,
-          other: 0,
+          critical: 0,
           open: 0,
           resolved: 0,
           total: 0,
+          facilityGroups: new Map(),
         });
       }
 
@@ -460,15 +490,29 @@ const IssueDashboard = () => {
       } else {
         dGroup.open += 1;
       }
+      if (isCriticalOpen) {
+        dGroup.critical += 1;
+      }
 
-      if (normalizedSev === "High") {
-        dGroup.high += 1;
-      } else if (normalizedSev === "Moderate") {
-        dGroup.moderate += 1;
-      } else if (normalizedSev === "Low") {
-        dGroup.low += 1;
+      // Facility aggregation inside District
+      if (!dGroup.facilityGroups.has(facilityName)) {
+        dGroup.facilityGroups.set(facilityName, {
+          critical: 0,
+          open: 0,
+          resolved: 0,
+          total: 0,
+        });
+      }
+
+      const fGroup = dGroup.facilityGroups.get(facilityName)!;
+      fGroup.total += 1;
+      if (resolved) {
+        fGroup.resolved += 1;
       } else {
-        dGroup.other += 1;
+        fGroup.open += 1;
+      }
+      if (isCriticalOpen) {
+        fGroup.critical += 1;
       }
     }
 
@@ -477,15 +521,27 @@ const IssueDashboard = () => {
     regionGroups.forEach((val, region) => {
       const districtsList: DistrictSummary[] = [];
       val.districtGroups.forEach((dVal, dName) => {
+        const facilitiesList: FacilitySummary[] = [];
+        dVal.facilityGroups.forEach((fVal, fName) => {
+          facilitiesList.push({
+            facility: fName,
+            critical: fVal.critical,
+            open: fVal.open,
+            resolved: fVal.resolved,
+            total: fVal.total,
+          });
+        });
+
+        // Sort facilities by total descending, then critical descending
+        facilitiesList.sort((a, b) => b.total - a.total || b.critical - a.critical);
+
         districtsList.push({
           district: dName,
-          high: dVal.high,
-          moderate: dVal.moderate,
-          low: dVal.low,
-          other: dVal.other,
+          critical: dVal.critical,
           open: dVal.open,
           resolved: dVal.resolved,
           total: dVal.total,
+          facilities: facilitiesList,
         });
       });
 
@@ -497,12 +553,7 @@ const IssueDashboard = () => {
       rows.push({
         id: `region-${region}`,
         region,
-        high: val.high,
-        moderate: val.moderate,
-        low: val.low,
         critical: val.critical,
-        info: val.info,
-        unspecified: val.unspecified,
         open: val.open,
         resolved: val.resolved,
         total: val.total,
@@ -514,48 +565,29 @@ const IssueDashboard = () => {
     return {
       regionalSummary: rows,
       grandTotals: {
-        high: totalHigh,
-        moderate: totalModerate,
-        low: totalLow,
         critical: totalCritical,
-        info: totalInfo,
-        unspecified: totalUnspecified,
         open: totalOpen,
         resolved: totalResolved,
         total: totalAll,
         activeRegionsCount: regionGroups.size,
       },
     };
-  }, [filteredIssues, orgToRegionMap, orgToDistrictMap]);
+  }, [filteredIssues, orgToRegionMap, orgToDistrictMap, orgIdToNameMap]);
 
   /* -------------------------------------------------------------
    * Table Columns Definition
    * ------------------------------------------------------------- */
-  const tableHeaders = useMemo(() => {
-    const baseHeaders = [
+  const tableHeaders = useMemo(
+    () => [
       { key: "region", header: "Region" },
-      { key: "high", header: "High" },
-    ];
-
-    if (grandTotals.critical > 0) {
-      baseHeaders.push({ key: "critical", header: "Critical" });
-    }
-    if (grandTotals.info > 0) {
-      baseHeaders.push({ key: "info", header: "Info" });
-    }
-    if (grandTotals.unspecified > 0) {
-      baseHeaders.push({ key: "unspecified", header: "Unspecified" });
-    }
-
-    baseHeaders.push(
-      { key: "open", header: "Open" },
-      { key: "resolved", header: "Resolved" },
+      { key: "critical", header: "Critical Issues" },
+      { key: "open", header: "Open Issues" },
+      { key: "resolved", header: "Resolved Issues" },
       { key: "total", header: "Total Issues" },
       { key: "percentage", header: "Share of Total" },
-    );
-
-    return baseHeaders;
-  }, [grandTotals]);
+    ],
+    [],
+  );
 
   /* -------------------------------------------------------------
    * Sorted & Filtered Rows for Display
@@ -563,13 +595,17 @@ const IssueDashboard = () => {
   const displayedRows = useMemo(() => {
     let result = [...regionalSummary];
 
-    // Filter by Region search
+    // Filter by Region, District, or Facility search
     if (regionSearchTerm.trim()) {
       const term = safeLower(regionSearchTerm);
       result = result.filter(
         (r) =>
           safeLower(r.region).includes(term) ||
-          r.districts.some((d) => safeLower(d.district).includes(term)),
+          r.districts.some(
+            (d) =>
+              safeLower(d.district).includes(term) ||
+              d.facilities.some((f) => safeLower(f.facility).includes(term)),
+          ),
       );
     }
 
@@ -647,43 +683,31 @@ const IssueDashboard = () => {
   const handleExportExcel = () => {
     const exportHeaders = [
       "Region",
-      "High Severity",
+      "Critical Issues (Open)",
+      "Open Issues",
+      "Resolved Issues",
+      "Total Issues",
+      "Share (%)",
     ];
 
-    if (grandTotals.critical > 0) exportHeaders.push("Critical Severity");
-    if (grandTotals.info > 0) exportHeaders.push("Info Severity");
-    if (grandTotals.unspecified > 0) exportHeaders.push("Unspecified Severity");
-
-    exportHeaders.push("Open Issues", "Resolved Issues", "Total Issues", "Share (%)");
-
-    const dataRows = regionalSummary.map((row) => {
-      const rowData = [
-        row.region,
-        row.high,
-      ];
-      if (grandTotals.critical > 0) rowData.push(row.critical ?? 0);
-      if (grandTotals.info > 0) rowData.push(row.info ?? 0);
-      if (grandTotals.unspecified > 0) rowData.push(row.unspecified ?? 0);
-
-      rowData.push(row.open, row.resolved, row.total, `${row.percentage.toFixed(1)}%`);
-      return rowData;
-    });
+    const dataRows = regionalSummary.map((row) => [
+      row.region,
+      row.critical,
+      row.open,
+      row.resolved,
+      row.total,
+      `${row.percentage.toFixed(1)}%`,
+    ]);
 
     // Grand total row
     const totalRow = [
       "TOTAL",
-      grandTotals.high,
-    ];
-    if (grandTotals.critical > 0) totalRow.push(grandTotals.critical);
-    if (grandTotals.info > 0) totalRow.push(grandTotals.info);
-    if (grandTotals.unspecified > 0) totalRow.push(grandTotals.unspecified);
-
-    totalRow.push(
+      grandTotals.critical,
       grandTotals.open,
       grandTotals.resolved,
       grandTotals.total,
       "100%",
-    );
+    ];
 
     const sheetData = [exportHeaders, ...dataRows, [], totalRow];
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
@@ -691,15 +715,83 @@ const IssueDashboard = () => {
     worksheet["!cols"] = exportHeaders.map(() => ({ wch: 18 }));
 
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Severity Summary by Region");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Regional Issue Summary");
+
+    // District Breakdown Sheet
+    const districtHeaders = [
+      "Region",
+      "District",
+      "Facilities Affected",
+      "Critical Issues (Open)",
+      "Open Issues",
+      "Resolved Issues",
+      "Total Issues",
+    ];
+
+    const districtDataRows: (string | number)[][] = [];
+    for (const r of regionalSummary) {
+      for (const d of r.districts) {
+        districtDataRows.push([
+          r.region,
+          d.district,
+          d.facilities.length,
+          d.critical,
+          d.open,
+          d.resolved,
+          d.total,
+        ]);
+      }
+    }
+
+    const districtWorksheet = XLSX.utils.aoa_to_sheet([
+      districtHeaders,
+      ...districtDataRows,
+    ]);
+    districtWorksheet["!cols"] = districtHeaders.map(() => ({ wch: 22 }));
+    XLSX.utils.book_append_sheet(workbook, districtWorksheet, "District Breakdown");
+
+    // District & Facility Breakdown Sheet
+    const facilityHeaders = [
+      "Region",
+      "District",
+      "Health Facility / Org Unit",
+      "Critical Issues (Open)",
+      "Open Issues",
+      "Resolved Issues",
+      "Total Issues",
+    ];
+
+    const facilityDataRows: (string | number)[][] = [];
+    for (const r of regionalSummary) {
+      for (const d of r.districts) {
+        for (const f of d.facilities) {
+          facilityDataRows.push([
+            r.region,
+            d.district,
+            f.facility,
+            f.critical,
+            f.open,
+            f.resolved,
+            f.total,
+          ]);
+        }
+      }
+    }
+
+    const facilityWorksheet = XLSX.utils.aoa_to_sheet([
+      facilityHeaders,
+      ...facilityDataRows,
+    ]);
+    facilityWorksheet["!cols"] = facilityHeaders.map(() => ({ wch: 24 }));
+    XLSX.utils.book_append_sheet(workbook, facilityWorksheet, "Facility Breakdown");
 
     const dateStr = new Date().toISOString().slice(0, 10);
-    XLSX.writeFile(workbook, `issue-severity-by-region-summary-${dateStr}.xlsx`);
+    XLSX.writeFile(workbook, `issue-regional-summary-${dateStr}.xlsx`);
   };
 
-  const handleNavigateToIssues = (regionFilter?: string) => {
-    if (regionFilter) {
-      navigate(`/issues?region=${encodeURIComponent(regionFilter)}`);
+  const handleNavigateToIssues = (filter?: string) => {
+    if (filter && !filter.toLowerCase().startsWith("unspecified")) {
+      navigate(`/issues?region=${encodeURIComponent(filter)}`);
     } else {
       navigate("/issues");
     }
@@ -719,7 +811,7 @@ const IssueDashboard = () => {
           <div className="dashboard-header-text">
             <h2 className="dashboard-title">Issue Summary Dashboard</h2>
             <p className="dashboard-subtitle">
-              Aggregated overview of reported data quality issues categorized by severity level and
+              Aggregated overview of reported data quality issues categorized by resolution status and
               grouped by region.
             </p>
           </div>
@@ -768,54 +860,36 @@ const IssueDashboard = () => {
             </p>
           </div>
 
-          <div className="kpi-card kpi-card--high">
+          <div className="kpi-card kpi-card--critical">
             <div className="kpi-header">
-              <span className="kpi-label">High Severity</span>
-              <span className="kpi-badge kpi-badge--high">High</span>
+              <span className="kpi-label">Critical Issues</span>
+              <span className="kpi-badge kpi-badge--critical">Critical</span>
+            </div>
+            <div className="kpi-value" style={{ color: "#a2191f" }}>
+              {isLoadingIssues ? "..." : grandTotals.critical}
+            </div>
+            <p className="kpi-subtext">
+              <strong>
+                {grandTotals.open > 0
+                  ? `${((grandTotals.critical / grandTotals.open) * 100).toFixed(1)}%`
+                  : "0%"}
+              </strong>{" "}
+              of open issues
+            </p>
+          </div>
+
+          <div className="kpi-card kpi-card--open">
+            <div className="kpi-header">
+              <span className="kpi-label">Open Issues</span>
+              <span className="kpi-badge kpi-badge--open">Open</span>
             </div>
             <div className="kpi-value" style={{ color: "#da1e28" }}>
-              {isLoadingIssues ? "..." : grandTotals.high}
+              {isLoadingIssues ? "..." : grandTotals.open}
             </div>
             <p className="kpi-subtext">
               <strong>
                 {grandTotals.total > 0
-                  ? `${((grandTotals.high / grandTotals.total) * 100).toFixed(1)}%`
-                  : "0%"}
-              </strong>{" "}
-              of total issues
-            </p>
-          </div>
-
-          <div className="kpi-card kpi-card--moderate">
-            <div className="kpi-header">
-              <span className="kpi-label">Moderate Severity</span>
-              <span className="kpi-badge kpi-badge--moderate">Moderate</span>
-            </div>
-            <div className="kpi-value" style={{ color: "#b26400" }}>
-              {isLoadingIssues ? "..." : grandTotals.moderate}
-            </div>
-            <p className="kpi-subtext">
-              <strong>
-                {grandTotals.total > 0
-                  ? `${((grandTotals.moderate / grandTotals.total) * 100).toFixed(1)}%`
-                  : "0%"}
-              </strong>{" "}
-              of total issues
-            </p>
-          </div>
-
-          <div className="kpi-card kpi-card--low">
-            <div className="kpi-header">
-              <span className="kpi-label">Low Severity</span>
-              <span className="kpi-badge kpi-badge--low">Low</span>
-            </div>
-            <div className="kpi-value" style={{ color: "#0043ce" }}>
-              {isLoadingIssues ? "..." : grandTotals.low}
-            </div>
-            <p className="kpi-subtext">
-              <strong>
-                {grandTotals.total > 0
-                  ? `${((grandTotals.low / grandTotals.total) * 100).toFixed(1)}%`
+                  ? `${((grandTotals.open / grandTotals.total) * 100).toFixed(1)}%`
                   : "0%"}
               </strong>{" "}
               of total issues
@@ -824,13 +898,31 @@ const IssueDashboard = () => {
 
           <div className="kpi-card kpi-card--resolved">
             <div className="kpi-header">
-              <span className="kpi-label">Resolution Rate</span>
-              <span className="kpi-badge" style={{ backgroundColor: "#defbe6", color: "#198038" }}>
-                {resolutionRate}%
-              </span>
+              <span className="kpi-label">Resolved Issues</span>
+              <span className="kpi-badge kpi-badge--resolved">Resolved</span>
             </div>
             <div className="kpi-value" style={{ color: "#198038" }}>
               {isLoadingIssues ? "..." : grandTotals.resolved}
+            </div>
+            <p className="kpi-subtext">
+              <strong>
+                {grandTotals.total > 0
+                  ? `${((grandTotals.resolved / grandTotals.total) * 100).toFixed(1)}%`
+                  : "0%"}
+              </strong>{" "}
+              of total issues
+            </p>
+          </div>
+
+          <div className="kpi-card kpi-card--rate">
+            <div className="kpi-header">
+              <span className="kpi-label">Resolution Rate</span>
+              <span className="kpi-badge kpi-badge--rate">
+                {resolutionRate}%
+              </span>
+            </div>
+            <div className="kpi-value" style={{ color: "#0f62fe" }}>
+              {isLoadingIssues ? "..." : `${resolutionRate}%`}
             </div>
             <p className="kpi-subtext">
               Resolved vs <strong>{grandTotals.open}</strong> open issues
@@ -972,8 +1064,8 @@ const IssueDashboard = () => {
         <div className="dashboard-toolbar-row">
           <div className="dashboard-search">
             <Search
-              labelText="Search regions or districts"
-              placeholder="Search by region or district name..."
+              labelText="Search regions, districts, or facilities"
+              placeholder="Search by region, district, or facility name..."
               value={regionSearchTerm}
               onChange={(e) => setRegionSearchTerm(e.target.value)}
               size="md"
@@ -1020,7 +1112,7 @@ const IssueDashboard = () => {
                 getRowProps,
                 getExpandHeaderProps,
               }) => (
-                <Table {...getTableProps()} aria-label="Issue severity summary by region table">
+                <Table {...getTableProps()} aria-label="Regional issue summary table">
                   <TableHead>
                     <TableRow>
                       <TableExpandHeader
@@ -1072,31 +1164,14 @@ const IssueDashboard = () => {
                                 );
                               }
 
-                              if (headerKey === "high") {
+                              if (headerKey === "critical") {
                                 const count = Number(cell.value || 0);
                                 return (
                                   <TableCell key={cell.id}>
                                     <span
                                       className={`severity-pill ${
                                         count > 0
-                                          ? "severity-pill--high"
-                                          : "severity-pill--zero"
-                                      }`}
-                                    >
-                                      {count > 0 ? count : "-"}
-                                    </span>
-                                  </TableCell>
-                                );
-                              }
-
-                              if (headerKey === "critical" || headerKey === "info" || headerKey === "unspecified") {
-                                const count = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <span
-                                      className={`severity-pill ${
-                                        count > 0
-                                          ? "severity-pill--neutral"
+                                          ? "severity-pill--critical"
                                           : "severity-pill--zero"
                                       }`}
                                     >
@@ -1171,26 +1246,51 @@ const IssueDashboard = () => {
                                 <div className="expanded-panel-header">
                                   <div>
                                     <h4 className="expanded-panel-title">
-                                      District Breakdown for {summaryItem.region} Region
+                                      District & Facility Breakdown for {summaryItem.region} Region
                                     </h4>
                                     <p style={{ fontSize: "0.8125rem", color: "#525252", margin: "0.25rem 0 0" }}>
-                                      {summaryItem.districts.length} district(s) affected |{" "}
+                                      {summaryItem.districts.length} district(s) |{" "}
+                                      {summaryItem.districts.reduce((acc, d) => acc + d.facilities.length, 0)} facility(ies) affected |{" "}
                                       <strong>{summaryItem.total}</strong> total issues (
+                                      {summaryItem.critical > 0 && (
+                                        <>
+                                          <span style={{ color: "#a2191f", fontWeight: 600 }}>
+                                            {summaryItem.critical} Critical
+                                          </span>
+                                          {", "}
+                                        </>
+                                      )}
                                       <span style={{ color: "#da1e28", fontWeight: 600 }}>
-                                        {summaryItem.high} High
+                                        {summaryItem.open} Open
+                                      </span>
+                                      ,{" "}
+                                      <span style={{ color: "#198038", fontWeight: 600 }}>
+                                        {summaryItem.resolved} Resolved
                                       </span>
                                       )
                                     </p>
                                   </div>
 
-                                  <Button
-                                    size="sm"
-                                    kind="tertiary"
-                                    renderIcon={ArrowRight}
-                                    onClick={() => handleNavigateToIssues(summaryItem.region)}
-                                  >
-                                    View Issues in {summaryItem.region}
-                                  </Button>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                    <Button
+                                      size="sm"
+                                      kind="ghost"
+                                      onClick={() => toggleAllDistrictsInRegion(summaryItem.region, summaryItem.districts)}
+                                    >
+                                      {isEveryDistrictExpanded(summaryItem.region, summaryItem.districts)
+                                        ? "Collapse All Facilities"
+                                        : "Expand All Facilities"}
+                                    </Button>
+
+                                    <Button
+                                      size="sm"
+                                      kind="tertiary"
+                                      renderIcon={ArrowRight}
+                                      onClick={() => handleNavigateToIssues(summaryItem.region)}
+                                    >
+                                      View Issues in {summaryItem.region}
+                                    </Button>
+                                  </div>
                                 </div>
 
                                 <div className="district-table-wrapper">
@@ -1198,46 +1298,160 @@ const IssueDashboard = () => {
                                     <thead>
                                       <tr>
                                         <th>District</th>
-                                        <th>High Severity</th>
+                                        <th>Critical Issues</th>
                                         <th>Open</th>
                                         <th>Resolved</th>
                                         <th>Total Issues</th>
+                                        <th style={{ width: "4rem", textAlign: "center" }}>Actions</th>
                                       </tr>
                                     </thead>
                                     <tbody>
-                                      {summaryItem.districts.map((d) => (
-                                        <tr key={d.district}>
-                                          <td>
-                                            <strong>{d.district}</strong>
-                                          </td>
-                                          <td>
-                                            <span
-                                              className={`severity-pill ${
-                                                d.high > 0
-                                                  ? "severity-pill--high"
-                                                  : "severity-pill--zero"
-                                              }`}
-                                            >
-                                              {d.high > 0 ? d.high : "-"}
-                                            </span>
-                                          </td>
-                                          <td>
-                                            <span className="stat-cell">
-                                              <span className="stat-dot stat-dot--open" />
-                                              {d.open}
-                                            </span>
-                                          </td>
-                                          <td>
-                                            <span className="stat-cell">
-                                              <span className="stat-dot stat-dot--resolved" />
-                                              {d.resolved}
-                                            </span>
-                                          </td>
-                                          <td>
-                                            <strong>{d.total}</strong>
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {summaryItem.districts.map((d) => {
+                                        const expanded = isDistrictExpanded(summaryItem.region, d);
+
+                                        return (
+                                          <Fragment key={d.district}>
+                                            <tr className={`district-row ${expanded ? "district-row--expanded" : ""}`}>
+                                              <td>
+                                                <button
+                                                  type="button"
+                                                  aria-expanded={expanded}
+                                                  className="district-expand-btn"
+                                                  onClick={() => toggleDistrict(summaryItem.region, d)}
+                                                  title={expanded ? "Collapse facility breakdown" : "Expand facility breakdown"}
+                                                >
+                                                  {expanded ? (
+                                                    <ChevronDown size={16} className="district-expand-icon" />
+                                                  ) : (
+                                                    <ChevronRight size={16} className="district-expand-icon" />
+                                                  )}
+                                                  <span className="district-name-text">{d.district}</span>
+                                                  <span className="district-facility-badge">
+                                                    {d.facilities.length} {d.facilities.length === 1 ? "facility" : "facilities"}
+                                                  </span>
+                                                </button>
+                                              </td>
+                                              <td>
+                                                <span
+                                                  className={`severity-pill ${
+                                                    d.critical > 0
+                                                      ? "severity-pill--critical"
+                                                      : "severity-pill--zero"
+                                                  }`}
+                                                >
+                                                  {d.critical > 0 ? d.critical : "-"}
+                                                </span>
+                                              </td>
+                                              <td>
+                                                <span className="stat-cell">
+                                                  <span className="stat-dot stat-dot--open" />
+                                                  {d.open}
+                                                </span>
+                                              </td>
+                                              <td>
+                                                <span className="stat-cell">
+                                                  <span className="stat-dot stat-dot--resolved" />
+                                                  {d.resolved}
+                                                </span>
+                                              </td>
+                                              <td>
+                                                <strong>{d.total}</strong>
+                                              </td>
+                                              <td className="table-action-cell">
+                                                <Button
+                                                  size="sm"
+                                                  kind="ghost"
+                                                  hasIconOnly
+                                                  renderIcon={ArrowRight}
+                                                  iconDescription={`View issues in ${d.district}`}
+                                                  tooltipPosition="left"
+                                                  onClick={() => handleNavigateToIssues(d.district)}
+                                                />
+                                              </td>
+                                            </tr>
+
+                                            {expanded && (
+                                              <tr className="facility-breakdown-row">
+                                                <td colSpan={6}>
+                                                  <div className="facility-breakdown-panel">
+                                                    <div className="facility-breakdown-header">
+                                                      <span className="facility-breakdown-title">
+                                                        Facilities in {d.district} ({d.facilities.length})
+                                                      </span>
+                                                    </div>
+                                                    {d.facilities.length === 0 ? (
+                                                      <p style={{ margin: "0.5rem 0", color: "#6f6f6f", fontSize: "0.8125rem" }}>
+                                                        No health facilities recorded for this district.
+                                                      </p>
+                                                    ) : (
+                                                      <table className="facility-table">
+                                                        <thead>
+                                                          <tr>
+                                                            <th>Health Facility / Org Unit</th>
+                                                            <th>Critical Issues</th>
+                                                            <th>Open</th>
+                                                            <th>Resolved</th>
+                                                            <th>Total Issues</th>
+                                                            <th style={{ width: "4rem", textAlign: "center" }}>Actions</th>
+                                                          </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                          {d.facilities.map((f) => (
+                                                            <tr key={f.facility}>
+                                                              <td>
+                                                                <span className="facility-name-cell">
+                                                                  {f.facility}
+                                                                </span>
+                                                              </td>
+                                                              <td>
+                                                                <span
+                                                                  className={`severity-pill ${
+                                                                    f.critical > 0
+                                                                      ? "severity-pill--critical"
+                                                                      : "severity-pill--zero"
+                                                                    }`}
+                                                                >
+                                                                  {f.critical > 0 ? f.critical : "-"}
+                                                                </span>
+                                                              </td>
+                                                              <td>
+                                                                <span className="stat-cell">
+                                                                  <span className="stat-dot stat-dot--open" />
+                                                                  {f.open}
+                                                                </span>
+                                                              </td>
+                                                              <td>
+                                                                <span className="stat-cell">
+                                                                  <span className="stat-dot stat-dot--resolved" />
+                                                                  {f.resolved}
+                                                                </span>
+                                                              </td>
+                                                              <td>
+                                                                <strong>{f.total}</strong>
+                                                              </td>
+                                                              <td className="table-action-cell">
+                                                                <Button
+                                                                  size="sm"
+                                                                  kind="ghost"
+                                                                  hasIconOnly
+                                                                  renderIcon={ArrowRight}
+                                                                  iconDescription={`View issues in ${f.facility}`}
+                                                                  tooltipPosition="left"
+                                                                  onClick={() => handleNavigateToIssues(f.facility)}
+                                                                />
+                                                              </td>
+                                                            </tr>
+                                                          ))}
+                                                        </tbody>
+                                                      </table>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            )}
+                                          </Fragment>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>
@@ -1255,31 +1469,16 @@ const IssueDashboard = () => {
                         <strong>TOTAL (All Regions)</strong>
                       </TableCell>
                       <TableCell>
-                        <span className="severity-pill severity-pill--high">
-                          {grandTotals.high}
+                        <span
+                          className={`severity-pill ${
+                            grandTotals.critical > 0
+                              ? "severity-pill--critical"
+                              : "severity-pill--zero"
+                          }`}
+                        >
+                          <strong>{grandTotals.critical}</strong>
                         </span>
                       </TableCell>
-                      {grandTotals.critical > 0 && (
-                        <TableCell>
-                          <span className="severity-pill severity-pill--neutral">
-                            {grandTotals.critical}
-                          </span>
-                        </TableCell>
-                      )}
-                      {grandTotals.info > 0 && (
-                        <TableCell>
-                          <span className="severity-pill severity-pill--neutral">
-                            {grandTotals.info}
-                          </span>
-                        </TableCell>
-                      )}
-                      {grandTotals.unspecified > 0 && (
-                        <TableCell>
-                          <span className="severity-pill severity-pill--neutral">
-                            {grandTotals.unspecified}
-                          </span>
-                        </TableCell>
-                      )}
                       <TableCell>
                         <span className="stat-cell">
                           <span className="stat-dot stat-dot--open" />
