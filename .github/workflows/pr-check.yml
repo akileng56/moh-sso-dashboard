@@ -22,13 +22,20 @@ jobs:
       # ========================
       - uses: actions/setup-node@v3
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install frontend deps
         working-directory: frontend
         run: npm ci
+
+      - name: Frontend version consistency
+        working-directory: frontend
+        run: npm run version:audit && npm run audit:packages && node --test scripts/test-versioning.mjs
+
+      - name: Release tooling tests
+        run: node --test scripts/release.test.mjs scripts/auto-release.test.mjs scripts/release-notes.test.mjs
 
       - name: Frontend lint
         working-directory: frontend
