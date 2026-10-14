@@ -353,7 +353,6 @@ const IssueTracker = () => {
   const EXPORT_COLUMNS: { key: string; header: string }[] = [
     ...headers,
     { key: "region", header: "Region" },
-    { key: "district", header: "District" },
     { key: "time_period", header: "Reporting Period" },
     { key: "issue_type", header: "Issue Type" },
     { key: "priority", header: "Priority" },
