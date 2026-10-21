@@ -27,6 +27,9 @@ import {
   List,
   Renew,
 } from "@carbon/react/icons";
+import { GroupedBarChart, SimpleBarChart } from "@carbon/charts-react";
+import { ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
+import "@carbon/charts/styles.css";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import { PermissionGuard, PERMISSIONS } from "@moh-sso/auth";
@@ -145,6 +148,12 @@ const IssueDashboard = () => {
   /* Sorting state */
   const [sortHeader, setSortHeader] = useState<SortHeader>("total");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
+
+  /* Chart view controls */
+  const DEFAULT_CHART_REGION = "South Buganda";
+  const [chartViewMode, setChartViewMode] = useState<"total" | "status">("total");
+  const [selectedChartRegion, setSelectedChartRegion] =
+    useState<string>(DEFAULT_CHART_REGION);
 
   /* Expanded districts state for facility breakdown */
   const [expandedDistricts, setExpandedDistricts] = useState<Record<string, boolean>>({});
@@ -635,6 +644,204 @@ const IssueDashboard = () => {
   }, [regionalSummary, regionSearchTerm, sortHeader, sortDirection]);
 
   /* -------------------------------------------------------------
+   * Column Charts Data & Options (By Region & By District)
+   * ------------------------------------------------------------- */
+  const defaultRegionLabel = useMemo(() => {
+    const match = regionalSummary.find((r) =>
+      safeLower(r.region).includes("south buganda"),
+    );
+    return match ? match.region : DEFAULT_CHART_REGION;
+  }, [regionalSummary]);
+
+  const chartRegionOptions = useMemo(() => {
+    const names = regionalSummary.map((r) => r.region);
+    const hasDefaultRegion = names.some(
+      (name) => safeLower(name) === safeLower(defaultRegionLabel),
+    );
+    return [
+      "All Regions",
+      ...(hasDefaultRegion ? [] : [defaultRegionLabel]),
+      ...names,
+    ];
+  }, [regionalSummary, defaultRegionLabel]);
+
+  const activeChartRegion = useMemo(() => {
+    const exactMatch = chartRegionOptions.find(
+      (opt) => safeLower(opt) === safeLower(selectedChartRegion),
+    );
+    if (exactMatch) return exactMatch;
+    if (safeLower(selectedChartRegion) === safeLower(DEFAULT_CHART_REGION)) {
+      return defaultRegionLabel;
+    }
+    return defaultRegionLabel;
+  }, [chartRegionOptions, selectedChartRegion, defaultRegionLabel]);
+
+  const chartToolbarConfig = useMemo(
+    () => ({
+      enabled: true,
+      numberOfIcons: 3,
+      controls: [
+        { type: ToolbarControlTypes.MAKE_FULLSCREEN },
+        { type: ToolbarControlTypes.SHOW_AS_DATATABLE },
+        { type: ToolbarControlTypes.EXPORT_CSV },
+        { type: ToolbarControlTypes.EXPORT_PNG },
+        { type: ToolbarControlTypes.EXPORT_JPG },
+      ],
+    }),
+    [],
+  );
+
+  const regionChartData = useMemo(() => {
+    const sortedRegions = [...displayedRows].sort((a, b) => b.total - a.total);
+    if (chartViewMode === "status") {
+      return sortedRegions.flatMap((r) => [
+        { group: "Critical Issues", key: r.region, value: r.critical },
+        { group: "Open Issues", key: r.region, value: r.open },
+        { group: "Resolved Issues", key: r.region, value: r.resolved },
+      ]);
+    }
+    return sortedRegions.map((r) => ({
+      group: "Total Issues",
+      key: r.region,
+      value: r.total,
+    }));
+  }, [displayedRows, chartViewMode]);
+
+  const districtChartData = useMemo(() => {
+    const districtMap = new Map<
+      string,
+      { district: string; critical: number; open: number; resolved: number; total: number }
+    >();
+    const searchTerm = safeLower(regionSearchTerm);
+
+    for (const regionRow of displayedRows) {
+      if (
+        activeChartRegion !== "All Regions" &&
+        safeLower(regionRow.region) !== safeLower(activeChartRegion) &&
+        !(
+          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
+          safeLower(regionRow.region).includes("south buganda")
+        )
+      ) {
+        continue;
+      }
+
+      const regionMatchesSearch =
+        !searchTerm || safeLower(regionRow.region).includes(searchTerm);
+
+      for (const d of regionRow.districts) {
+        if (searchTerm && !regionMatchesSearch) {
+          const districtMatches =
+            safeLower(d.district).includes(searchTerm) ||
+            d.facilities.some((f) => safeLower(f.facility).includes(searchTerm));
+          if (!districtMatches) continue;
+        }
+
+        const existing = districtMap.get(d.district);
+        if (existing) {
+          existing.critical += d.critical;
+          existing.open += d.open;
+          existing.resolved += d.resolved;
+          existing.total += d.total;
+        } else {
+          districtMap.set(d.district, {
+            district: d.district,
+            critical: d.critical,
+            open: d.open,
+            resolved: d.resolved,
+            total: d.total,
+          });
+        }
+      }
+    }
+
+    const sortedDistricts = Array.from(districtMap.values()).sort(
+      (a, b) => b.total - a.total,
+    );
+
+    if (chartViewMode === "status") {
+      return sortedDistricts.flatMap((d) => [
+        { group: "Critical Issues", key: d.district, value: d.critical },
+        { group: "Open Issues", key: d.district, value: d.open },
+        { group: "Resolved Issues", key: d.district, value: d.resolved },
+      ]);
+    }
+
+    return sortedDistricts.map((d) => ({
+      group: "Total Issues",
+      key: d.district,
+      value: d.total,
+    }));
+  }, [displayedRows, activeChartRegion, regionSearchTerm, chartViewMode]);
+
+  const regionChartOptions = useMemo(
+    () => ({
+      title: "Issues by Region",
+      axes: {
+        left: {
+          mapsTo: "value",
+          title: "Number of Issues",
+          scaleType: ScaleTypes.LINEAR,
+        },
+        bottom: {
+          mapsTo: "key",
+          title: "Region",
+          scaleType: ScaleTypes.LABELS,
+        },
+      },
+      color: {
+        scale: {
+          "Total Issues": "#0f62fe",
+          "Critical Issues": "#a2191f",
+          "Open Issues": "#da1e28",
+          "Resolved Issues": "#198038",
+        },
+      },
+      height: "480px",
+      toolbar: chartToolbarConfig,
+      legend: {
+        enabled: chartViewMode === "status",
+      },
+    }),
+    [chartViewMode, chartToolbarConfig],
+  );
+
+  const districtChartOptions = useMemo(
+    () => ({
+      title:
+        activeChartRegion && activeChartRegion !== "All Regions"
+          ? `Issues by District (${activeChartRegion})`
+          : "Issues by District",
+      axes: {
+        left: {
+          mapsTo: "value",
+          title: "Number of Issues",
+          scaleType: ScaleTypes.LINEAR,
+        },
+        bottom: {
+          mapsTo: "key",
+          title: "District",
+          scaleType: ScaleTypes.LABELS,
+        },
+      },
+      color: {
+        scale: {
+          "Total Issues": "#0f62fe",
+          "Critical Issues": "#a2191f",
+          "Open Issues": "#da1e28",
+          "Resolved Issues": "#198038",
+        },
+      },
+      height: "480px",
+      toolbar: chartToolbarConfig,
+      legend: {
+        enabled: chartViewMode === "status",
+      },
+    }),
+    [activeChartRegion, chartViewMode, chartToolbarConfig],
+  );
+
+  /* -------------------------------------------------------------
    * Handlers
    * ------------------------------------------------------------- */
   const handleSort = (headerKey: string) => {
@@ -674,6 +881,7 @@ const IssueDashboard = () => {
     setSelectedDataset("");
     setSelectedProgram(undefined);
     setRegionSearchTerm("");
+    setSelectedChartRegion(DEFAULT_CHART_REGION);
     setIsPeriodPopoverOpen(false);
   };
 
@@ -1102,8 +1310,9 @@ const IssueDashboard = () => {
             )}
           </div>
         ) : (
-          <div className="summary-table-container">
-            <DataTable rows={displayedRows} headers={tableHeaders}>
+          <>
+            <div className="summary-table-container">
+              <DataTable rows={displayedRows} headers={tableHeaders}>
               {({
                 rows,
                 headers,
@@ -1504,7 +1713,72 @@ const IssueDashboard = () => {
                 </Table>
               )}
             </DataTable>
-          </div>
+            </div>
+
+            {/* ================= Column Charts Section ================= */}
+            <div className="dashboard-charts-section">
+              <div className="dashboard-charts-header">
+                <div>
+                  <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
+                  <p className="dashboard-charts-subtitle">
+                    Column chart comparison of reported issues across regions and districts.
+                  </p>
+                </div>
+
+                <div className="dashboard-charts-controls">
+                  <div className="chart-region-filter">
+                    <Dropdown
+                      id="chart-region-filter-dropdown"
+                      size="sm"
+                      titleText=""
+                      label={DEFAULT_CHART_REGION}
+                      items={chartRegionOptions}
+                      selectedItem={activeChartRegion}
+                      itemToString={(item) => (item ? String(item) : "")}
+                      onChange={({ selectedItem }: SelectEvent<string>) =>
+                        setSelectedChartRegion(selectedItem || DEFAULT_CHART_REGION)
+                      }
+                    />
+                  </div>
+
+                  <div className="chart-mode-toggle" role="group" aria-label="Chart metric mode">
+                    <Button
+                      size="sm"
+                      kind={chartViewMode === "total" ? "primary" : "tertiary"}
+                      onClick={() => setChartViewMode("total")}
+                    >
+                      Total Issues
+                    </Button>
+                    <Button
+                      size="sm"
+                      kind={chartViewMode === "status" ? "primary" : "tertiary"}
+                      onClick={() => setChartViewMode("status")}
+                    >
+                      By Status
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="dashboard-charts-grid">
+                <div className="dashboard-chart-card">
+                  {chartViewMode === "status" ? (
+                    <GroupedBarChart data={regionChartData} options={regionChartOptions} />
+                  ) : (
+                    <SimpleBarChart data={regionChartData} options={regionChartOptions} />
+                  )}
+                </div>
+
+                <div className="dashboard-chart-card">
+                  {chartViewMode === "status" ? (
+                    <GroupedBarChart data={districtChartData} options={districtChartOptions} />
+                  ) : (
+                    <SimpleBarChart data={districtChartData} options={districtChartOptions} />
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </PermissionGuard>
