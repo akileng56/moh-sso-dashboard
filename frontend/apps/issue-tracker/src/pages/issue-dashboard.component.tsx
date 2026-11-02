@@ -27,8 +27,8 @@ import {
   List,
   Renew,
 } from "@carbon/react/icons";
-import { GroupedBarChart, SimpleBarChart } from "@carbon/charts-react";
-import { ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
+import { GroupedBarChart, PieChart, SimpleBarChart } from "@carbon/charts-react";
+import { Alignments, ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
 import "@carbon/charts/styles.css";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
@@ -47,6 +47,7 @@ import "./issue-dashboard.scss";
 
 type FacilitySummary = {
   facility: string;
+  levelOfCare: string;
   critical: number;
   open: number;
   resolved: number;
@@ -104,6 +105,41 @@ function isCriticalIssue(issue: Issue): boolean {
   const sev = safeLower(issue.severity);
   const prio = safeLower(issue.priority);
   return sev === "critical" || prio === "critical";
+}
+
+function resolveLevelOfCare(rawLevel?: string | null, facilityName?: string | null): string {
+  const explicit = safeLower(rawLevel);
+  if (explicit) {
+    if (explicit === "nrh" || explicit.includes("national referral")) return "NRH";
+    if (explicit === "rrh" || explicit.includes("regional referral")) return "RRH";
+    if (explicit.includes("hospital") || explicit === "gh") return "General Hospital";
+    if (explicit === "hciv" || explicit === "hc iv" || explicit === "hc 4") return "HC IV";
+    if (explicit === "hciii" || explicit === "hc iii" || explicit === "hc 3") return "HC III";
+    if (explicit === "hcii" || explicit === "hc ii" || explicit === "hc 2") return "HC II";
+    if (explicit.includes("clinic")) return "Clinic";
+    if (explicit.includes("drug shop")) return "Drug Shop";
+    if (explicit === "rbb") return "RBB";
+    if (explicit === "nbb") return "NBB";
+    if (explicit === "bcdp") return "BCDP";
+    return safeString(rawLevel);
+  }
+
+  const combined = `${safeString(rawLevel)} ${safeString(facilityName)}`;
+  if (/\bnrh\b|national\s+referral/i.test(combined)) return "NRH";
+  if (/\brrh\b|regional\s+referral/i.test(combined)) return "RRH";
+  if (/\bhospital\b|\bgh\b/i.test(combined)) return "General Hospital";
+  if (/\bhc\s*(?:iv|4)\b|health\s+cent(?:re|er)\s+(?:iv|4)\b/i.test(combined)) return "HC IV";
+  if (/\bhc\s*(?:iii|3)\b|health\s+cent(?:re|er)\s+(?:iii|3)\b/i.test(combined)) return "HC III";
+  if (/\bhc\s*(?:ii|2)\b|health\s+cent(?:re|er)\s+(?:ii|2)\b/i.test(combined)) return "HC II";
+  if (/\bclinic\b|medical\s+cent(?:re|er)|maternity|dispensary|health\s+unit/i.test(combined)) {
+    return "Clinic";
+  }
+  if (/\bdrug\s*shop\b|pharmacy/i.test(combined)) return "Drug Shop";
+  if (/\brbb\b|regional\s+blood\s+bank/i.test(combined)) return "RBB";
+  if (/\bnbb\b|national\s+blood\s+bank/i.test(combined)) return "NBB";
+  if (/\bbcdp\b/i.test(combined)) return "BCDP";
+
+  return "Other / Unspecified";
 }
 
 const IssueDashboard = () => {
@@ -394,6 +430,7 @@ const IssueDashboard = () => {
             facilityGroups: Map<
               string,
               {
+                levelOfCare: string;
                 critical: number;
                 open: number;
                 resolved: number;
@@ -504,8 +541,10 @@ const IssueDashboard = () => {
       }
 
       // Facility aggregation inside District
+      const levelOfCare = resolveLevelOfCare(issue.level_of_care, facilityName);
       if (!dGroup.facilityGroups.has(facilityName)) {
         dGroup.facilityGroups.set(facilityName, {
+          levelOfCare,
           critical: 0,
           open: 0,
           resolved: 0,
@@ -514,6 +553,9 @@ const IssueDashboard = () => {
       }
 
       const fGroup = dGroup.facilityGroups.get(facilityName)!;
+      if (fGroup.levelOfCare === "Other / Unspecified" && levelOfCare !== "Other / Unspecified") {
+        fGroup.levelOfCare = levelOfCare;
+      }
       fGroup.total += 1;
       if (resolved) {
         fGroup.resolved += 1;
@@ -534,6 +576,7 @@ const IssueDashboard = () => {
         dVal.facilityGroups.forEach((fVal, fName) => {
           facilitiesList.push({
             facility: fName,
+            levelOfCare: fVal.levelOfCare,
             critical: fVal.critical,
             open: fVal.open,
             resolved: fVal.resolved,
@@ -839,6 +882,101 @@ const IssueDashboard = () => {
       },
     }),
     [activeChartRegion, chartViewMode, chartToolbarConfig],
+  );
+
+  const levelOfCareChartData = useMemo(() => {
+    const careMap = new Map<
+      string,
+      { levelOfCare: string; critical: number; open: number; resolved: number; total: number }
+    >();
+    const searchTerm = safeLower(regionSearchTerm);
+
+    const hasActiveRegionInRows =
+      activeChartRegion === "All Regions" ||
+      displayedRows.some(
+        (r) =>
+          safeLower(r.region) === safeLower(activeChartRegion) ||
+          (safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
+            safeLower(r.region).includes("south buganda")),
+      );
+
+    for (const regionRow of displayedRows) {
+      if (
+        hasActiveRegionInRows &&
+        activeChartRegion !== "All Regions" &&
+        safeLower(regionRow.region) !== safeLower(activeChartRegion) &&
+        !(
+          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
+          safeLower(regionRow.region).includes("south buganda")
+        )
+      ) {
+        continue;
+      }
+
+      const regionMatchesSearch =
+        !searchTerm || safeLower(regionRow.region).includes(searchTerm);
+
+      for (const d of regionRow.districts) {
+        const districtMatchesSearch =
+          regionMatchesSearch || safeLower(d.district).includes(searchTerm);
+
+        for (const f of d.facilities) {
+          if (
+            searchTerm &&
+            !districtMatchesSearch &&
+            !safeLower(f.facility).includes(searchTerm)
+          ) {
+            continue;
+          }
+
+          const careLevel = f.levelOfCare || "Other / Unspecified";
+          const existing = careMap.get(careLevel);
+          if (existing) {
+            existing.critical += f.critical;
+            existing.open += f.open;
+            existing.resolved += f.resolved;
+            existing.total += f.total;
+          } else {
+            careMap.set(careLevel, {
+              levelOfCare: careLevel,
+              critical: f.critical,
+              open: f.open,
+              resolved: f.resolved,
+              total: f.total,
+            });
+          }
+        }
+      }
+    }
+
+    const sortedCareLevels = Array.from(careMap.values()).sort(
+      (a, b) => b.total - a.total,
+    );
+
+    return sortedCareLevels.map((c) => ({
+      group: c.levelOfCare,
+      value: c.total,
+    }));
+  }, [displayedRows, activeChartRegion, regionSearchTerm]);
+
+  const levelOfCareChartOptions = useMemo(
+    () => ({
+      title:
+        activeChartRegion && activeChartRegion !== "All Regions"
+          ? `Issues by Level of Care (${activeChartRegion})`
+          : "Issues by Level of Care",
+      resizable: true,
+      pie: {
+        alignment: Alignments.CENTER,
+      },
+      height: "480px",
+      toolbar: chartToolbarConfig,
+      legend: {
+        enabled: true,
+        alignment: Alignments.CENTER,
+      },
+    }),
+    [activeChartRegion, chartToolbarConfig],
   );
 
   /* -------------------------------------------------------------
@@ -1199,6 +1337,13 @@ const IssueDashboard = () => {
                 ) : (
                   <SimpleBarChart data={districtChartData} options={districtChartOptions} />
                 )}
+              </div>
+
+              <div className="dashboard-chart-card dashboard-chart-card--full">
+                <PieChart
+                  data={levelOfCareChartData}
+                  options={levelOfCareChartOptions}
+                />
               </div>
             </div>
           </div>
