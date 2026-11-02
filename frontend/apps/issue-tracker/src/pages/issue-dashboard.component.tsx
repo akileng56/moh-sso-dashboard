@@ -826,7 +826,7 @@ const IssueDashboard = () => {
       },
       color: {
         scale: {
-          "Total Issues": "#0f62fe",
+          "Total Issues": "#007d79",
           "Critical Issues": "#a2191f",
           "Open Issues": "#da1e28",
           "Resolved Issues": "#198038",
@@ -1138,6 +1138,72 @@ const IssueDashboard = () => {
           </div>
         </div>
 
+        {/* ================= Column Charts Section ================= */}
+        {!isLoadingIssues && !issuesError && displayedRows.length > 0 && (
+          <div className="dashboard-charts-section">
+            <div className="dashboard-charts-header">
+              <div>
+                <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
+                <p className="dashboard-charts-subtitle">
+                  Column chart comparison of reported issues across regions and districts.
+                </p>
+              </div>
+
+              <div className="dashboard-charts-controls">
+                <div className="chart-region-filter">
+                  <Dropdown
+                    id="chart-region-filter-dropdown"
+                    size="sm"
+                    titleText=""
+                    label={DEFAULT_CHART_REGION}
+                    items={chartRegionOptions}
+                    selectedItem={activeChartRegion}
+                    itemToString={(item) => (item ? String(item) : "")}
+                    onChange={({ selectedItem }: SelectEvent<string>) =>
+                      setSelectedChartRegion(selectedItem || DEFAULT_CHART_REGION)
+                    }
+                  />
+                </div>
+
+                <div className="chart-mode-toggle" role="group" aria-label="Chart metric mode">
+                  <Button
+                    size="sm"
+                    kind={chartViewMode === "total" ? "primary" : "tertiary"}
+                    onClick={() => setChartViewMode("total")}
+                  >
+                    Total Issues
+                  </Button>
+                  <Button
+                    size="sm"
+                    kind={chartViewMode === "status" ? "primary" : "tertiary"}
+                    onClick={() => setChartViewMode("status")}
+                  >
+                    By Status
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="dashboard-charts-grid">
+              <div className="dashboard-chart-card">
+                {chartViewMode === "status" ? (
+                  <GroupedBarChart data={regionChartData} options={regionChartOptions} />
+                ) : (
+                  <SimpleBarChart data={regionChartData} options={regionChartOptions} />
+                )}
+              </div>
+
+              <div className="dashboard-chart-card">
+                {chartViewMode === "status" ? (
+                  <GroupedBarChart data={districtChartData} options={districtChartOptions} />
+                ) : (
+                  <SimpleBarChart data={districtChartData} options={districtChartOptions} />
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ================= Filters Bar ================= */}
         <div className="dashboard-filter-container">
           {/* Period Filter Popover */}
@@ -1310,9 +1376,8 @@ const IssueDashboard = () => {
             )}
           </div>
         ) : (
-          <>
-            <div className="summary-table-container">
-              <DataTable rows={displayedRows} headers={tableHeaders}>
+          <div className="summary-table-container">
+            <DataTable rows={displayedRows} headers={tableHeaders}>
               {({
                 rows,
                 headers,
@@ -1713,72 +1778,7 @@ const IssueDashboard = () => {
                 </Table>
               )}
             </DataTable>
-            </div>
-
-            {/* ================= Column Charts Section ================= */}
-            <div className="dashboard-charts-section">
-              <div className="dashboard-charts-header">
-                <div>
-                  <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
-                  <p className="dashboard-charts-subtitle">
-                    Column chart comparison of reported issues across regions and districts.
-                  </p>
-                </div>
-
-                <div className="dashboard-charts-controls">
-                  <div className="chart-region-filter">
-                    <Dropdown
-                      id="chart-region-filter-dropdown"
-                      size="sm"
-                      titleText=""
-                      label={DEFAULT_CHART_REGION}
-                      items={chartRegionOptions}
-                      selectedItem={activeChartRegion}
-                      itemToString={(item) => (item ? String(item) : "")}
-                      onChange={({ selectedItem }: SelectEvent<string>) =>
-                        setSelectedChartRegion(selectedItem || DEFAULT_CHART_REGION)
-                      }
-                    />
-                  </div>
-
-                  <div className="chart-mode-toggle" role="group" aria-label="Chart metric mode">
-                    <Button
-                      size="sm"
-                      kind={chartViewMode === "total" ? "primary" : "tertiary"}
-                      onClick={() => setChartViewMode("total")}
-                    >
-                      Total Issues
-                    </Button>
-                    <Button
-                      size="sm"
-                      kind={chartViewMode === "status" ? "primary" : "tertiary"}
-                      onClick={() => setChartViewMode("status")}
-                    >
-                      By Status
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="dashboard-charts-grid">
-                <div className="dashboard-chart-card">
-                  {chartViewMode === "status" ? (
-                    <GroupedBarChart data={regionChartData} options={regionChartOptions} />
-                  ) : (
-                    <SimpleBarChart data={regionChartData} options={regionChartOptions} />
-                  )}
-                </div>
-
-                <div className="dashboard-chart-card">
-                  {chartViewMode === "status" ? (
-                    <GroupedBarChart data={districtChartData} options={districtChartOptions} />
-                  ) : (
-                    <SimpleBarChart data={districtChartData} options={districtChartOptions} />
-                  )}
-                </div>
-              </div>
-            </div>
-          </>
+          </div>
         )}
       </div>
     </PermissionGuard>
