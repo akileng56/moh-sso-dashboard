@@ -64,11 +64,11 @@ type Config struct {
 	// ==================================================
 	// Health BI report integration
 	// ==================================================
-	HealthBIBaseURL    string        `mapstructure:"HEALTH_BI_BASE_URL"`
-	HealthBIKeycloakClientID string `mapstructure:"HEALTH_BI_KEYCLOAK_CLIENT_ID"`
-	HealthBIKeycloakClientSecret string `mapstructure:"HEALTH_BI_KEYCLOAK_CLIENT_SECRET"`
-	HealthBITimeout    time.Duration `mapstructure:"HEALTH_BI_TIMEOUT"`
-	ReportSchedulerWorkerInterval time.Duration `mapstructure:"REPORT_SCHEDULER_WORKER_INTERVAL"`
+	HealthBIBaseURL                string        `mapstructure:"HEALTH_BI_BASE_URL"`
+	HealthBIKeycloakClientID       string        `mapstructure:"HEALTH_BI_KEYCLOAK_CLIENT_ID"`
+	HealthBIKeycloakClientSecret   string        `mapstructure:"HEALTH_BI_KEYCLOAK_CLIENT_SECRET"`
+	HealthBITimeout                time.Duration `mapstructure:"HEALTH_BI_TIMEOUT"`
+	ReportSchedulerWorkerInterval  time.Duration `mapstructure:"REPORT_SCHEDULER_WORKER_INTERVAL"`
 	ReportSchedulerDeliveryLinkTTL time.Duration `mapstructure:"REPORT_SCHEDULER_DELIVERY_LINK_TTL"`
 
 	// ==================================================
@@ -377,13 +377,13 @@ func envBindings() map[string]string {
 		"FRONTEND_REDIRECT_URI":                 "FRONTEND_REDIRECT_URI",
 		"COOKIE_DOMAIN":                         "COOKIE_DOMAIN",
 		"LOGIN_URL":                             "LOGIN_URL",
-			"AUTH_RETURN_URL_ALLOWED_ORIGINS":       "AUTH_RETURN_URL_ALLOWED_ORIGINS",
-				"HEALTH_BI_BASE_URL":                    "HEALTH_BI_BASE_URL",
-				"HEALTH_BI_KEYCLOAK_CLIENT_ID": "HEALTH_BI_KEYCLOAK_CLIENT_ID",
-				"HEALTH_BI_KEYCLOAK_CLIENT_SECRET": "HEALTH_BI_KEYCLOAK_CLIENT_SECRET",
-				"HEALTH_BI_TIMEOUT":                     "HEALTH_BI_TIMEOUT",
-				"REPORT_SCHEDULER_WORKER_INTERVAL":      "REPORT_SCHEDULER_WORKER_INTERVAL",
-				"REPORT_SCHEDULER_DELIVERY_LINK_TTL":   "REPORT_SCHEDULER_DELIVERY_LINK_TTL",
+		"AUTH_RETURN_URL_ALLOWED_ORIGINS":       "AUTH_RETURN_URL_ALLOWED_ORIGINS",
+		"HEALTH_BI_BASE_URL":                    "HEALTH_BI_BASE_URL",
+		"HEALTH_BI_KEYCLOAK_CLIENT_ID":          "HEALTH_BI_KEYCLOAK_CLIENT_ID",
+		"HEALTH_BI_KEYCLOAK_CLIENT_SECRET":      "HEALTH_BI_KEYCLOAK_CLIENT_SECRET",
+		"HEALTH_BI_TIMEOUT":                     "HEALTH_BI_TIMEOUT",
+		"REPORT_SCHEDULER_WORKER_INTERVAL":      "REPORT_SCHEDULER_WORKER_INTERVAL",
+		"REPORT_SCHEDULER_DELIVERY_LINK_TTL":    "REPORT_SCHEDULER_DELIVERY_LINK_TTL",
 		"KEYCLOAK_VERSION":                      "KEYCLOAK_VERSION",
 		"KEYCLOAK_DB":                           "KEYCLOAK_DB",
 		"KEYCLOAK_DB_NAME":                      "KEYCLOAK_DB_NAME",
