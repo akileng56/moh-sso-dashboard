@@ -1551,6 +1551,9 @@ components:
         issue_type:
           nullable: true
           type: string
+        level_of_care:
+          nullable: true
+          type: string
         org_unit:
           nullable: true
           type: string
