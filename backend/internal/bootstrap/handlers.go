@@ -149,7 +149,7 @@ func buildHandlers(deps handlerDependencies) handlers {
 			GeoJSON:                 geoJSONHandler,
 			Email:                   emailHandler,
 			RBAC:                    rbacHandler,
-				ReportScheduler:         reportschedulerfeature.NewHandler(deps.Services.ReportScheduler),
+			ReportScheduler:         reportschedulerfeature.NewHandler(deps.Services.ReportScheduler),
 		},
 		Health: healthHandler,
 	}

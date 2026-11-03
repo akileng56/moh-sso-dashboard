@@ -33,13 +33,15 @@ type workerDependencies struct {
 	Logger                         *logger.Logger
 	DQADB                          *sql.DB
 	DWHDB                          *sql.DB
-	ReportScheduler                 *reportschedulerfeature.Service
+	ReportScheduler                *reportschedulerfeature.Service
 }
 
 func startBackgroundWorkers(ctx context.Context, deps workerDependencies) {
 	if deps.ReportScheduler != nil {
 		interval := 30 * time.Second
-		if deps.Config != nil && deps.Config.ReportSchedulerWorkerInterval > 0 { interval = deps.Config.ReportSchedulerWorkerInterval }
+		if deps.Config != nil && deps.Config.ReportSchedulerWorkerInterval > 0 {
+			interval = deps.Config.ReportSchedulerWorkerInterval
+		}
 		reportWorker := reportschedulerfeature.NewWorker(deps.ReportScheduler, interval, deps.Logger.Error)
 		go func() {
 			deps.Logger.Info("Report scheduler worker started")
