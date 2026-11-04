@@ -36,7 +36,13 @@ import { PermissionGuard, PERMISSIONS } from "@moh-sso/auth";
 
 import { useGetIssuesQuery, useGetIssuesSummaryByProgramQuery } from "../api";
 import type { Issue } from "../types";
-import { getAvailablePeriods, periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
+import { periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
+import {
+  convertPeriodToCode,
+  fetchAvailablePeriods,
+  formatReportingPeriod,
+  isPeriodMatching,
+} from "../lib/periodUtils.ts";
 import {
   useGetDataSetsQuery,
   type Dataset,
@@ -80,8 +86,10 @@ type SelectEvent<T> = {
 };
 
 type PeriodOption = {
+  id?: string;
   label: string;
   value?: string;
+  disabled?: boolean;
 };
 
 type SortHeader = "region" | "critical" | "open" | "resolved" | "total" | "percentage" | string;
@@ -105,6 +113,80 @@ function isCriticalIssue(issue: Issue): boolean {
   const sev = safeLower(issue.severity);
   const prio = safeLower(issue.priority);
   return sev === "critical" || prio === "critical";
+}
+
+function doesIssueMatchReportingPeriod(
+  issue: Issue,
+  selectedPeriod: string,
+  selectedYear: number,
+  isYearFilterActive: boolean,
+): boolean {
+  const rawPeriod = safeString(issue.time_Period || issue.time_period);
+
+  if (selectedPeriod) {
+    if (!rawPeriod) return false;
+
+    if (isPeriodMatching(selectedPeriod, rawPeriod, selectedYear)) {
+      return true;
+    }
+
+    const formattedTarget = safeLower(formatReportingPeriod(selectedPeriod));
+    const formattedIssue = safeLower(formatReportingPeriod(rawPeriod));
+    if (formattedTarget && formattedIssue && formattedTarget === formattedIssue) {
+      return true;
+    }
+
+    const targetCode = convertPeriodToCode(selectedPeriod, selectedYear).toUpperCase();
+    const issueCode = convertPeriodToCode(rawPeriod, selectedYear).toUpperCase();
+
+    // If filtering by Quarter (e.g. 2026Q1), also match monthly or ISO-date issues within that quarter
+    const qMatch = targetCode.match(/^(\d{4})Q([1-4])$/);
+    if (qMatch) {
+      const targetYear = qMatch[1];
+      const targetQuarter = Number(qMatch[2]);
+
+      const mMatch = issueCode.match(/^(\d{4})(0[1-9]|1[0-2])$/);
+      if (mMatch && mMatch[1] === targetYear) {
+        const issueQuarter = Math.ceil(Number(mMatch[2]) / 3);
+        if (issueQuarter === targetQuarter) return true;
+      }
+
+      const dateMatch = rawPeriod.match(/^(\d{4})-(0[1-9]|1[0-2])-\d{2}/);
+      if (dateMatch && dateMatch[1] === targetYear) {
+        const issueQuarter = Math.ceil(Number(dateMatch[2]) / 3);
+        if (issueQuarter === targetQuarter) return true;
+      }
+    }
+
+    // If filtering by Month (e.g. 202602), also match ISO-date issues in that month
+    const targetMonthMatch = targetCode.match(/^(\d{4})(0[1-9]|1[0-2])$/);
+    if (targetMonthMatch) {
+      const dateMatch = rawPeriod.match(/^(\d{4})-(0[1-9]|1[0-2])-\d{2}/);
+      if (
+        dateMatch &&
+        dateMatch[1] === targetMonthMatch[1] &&
+        dateMatch[2] === targetMonthMatch[2]
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  if (isYearFilterActive) {
+    if (!rawPeriod) return false;
+    const yearStr = String(selectedYear);
+    const formattedIssue = formatReportingPeriod(rawPeriod);
+    const issueCode = convertPeriodToCode(rawPeriod);
+    return (
+      rawPeriod.includes(yearStr) ||
+      formattedIssue.includes(yearStr) ||
+      issueCode.includes(yearStr)
+    );
+  }
+
+  return true;
 }
 
 function resolveLevelOfCare(rawLevel?: string | null, facilityName?: string | null): string {
@@ -142,6 +224,229 @@ function resolveLevelOfCare(rawLevel?: string | null, facilityName?: string | nu
   return "Other / Unspecified";
 }
 
+function aggregateIssuesByRegion(
+  issues: Issue[],
+  orgToRegionMap: Map<string, string>,
+  orgToDistrictMap: Map<string, string>,
+  orgIdToNameMap: Map<string, string>,
+) {
+  const regionGroups = new Map<
+    string,
+    {
+      critical: number;
+      open: number;
+      resolved: number;
+      total: number;
+      districtGroups: Map<
+        string,
+        {
+          critical: number;
+          open: number;
+          resolved: number;
+          total: number;
+          facilityGroups: Map<
+            string,
+            {
+              levelOfCare: string;
+              critical: number;
+              open: number;
+              resolved: number;
+              total: number;
+            }
+          >;
+        }
+      >;
+    }
+  >();
+
+  let totalCritical = 0;
+  let totalOpen = 0;
+  let totalResolved = 0;
+  let totalAll = 0;
+
+  for (const issue of issues) {
+    // 1. Resolve Region
+    let regionName = safeString(issue.region);
+    if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
+      regionName = orgIdToNameMap.get(safeLower(regionName))!;
+    }
+    if (!regionName && issue.org_unit) {
+      regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
+    }
+    if (!regionName && issue.district) {
+      regionName = orgToRegionMap.get(safeLower(issue.district)) || "";
+    }
+    if (!regionName) {
+      regionName = "Unspecified";
+    }
+
+    // 2. Resolve District
+    let districtName = safeString(issue.district);
+    if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
+      districtName = orgIdToNameMap.get(safeLower(districtName))!;
+    }
+    if (!districtName && issue.org_unit) {
+      districtName =
+        orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
+    }
+    if (!districtName) {
+      districtName = "Unspecified";
+    }
+
+    // 3. Resolve Facility
+    let facilityName = safeString(issue.org_unit);
+    if (!facilityName) {
+      facilityName = "Unspecified Facility";
+    } else {
+      const mappedName = orgIdToNameMap.get(safeLower(facilityName));
+      if (mappedName) {
+        facilityName = mappedName;
+      }
+    }
+
+    // 4. Resolve Status & Critical (Open)
+    const resolved = isIssueResolved(issue.status);
+    const isCriticalOpen = !resolved && isCriticalIssue(issue);
+
+    // Init Region group if absent
+    if (!regionGroups.has(regionName)) {
+      regionGroups.set(regionName, {
+        critical: 0,
+        open: 0,
+        resolved: 0,
+        total: 0,
+        districtGroups: new Map(),
+      });
+    }
+
+    const rGroup = regionGroups.get(regionName)!;
+    rGroup.total += 1;
+    totalAll += 1;
+
+    if (resolved) {
+      rGroup.resolved += 1;
+      totalResolved += 1;
+    } else {
+      rGroup.open += 1;
+      totalOpen += 1;
+    }
+
+    if (isCriticalOpen) {
+      rGroup.critical += 1;
+      totalCritical += 1;
+    }
+
+    // District aggregation inside Region
+    if (!rGroup.districtGroups.has(districtName)) {
+      rGroup.districtGroups.set(districtName, {
+        critical: 0,
+        open: 0,
+        resolved: 0,
+        total: 0,
+        facilityGroups: new Map(),
+      });
+    }
+
+    const dGroup = rGroup.districtGroups.get(districtName)!;
+    dGroup.total += 1;
+    if (resolved) {
+      dGroup.resolved += 1;
+    } else {
+      dGroup.open += 1;
+    }
+    if (isCriticalOpen) {
+      dGroup.critical += 1;
+    }
+
+    // Facility aggregation inside District
+    const levelOfCare = resolveLevelOfCare(issue.level_of_care, facilityName);
+    if (!dGroup.facilityGroups.has(facilityName)) {
+      dGroup.facilityGroups.set(facilityName, {
+        levelOfCare,
+        critical: 0,
+        open: 0,
+        resolved: 0,
+        total: 0,
+      });
+    }
+
+    const fGroup = dGroup.facilityGroups.get(facilityName)!;
+    if (
+      fGroup.levelOfCare === "Other / Unspecified" &&
+      levelOfCare !== "Other / Unspecified"
+    ) {
+      fGroup.levelOfCare = levelOfCare;
+    }
+    fGroup.total += 1;
+    if (resolved) {
+      fGroup.resolved += 1;
+    } else {
+      fGroup.open += 1;
+    }
+    if (isCriticalOpen) {
+      fGroup.critical += 1;
+    }
+  }
+
+  // Build rows list
+  const rows: RegionSummaryRow[] = [];
+  regionGroups.forEach((val, region) => {
+    const districtsList: DistrictSummary[] = [];
+    val.districtGroups.forEach((dVal, dName) => {
+      const facilitiesList: FacilitySummary[] = [];
+      dVal.facilityGroups.forEach((fVal, fName) => {
+        facilitiesList.push({
+          facility: fName,
+          levelOfCare: fVal.levelOfCare,
+          critical: fVal.critical,
+          open: fVal.open,
+          resolved: fVal.resolved,
+          total: fVal.total,
+        });
+      });
+
+      // Sort facilities by total descending, then critical descending
+      facilitiesList.sort((a, b) => b.total - a.total || b.critical - a.critical);
+
+      districtsList.push({
+        district: dName,
+        critical: dVal.critical,
+        open: dVal.open,
+        resolved: dVal.resolved,
+        total: dVal.total,
+        facilities: facilitiesList,
+      });
+    });
+
+    // Sort districts by total descending
+    districtsList.sort((a, b) => b.total - a.total);
+
+    const percentage = totalAll > 0 ? (val.total / totalAll) * 100 : 0;
+
+    rows.push({
+      id: `region-${region}`,
+      region,
+      critical: val.critical,
+      open: val.open,
+      resolved: val.resolved,
+      total: val.total,
+      percentage,
+      districts: districtsList,
+    });
+  });
+
+  return {
+    regionalSummary: rows,
+    grandTotals: {
+      critical: totalCritical,
+      open: totalOpen,
+      resolved: totalResolved,
+      total: totalAll,
+      activeRegionsCount: regionGroups.size,
+    },
+  };
+}
+
 const IssueDashboard = () => {
   const navigate = useNavigate();
   const currentYear = new Date().getFullYear();
@@ -159,8 +464,20 @@ const IssueDashboard = () => {
   } = useGetIssuesQuery({
     limit: 10000,
     offset: 0,
-    program: selectedProgram,
   });
+
+  const {
+    data: programIssuesData,
+    isFetching: isFetchingProgramIssues,
+    refetch: refetchProgramIssues,
+  } = useGetIssuesQuery(
+    {
+      limit: 10000,
+      offset: 0,
+      program: selectedProgram,
+    },
+    { skip: !selectedProgram },
+  );
 
   const { data: summaryPrograms = [] } = useGetIssuesSummaryByProgramQuery();
   const { data: datasets = [] } = useGetDataSetsQuery();
@@ -170,10 +487,11 @@ const IssueDashboard = () => {
    * Filters State
    * ------------------------------------------------------------- */
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
+  const [isYearFilterApplied, setIsYearFilterApplied] = useState<boolean>(false);
   const [selectedPeriodType, setSelectedPeriodType] = useState<string>("Monthly");
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
   const [availablePeriods, setAvailablePeriods] = useState<PeriodOption[]>(
-    getAvailablePeriods("Monthly", currentYear.toString()),
+    fetchAvailablePeriods("Monthly", currentYear.toString()),
   );
   const [isPeriodPopoverOpen, setIsPeriodPopoverOpen] = useState<boolean>(false);
   const periodPopoverRef = useRef<HTMLDivElement>(null);
@@ -251,6 +569,7 @@ const IssueDashboard = () => {
 
   const hasActiveFilters =
     selectedYear !== currentYear ||
+    isYearFilterApplied ||
     selectedPeriodType !== "Monthly" ||
     Boolean(selectedPeriod) ||
     Boolean(selectedDataset) ||
@@ -373,14 +692,40 @@ const IssueDashboard = () => {
   }, [hierarchyData]);
 
   /* -------------------------------------------------------------
-   * Filtered Issues list
+   * Page-Level Issues & Aggregation (Unfiltered by Table Filters)
    * ------------------------------------------------------------- */
   const rawIssues: Issue[] = useMemo(() => {
     return issuesData?.items ?? [];
   }, [issuesData]);
 
+  const {
+    regionalSummary: pageRegionalSummary,
+    grandTotals: pageGrandTotals,
+  } = useMemo(
+    () =>
+      aggregateIssuesByRegion(
+        rawIssues,
+        orgToRegionMap,
+        orgToDistrictMap,
+        orgIdToNameMap,
+      ),
+    [rawIssues, orgToRegionMap, orgToDistrictMap, orgIdToNameMap],
+  );
+
+  /* -------------------------------------------------------------
+   * Table-Level Filtered Issues & Aggregation
+   * ------------------------------------------------------------- */
+  const tableBaseIssues: Issue[] = useMemo(() => {
+    if (selectedProgram) {
+      return programIssuesData?.items ?? [];
+    }
+    return rawIssues;
+  }, [selectedProgram, programIssuesData, rawIssues]);
+
   const filteredIssues = useMemo(() => {
-    return rawIssues.filter((issue) => {
+    const isYearActive = isYearFilterApplied || selectedYear !== currentYear;
+
+    return tableBaseIssues.filter((issue) => {
       // Dataset filter
       if (selectedDataset) {
         if (safeLower(issue.dataset) !== safeLower(selectedDataset)) {
@@ -389,242 +734,38 @@ const IssueDashboard = () => {
       }
 
       // Period filter
-      if (selectedPeriod) {
-        const targetPeriod = safeLower(selectedPeriod);
-        const p1 = safeLower(issue.time_period);
-        const p2 = safeLower(issue.time_Period);
-        if (p1 !== targetPeriod && p2 !== targetPeriod) {
-          return false;
-        }
-      } else if (selectedYear && selectedYear !== currentYear) {
-        const yearStr = String(selectedYear);
-        const p1 = safeString(issue.time_period);
-        const p2 = safeString(issue.time_Period);
-        if (!p1.includes(yearStr) && !p2.includes(yearStr)) {
-          return false;
-        }
+      if (
+        !doesIssueMatchReportingPeriod(
+          issue,
+          selectedPeriod,
+          selectedYear,
+          isYearActive,
+        )
+      ) {
+        return false;
       }
 
       return true;
     });
-  }, [rawIssues, selectedDataset, selectedPeriod, selectedYear, currentYear]);
+  }, [
+    tableBaseIssues,
+    selectedDataset,
+    selectedPeriod,
+    selectedYear,
+    currentYear,
+    isYearFilterApplied,
+  ]);
 
-  /* -------------------------------------------------------------
-   * Group and Aggregate by Region & Status
-   * ------------------------------------------------------------- */
-  const { regionalSummary, grandTotals } = useMemo(() => {
-    const regionGroups = new Map<
-      string,
-      {
-        critical: number;
-        open: number;
-        resolved: number;
-        total: number;
-        districtGroups: Map<
-          string,
-          {
-            critical: number;
-            open: number;
-            resolved: number;
-            total: number;
-            facilityGroups: Map<
-              string,
-              {
-                levelOfCare: string;
-                critical: number;
-                open: number;
-                resolved: number;
-                total: number;
-              }
-            >;
-          }
-        >;
-      }
-    >();
-
-    let totalCritical = 0;
-    let totalOpen = 0;
-    let totalResolved = 0;
-    let totalAll = 0;
-
-    for (const issue of filteredIssues) {
-      // 1. Resolve Region
-      let regionName = safeString(issue.region);
-      if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
-        regionName = orgIdToNameMap.get(safeLower(regionName))!;
-      }
-      if (!regionName && issue.org_unit) {
-        regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
-      }
-      if (!regionName && issue.district) {
-        regionName = orgToRegionMap.get(safeLower(issue.district)) || "";
-      }
-      if (!regionName) {
-        regionName = "Unspecified";
-      }
-
-      // 2. Resolve District
-      let districtName = safeString(issue.district);
-      if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
-        districtName = orgIdToNameMap.get(safeLower(districtName))!;
-      }
-      if (!districtName && issue.org_unit) {
-        districtName = orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
-      }
-      if (!districtName) {
-        districtName = "Unspecified";
-      }
-
-      // 3. Resolve Facility
-      let facilityName = safeString(issue.org_unit);
-      if (!facilityName) {
-        facilityName = "Unspecified Facility";
-      } else {
-        const mappedName = orgIdToNameMap.get(safeLower(facilityName));
-        if (mappedName) {
-          facilityName = mappedName;
-        }
-      }
-
-      // 4. Resolve Status & Critical (Open)
-      const resolved = isIssueResolved(issue.status);
-      const isCriticalOpen = !resolved && isCriticalIssue(issue);
-
-      // Init Region group if absent
-      if (!regionGroups.has(regionName)) {
-        regionGroups.set(regionName, {
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-          districtGroups: new Map(),
-        });
-      }
-
-      const rGroup = regionGroups.get(regionName)!;
-      rGroup.total += 1;
-      totalAll += 1;
-
-      if (resolved) {
-        rGroup.resolved += 1;
-        totalResolved += 1;
-      } else {
-        rGroup.open += 1;
-        totalOpen += 1;
-      }
-
-      if (isCriticalOpen) {
-        rGroup.critical += 1;
-        totalCritical += 1;
-      }
-
-      // District aggregation inside Region
-      if (!rGroup.districtGroups.has(districtName)) {
-        rGroup.districtGroups.set(districtName, {
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-          facilityGroups: new Map(),
-        });
-      }
-
-      const dGroup = rGroup.districtGroups.get(districtName)!;
-      dGroup.total += 1;
-      if (resolved) {
-        dGroup.resolved += 1;
-      } else {
-        dGroup.open += 1;
-      }
-      if (isCriticalOpen) {
-        dGroup.critical += 1;
-      }
-
-      // Facility aggregation inside District
-      const levelOfCare = resolveLevelOfCare(issue.level_of_care, facilityName);
-      if (!dGroup.facilityGroups.has(facilityName)) {
-        dGroup.facilityGroups.set(facilityName, {
-          levelOfCare,
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-        });
-      }
-
-      const fGroup = dGroup.facilityGroups.get(facilityName)!;
-      if (fGroup.levelOfCare === "Other / Unspecified" && levelOfCare !== "Other / Unspecified") {
-        fGroup.levelOfCare = levelOfCare;
-      }
-      fGroup.total += 1;
-      if (resolved) {
-        fGroup.resolved += 1;
-      } else {
-        fGroup.open += 1;
-      }
-      if (isCriticalOpen) {
-        fGroup.critical += 1;
-      }
-    }
-
-    // Build rows list
-    const rows: RegionSummaryRow[] = [];
-    regionGroups.forEach((val, region) => {
-      const districtsList: DistrictSummary[] = [];
-      val.districtGroups.forEach((dVal, dName) => {
-        const facilitiesList: FacilitySummary[] = [];
-        dVal.facilityGroups.forEach((fVal, fName) => {
-          facilitiesList.push({
-            facility: fName,
-            levelOfCare: fVal.levelOfCare,
-            critical: fVal.critical,
-            open: fVal.open,
-            resolved: fVal.resolved,
-            total: fVal.total,
-          });
-        });
-
-        // Sort facilities by total descending, then critical descending
-        facilitiesList.sort((a, b) => b.total - a.total || b.critical - a.critical);
-
-        districtsList.push({
-          district: dName,
-          critical: dVal.critical,
-          open: dVal.open,
-          resolved: dVal.resolved,
-          total: dVal.total,
-          facilities: facilitiesList,
-        });
-      });
-
-      // Sort districts by total descending
-      districtsList.sort((a, b) => b.total - a.total);
-
-      const percentage = totalAll > 0 ? (val.total / totalAll) * 100 : 0;
-
-      rows.push({
-        id: `region-${region}`,
-        region,
-        critical: val.critical,
-        open: val.open,
-        resolved: val.resolved,
-        total: val.total,
-        percentage,
-        districts: districtsList,
-      });
-    });
-
-    return {
-      regionalSummary: rows,
-      grandTotals: {
-        critical: totalCritical,
-        open: totalOpen,
-        resolved: totalResolved,
-        total: totalAll,
-        activeRegionsCount: regionGroups.size,
-      },
-    };
-  }, [filteredIssues, orgToRegionMap, orgToDistrictMap, orgIdToNameMap]);
+  const { regionalSummary, grandTotals: filteredGrandTotals } = useMemo(
+    () =>
+      aggregateIssuesByRegion(
+        filteredIssues,
+        orgToRegionMap,
+        orgToDistrictMap,
+        orgIdToNameMap,
+      ),
+    [filteredIssues, orgToRegionMap, orgToDistrictMap, orgIdToNameMap],
+  );
 
   /* -------------------------------------------------------------
    * Table Columns Definition
@@ -642,7 +783,7 @@ const IssueDashboard = () => {
   );
 
   /* -------------------------------------------------------------
-   * Sorted & Filtered Rows for Display
+   * Sorted & Filtered Rows for Table Display
    * ------------------------------------------------------------- */
   const displayedRows = useMemo(() => {
     let result = [...regionalSummary];
@@ -686,18 +827,40 @@ const IssueDashboard = () => {
     return result;
   }, [regionalSummary, regionSearchTerm, sortHeader, sortDirection]);
 
+  const tableGrandTotals = useMemo(() => {
+    if (!regionSearchTerm.trim()) {
+      return filteredGrandTotals;
+    }
+    return displayedRows.reduce(
+      (acc, row) => ({
+        critical: acc.critical + row.critical,
+        open: acc.open + row.open,
+        resolved: acc.resolved + row.resolved,
+        total: acc.total + row.total,
+        activeRegionsCount: displayedRows.length,
+      }),
+      {
+        critical: 0,
+        open: 0,
+        resolved: 0,
+        total: 0,
+        activeRegionsCount: 0,
+      },
+    );
+  }, [regionSearchTerm, filteredGrandTotals, displayedRows]);
+
   /* -------------------------------------------------------------
-   * Column Charts Data & Options (By Region & By District)
+   * Column Charts Data & Options (Page-Level, Independent of Table Filters)
    * ------------------------------------------------------------- */
   const defaultRegionLabel = useMemo(() => {
-    const match = regionalSummary.find((r) =>
+    const match = pageRegionalSummary.find((r) =>
       safeLower(r.region).includes("south buganda"),
     );
     return match ? match.region : DEFAULT_CHART_REGION;
-  }, [regionalSummary]);
+  }, [pageRegionalSummary]);
 
   const chartRegionOptions = useMemo(() => {
-    const names = regionalSummary.map((r) => r.region);
+    const names = pageRegionalSummary.map((r) => r.region);
     const hasDefaultRegion = names.some(
       (name) => safeLower(name) === safeLower(defaultRegionLabel),
     );
@@ -706,7 +869,7 @@ const IssueDashboard = () => {
       ...(hasDefaultRegion ? [] : [defaultRegionLabel]),
       ...names,
     ];
-  }, [regionalSummary, defaultRegionLabel]);
+  }, [pageRegionalSummary, defaultRegionLabel]);
 
   const activeChartRegion = useMemo(() => {
     const exactMatch = chartRegionOptions.find(
@@ -735,7 +898,7 @@ const IssueDashboard = () => {
   );
 
   const regionChartData = useMemo(() => {
-    const sortedRegions = [...displayedRows].sort((a, b) => b.total - a.total);
+    const sortedRegions = [...pageRegionalSummary].sort((a, b) => b.total - a.total);
     if (chartViewMode === "status") {
       return sortedRegions.flatMap((r) => [
         { group: "Critical Issues", key: r.region, value: r.critical },
@@ -748,16 +911,15 @@ const IssueDashboard = () => {
       key: r.region,
       value: r.total,
     }));
-  }, [displayedRows, chartViewMode]);
+  }, [pageRegionalSummary, chartViewMode]);
 
   const districtChartData = useMemo(() => {
     const districtMap = new Map<
       string,
       { district: string; critical: number; open: number; resolved: number; total: number }
     >();
-    const searchTerm = safeLower(regionSearchTerm);
 
-    for (const regionRow of displayedRows) {
+    for (const regionRow of pageRegionalSummary) {
       if (
         activeChartRegion !== "All Regions" &&
         safeLower(regionRow.region) !== safeLower(activeChartRegion) &&
@@ -769,17 +931,7 @@ const IssueDashboard = () => {
         continue;
       }
 
-      const regionMatchesSearch =
-        !searchTerm || safeLower(regionRow.region).includes(searchTerm);
-
       for (const d of regionRow.districts) {
-        if (searchTerm && !regionMatchesSearch) {
-          const districtMatches =
-            safeLower(d.district).includes(searchTerm) ||
-            d.facilities.some((f) => safeLower(f.facility).includes(searchTerm));
-          if (!districtMatches) continue;
-        }
-
         const existing = districtMap.get(d.district);
         if (existing) {
           existing.critical += d.critical;
@@ -815,7 +967,7 @@ const IssueDashboard = () => {
       key: d.district,
       value: d.total,
     }));
-  }, [displayedRows, activeChartRegion, regionSearchTerm, chartViewMode]);
+  }, [pageRegionalSummary, activeChartRegion, chartViewMode]);
 
   const regionChartOptions = useMemo(
     () => ({
@@ -889,18 +1041,17 @@ const IssueDashboard = () => {
       string,
       { levelOfCare: string; critical: number; open: number; resolved: number; total: number }
     >();
-    const searchTerm = safeLower(regionSearchTerm);
 
     const hasActiveRegionInRows =
       activeChartRegion === "All Regions" ||
-      displayedRows.some(
+      pageRegionalSummary.some(
         (r) =>
           safeLower(r.region) === safeLower(activeChartRegion) ||
           (safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
             safeLower(r.region).includes("south buganda")),
       );
 
-    for (const regionRow of displayedRows) {
+    for (const regionRow of pageRegionalSummary) {
       if (
         hasActiveRegionInRows &&
         activeChartRegion !== "All Regions" &&
@@ -913,22 +1064,8 @@ const IssueDashboard = () => {
         continue;
       }
 
-      const regionMatchesSearch =
-        !searchTerm || safeLower(regionRow.region).includes(searchTerm);
-
       for (const d of regionRow.districts) {
-        const districtMatchesSearch =
-          regionMatchesSearch || safeLower(d.district).includes(searchTerm);
-
         for (const f of d.facilities) {
-          if (
-            searchTerm &&
-            !districtMatchesSearch &&
-            !safeLower(f.facility).includes(searchTerm)
-          ) {
-            continue;
-          }
-
           const careLevel = f.levelOfCare || "Other / Unspecified";
           const existing = careMap.get(careLevel);
           if (existing) {
@@ -957,7 +1094,7 @@ const IssueDashboard = () => {
       group: c.levelOfCare,
       value: c.total,
     }));
-  }, [displayedRows, activeChartRegion, regionSearchTerm]);
+  }, [pageRegionalSummary, activeChartRegion]);
 
   const levelOfCareChartOptions = useMemo(
     () => ({
@@ -994,7 +1131,8 @@ const IssueDashboard = () => {
   const handleYearChange = ({ selectedItem }: SelectEvent<number>) => {
     if (selectedItem == null) return;
     setSelectedYear(selectedItem);
-    setAvailablePeriods(getAvailablePeriods(selectedPeriodType, selectedItem.toString()));
+    setIsYearFilterApplied(true);
+    setAvailablePeriods(fetchAvailablePeriods(selectedPeriodType, selectedItem.toString()));
     setSelectedPeriod("");
   };
 
@@ -1003,7 +1141,7 @@ const IssueDashboard = () => {
   }: SelectEvent<{ label: string; value: string }>) => {
     if (!selectedItem) return;
     setSelectedPeriodType(selectedItem.value);
-    setAvailablePeriods(getAvailablePeriods(selectedItem.value, selectedYear.toString()));
+    setAvailablePeriods(fetchAvailablePeriods(selectedItem.value, selectedYear.toString()));
     setSelectedPeriod("");
   };
 
@@ -1013,13 +1151,13 @@ const IssueDashboard = () => {
 
   const handleResetFilters = () => {
     setSelectedYear(currentYear);
+    setIsYearFilterApplied(false);
     setSelectedPeriodType("Monthly");
     setSelectedPeriod("");
-    setAvailablePeriods(getAvailablePeriods("Monthly", currentYear.toString()));
+    setAvailablePeriods(fetchAvailablePeriods("Monthly", currentYear.toString()));
     setSelectedDataset("");
     setSelectedProgram(undefined);
     setRegionSearchTerm("");
-    setSelectedChartRegion(DEFAULT_CHART_REGION);
     setIsPeriodPopoverOpen(false);
   };
 
@@ -1036,7 +1174,7 @@ const IssueDashboard = () => {
       "Share (%)",
     ];
 
-    const dataRows = regionalSummary.map((row) => [
+    const dataRows = displayedRows.map((row) => [
       row.region,
       row.critical,
       row.open,
@@ -1048,10 +1186,10 @@ const IssueDashboard = () => {
     // Grand total row
     const totalRow = [
       "TOTAL",
-      grandTotals.critical,
-      grandTotals.open,
-      grandTotals.resolved,
-      grandTotals.total,
+      tableGrandTotals.critical,
+      tableGrandTotals.open,
+      tableGrandTotals.resolved,
+      tableGrandTotals.total,
       "100%",
     ];
 
@@ -1075,7 +1213,7 @@ const IssueDashboard = () => {
     ];
 
     const districtDataRows: (string | number)[][] = [];
-    for (const r of regionalSummary) {
+    for (const r of displayedRows) {
       for (const d of r.districts) {
         districtDataRows.push([
           r.region,
@@ -1108,7 +1246,7 @@ const IssueDashboard = () => {
     ];
 
     const facilityDataRows: (string | number)[][] = [];
-    for (const r of regionalSummary) {
+    for (const r of displayedRows) {
       for (const d of r.districts) {
         for (const f of d.facilities) {
           facilityDataRows.push([
@@ -1143,11 +1281,20 @@ const IssueDashboard = () => {
     }
   };
 
-  /* Resolution rate */
+  const handleRefreshAll = () => {
+    refetchIssues();
+    if (selectedProgram) {
+      refetchProgramIssues();
+    }
+  };
+
+  /* Page-level resolution rate & table loading state */
   const resolutionRate =
-    grandTotals.total > 0
-      ? Math.round((grandTotals.resolved / grandTotals.total) * 100)
+    pageGrandTotals.total > 0
+      ? Math.round((pageGrandTotals.resolved / pageGrandTotals.total) * 100)
       : 0;
+  const isTableLoading =
+    isLoadingIssues || (Boolean(selectedProgram) && isFetchingProgramIssues);
 
   return (
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
@@ -1167,7 +1314,7 @@ const IssueDashboard = () => {
               size="md"
               kind="ghost"
               renderIcon={Renew}
-              onClick={() => refetchIssues()}
+              onClick={handleRefreshAll}
               disabled={isLoadingIssues}
             >
               Refresh
@@ -1178,7 +1325,7 @@ const IssueDashboard = () => {
               kind="secondary"
               renderIcon={Download}
               onClick={handleExportExcel}
-              disabled={regionalSummary.length === 0 || isLoadingIssues}
+              disabled={displayedRows.length === 0 || isTableLoading}
             >
               Export Summary (.xlsx)
             </Button>
@@ -1200,9 +1347,9 @@ const IssueDashboard = () => {
             <div className="kpi-header">
               <span className="kpi-label">Total Issues</span>
             </div>
-            <div className="kpi-value">{isLoadingIssues ? "..." : grandTotals.total}</div>
+            <div className="kpi-value">{isLoadingIssues ? "..." : pageGrandTotals.total}</div>
             <p className="kpi-subtext">
-              Across <strong>{grandTotals.activeRegionsCount}</strong> affected regions
+              Across <strong>{pageGrandTotals.activeRegionsCount}</strong> affected regions
             </p>
           </div>
 
@@ -1212,12 +1359,12 @@ const IssueDashboard = () => {
               <span className="kpi-badge kpi-badge--critical">Critical</span>
             </div>
             <div className="kpi-value" style={{ color: "#a2191f" }}>
-              {isLoadingIssues ? "..." : grandTotals.critical}
+              {isLoadingIssues ? "..." : pageGrandTotals.critical}
             </div>
             <p className="kpi-subtext">
               <strong>
-                {grandTotals.open > 0
-                  ? `${((grandTotals.critical / grandTotals.open) * 100).toFixed(1)}%`
+                {pageGrandTotals.open > 0
+                  ? `${((pageGrandTotals.critical / pageGrandTotals.open) * 100).toFixed(1)}%`
                   : "0%"}
               </strong>{" "}
               of open issues
@@ -1230,12 +1377,12 @@ const IssueDashboard = () => {
               <span className="kpi-badge kpi-badge--open">Open</span>
             </div>
             <div className="kpi-value" style={{ color: "#da1e28" }}>
-              {isLoadingIssues ? "..." : grandTotals.open}
+              {isLoadingIssues ? "..." : pageGrandTotals.open}
             </div>
             <p className="kpi-subtext">
               <strong>
-                {grandTotals.total > 0
-                  ? `${((grandTotals.open / grandTotals.total) * 100).toFixed(1)}%`
+                {pageGrandTotals.total > 0
+                  ? `${((pageGrandTotals.open / pageGrandTotals.total) * 100).toFixed(1)}%`
                   : "0%"}
               </strong>{" "}
               of total issues
@@ -1248,12 +1395,12 @@ const IssueDashboard = () => {
               <span className="kpi-badge kpi-badge--resolved">Resolved</span>
             </div>
             <div className="kpi-value" style={{ color: "#198038" }}>
-              {isLoadingIssues ? "..." : grandTotals.resolved}
+              {isLoadingIssues ? "..." : pageGrandTotals.resolved}
             </div>
             <p className="kpi-subtext">
               <strong>
-                {grandTotals.total > 0
-                  ? `${((grandTotals.resolved / grandTotals.total) * 100).toFixed(1)}%`
+                {pageGrandTotals.total > 0
+                  ? `${((pageGrandTotals.resolved / pageGrandTotals.total) * 100).toFixed(1)}%`
                   : "0%"}
               </strong>{" "}
               of total issues
@@ -1271,13 +1418,13 @@ const IssueDashboard = () => {
               {isLoadingIssues ? "..." : `${resolutionRate}%`}
             </div>
             <p className="kpi-subtext">
-              Resolved vs <strong>{grandTotals.open}</strong> open issues
+              Resolved vs <strong>{pageGrandTotals.open}</strong> open issues
             </p>
           </div>
         </div>
 
         {/* ================= Column Charts Section ================= */}
-        {!isLoadingIssues && !issuesError && displayedRows.length > 0 && (
+        {!isLoadingIssues && !issuesError && pageRegionalSummary.length > 0 && (
           <div className="dashboard-charts-section">
             <div className="dashboard-charts-header">
               <div>
@@ -1362,7 +1509,7 @@ const IssueDashboard = () => {
               >
                 {selectedPeriod
                   ? `Period: ${selectedPeriod}`
-                  : selectedYear !== currentYear
+                  : isYearFilterApplied || selectedYear !== currentYear
                   ? `Year: ${selectedYear}`
                   : "Reporting Period"}
               </Button>
@@ -1392,12 +1539,19 @@ const IssueDashboard = () => {
                   <ComboBox
                     id="dashboard-filter-period"
                     titleText="Period"
-                    placeholder="Select period"
+                    placeholder="Search or select period..."
                     items={availablePeriods}
                     selectedItem={
                       availablePeriods.find((item) => item.label === selectedPeriod) ?? null
                     }
                     itemToString={(item) => item?.label ?? ""}
+                    shouldFilterItem={({ item, inputValue }) => {
+                      if (!inputValue) return true;
+                      const query = inputValue.toLowerCase().trim();
+                      const label = (item?.label ?? "").toLowerCase();
+                      const id = (item?.id ?? "").toLowerCase();
+                      return label.includes(query) || id.includes(query);
+                    }}
                     onChange={handlePeriodChange}
                   />
 
@@ -1407,12 +1561,25 @@ const IssueDashboard = () => {
                       kind="ghost"
                       onClick={() => {
                         setSelectedPeriod("");
+                        setIsYearFilterApplied(false);
+                        setSelectedYear(currentYear);
+                        setAvailablePeriods(
+                          fetchAvailablePeriods(selectedPeriodType, currentYear.toString()),
+                        );
                         setIsPeriodPopoverOpen(false);
                       }}
                     >
                       Clear
                     </Button>
-                    <Button size="sm" onClick={() => setIsPeriodPopoverOpen(false)}>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!selectedPeriod) {
+                          setIsYearFilterApplied(true);
+                        }
+                        setIsPeriodPopoverOpen(false);
+                      }}
+                    >
                       Apply
                     </Button>
                   </div>
@@ -1430,6 +1597,12 @@ const IssueDashboard = () => {
               placeholder="Filter by Dataset"
               items={datasetNames}
               selectedItem={selectedDataset || null}
+              shouldFilterItem={({ item, inputValue }) =>
+                !inputValue ||
+                String(item ?? "")
+                  .toLowerCase()
+                  .includes(inputValue.toLowerCase().trim())
+              }
               onChange={({ selectedItem }: SelectEvent<string>) =>
                 setSelectedDataset(selectedItem ?? "")
               }
@@ -1446,6 +1619,12 @@ const IssueDashboard = () => {
                 placeholder="Filter by Program"
                 items={programNames}
                 selectedItem={selectedProgram || null}
+                shouldFilterItem={({ item, inputValue }) =>
+                  !inputValue ||
+                  String(item ?? "")
+                    .toLowerCase()
+                    .includes(inputValue.toLowerCase().trim())
+                }
                 onChange={({ selectedItem }: SelectEvent<string>) =>
                   setSelectedProgram(selectedItem ?? undefined)
                 }
@@ -1469,7 +1648,9 @@ const IssueDashboard = () => {
               Active Filters:{" "}
               {[
                 selectedPeriod && `Period: ${selectedPeriod}`,
-                selectedYear !== currentYear && !selectedPeriod && `Year: ${selectedYear}`,
+                (isYearFilterApplied || selectedYear !== currentYear) &&
+                  !selectedPeriod &&
+                  `Year: ${selectedYear}`,
                 selectedDataset && `Dataset: ${selectedDataset}`,
                 selectedProgram && `Program: ${selectedProgram}`,
               ]
@@ -1494,7 +1675,7 @@ const IssueDashboard = () => {
         </div>
 
         {/* ================= Data Table Section ================= */}
-        {isLoadingIssues ? (
+        {isTableLoading ? (
           <div className="dashboard-loading-state">
             <InlineLoading status="active" description="Loading regional issue summaries..." />
           </div>
@@ -1502,7 +1683,7 @@ const IssueDashboard = () => {
           <div className="dashboard-empty-state">
             <h4>Failed to Load Issue Data</h4>
             <p>An error occurred while retrieving issue data from the server.</p>
-            <Button size="sm" kind="tertiary" onClick={() => refetchIssues()}>
+            <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
               Retry
             </Button>
           </div>
@@ -1890,28 +2071,28 @@ const IssueDashboard = () => {
                       <TableCell>
                         <span
                           className={`severity-pill ${
-                            grandTotals.critical > 0
+                            tableGrandTotals.critical > 0
                               ? "severity-pill--critical"
                               : "severity-pill--zero"
                           }`}
                         >
-                          <strong>{grandTotals.critical}</strong>
+                          <strong>{tableGrandTotals.critical}</strong>
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="stat-cell">
                           <span className="stat-dot stat-dot--open" />
-                          <strong>{grandTotals.open}</strong>
+                          <strong>{tableGrandTotals.open}</strong>
                         </span>
                       </TableCell>
                       <TableCell>
                         <span className="stat-cell">
                           <span className="stat-dot stat-dot--resolved" />
-                          <strong>{grandTotals.resolved}</strong>
+                          <strong>{tableGrandTotals.resolved}</strong>
                         </span>
                       </TableCell>
                       <TableCell>
-                        <span className="total-pill">{grandTotals.total}</span>
+                        <span className="total-pill">{tableGrandTotals.total}</span>
                       </TableCell>
                       <TableCell>
                         <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>
