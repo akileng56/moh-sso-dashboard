@@ -1560,6 +1560,9 @@ components:
         priority:
           nullable: true
           type: string
+        program:
+          nullable: true
+          type: string
         region:
           nullable: true
           type: string

@@ -106,6 +106,7 @@ func scanIssue(scanner interface {
 	var (
 		issueID      int64
 		issueCode    sql.NullString
+		program      sql.NullString
 		dataset      sql.NullString
 		dataElement  sql.NullString
 		region       sql.NullString
@@ -128,6 +129,7 @@ func scanIssue(scanner interface {
 	if err := scanner.Scan(
 		&issueID,
 		&issueCode,
+		&program,
 		&dataset,
 		&dataElement,
 		&region,
@@ -152,6 +154,7 @@ func scanIssue(scanner interface {
 	return issueResponse{
 		IssueID:      issueID,
 		IssueCode:    dqNullStringPtr(issueCode),
+		Program:      dqNullStringPtr(program),
 		Dataset:      dqNullStringPtr(dataset),
 		DataElement:  dqNullStringPtr(dataElement),
 		Region:       dqNullStringPtr(region),
