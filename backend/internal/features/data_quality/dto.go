@@ -3,6 +3,7 @@ package data_quality
 type issueResponse struct {
 	IssueID      int64   `json:"issue_id"`
 	IssueCode    *string `json:"issue_code,omitempty"`
+	Program      *string `json:"program,omitempty"`
 	Dataset      *string `json:"dataset,omitempty"`
 	DataElement  *string `json:"data_element,omitempty"`
 	Region       *string `json:"region,omitempty"`

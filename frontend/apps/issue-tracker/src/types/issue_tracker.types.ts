@@ -2,6 +2,7 @@ export type Issue = {
   id?: string;
   issue_id: number;
   issue_code: string;
+  program?: string;
   dataset: string;
   data_element: string;
   org_unit: string;

@@ -77,6 +77,7 @@ export type Issue = {
   id?: string;
   issue_id: number;
   issue_code: string;
+  program?: string;
   dataset: string;
   data_element: string;
   org_unit: string;
@@ -359,6 +360,7 @@ const IssueTracker = () => {
    * Excel export columns
    * ----------------------------- */
   const EXPORT_COLUMNS: { key: string; header: string }[] = [
+    { key: "program", header: "Program" },
     ...headers,
     { key: "region", header: "Region" },
     { key: "time_period", header: "Reporting Period" },
@@ -416,6 +418,16 @@ const IssueTracker = () => {
 
       const dataRows = issuesToDownload.map((issue) =>
         EXPORT_COLUMNS.map((col) => {
+          if (col.key === "program") {
+            const rawProgram = (issue as Record<string, unknown>)["program"];
+            if (typeof rawProgram === "string" && rawProgram.trim()) {
+              return rawProgram.trim();
+            }
+            if (selectedProgram !== undefined) {
+              return selectedProgram || "Unspecified";
+            }
+            return "Unspecified";
+          }
           if (col.key === "time_period") {
             return (issue as Record<string, unknown>)["time_period"] ??
               (issue as Record<string, unknown>)["time_Period"] ??
