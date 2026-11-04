@@ -770,186 +770,6 @@ const IssueDashboard = () => {
     currentYear,
     isYearFilterApplied,
   ]);
-  }, [rawIssues, selectedDataset, selectedPeriod, selectedYear, currentYear]);
-
-  /* -------------------------------------------------------------
-   * Group and Aggregate by Region & Status
-   * ------------------------------------------------------------- */
-  const { regionalSummary, grandTotals } = useMemo(() => {
-    const regionGroups = new Map<
-      string,
-      {
-        critical: number;
-        open: number;
-        resolved: number;
-        total: number;
-        districtGroups: Map<
-          string,
-          {
-            critical: number;
-            open: number;
-            resolved: number;
-            total: number;
-            facilityGroups: Map<
-              string,
-              {
-                levelOfCare: string;
-                critical: number;
-                open: number;
-                resolved: number;
-                total: number;
-              }
-            >;
-          }
-        >;
-      }
-    >();
-
-    let totalCritical = 0;
-    let totalOpen = 0;
-    let totalResolved = 0;
-    let totalAll = 0;
-
-    for (const issue of filteredIssues) {
-      // 1. Resolve Region
-      let regionName = safeString(issue.region);
-      if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
-        regionName = orgIdToNameMap.get(safeLower(regionName))!;
-      }
-      if (!regionName && issue.org_unit) {
-        regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
-      }
-      if (!regionName && issue.district) {
-        regionName = orgToRegionMap.get(safeLower(issue.district)) || "";
-      }
-      if (!regionName) {
-        regionName = "Unspecified";
-      }
-
-      // 2. Resolve District
-      let districtName = safeString(issue.district);
-      if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
-        districtName = orgIdToNameMap.get(safeLower(districtName))!;
-      }
-      if (!districtName && issue.org_unit) {
-        districtName =
-          orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
-      }
-      if (!districtName) {
-        districtName = "Unspecified";
-      }
-
-      // 3. Resolve Facility
-      let facilityName = safeString(issue.org_unit);
-      if (!facilityName) {
-        facilityName = "Unspecified Facility";
-      } else {
-        const mappedName = orgIdToNameMap.get(safeLower(facilityName));
-        if (mappedName) {
-          facilityName = mappedName;
-        }
-      }
-
-      // 4. Resolve Status & Critical (Open)
-      const resolved = isIssueResolved(issue.status);
-      const isCriticalOpen = !resolved && isCriticalIssue(issue);
-
-      // Init Region group if absent
-      if (!regionGroups.has(regionName)) {
-        regionGroups.set(regionName, {
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-          districtGroups: new Map(),
-        });
-      }
-
-      const rGroup = regionGroups.get(regionName)!;
-      rGroup.total += 1;
-      totalAll += 1;
-
-      if (resolved) {
-        rGroup.resolved += 1;
-        totalResolved += 1;
-      } else {
-        rGroup.open += 1;
-        totalOpen += 1;
-      }
-
-      if (isCriticalOpen) {
-        rGroup.critical += 1;
-        totalCritical += 1;
-      }
-
-      // District aggregation inside Region
-      if (!rGroup.districtGroups.has(districtName)) {
-        rGroup.districtGroups.set(districtName, {
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-          facilityGroups: new Map(),
-        });
-      }
-
-      const dGroup = rGroup.districtGroups.get(districtName)!;
-      dGroup.total += 1;
-      if (resolved) {
-        dGroup.resolved += 1;
-      } else {
-        dGroup.open += 1;
-      }
-      if (isCriticalOpen) {
-        dGroup.critical += 1;
-      }
-
-      // Facility aggregation inside District
-      const levelOfCare = resolveLevelOfCare(issue.level_of_care, facilityName);
-      if (!dGroup.facilityGroups.has(facilityName)) {
-        dGroup.facilityGroups.set(facilityName, {
-          levelOfCare,
-          critical: 0,
-          open: 0,
-          resolved: 0,
-          total: 0,
-        });
-      }
-
-      const fGroup = dGroup.facilityGroups.get(facilityName)!;
-      if (fGroup.levelOfCare === "Other / Unspecified" && levelOfCare !== "Other / Unspecified") {
-        fGroup.levelOfCare = levelOfCare;
-      }
-      fGroup.total += 1;
-      if (resolved) {
-        fGroup.resolved += 1;
-      } else {
-        fGroup.open += 1;
-      }
-      if (isCriticalOpen) {
-        fGroup.critical += 1;
-      }
-    }
-
-    // Build rows list
-    const rows: RegionSummaryRow[] = [];
-    regionGroups.forEach((val, region) => {
-      const districtsList: DistrictSummary[] = [];
-      val.districtGroups.forEach((dVal, dName) => {
-        const facilitiesList: FacilitySummary[] = [];
-        dVal.facilityGroups.forEach((fVal, fName) => {
-          facilitiesList.push({
-            facility: fName,
-            levelOfCare: fVal.levelOfCare,
-            critical: fVal.critical,
-            open: fVal.open,
-            resolved: fVal.resolved,
-            total: fVal.total,
-          });
-        });
-
-        // Sort facilities by total descending, then critical descending
-        facilitiesList.sort((a, b) => b.total - a.total || b.critical - a.critical);
 
   const { regionalSummary, grandTotals: filteredGrandTotals } = useMemo(
     () =>
@@ -1479,7 +1299,6 @@ const IssueDashboard = () => {
 
   /* Page-level resolution rate & table loading state */
   const resolutionRate =
-    grandTotals.total > 0 ? Math.round((grandTotals.resolved / grandTotals.total) * 100) : 0;
     pageGrandTotals.total > 0
       ? Math.round((pageGrandTotals.resolved / pageGrandTotals.total) * 100)
       : 0;
@@ -1691,9 +1510,6 @@ const IssueDashboard = () => {
                   : isYearFilterApplied || selectedYear !== currentYear
                   ? `Year: ${selectedYear}`
                   : "Reporting Period"}
-                  : selectedYear !== currentYear
-                    ? `Year: ${selectedYear}`
-                    : "Reporting Period"}
               </Button>
 
               <PopoverContent className="filter-popover-content">
