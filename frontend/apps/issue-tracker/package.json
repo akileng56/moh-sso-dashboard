@@ -47,6 +47,7 @@
     "@moh-sso/config": "^1.1.1",
     "@moh-sso/data-visualizer": "~1.1.1",
     "@moh-sso/microfrontend": "^1.1.1",
+    "@moh-sso/ui": "^1.1.1",
     "xlsx": "^0.18.5"
   },
   "peerDependencies": {
