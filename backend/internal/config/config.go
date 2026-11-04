@@ -11,6 +11,9 @@ import (
 )
 
 type Config struct {
+	PlatformAuthClientID     string `mapstructure:"PLATFORM_AUTH_CLIENT_ID"`
+	PlatformAuthClientSecret string `mapstructure:"PLATFORM_AUTH_CLIENT_SECRET"`
+	PlatformAuthAudience     string `mapstructure:"PLATFORM_AUTH_AUDIENCE"`
 	// ==================================================
 	// Global
 	// ==================================================
@@ -279,6 +282,9 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func setDefaults() {
+	viper.SetDefault("PLATFORM_AUTH_CLIENT_ID", "")
+	viper.SetDefault("PLATFORM_AUTH_CLIENT_SECRET", "")
+	viper.SetDefault("PLATFORM_AUTH_AUDIENCE", "moh-platform-api")
 	// ==================================================
 	// Global defaults
 	// ==================================================

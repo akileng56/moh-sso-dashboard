@@ -88,7 +88,7 @@ jobs:
           npm run audit:packages
 
       - name: Deployment verifier tests
-        run: node --test infra/scripts/verify-frontend-deployment.test.mjs
+        run: node --test infra/scripts/verify-frontend-deployment.test.mjs infra/scripts/select-deployment.test.cjs
 
   backend-quality:
     name: Backend Quality Gate
@@ -111,6 +111,9 @@ jobs:
       - name: Backend test
         working-directory: backend
         run: go test ./...
+
+      - name: Platform onboarding examples
+        run: python3 -m unittest discover -s examples/platform/python -p 'test_*.py' -v
 
       - name: Backend version consistency
         working-directory: backend

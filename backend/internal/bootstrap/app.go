@@ -168,6 +168,7 @@ func Run() {
 	})
 
 	startBackgroundWorkers(ctx, workerDependencies{
+		PrimaryDB:                      dbs.Primary,
 		Config:                         cfg,
 		ProcessRepository:              repos.Processes,
 		ImportService:                  services.Import,

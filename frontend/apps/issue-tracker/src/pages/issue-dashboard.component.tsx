@@ -24,7 +24,6 @@ import {
   Download,
   Filter,
   ArrowRight,
-  List,
   Renew,
 } from "@carbon/react/icons";
 import { GroupedBarChart, PieChart, SimpleBarChart } from "@carbon/charts-react";
@@ -598,14 +597,18 @@ const IssueDashboard = () => {
     const idToNameMap = new Map<string, string>();
 
     if (!hierarchyData) {
-      return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap, orgIdToNameMap: idToNameMap };
+      return {
+        orgToRegionMap: regionMap,
+        orgToDistrictMap: districtMap,
+        orgIdToNameMap: idToNameMap,
+      };
     }
 
     const rootList: any[] = Array.isArray(hierarchyData)
       ? hierarchyData
       : typeof hierarchyData === "object"
-      ? [hierarchyData]
-      : [];
+        ? [hierarchyData]
+        : [];
 
     function traverseTree(
       nodes: any[],
@@ -645,7 +648,11 @@ const IssueDashboard = () => {
               }
 
               // Children of region are Level 3 Districts
-              if (regionNode.children && Array.isArray(regionNode.children) && regionNode.children.length > 0) {
+              if (
+                regionNode.children &&
+                Array.isArray(regionNode.children) &&
+                regionNode.children.length > 0
+              ) {
                 for (const distNode of regionNode.children) {
                   if (!distNode || typeof distNode !== "object") continue;
 
@@ -662,7 +669,11 @@ const IssueDashboard = () => {
                     }
                   }
                   // Any facility or sub-county under district
-                  if (distNode.children && Array.isArray(distNode.children) && distNode.children.length > 0) {
+                  if (
+                    distNode.children &&
+                    Array.isArray(distNode.children) &&
+                    distNode.children.length > 0
+                  ) {
                     traverseTree(distNode.children, regName, distName);
                   }
                 }
@@ -688,7 +699,11 @@ const IssueDashboard = () => {
     }
 
     traverseTree(rootList, null, null);
-    return { orgToRegionMap: regionMap, orgToDistrictMap: districtMap, orgIdToNameMap: idToNameMap };
+    return {
+      orgToRegionMap: regionMap,
+      orgToDistrictMap: districtMap,
+      orgIdToNameMap: idToNameMap,
+    };
   }, [hierarchyData]);
 
   /* -------------------------------------------------------------
@@ -755,6 +770,186 @@ const IssueDashboard = () => {
     currentYear,
     isYearFilterApplied,
   ]);
+  }, [rawIssues, selectedDataset, selectedPeriod, selectedYear, currentYear]);
+
+  /* -------------------------------------------------------------
+   * Group and Aggregate by Region & Status
+   * ------------------------------------------------------------- */
+  const { regionalSummary, grandTotals } = useMemo(() => {
+    const regionGroups = new Map<
+      string,
+      {
+        critical: number;
+        open: number;
+        resolved: number;
+        total: number;
+        districtGroups: Map<
+          string,
+          {
+            critical: number;
+            open: number;
+            resolved: number;
+            total: number;
+            facilityGroups: Map<
+              string,
+              {
+                levelOfCare: string;
+                critical: number;
+                open: number;
+                resolved: number;
+                total: number;
+              }
+            >;
+          }
+        >;
+      }
+    >();
+
+    let totalCritical = 0;
+    let totalOpen = 0;
+    let totalResolved = 0;
+    let totalAll = 0;
+
+    for (const issue of filteredIssues) {
+      // 1. Resolve Region
+      let regionName = safeString(issue.region);
+      if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
+        regionName = orgIdToNameMap.get(safeLower(regionName))!;
+      }
+      if (!regionName && issue.org_unit) {
+        regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
+      }
+      if (!regionName && issue.district) {
+        regionName = orgToRegionMap.get(safeLower(issue.district)) || "";
+      }
+      if (!regionName) {
+        regionName = "Unspecified";
+      }
+
+      // 2. Resolve District
+      let districtName = safeString(issue.district);
+      if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
+        districtName = orgIdToNameMap.get(safeLower(districtName))!;
+      }
+      if (!districtName && issue.org_unit) {
+        districtName =
+          orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
+      }
+      if (!districtName) {
+        districtName = "Unspecified";
+      }
+
+      // 3. Resolve Facility
+      let facilityName = safeString(issue.org_unit);
+      if (!facilityName) {
+        facilityName = "Unspecified Facility";
+      } else {
+        const mappedName = orgIdToNameMap.get(safeLower(facilityName));
+        if (mappedName) {
+          facilityName = mappedName;
+        }
+      }
+
+      // 4. Resolve Status & Critical (Open)
+      const resolved = isIssueResolved(issue.status);
+      const isCriticalOpen = !resolved && isCriticalIssue(issue);
+
+      // Init Region group if absent
+      if (!regionGroups.has(regionName)) {
+        regionGroups.set(regionName, {
+          critical: 0,
+          open: 0,
+          resolved: 0,
+          total: 0,
+          districtGroups: new Map(),
+        });
+      }
+
+      const rGroup = regionGroups.get(regionName)!;
+      rGroup.total += 1;
+      totalAll += 1;
+
+      if (resolved) {
+        rGroup.resolved += 1;
+        totalResolved += 1;
+      } else {
+        rGroup.open += 1;
+        totalOpen += 1;
+      }
+
+      if (isCriticalOpen) {
+        rGroup.critical += 1;
+        totalCritical += 1;
+      }
+
+      // District aggregation inside Region
+      if (!rGroup.districtGroups.has(districtName)) {
+        rGroup.districtGroups.set(districtName, {
+          critical: 0,
+          open: 0,
+          resolved: 0,
+          total: 0,
+          facilityGroups: new Map(),
+        });
+      }
+
+      const dGroup = rGroup.districtGroups.get(districtName)!;
+      dGroup.total += 1;
+      if (resolved) {
+        dGroup.resolved += 1;
+      } else {
+        dGroup.open += 1;
+      }
+      if (isCriticalOpen) {
+        dGroup.critical += 1;
+      }
+
+      // Facility aggregation inside District
+      const levelOfCare = resolveLevelOfCare(issue.level_of_care, facilityName);
+      if (!dGroup.facilityGroups.has(facilityName)) {
+        dGroup.facilityGroups.set(facilityName, {
+          levelOfCare,
+          critical: 0,
+          open: 0,
+          resolved: 0,
+          total: 0,
+        });
+      }
+
+      const fGroup = dGroup.facilityGroups.get(facilityName)!;
+      if (fGroup.levelOfCare === "Other / Unspecified" && levelOfCare !== "Other / Unspecified") {
+        fGroup.levelOfCare = levelOfCare;
+      }
+      fGroup.total += 1;
+      if (resolved) {
+        fGroup.resolved += 1;
+      } else {
+        fGroup.open += 1;
+      }
+      if (isCriticalOpen) {
+        fGroup.critical += 1;
+      }
+    }
+
+    // Build rows list
+    const rows: RegionSummaryRow[] = [];
+    regionGroups.forEach((val, region) => {
+      const districtsList: DistrictSummary[] = [];
+      val.districtGroups.forEach((dVal, dName) => {
+        const facilitiesList: FacilitySummary[] = [];
+        dVal.facilityGroups.forEach((fVal, fName) => {
+          facilitiesList.push({
+            facility: fName,
+            levelOfCare: fVal.levelOfCare,
+            critical: fVal.critical,
+            open: fVal.open,
+            resolved: fVal.resolved,
+            total: fVal.total,
+          });
+        });
+
+        // Sort facilities by total descending, then critical descending
+        facilitiesList.sort((a, b) => b.total - a.total || b.critical - a.critical);
 
   const { regionalSummary, grandTotals: filteredGrandTotals } = useMemo(
     () =>
@@ -1227,10 +1422,7 @@ const IssueDashboard = () => {
       }
     }
 
-    const districtWorksheet = XLSX.utils.aoa_to_sheet([
-      districtHeaders,
-      ...districtDataRows,
-    ]);
+    const districtWorksheet = XLSX.utils.aoa_to_sheet([districtHeaders, ...districtDataRows]);
     districtWorksheet["!cols"] = districtHeaders.map(() => ({ wch: 22 }));
     XLSX.utils.book_append_sheet(workbook, districtWorksheet, "District Breakdown");
 
@@ -1262,10 +1454,7 @@ const IssueDashboard = () => {
       }
     }
 
-    const facilityWorksheet = XLSX.utils.aoa_to_sheet([
-      facilityHeaders,
-      ...facilityDataRows,
-    ]);
+    const facilityWorksheet = XLSX.utils.aoa_to_sheet([facilityHeaders, ...facilityDataRows]);
     facilityWorksheet["!cols"] = facilityHeaders.map(() => ({ wch: 24 }));
     XLSX.utils.book_append_sheet(workbook, facilityWorksheet, "Facility Breakdown");
 
@@ -1290,6 +1479,7 @@ const IssueDashboard = () => {
 
   /* Page-level resolution rate & table loading state */
   const resolutionRate =
+    grandTotals.total > 0 ? Math.round((grandTotals.resolved / grandTotals.total) * 100) : 0;
     pageGrandTotals.total > 0
       ? Math.round((pageGrandTotals.resolved / pageGrandTotals.total) * 100)
       : 0;
@@ -1302,16 +1492,16 @@ const IssueDashboard = () => {
         {/* ================= Header ================= */}
         <div className="dashboard-header">
           <div className="dashboard-header-text">
-            <h2 className="dashboard-title">Issue Summary Dashboard</h2>
+            <h4 className="dashboard-title">Issue Summary</h4>
             <p className="dashboard-subtitle">
-              Aggregated overview of reported data quality issues categorized by resolution status and
-              grouped by region.
+              Aggregated overview of reported data quality issues categorized by resolution status
+              and grouped by region.
             </p>
           </div>
 
           <div className="dashboard-actions">
             <Button
-              size="md"
+              size="sm"
               kind="ghost"
               renderIcon={Renew}
               onClick={handleRefreshAll}
@@ -1321,22 +1511,13 @@ const IssueDashboard = () => {
             </Button>
 
             <Button
-              size="md"
+              size="sm"
               kind="secondary"
               renderIcon={Download}
               onClick={handleExportExcel}
               disabled={displayedRows.length === 0 || isTableLoading}
             >
               Export Summary (.xlsx)
-            </Button>
-
-            <Button
-              size="md"
-              kind="primary"
-              renderIcon={List}
-              onClick={() => handleNavigateToIssues()}
-            >
-              View Registered Issues
             </Button>
           </div>
         </div>
@@ -1410,9 +1591,7 @@ const IssueDashboard = () => {
           <div className="kpi-card kpi-card--rate">
             <div className="kpi-header">
               <span className="kpi-label">Resolution Rate</span>
-              <span className="kpi-badge kpi-badge--rate">
-                {resolutionRate}%
-              </span>
+              <span className="kpi-badge kpi-badge--rate">{resolutionRate}%</span>
             </div>
             <div className="kpi-value" style={{ color: "#0f62fe" }}>
               {isLoadingIssues ? "..." : `${resolutionRate}%`}
@@ -1502,7 +1681,7 @@ const IssueDashboard = () => {
           <div ref={periodPopoverRef} className="issue-filter-wrapper">
             <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
               <Button
-                size="md"
+                size="sm"
                 kind="tertiary"
                 renderIcon={ChevronDown}
                 onClick={() => setIsPeriodPopoverOpen((prev) => !prev)}
@@ -1512,6 +1691,9 @@ const IssueDashboard = () => {
                   : isYearFilterApplied || selectedYear !== currentYear
                   ? `Year: ${selectedYear}`
                   : "Reporting Period"}
+                  : selectedYear !== currentYear
+                    ? `Year: ${selectedYear}`
+                    : "Reporting Period"}
               </Button>
 
               <PopoverContent className="filter-popover-content">
@@ -1592,7 +1774,7 @@ const IssueDashboard = () => {
           <div style={{ minWidth: "15rem" }}>
             <ComboBox
               id="dashboard-dataset-filter"
-              size="md"
+              size="sm"
               titleText=""
               placeholder="Filter by Dataset"
               items={datasetNames}
@@ -1614,7 +1796,7 @@ const IssueDashboard = () => {
             <div style={{ minWidth: "15rem" }}>
               <ComboBox
                 id="dashboard-program-filter"
-                size="md"
+                size="sm"
                 titleText=""
                 placeholder="Filter by Program"
                 items={programNames}
@@ -1634,7 +1816,7 @@ const IssueDashboard = () => {
 
           {/* Reset Filters */}
           <Button
-            size="md"
+            size="sm"
             kind="ghost"
             renderIcon={Filter}
             disabled={!hasActiveFilters}
@@ -1668,7 +1850,7 @@ const IssueDashboard = () => {
               placeholder="Search by region, district, or facility name..."
               value={regionSearchTerm}
               onChange={(e) => setRegionSearchTerm(e.target.value)}
-              size="md"
+              size="sm"
               closeButtonLabelText="Clear search"
             />
           </div>
@@ -1715,9 +1897,7 @@ const IssueDashboard = () => {
                 <Table {...getTableProps()} aria-label="Regional issue summary table">
                   <TableHead>
                     <TableRow>
-                      <TableExpandHeader
-                        {...getExpandHeaderProps()}
-                      />
+                      <TableExpandHeader {...getExpandHeaderProps()} />
                       {headers.map((header) => {
                         const isSorted = sortHeader === header.key;
                         const { key: headerKey, ...headerProps } = getHeaderProps({
@@ -1747,10 +1927,7 @@ const IssueDashboard = () => {
 
                       return (
                         <Fragment key={row.id}>
-                          <TableExpandRow
-                            key={rowKey}
-                            {...rowProps}
-                          >
+                          <TableExpandRow key={rowKey} {...rowProps}>
                             {row.cells.map((cell) => {
                               const headerKey = cell.info.header;
 
@@ -1825,9 +2002,7 @@ const IssueDashboard = () => {
                                           style={{ width: `${Math.min(100, pct)}%` }}
                                         />
                                       </div>
-                                      <span className="share-percent-text">
-                                        {pct.toFixed(1)}%
-                                      </span>
+                                      <span className="share-percent-text">{pct.toFixed(1)}%</span>
                                     </div>
                                   </TableCell>
                                 );
@@ -1837,10 +2012,7 @@ const IssueDashboard = () => {
                             })}
                           </TableExpandRow>
 
-                          <TableExpandedRow
-                            key={`expanded-${row.id}`}
-                            colSpan={headers.length + 1}
-                          >
+                          <TableExpandedRow key={`expanded-${row.id}`} colSpan={headers.length + 1}>
                             {row.isExpanded && summaryItem && (
                               <div className="expanded-panel">
                                 <div className="expanded-panel-header">
@@ -1848,10 +2020,20 @@ const IssueDashboard = () => {
                                     <h4 className="expanded-panel-title">
                                       District & Facility Breakdown for {summaryItem.region} Region
                                     </h4>
-                                    <p style={{ fontSize: "0.8125rem", color: "#525252", margin: "0.25rem 0 0" }}>
+                                    <p
+                                      style={{
+                                        fontSize: "0.8125rem",
+                                        color: "#525252",
+                                        margin: "0.25rem 0 0",
+                                      }}
+                                    >
                                       {summaryItem.districts.length} district(s) |{" "}
-                                      {summaryItem.districts.reduce((acc, d) => acc + d.facilities.length, 0)} facility(ies) affected |{" "}
-                                      <strong>{summaryItem.total}</strong> total issues (
+                                      {summaryItem.districts.reduce(
+                                        (acc, d) => acc + d.facilities.length,
+                                        0,
+                                      )}{" "}
+                                      facility(ies) affected | <strong>{summaryItem.total}</strong>{" "}
+                                      total issues (
                                       {summaryItem.critical > 0 && (
                                         <>
                                           <span style={{ color: "#a2191f", fontWeight: 600 }}>
@@ -1871,13 +2053,23 @@ const IssueDashboard = () => {
                                     </p>
                                   </div>
 
-                                  <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                  <div
+                                    style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                                  >
                                     <Button
                                       size="sm"
                                       kind="ghost"
-                                      onClick={() => toggleAllDistrictsInRegion(summaryItem.region, summaryItem.districts)}
+                                      onClick={() =>
+                                        toggleAllDistrictsInRegion(
+                                          summaryItem.region,
+                                          summaryItem.districts,
+                                        )
+                                      }
                                     >
-                                      {isEveryDistrictExpanded(summaryItem.region, summaryItem.districts)
+                                      {isEveryDistrictExpanded(
+                                        summaryItem.region,
+                                        summaryItem.districts,
+                                      )
                                         ? "Collapse All Facilities"
                                         : "Expand All Facilities"}
                                     </Button>
@@ -1902,7 +2094,9 @@ const IssueDashboard = () => {
                                         <th>Open</th>
                                         <th>Resolved</th>
                                         <th>Total Issues</th>
-                                        <th style={{ width: "4rem", textAlign: "center" }}>Actions</th>
+                                        <th style={{ width: "4rem", textAlign: "center" }}>
+                                          Actions
+                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1911,23 +2105,42 @@ const IssueDashboard = () => {
 
                                         return (
                                           <Fragment key={d.district}>
-                                            <tr className={`district-row ${expanded ? "district-row--expanded" : ""}`}>
+                                            <tr
+                                              className={`district-row ${expanded ? "district-row--expanded" : ""}`}
+                                            >
                                               <td>
                                                 <button
                                                   type="button"
                                                   aria-expanded={expanded}
                                                   className="district-expand-btn"
-                                                  onClick={() => toggleDistrict(summaryItem.region, d)}
-                                                  title={expanded ? "Collapse facility breakdown" : "Expand facility breakdown"}
+                                                  onClick={() =>
+                                                    toggleDistrict(summaryItem.region, d)
+                                                  }
+                                                  title={
+                                                    expanded
+                                                      ? "Collapse facility breakdown"
+                                                      : "Expand facility breakdown"
+                                                  }
                                                 >
                                                   {expanded ? (
-                                                    <ChevronDown size={16} className="district-expand-icon" />
+                                                    <ChevronDown
+                                                      size={16}
+                                                      className="district-expand-icon"
+                                                    />
                                                   ) : (
-                                                    <ChevronRight size={16} className="district-expand-icon" />
+                                                    <ChevronRight
+                                                      size={16}
+                                                      className="district-expand-icon"
+                                                    />
                                                   )}
-                                                  <span className="district-name-text">{d.district}</span>
+                                                  <span className="district-name-text">
+                                                    {d.district}
+                                                  </span>
                                                   <span className="district-facility-badge">
-                                                    {d.facilities.length} {d.facilities.length === 1 ? "facility" : "facilities"}
+                                                    {d.facilities.length}{" "}
+                                                    {d.facilities.length === 1
+                                                      ? "facility"
+                                                      : "facilities"}
                                                   </span>
                                                 </button>
                                               </td>
@@ -1976,12 +2189,20 @@ const IssueDashboard = () => {
                                                   <div className="facility-breakdown-panel">
                                                     <div className="facility-breakdown-header">
                                                       <span className="facility-breakdown-title">
-                                                        Facilities in {d.district} ({d.facilities.length})
+                                                        Facilities in {d.district} (
+                                                        {d.facilities.length})
                                                       </span>
                                                     </div>
                                                     {d.facilities.length === 0 ? (
-                                                      <p style={{ margin: "0.5rem 0", color: "#6f6f6f", fontSize: "0.8125rem" }}>
-                                                        No health facilities recorded for this district.
+                                                      <p
+                                                        style={{
+                                                          margin: "0.5rem 0",
+                                                          color: "#6f6f6f",
+                                                          fontSize: "0.8125rem",
+                                                        }}
+                                                      >
+                                                        No health facilities recorded for this
+                                                        district.
                                                       </p>
                                                     ) : (
                                                       <table className="facility-table">
@@ -1992,7 +2213,14 @@ const IssueDashboard = () => {
                                                             <th>Open</th>
                                                             <th>Resolved</th>
                                                             <th>Total Issues</th>
-                                                            <th style={{ width: "4rem", textAlign: "center" }}>Actions</th>
+                                                            <th
+                                                              style={{
+                                                                width: "4rem",
+                                                                textAlign: "center",
+                                                              }}
+                                                            >
+                                                              Actions
+                                                            </th>
                                                           </tr>
                                                         </thead>
                                                         <tbody>
@@ -2009,9 +2237,11 @@ const IssueDashboard = () => {
                                                                     f.critical > 0
                                                                       ? "severity-pill--critical"
                                                                       : "severity-pill--zero"
-                                                                    }`}
+                                                                  }`}
                                                                 >
-                                                                  {f.critical > 0 ? f.critical : "-"}
+                                                                  {f.critical > 0
+                                                                    ? f.critical
+                                                                    : "-"}
                                                                 </span>
                                                               </td>
                                                               <td>
@@ -2037,7 +2267,11 @@ const IssueDashboard = () => {
                                                                   renderIcon={ArrowRight}
                                                                   iconDescription={`View issues in ${f.facility}`}
                                                                   tooltipPosition="left"
-                                                                  onClick={() => handleNavigateToIssues(f.facility)}
+                                                                  onClick={() =>
+                                                                    handleNavigateToIssues(
+                                                                      f.facility,
+                                                                    )
+                                                                  }
                                                                 />
                                                               </td>
                                                             </tr>
@@ -2095,9 +2329,7 @@ const IssueDashboard = () => {
                         <span className="total-pill">{tableGrandTotals.total}</span>
                       </TableCell>
                       <TableCell>
-                        <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>
-                          100.0%
-                        </span>
+                        <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>100.0%</span>
                       </TableCell>
                     </TableRow>
                   </TableBody>
