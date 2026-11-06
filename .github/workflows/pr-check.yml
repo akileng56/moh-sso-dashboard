@@ -105,6 +105,14 @@ jobs:
           go-version: "1.25.4"
           cache-dependency-path: backend/go.sum
 
+      - name: SQLC compilation and generated query freshness
+        working-directory: backend
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@v1.30.0
+          sqlc compile
+          sqlc generate
+          git diff --exit-code -- internal/db/sqlc
+
       - name: Backend vet
         working-directory: backend
         run: go vet ./...
@@ -115,6 +123,12 @@ jobs:
       - name: Backend test
         working-directory: backend
         run: go test ./...
+
+      - name: Surveillance import normalization
+        run: python3 infra/scripts/test-load-surveillance.py
+
+      - name: Isolated Observatory database import regression
+        run: OBSERVATORY_DOCKER_TEST=1 python3 infra/scripts/test-surveillance-database.py
 
       - name: Platform onboarding examples
         run: python3 -m unittest discover -s examples/platform/python -p 'test_*.py' -v

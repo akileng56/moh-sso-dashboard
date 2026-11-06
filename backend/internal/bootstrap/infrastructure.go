@@ -15,13 +15,18 @@ import (
 )
 
 type databases struct {
-	Primary *sql.DB
-	Remote  *sql.DB
-	DWH     *sql.DB
-	DQA     *sql.DB
+	Primary     *sql.DB
+	Remote      *sql.DB
+	DWH         *sql.DB
+	DQA         *sql.DB
+	Observatory *sql.DB
 }
 
 func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
+	observatoryDSN, err := cfg.ObservatoryDBSource()
+	if err != nil {
+		return databases{}, err
+	}
 	dbConfig := func(dsn string) db.DBConfig {
 		return db.DBConfig{
 			Driver:          cfg.DBDriver,
@@ -59,23 +64,26 @@ func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
 		return databases{}, err
 	}
 
+	dbs := databases{Primary: primaryDB, Remote: remoteDB, DWH: dwhDB, DQA: dqaDB}
 	if err := db.MigrateDB(primaryDB, "file://internal/db/migrations"); err != nil {
-		primaryDB.Close()
-		remoteDB.Close()
-		dwhDB.Close()
-		dqaDB.Close()
+		dbs.Close()
 		return databases{}, err
 	}
-
-	return databases{
-		Primary: primaryDB,
-		Remote:  remoteDB,
-		DWH:     dwhDB,
-		DQA:     dqaDB,
-	}, nil
+	dbs.Observatory, err = db.InitDB(ctx, dbConfig(observatoryDSN))
+	if err == nil {
+		err = db.MigrateDB(dbs.Observatory, "file://internal/db/surveillance_migrations")
+	}
+	if err != nil {
+		dbs.Close()
+		return databases{}, err
+	}
+	return dbs, nil
 }
 
 func (dbs databases) Close() {
+	if dbs.Observatory != nil {
+		dbs.Observatory.Close()
+	}
 	if dbs.Primary != nil {
 		dbs.Primary.Close()
 	}

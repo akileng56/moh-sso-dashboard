@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/url"
 	"strings"
 	"time"
@@ -101,13 +102,19 @@ type Config struct {
 	// ==================================================
 	// Database
 	// ==================================================
-	DBDriver    string `mapstructure:"DB_DRIVER"`
-	DBHost      string `mapstructure:"DB_HOST"`
-	DBUser      string `mapstructure:"DB_USER"`
-	DBPassword  string `mapstructure:"DB_PASSWORD"`
-	DBName      string `mapstructure:"DB_NAME"`
-	DBPort      string `mapstructure:"DB_PORT"`
-	DBEnableSSL bool   `mapstructure:"DB_ENABLE_SSL"`
+	DBDriver               string `mapstructure:"DB_DRIVER"`
+	DBHost                 string `mapstructure:"DB_HOST"`
+	DBUser                 string `mapstructure:"DB_USER"`
+	DBPassword             string `mapstructure:"DB_PASSWORD"`
+	DBName                 string `mapstructure:"DB_NAME"`
+	DBPort                 string `mapstructure:"DB_PORT"`
+	DBEnableSSL            bool   `mapstructure:"DB_ENABLE_SSL"`
+	ObservatoryDBHost      string `mapstructure:"OBSERVATORY_DB_HOST"`
+	ObservatoryDBPort      string `mapstructure:"OBSERVATORY_DB_PORT"`
+	ObservatoryDBName      string `mapstructure:"OBSERVATORY_DB_NAME"`
+	ObservatoryDBUser      string `mapstructure:"OBSERVATORY_DB_USER"`
+	ObservatoryDBPassword  string `mapstructure:"OBSERVATORY_DB_PASSWORD"`
+	ObservatoryDBEnableSSL bool   `mapstructure:"OBSERVATORY_DB_ENABLE_SSL"`
 
 	// ==================================================
 	// Redis
@@ -282,6 +289,13 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func setDefaults() {
+	viper.SetDefault("OBSERVATORY_DB_HOST", "")
+	viper.SetDefault("OBSERVATORY_DB_PORT", "5432")
+	viper.SetDefault("OBSERVATORY_DB_NAME", "observatory")
+	viper.SetDefault("OBSERVATORY_DB_USER", "surveillance")
+	viper.SetDefault("OBSERVATORY_DB_PASSWORD", "")
+	viper.SetDefault("OBSERVATORY_DB_ENABLE_SSL", false)
+
 	viper.SetDefault("PLATFORM_AUTH_CLIENT_ID", "")
 	viper.SetDefault("PLATFORM_AUTH_CLIENT_SECRET", "")
 	viper.SetDefault("PLATFORM_AUTH_AUDIENCE", "moh-platform-api")
@@ -380,6 +394,12 @@ func setDefaults() {
 
 func envBindings() map[string]string {
 	return map[string]string{
+		"OBSERVATORY_DB_HOST":                   "OBSERVATORY_DB_HOST",
+		"OBSERVATORY_DB_PORT":                   "OBSERVATORY_DB_PORT",
+		"OBSERVATORY_DB_NAME":                   "OBSERVATORY_DB_NAME",
+		"OBSERVATORY_DB_USER":                   "OBSERVATORY_DB_USER",
+		"OBSERVATORY_DB_PASSWORD":               "OBSERVATORY_DB_PASSWORD",
+		"OBSERVATORY_DB_ENABLE_SSL":             "OBSERVATORY_DB_ENABLE_SSL",
 		"ENVIRONMENT":                           "ENVIRONMENT",
 		"GIN_MODE":                              "GIN_MODE",
 		"DEV_AUTH_BYPASS":                       "DEV_AUTH_BYPASS",
@@ -600,7 +620,7 @@ func normalizeConfig(c *Config) {
 	c.MinioSecretAccessKey = strings.TrimSpace(c.MinioSecretAccessKey)
 
 	// ==================================================
-	// Remote DB / DWH
+	// Remote DB / DWH / Observatory / Surveillance
 	// ==================================================
 	c.RemoteDBHost = strings.TrimSpace(c.RemoteDBHost)
 	c.RemoteDBPort = strings.TrimSpace(c.RemoteDBPort)
@@ -611,6 +631,11 @@ func normalizeConfig(c *Config) {
 	c.DWHPort = strings.TrimSpace(c.DWHPort)
 	c.DWHUsername = strings.TrimSpace(c.DWHUsername)
 	c.DWHDBName = strings.TrimSpace(c.DWHDBName)
+
+	c.ObservatoryDBHost = strings.TrimSpace(c.ObservatoryDBHost)
+	c.ObservatoryDBPort = strings.TrimSpace(c.ObservatoryDBPort)
+	c.ObservatoryDBName = strings.TrimSpace(c.ObservatoryDBName)
+	c.ObservatoryDBUser = strings.TrimSpace(c.ObservatoryDBUser)
 
 	// ==================================================
 	// SMTP / Notifications
@@ -839,6 +864,28 @@ func (c *Config) DqaDbSource() string {
 	)
 }
 
+func (c *Config) ObservatoryDBSource() (string, error) {
+	for name, value := range map[string]string{"HOST": c.ObservatoryDBHost, "PORT": c.ObservatoryDBPort, "NAME": c.ObservatoryDBName, "USER": c.ObservatoryDBUser, "PASSWORD": c.ObservatoryDBPassword} {
+		if strings.TrimSpace(value) == "" {
+			return "", fmt.Errorf("OBSERVATORY_DB_%s is required for an isolated observatory database", name)
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(c.ObservatoryDBHost), strings.TrimSpace(c.DBHost)) &&
+		strings.TrimSpace(c.ObservatoryDBPort) == strings.TrimSpace(c.DBPort) &&
+		strings.TrimSpace(c.ObservatoryDBName) == strings.TrimSpace(c.DBName) {
+		return "", errors.New("Observatory must use a database separate from the primary database")
+	}
+	mode := "disable"
+	if c.ObservatoryDBEnableSSL {
+		mode = "require"
+	}
+	u := url.URL{Scheme: "postgresql", User: url.UserPassword(c.ObservatoryDBUser, c.ObservatoryDBPassword), Host: net.JoinHostPort(c.ObservatoryDBHost, c.ObservatoryDBPort), Path: "/" + c.ObservatoryDBName}
+	q := url.Values{}
+	q.Set("sslmode", mode)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
+}
+
 // ==================================================
 // Validation
 // ==================================================
@@ -860,6 +907,9 @@ func validateConfig(c *Config) error {
 	}
 
 	if err := validateDatabaseConfig(c); err != nil {
+		return err
+	}
+	if _, err := c.ObservatoryDBSource(); err != nil {
 		return err
 	}
 
