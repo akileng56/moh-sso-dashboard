@@ -72,6 +72,7 @@ export default function ClientsPage() {
   /* -----------------------------
    * Filters
    * ----------------------------- */
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
 
@@ -93,20 +94,29 @@ export default function ClientsPage() {
    * ----------------------------- */
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, typeFilter]);
+  }, [statusFilter, typeFilter, search]);
 
   /* -----------------------------
    * Filtering
    * ----------------------------- */
   const filteredClients = useMemo(() => {
+    const query = search.trim().toLowerCase();
     return clients.filter((c) => {
+      if (
+        query &&
+        ![c.name, c.clientId].some((value) =>
+          value?.toLowerCase().includes(query),
+        )
+      ) {
+        return false;
+      }
       if (statusFilter === "enabled" && !c.enabled) return false;
       if (statusFilter === "disabled" && c.enabled) return false;
       if (typeFilter === "public" && !c.publicClient) return false;
       if (typeFilter === "confidential" && c.publicClient) return false;
       return true;
     });
-  }, [clients, statusFilter, typeFilter]);
+  }, [clients, statusFilter, typeFilter, search]);
 
   /* -----------------------------
    * Pagination slice
@@ -129,15 +139,11 @@ export default function ClientsPage() {
     raw: c,
   }));
 
-  if (isError) {
-    return (
-      <ErrorState
-        title="Failed to load clients"
-        description={getApiErrorMessage(error, "Failed to load clients")}
-        primaryAction={{ label: "Retry", onClick: refetch }}
-      />
-    );
-  }
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setTypeFilter("all");
+  };
 
   return (
     <DataTableShell
@@ -163,10 +169,31 @@ export default function ClientsPage() {
       getRowId={(row) => row.id}
       isLoading={isLoading}
       loadingDescription="Loading clients…"
+      tableState={
+        isError ? (
+          <ErrorState
+            title="Failed to load clients"
+            description={getApiErrorMessage(error, "Failed to load clients")}
+            primaryAction={{ label: "Retry", onClick: refetch }}
+          />
+        ) : undefined
+      }
+      searchValue={search}
+      onSearch={setSearch}
+      searchPlaceholder="Search clients by name or client ID"
+      resultsDescription={
+        !isLoading && !isError ? `${filteredClients.length} of ${clients.length} clients` : undefined
+      }
+      emptyActions={
+        <Button kind="ghost" onClick={clearFilters}>
+          Clear filters
+        </Button>
+      }
       emptyTitle="No clients found"
       emptyDescription="No clients match the selected filters."
       filters={
         <ClientFilters
+          onReset={clearFilters}
           status={statusFilter}
           type={typeFilter}
           statusOptions={STATUS_OPTIONS}

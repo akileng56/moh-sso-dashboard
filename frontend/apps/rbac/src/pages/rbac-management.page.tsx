@@ -771,7 +771,16 @@ export default function RbacManagementPage() {
   };
 
   if (systemsLoading || permissionsLoading) {
-    return <InlineLoading description="Loading RBAC mappings..." />;
+    return (
+      <div className="rbac-page">
+        <PageShell
+          title="RBAC Management"
+          subtitle="Manage applications and access from one focused workspace."
+        >
+          <InlineLoading description="Loading RBAC mappings..." />
+        </PageShell>
+      </div>
+    );
   }
 
   return (
@@ -790,10 +799,11 @@ export default function RbacManagementPage() {
         />
       )}
 
-      <div className="rbac-workspace-context">
+      <div className="rbac-workspace-context" role="group" aria-label="Application workspace">
         <ComboBox
           id="rbac-selected-application"
           titleText="Selected application"
+          helperText="Roles, permissions, and groups below apply to this application."
           placeholder="Find an application"
           items={systems}
           itemToString={(system) => (system ? `${system.displayName} (${system.clientId})` : "")}
