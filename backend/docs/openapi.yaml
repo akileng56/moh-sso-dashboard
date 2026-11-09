@@ -213,6 +213,12 @@ components:
           nullable: true
           type: string
       type: object
+    announcements.AnnouncementAudiencePreviewResponse:
+      properties:
+        recipient_count:
+          format: int64
+          type: integer
+      type: object
     announcements.AnnouncementResponse:
       properties:
         archived_at:
@@ -259,8 +265,14 @@ components:
           items:
             type: string
           type: array
+        health_context_ids:
+          items:
+            type: string
+          type: array
         id:
           type: string
+        include_context_descendants:
+          type: boolean
         is_pinned:
           type: boolean
         level:
@@ -366,6 +378,17 @@ components:
         path:
           type: string
       type: object
+    announcements.announcementAudiencePreviewRequest:
+      properties:
+        audience_type:
+          type: string
+        health_context_ids:
+          items:
+            type: string
+          type: array
+      required:
+        - audience_type
+      type: object
     announcements.createAnnouncementAttachmentRequest:
       properties:
         content_id:
@@ -400,6 +423,10 @@ components:
           nullable: true
           type: string
         group_ids:
+          items:
+            type: string
+          type: array
+        health_context_ids:
           items:
             type: string
           type: array
@@ -514,6 +541,10 @@ components:
           nullable: true
           type: string
         group_ids:
+          items:
+            type: string
+          type: array
+        health_context_ids:
           items:
             type: string
           type: array
@@ -1575,6 +1606,10 @@ components:
         district:
           nullable: true
           type: string
+        health_context_id:
+          format: uuid
+          nullable: true
+          type: string
         issue:
           nullable: true
           type: string
@@ -2113,6 +2148,10 @@ components:
           type: string
         download_url:
           type: string
+        health_context_id:
+          format: uuid
+          nullable: true
+          type: string
         id:
           format: uuid
           type: string
@@ -2367,11 +2406,17 @@ components:
       type: object
     email.EmailRecipientPreviewRequest:
       properties:
+        include_health_context_descendants:
+          type: boolean
         to_group_paths:
           items:
             type: string
           type: array
         to_groups:
+          items:
+            type: string
+          type: array
+        to_health_contexts:
           items:
             type: string
           type: array
@@ -2459,6 +2504,8 @@ components:
           type: string
         id:
           type: string
+        include_health_context_descendants:
+          type: boolean
         metadata:
           additionalProperties:
             type: string
@@ -2488,6 +2535,10 @@ components:
             type: string
           type: array
         to_groups:
+          items:
+            type: string
+          type: array
+        to_health_contexts:
           items:
             type: string
           type: array
@@ -2529,6 +2580,341 @@ components:
           type: integer
         version:
           type: string
+      type: object
+    health_context.accessExplanationResponse:
+      properties:
+        allowed:
+          type: boolean
+        assignmentContext:
+          allOf:
+            - $ref: '#/components/schemas/health_context.nodeResponse'
+          nullable: true
+        assignmentType:
+          type: string
+        reason:
+          type: string
+        requestedContext:
+          $ref: '#/components/schemas/health_context.nodeResponse'
+        scopeMode:
+          type: string
+        sourceGroupId:
+          format: uuid
+          nullable: true
+          type: string
+        sourceGroupPath:
+          nullable: true
+          type: string
+      type: object
+    health_context.aliasResponse:
+      properties:
+        contextNodeId:
+          format: uuid
+          type: string
+        createdAt:
+          format: date-time
+          type: string
+        externalId:
+          type: string
+        id:
+          format: uuid
+          type: string
+        metadata: {}
+        namespace:
+          type: string
+      type: object
+    health_context.assignmentRequest:
+      properties:
+        contextNodeId:
+          format: uuid
+          type: string
+        isDefault:
+          type: boolean
+        scopeMode:
+          type: string
+        source:
+          type: string
+        sourceReference:
+          nullable: true
+          type: string
+        validFrom:
+          format: date-time
+          nullable: true
+          type: string
+        validUntil:
+          format: date-time
+          nullable: true
+          type: string
+      required:
+        - contextNodeId
+        - scopeMode
+      type: object
+    health_context.assignmentResponse:
+      properties:
+        contextNodeId:
+          format: uuid
+          type: string
+        groupId:
+          format: uuid
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        isDefault:
+          type: boolean
+        scopeMode:
+          type: string
+        source:
+          type: string
+        sourceReference:
+          nullable: true
+          type: string
+        userId:
+          type: string
+        validFrom:
+          format: date-time
+          nullable: true
+          type: string
+        validUntil:
+          format: date-time
+          nullable: true
+          type: string
+      type: object
+    health_context.createNodeRequest:
+      properties:
+        code:
+          type: string
+        contextType:
+          type: string
+        enabled:
+          nullable: true
+          type: boolean
+        metadata: {}
+        name:
+          type: string
+        parentId:
+          format: uuid
+          nullable: true
+          type: string
+        source:
+          type: string
+      required:
+        - code
+        - name
+        - contextType
+      type: object
+    health_context.effectiveContextResponse:
+      properties:
+        assignmentId:
+          format: uuid
+          type: string
+        assignmentType:
+          type: string
+        isActive:
+          type: boolean
+        isDefault:
+          type: boolean
+        scopeMode:
+          type: string
+        sourceGroupId:
+          format: uuid
+          nullable: true
+          type: string
+        sourceGroupPath:
+          nullable: true
+          type: string
+      type: object
+    health_context.groupContextSyncMappingRequest:
+      properties:
+        contextNodeId:
+          format: uuid
+          type: string
+        groupId:
+          format: uuid
+          type: string
+        scopeMode:
+          type: string
+      required:
+        - groupId
+        - contextNodeId
+        - scopeMode
+      type: object
+    health_context.groupMappingDriftResponse:
+      properties:
+        contextCode:
+          type: string
+        contextEnabled:
+          type: boolean
+        contextName:
+          type: string
+        contextNodeId:
+          format: uuid
+          nullable: true
+          type: string
+        groupEnabled:
+          type: boolean
+        groupId:
+          format: uuid
+          type: string
+        groupPath:
+          type: string
+        keycloakGroupId:
+          type: string
+        recommendedAction:
+          type: string
+        scopeMode:
+          type: string
+        status:
+          type: string
+      type: object
+    health_context.healthContextDriftReportResponse:
+      properties:
+        drifted:
+          format: int64
+          type: integer
+        generatedAt:
+          format: date-time
+          type: string
+        inSync:
+          format: int64
+          type: integer
+        items:
+          items:
+            $ref: '#/components/schemas/health_context.groupMappingDriftResponse'
+          type: array
+        total:
+          format: int64
+          type: integer
+      type: object
+    health_context.healthContextSyncApplyResponse:
+      properties:
+        affectedGroups:
+          format: int64
+          type: integer
+        appliedMappings:
+          format: int64
+          type: integer
+      type: object
+    health_context.healthContextSyncPreviewResponse:
+      properties:
+        affectedGroups:
+          format: int64
+          type: integer
+        drift:
+          $ref: '#/components/schemas/health_context.healthContextDriftReportResponse'
+        mappingCount:
+          format: int64
+          type: integer
+        replaceExisting:
+          type: boolean
+        valid:
+          type: boolean
+      type: object
+    health_context.healthContextSyncRequest:
+      properties:
+        mappings:
+          items:
+            $ref: '#/components/schemas/health_context.groupContextSyncMappingRequest'
+          type: array
+        replaceExisting:
+          type: boolean
+      type: object
+    health_context.myContextsResponse:
+      properties:
+        healthContexts:
+          items:
+            $ref: '#/components/schemas/health_context.effectiveContextResponse'
+          type: array
+      type: object
+    health_context.nodeResponse:
+      properties:
+        code:
+          type: string
+        contextType:
+          type: string
+        enabled:
+          type: boolean
+        id:
+          format: uuid
+          type: string
+        metadata: {}
+        name:
+          type: string
+        parentId:
+          format: uuid
+          nullable: true
+          type: string
+        source:
+          type: string
+        version:
+          format: int64
+          type: integer
+      type: object
+    health_context.replaceAssignmentsRequest:
+      properties:
+        assignments:
+          items:
+            $ref: '#/components/schemas/health_context.assignmentRequest'
+          type: array
+      required:
+        - assignments
+      type: object
+    health_context.selectContextRequest:
+      properties:
+        contextId:
+          format: uuid
+          type: string
+      required:
+        - contextId
+      type: object
+    health_context.selectedContextResponse:
+      properties:
+        contextId:
+          format: uuid
+          type: string
+      type: object
+    health_context.updateNodeRequest:
+      properties:
+        code:
+          type: string
+        contextType:
+          type: string
+        enabled:
+          type: boolean
+        metadata: {}
+        name:
+          type: string
+        parentId:
+          format: uuid
+          nullable: true
+          type: string
+        source:
+          type: string
+        version:
+          format: int64
+          minimum: 1
+          type: integer
+      required:
+        - code
+        - name
+        - contextType
+        - version
+      type: object
+    health_context.updateResponse:
+      properties:
+        updated:
+          type: boolean
+      type: object
+    health_context.upsertAliasRequest:
+      properties:
+        externalId:
+          type: string
+        metadata: {}
+        namespace:
+          type: string
+      required:
+        - namespace
+        - externalId
       type: object
     keycloak.ClientProfile:
       properties:
@@ -5643,7 +6029,6 @@ components:
           type: string
         district_id:
           format: uuid
-          nullable: true
           type: string
         name:
           type: string
@@ -5742,6 +6127,10 @@ components:
       type: object
     system_rbac.SeedFile:
       properties:
+        groupContextMappings:
+          items:
+            $ref: '#/components/schemas/system_rbac.SeedGroupContextMapping'
+          type: array
         groupMemberships:
           items:
             $ref: '#/components/schemas/system_rbac.SeedGroupMembership'
@@ -5749,6 +6138,10 @@ components:
         groups:
           items:
             $ref: '#/components/schemas/system_rbac.SeedGroup'
+          type: array
+        healthContexts:
+          items:
+            $ref: '#/components/schemas/system_rbac.SeedHealthContext'
           type: array
         realmRoles:
           items:
@@ -5802,6 +6195,15 @@ components:
         type:
           type: string
       type: object
+    system_rbac.SeedGroupContextMapping:
+      properties:
+        contextCode:
+          type: string
+        groupPath:
+          type: string
+        scopeMode:
+          type: string
+      type: object
     system_rbac.SeedGroupMembership:
       properties:
         email:
@@ -5813,6 +6215,25 @@ components:
         userId:
           type: string
         username:
+          type: string
+      type: object
+    system_rbac.SeedHealthContext:
+      properties:
+        code:
+          type: string
+        enabled:
+          nullable: true
+          type: boolean
+        metadata:
+          additionalProperties: {}
+          type: object
+        name:
+          type: string
+        parentCode:
+          type: string
+        source:
+          type: string
+        type:
           type: string
       type: object
     system_rbac.SeedRealmRole:
@@ -6018,6 +6439,8 @@ components:
       properties:
         enabled:
           type: boolean
+      required:
+        - enabled
       type: object
     users.userClientRolesRequest:
       properties:
@@ -7542,6 +7965,74 @@ paths:
       x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ScheduleAnnouncement
       x-route-permissions:
         - announcements:publish
+  /api/v1/admin/announcements/audience-preview:
+    post:
+      description: 'Explicit route permission: announcements:write. Additional group/system access checks may apply.'
+      operationId: post_api_v1_admin_announcements_audience-preview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/announcements.announcementAudiencePreviewRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/announcements.AnnouncementAudiencePreviewResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Preview Announcement Audience
+      tags:
+        - admin-announcements
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).PreviewAnnouncementAudience
+      x-route-permissions:
+        - announcements:write
   /api/v1/admin/announcements/stats:
     get:
       description: 'Explicit route permission: announcements:read. Additional group/system access checks may apply.'
@@ -8278,6 +8769,1255 @@ paths:
       x-go-handler: github.com/moh-sso-dashboard/internal/features/clients.(*Handler).DeleteClientRole
       x-route-permissions:
         - clients:roles:write
+  /api/v1/admin/health-contexts:
+    get:
+      description: 'Explicit route permission: health_contexts:read. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts
+      parameters:
+        - in: query
+          name: includeDisabled
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: parentId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.nodeResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List Nodes
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListNodes
+      x-route-permissions:
+        - health_contexts:read
+    post:
+      description: 'Explicit route permission: health_contexts:write. Additional group/system access checks may apply.'
+      operationId: post_api_v1_admin_health-contexts
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.createNodeRequest'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.nodeResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Create Node
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).CreateNode
+      x-route-permissions:
+        - health_contexts:write
+  /api/v1/admin/health-contexts/{contextId}:
+    delete:
+      description: 'Explicit route permission: health_contexts:write. Additional group/system access checks may apply.'
+      operationId: delete_api_v1_admin_health-contexts_contextId
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.updateResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Delete Node
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).DeleteNode
+      x-route-permissions:
+        - health_contexts:write
+    get:
+      description: 'Explicit route permission: health_contexts:read. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts_contextId
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.nodeResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Get Node
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).GetNode
+      x-route-permissions:
+        - health_contexts:read
+    put:
+      description: 'Explicit route permission: health_contexts:write. Additional group/system access checks may apply.'
+      operationId: put_api_v1_admin_health-contexts_contextId
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.updateNodeRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.nodeResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Update Node
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).UpdateNode
+      x-route-permissions:
+        - health_contexts:write
+  /api/v1/admin/health-contexts/{contextId}/aliases:
+    get:
+      description: 'Explicit route permission: health_contexts:read. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts_contextId_aliases
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.aliasResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List Aliases
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListAliases
+      x-route-permissions:
+        - health_contexts:read
+    put:
+      description: 'Explicit route permission: health_contexts:sync. Additional group/system access checks may apply.'
+      operationId: put_api_v1_admin_health-contexts_contextId_aliases
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.upsertAliasRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.aliasResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Upsert Alias
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).UpsertAlias
+      x-route-permissions:
+        - health_contexts:sync
+  /api/v1/admin/health-contexts/{contextId}/aliases/{aliasId}:
+    delete:
+      description: 'Explicit route permission: health_contexts:sync. Additional group/system access checks may apply.'
+      operationId: delete_api_v1_admin_health-contexts_contextId_aliases_aliasId
+      parameters:
+        - in: path
+          name: aliasId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.updateResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Delete Alias
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).DeleteAlias
+      x-route-permissions:
+        - health_contexts:sync
+  /api/v1/admin/health-contexts/{contextId}/children:
+    get:
+      description: 'Explicit route permission: health_contexts:read. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts_contextId_children
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: includeDisabled
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: parentId
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: type
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.nodeResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List Nodes
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListNodes
+      x-route-permissions:
+        - health_contexts:read
+    post:
+      description: 'Explicit route permission: health_contexts:write. Additional group/system access checks may apply.'
+      operationId: post_api_v1_admin_health-contexts_contextId_children
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.createNodeRequest'
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.nodeResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: Created
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Create Child
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).CreateChild
+      x-route-permissions:
+        - health_contexts:write
+  /api/v1/admin/health-contexts/{contextId}/descendants:
+    get:
+      description: 'Explicit route permission: health_contexts:read. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts_contextId_descendants
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.nodeResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List Descendants
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListDescendants
+      x-route-permissions:
+        - health_contexts:read
+  /api/v1/admin/health-contexts/drift:
+    get:
+      description: 'Explicit route permission: health_contexts:sync. Additional group/system access checks may apply.'
+      operationId: get_api_v1_admin_health-contexts_drift
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.healthContextDriftReportResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Get Drift
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).GetDrift
+      x-route-permissions:
+        - health_contexts:sync
+  /api/v1/admin/health-contexts/sync/apply:
+    post:
+      description: 'Explicit route permission: health_contexts:sync. Additional group/system access checks may apply.'
+      operationId: post_api_v1_admin_health-contexts_sync_apply
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.healthContextSyncRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.healthContextSyncApplyResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Apply Sync
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ApplySync
+      x-route-permissions:
+        - health_contexts:sync
+  /api/v1/admin/health-contexts/sync/preview:
+    post:
+      description: 'Explicit route permission: health_contexts:sync. Additional group/system access checks may apply.'
+      operationId: post_api_v1_admin_health-contexts_sync_preview
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.healthContextSyncRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.healthContextSyncPreviewResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Preview Sync
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).PreviewSync
+      x-route-permissions:
+        - health_contexts:sync
   /api/v1/admin/metrics/clients/active-today:
     get:
       operationId: get_api_v1_admin_metrics_clients_active-today
@@ -12220,6 +13960,179 @@ paths:
       x-go-handler: github.com/moh-sso-dashboard/internal/features/rbac.(*Handler).UpsertGroup
       x-route-permissions:
         - rbac:roles:write
+  /api/v1/admin/rbac/groups/{groupId}/health-contexts:
+    get:
+      operationId: get_api_v1_admin_rbac_groups_groupId_health-contexts
+      parameters:
+        - in: path
+          name: groupId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.assignmentResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List Group Assignments
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListGroupAssignments
+    put:
+      operationId: put_api_v1_admin_rbac_groups_groupId_health-contexts
+      parameters:
+        - in: path
+          name: groupId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.replaceAssignmentsRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.updateResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Replace Group Assignments
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ReplaceGroupAssignments
   /api/v1/admin/rbac/groups/{groupId}/members:
     get:
       description: 'Explicit route permission: rbac:read. Additional group/system access checks may apply.'
@@ -16624,6 +18537,179 @@ paths:
       x-go-handler: github.com/moh-sso-dashboard/internal/features/users.(*Handler).SetUserEnabled
       x-route-permissions:
         - users:write
+  /api/v1/admin/users/{id}/health-contexts:
+    get:
+      operationId: get_api_v1_admin_users_id_health-contexts
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/health_context.assignmentResponse'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: List User Assignments
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ListUserAssignments
+    put:
+      operationId: put_api_v1_admin_users_id_health-contexts
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.replaceAssignmentsRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.updateResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Replace User Assignments
+      tags:
+        - admin-health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ReplaceUserAssignments
   /api/v1/admin/users/{id}/onboarding-email:
     post:
       description: 'Explicit route permission: users:write. Additional group/system access checks may apply.'
@@ -25598,6 +27684,332 @@ paths:
       x-go-handler: github.com/moh-sso-dashboard/internal/features/data_quality.(*Handler).ListIssueSummaryByProgram
       x-route-permissions:
         - issue_tracker:read
+  /api/v1/me/health-contexts:
+    get:
+      operationId: get_api_v1_me_health-contexts
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.myContextsResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: My Contexts
+      tags:
+        - health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).MyContexts
+  /api/v1/me/health-contexts/{contextId}:
+    get:
+      operationId: get_api_v1_me_health-contexts_contextId
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.accessExplanationResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Get My Context
+      tags:
+        - health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).GetMyContext
+  /api/v1/me/health-contexts/{contextId}/explanation:
+    get:
+      operationId: get_api_v1_me_health-contexts_contextId_explanation
+      parameters:
+        - in: path
+          name: contextId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.accessExplanationResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Explain My Access
+      tags:
+        - health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).ExplainMyAccess
+  /api/v1/me/health-contexts/select:
+    post:
+      operationId: post_api_v1_me_health-contexts_select
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/health_context.selectContextRequest'
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/health_context.selectedContextResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
+          description: OK
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Bad Request
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Too Many Requests
+        "500":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Internal Server Error
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Error response; error.code identifies the failure.
+      summary: Select My Context
+      tags:
+        - health-context
+      x-go-handler: github.com/moh-sso-dashboard/internal/features/health_context.(*Handler).SelectMyContext
   /api/v1/notifications/preferences:
     get:
       operationId: get_api_v1_notifications_preferences
@@ -31291,6 +33703,12 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
           description: Internal Server Error
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Service Unavailable
         default:
           content:
             application/json:
@@ -31444,6 +33862,7 @@ tags:
   - name: admin-announcements
   - name: admin-audit
   - name: admin-clients
+  - name: admin-health-context
   - name: admin-metrics
   - name: admin-notifications
   - name: admin-platform
@@ -31458,6 +33877,7 @@ tags:
   - name: documents
   - name: email
   - name: geojson
+  - name: health-context
   - name: notifications
   - name: platform
   - name: rbac

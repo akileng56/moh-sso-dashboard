@@ -21,6 +21,7 @@ import (
 	documentsfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
 	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
+	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
@@ -92,11 +93,24 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.Announcements,
 		deps.Services.Audit,
 	)
-	adminunitsHandler := adminunitsfeature.NewHandler(deps.Config, deps.Databases.DWH)
-	visualiserHandler := visualiserfeature.NewHandler(deps.Config, deps.Databases.DWH)
+	adminunitsHandler := adminunitsfeature.NewHandler(
+		deps.Config,
+		deps.Databases.DWH,
+		deps.Services.HealthContexts,
+	)
+	visualiserHandler := visualiserfeature.NewHandler(
+		deps.Config,
+		deps.Databases.DWH,
+		deps.Services.HealthContexts,
+	)
 	geoJSONHandler := geojsonfeature.NewHandler("./assets/geojson")
 	emailHandler := emailfeature.NewHandler(deps.Services.EmailFeature)
 	rbacHandler := rbacfeature.NewHandler(deps.Services.RBAC)
+	healthContextHandler := healthcontextfeature.NewHandler(
+		deps.Services.HealthContexts,
+		deps.Services.Audit,
+	)
+	authHandler.SetHealthContextResolver(deps.Services.HealthContexts)
 
 	surveillanceHandler := surveillancefeature.NewHandler(
 		deps.Services.EpiWeeks,
@@ -106,6 +120,7 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.WeeklyStatus,
 		deps.Services.Alerts,
 		deps.Services.SurveillanceImport,
+		deps.Services.HealthContexts,
 	)
 
 	documentTemplateHandler := documenttemplatesfeature.NewHandler(
@@ -165,6 +180,7 @@ func buildHandlers(deps handlerDependencies) handlers {
 			GeoJSON:                 geoJSONHandler,
 			Email:                   emailHandler,
 			RBAC:                    rbacHandler,
+			HealthContexts:          healthContextHandler,
 			ReportScheduler:         reportschedulerfeature.NewHandler(deps.Services.ReportScheduler),
 		},
 		Health: healthHandler,

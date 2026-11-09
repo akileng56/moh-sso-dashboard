@@ -28,14 +28,14 @@ func isNilInterface(i interface{}) bool {
 }
 
 type Service interface {
-	CreateIssue(ctx context.Context, input createIssueInput) (issueResponse, error)
+	CreateIssue(ctx context.Context, input createIssueInput, scope healthContextScope) (issueResponse, error)
 	ListIssues(ctx context.Context, filter listIssuesFilter) ([]issueResponse, error)
-	GetIssueByCode(ctx context.Context, issueCode string) (issueResponse, error)
-	ListIssueSummaryByProgram(ctx context.Context, limit int, offset int) ([]issueProgramSummaryResponse, error)
-	UpdateIssue(ctx context.Context, input updateIssueInput) (issueResponse, error)
-	ResolveIssue(ctx context.Context, input resolveIssueInput) (issueStageResponse, error)
-	AssignIssues(ctx context.Context, input assignIssuesInput) ([]issueStageResponse, error)
-	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error)
+	GetIssueByCode(ctx context.Context, issueCode string, scope healthContextScope) (issueResponse, error)
+	ListIssueSummaryByProgram(ctx context.Context, limit int, offset int, scope healthContextScope) ([]issueProgramSummaryResponse, error)
+	UpdateIssue(ctx context.Context, input updateIssueInput, scope healthContextScope) (issueResponse, error)
+	ResolveIssue(ctx context.Context, input resolveIssueInput, scope healthContextScope) (issueStageResponse, error)
+	AssignIssues(ctx context.Context, input assignIssuesInput, scope healthContextScope) ([]issueStageResponse, error)
+	ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int, scope healthContextScope) ([]issueStageResponse, error)
 	CountIssues(ctx context.Context, filter listIssuesFilter) (int64, error)
 }
 
@@ -64,16 +64,16 @@ func NewService(
 	}
 }
 
-func (s *service) CreateIssue(ctx context.Context, input createIssueInput) (issueResponse, error) {
-	return s.repository.CreateIssue(ctx, input)
+func (s *service) CreateIssue(ctx context.Context, input createIssueInput, scope healthContextScope) (issueResponse, error) {
+	return s.repository.CreateIssue(ctx, input, scope)
 }
 
 func (s *service) ListIssues(ctx context.Context, filter listIssuesFilter) ([]issueResponse, error) {
 	return s.repository.ListIssues(ctx, filter)
 }
 
-func (s *service) GetIssueByCode(ctx context.Context, issueCode string) (issueResponse, error) {
-	issues, err := s.repository.GetIssuesByCodes(ctx, []string{issueCode})
+func (s *service) GetIssueByCode(ctx context.Context, issueCode string, scope healthContextScope) (issueResponse, error) {
+	issues, err := s.repository.GetIssuesByCodes(ctx, []string{issueCode}, scope)
 	if err != nil {
 		return issueResponse{}, err
 	}
@@ -83,16 +83,16 @@ func (s *service) GetIssueByCode(ctx context.Context, issueCode string) (issueRe
 	return issues[0], nil
 }
 
-func (s *service) ListIssueSummaryByProgram(ctx context.Context, limit int, offset int) ([]issueProgramSummaryResponse, error) {
-	return s.repository.ListIssueSummaryByProgram(ctx, limit, offset)
+func (s *service) ListIssueSummaryByProgram(ctx context.Context, limit int, offset int, scope healthContextScope) ([]issueProgramSummaryResponse, error) {
+	return s.repository.ListIssueSummaryByProgram(ctx, limit, offset, scope)
 }
 
-func (s *service) UpdateIssue(ctx context.Context, input updateIssueInput) (issueResponse, error) {
-	return s.repository.UpdateIssue(ctx, input)
+func (s *service) UpdateIssue(ctx context.Context, input updateIssueInput, scope healthContextScope) (issueResponse, error) {
+	return s.repository.UpdateIssue(ctx, input, scope)
 }
 
-func (s *service) ResolveIssue(ctx context.Context, input resolveIssueInput) (issueStageResponse, error) {
-	result, err := s.repository.ResolveIssue(ctx, input)
+func (s *service) ResolveIssue(ctx context.Context, input resolveIssueInput, scope healthContextScope) (issueStageResponse, error) {
+	result, err := s.repository.ResolveIssue(ctx, input, scope)
 	if err != nil {
 		return issueStageResponse{}, err
 	}
@@ -177,7 +177,7 @@ func (s *service) sendApprovalEmailToGroupMembers(ctx context.Context, input res
 
 	// 4. Fetch issue details for description and metadata
 	issueCode := input.IssueCode
-	fetchedIssues, _ := s.repository.GetIssuesByCodes(ctx, []string{issueCode})
+	fetchedIssues, _ := s.repository.GetIssuesByCodes(ctx, []string{issueCode}, healthContextScope{})
 	var issueDetail issueResponse
 	if len(fetchedIssues) > 0 {
 		issueDetail = fetchedIssues[0]
@@ -271,8 +271,8 @@ func (s *service) sendApprovalEmailToGroupMembers(ctx context.Context, input res
 	}
 }
 
-func (s *service) AssignIssues(ctx context.Context, input assignIssuesInput) ([]issueStageResponse, error) {
-	results, err := s.repository.AssignIssues(ctx, input)
+func (s *service) AssignIssues(ctx context.Context, input assignIssuesInput, scope healthContextScope) ([]issueStageResponse, error) {
+	results, err := s.repository.AssignIssues(ctx, input, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -302,7 +302,7 @@ func (s *service) sendAssignmentEmail(ctx context.Context, input assignIssuesInp
 	}
 
 	// Fetch detailed issue records including description
-	fetchedIssues, _ := s.repository.GetIssuesByCodes(ctx, issueCodes)
+	fetchedIssues, _ := s.repository.GetIssuesByCodes(ctx, issueCodes, healthContextScope{})
 	issueMap := make(map[string]issueResponse, len(fetchedIssues))
 	for _, issue := range fetchedIssues {
 		if issue.IssueCode != nil {
@@ -415,8 +415,8 @@ func (s *service) sendAssignmentEmail(ctx context.Context, input assignIssuesInp
 	}
 }
 
-func (s *service) ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int) ([]issueStageResponse, error) {
-	transactions, err := s.repository.ListIssueResolutionTransactions(ctx, issueCode, limit, offset)
+func (s *service) ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int, scope healthContextScope) ([]issueStageResponse, error) {
+	transactions, err := s.repository.ListIssueResolutionTransactions(ctx, issueCode, limit, offset, scope)
 	if err != nil {
 		return nil, err
 	}

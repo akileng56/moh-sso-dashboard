@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createDistrict = `-- name: CreateDistrict :one
@@ -169,6 +170,98 @@ func (q *Queries) ListDistrictsByRegion(ctx context.Context, regionID uuid.NullU
 			&i.Code,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDistrictsByRegionInHealthContext = `-- name: ListDistrictsByRegionInHealthContext :many
+SELECT id, name, region_id, code, created_at, updated_at
+FROM districts
+WHERE region_id = $1
+  AND id = ANY($2::uuid[])
+ORDER BY name ASC
+`
+
+type ListDistrictsByRegionInHealthContextParams struct {
+	RegionID           uuid.NullUUID `json:"region_id"`
+	AllowedDistrictIds []uuid.UUID   `json:"allowed_district_ids"`
+}
+
+func (q *Queries) ListDistrictsByRegionInHealthContext(ctx context.Context, arg ListDistrictsByRegionInHealthContextParams) ([]District, error) {
+	rows, err := q.db.QueryContext(ctx, listDistrictsByRegionInHealthContext, arg.RegionID, pq.Array(arg.AllowedDistrictIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []District{}
+	for rows.Next() {
+		var i District
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.RegionID,
+			&i.Code,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDistrictsInHealthContext = `-- name: ListDistrictsInHealthContext :many
+SELECT d.id, d.name, d.region_id, d.code, d.created_at, d.updated_at, r.name AS region_name
+FROM districts d
+LEFT JOIN regions r ON r.id = d.region_id
+WHERE d.id = ANY($1::uuid[])
+ORDER BY d.name ASC
+`
+
+type ListDistrictsInHealthContextRow struct {
+	ID         uuid.UUID      `json:"id"`
+	Name       string         `json:"name"`
+	RegionID   uuid.NullUUID  `json:"region_id"`
+	Code       sql.NullString `json:"code"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	RegionName sql.NullString `json:"region_name"`
+}
+
+func (q *Queries) ListDistrictsInHealthContext(ctx context.Context, allowedDistrictIds []uuid.UUID) ([]ListDistrictsInHealthContextRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDistrictsInHealthContext, pq.Array(allowedDistrictIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDistrictsInHealthContextRow{}
+	for rows.Next() {
+		var i ListDistrictsInHealthContextRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.RegionID,
+			&i.Code,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.RegionName,
 		); err != nil {
 			return nil, err
 		}

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createFacilityWeeklyDiseaseMetric = `-- name: CreateFacilityWeeklyDiseaseMetric :one
@@ -230,6 +231,87 @@ func (q *Queries) ListDiseaseWeeklyTrendAggregated(ctx context.Context, arg List
 	items := []ListDiseaseWeeklyTrendAggregatedRow{}
 	for rows.Next() {
 		var i ListDiseaseWeeklyTrendAggregatedRow
+		if err := rows.Scan(
+			&i.EpiWeekID,
+			&i.EpiYear,
+			&i.EpiWeek,
+			&i.TotalCases,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDiseaseWeeklyTrendAggregatedInHealthContext = `-- name: ListDiseaseWeeklyTrendAggregatedInHealthContext :many
+SELECT
+  ew.id AS epi_week_id,
+  ew.epi_year,
+  ew.epi_week,
+  COALESCE(SUM(m.metric_value), 0)::bigint AS total_cases
+FROM epi_weeks ew
+LEFT JOIN facility_weekly_metrics m
+  ON m.epi_week_id = ew.id
+  AND m.disease_id = $1
+  AND m.facility_id = ANY($2::uuid[])
+LEFT JOIN facilities f
+  ON f.id = m.facility_id
+LEFT JOIN sub_counties sc
+  ON sc.id = f.sub_county_id
+LEFT JOIN districts dct
+  ON dct.id = sc.district_id
+LEFT JOIN regions r
+  ON r.id = dct.region_id
+WHERE ew.epi_year = $3
+  AND (
+    $4::uuid IS NULL
+    OR r.id = $4::uuid
+  )
+  AND (
+    $5::uuid IS NULL
+    OR dct.id = $5::uuid
+  )
+GROUP BY ew.id, ew.epi_year, ew.epi_week
+ORDER BY ew.epi_year ASC, ew.epi_week ASC
+`
+
+type ListDiseaseWeeklyTrendAggregatedInHealthContextParams struct {
+	DiseaseID          uuid.NullUUID `json:"disease_id"`
+	AllowedFacilityIds []uuid.UUID   `json:"allowed_facility_ids"`
+	EpiYear            int32         `json:"epi_year"`
+	RegionID           uuid.NullUUID `json:"region_id"`
+	DistrictID         uuid.NullUUID `json:"district_id"`
+}
+
+type ListDiseaseWeeklyTrendAggregatedInHealthContextRow struct {
+	EpiWeekID  uuid.UUID `json:"epi_week_id"`
+	EpiYear    int32     `json:"epi_year"`
+	EpiWeek    int32     `json:"epi_week"`
+	TotalCases int64     `json:"total_cases"`
+}
+
+func (q *Queries) ListDiseaseWeeklyTrendAggregatedInHealthContext(ctx context.Context, arg ListDiseaseWeeklyTrendAggregatedInHealthContextParams) ([]ListDiseaseWeeklyTrendAggregatedInHealthContextRow, error) {
+	rows, err := q.db.QueryContext(ctx, listDiseaseWeeklyTrendAggregatedInHealthContext,
+		arg.DiseaseID,
+		pq.Array(arg.AllowedFacilityIds),
+		arg.EpiYear,
+		arg.RegionID,
+		arg.DistrictID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListDiseaseWeeklyTrendAggregatedInHealthContextRow{}
+	for rows.Next() {
+		var i ListDiseaseWeeklyTrendAggregatedInHealthContextRow
 		if err := rows.Scan(
 			&i.EpiWeekID,
 			&i.EpiYear,
@@ -578,8 +660,8 @@ SELECT
 FROM facility_weekly_metrics m
 JOIN facilities f ON f.id = m.facility_id
 LEFT JOIN sub_counties sc ON sc.id = f.sub_county_id
-LEFT JOIN districts dct ON dct.id = sc.district_id
-LEFT JOIN regions r ON r.id = dct.region_id
+LEFT JOIN districts dct ON dct.id = COALESCE(sc.district_id, f.district_id)
+LEFT JOIN regions r ON r.id = COALESCE(dct.region_id, f.region_id)
 JOIN diseases d ON d.id = m.disease_id
 JOIN epi_weeks ew ON ew.id = m.epi_week_id
 WHERE m.epi_week_id = $1
@@ -724,6 +806,211 @@ func (q *Queries) ListFacilityWeeklyDiseaseMetricsByWeekAndDisease(ctx context.C
 	items := []ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseRow{}
 	for rows.Next() {
 		var i ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceRecordID,
+			&i.FacilityID,
+			&i.DiseaseID,
+			&i.IndicatorID,
+			&i.EpiWeekID,
+			&i.MetricValue,
+			&i.SourceName,
+			&i.ImportedAt,
+			&i.CreatedAt,
+			&i.FacilityName,
+			&i.SubCountyID,
+			&i.SubCountyName,
+			&i.DistrictID,
+			&i.DistrictName,
+			&i.RegionID,
+			&i.RegionName,
+			&i.DiseaseName,
+			&i.EpiYear,
+			&i.EpiWeek,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContext = `-- name: ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContext :many
+SELECT
+  m.id, m.source_record_id, m.facility_id, m.disease_id, m.indicator_id, m.epi_week_id, m.metric_value, m.source_name, m.imported_at, m.created_at,
+  f.name AS facility_name,
+  sc.id AS sub_county_id,
+  sc.name AS sub_county_name,
+  dct.id AS district_id,
+  dct.name AS district_name,
+  r.id AS region_id,
+  r.name AS region_name,
+  d.name AS disease_name,
+  ew.epi_year,
+  ew.epi_week
+FROM facility_weekly_metrics m
+JOIN facilities f ON f.id = m.facility_id
+LEFT JOIN sub_counties sc ON sc.id = f.sub_county_id
+LEFT JOIN districts dct ON dct.id = sc.district_id
+LEFT JOIN regions r ON r.id = dct.region_id
+JOIN diseases d ON d.id = m.disease_id
+JOIN epi_weeks ew ON ew.id = m.epi_week_id
+WHERE m.epi_week_id = $1
+  AND m.disease_id = $2
+  AND f.id = ANY($3::uuid[])
+ORDER BY r.name ASC NULLS LAST,
+         dct.name ASC NULLS LAST,
+         sc.name ASC NULLS LAST,
+         f.name ASC,
+         d.name ASC
+`
+
+type ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextParams struct {
+	EpiWeekID          uuid.UUID     `json:"epi_week_id"`
+	DiseaseID          uuid.NullUUID `json:"disease_id"`
+	AllowedFacilityIds []uuid.UUID   `json:"allowed_facility_ids"`
+}
+
+type ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextRow struct {
+	ID             uuid.UUID      `json:"id"`
+	SourceRecordID sql.NullString `json:"source_record_id"`
+	FacilityID     uuid.UUID      `json:"facility_id"`
+	DiseaseID      uuid.NullUUID  `json:"disease_id"`
+	IndicatorID    uuid.NullUUID  `json:"indicator_id"`
+	EpiWeekID      uuid.UUID      `json:"epi_week_id"`
+	MetricValue    string         `json:"metric_value"`
+	SourceName     sql.NullString `json:"source_name"`
+	ImportedAt     time.Time      `json:"imported_at"`
+	CreatedAt      time.Time      `json:"created_at"`
+	FacilityName   string         `json:"facility_name"`
+	SubCountyID    uuid.NullUUID  `json:"sub_county_id"`
+	SubCountyName  sql.NullString `json:"sub_county_name"`
+	DistrictID     uuid.NullUUID  `json:"district_id"`
+	DistrictName   sql.NullString `json:"district_name"`
+	RegionID       uuid.NullUUID  `json:"region_id"`
+	RegionName     sql.NullString `json:"region_name"`
+	DiseaseName    string         `json:"disease_name"`
+	EpiYear        int32          `json:"epi_year"`
+	EpiWeek        int32          `json:"epi_week"`
+}
+
+func (q *Queries) ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContext(ctx context.Context, arg ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextParams) ([]ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContext, arg.EpiWeekID, arg.DiseaseID, pq.Array(arg.AllowedFacilityIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextRow{}
+	for rows.Next() {
+		var i ListFacilityWeeklyDiseaseMetricsByWeekAndDiseaseInHealthContextRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceRecordID,
+			&i.FacilityID,
+			&i.DiseaseID,
+			&i.IndicatorID,
+			&i.EpiWeekID,
+			&i.MetricValue,
+			&i.SourceName,
+			&i.ImportedAt,
+			&i.CreatedAt,
+			&i.FacilityName,
+			&i.SubCountyID,
+			&i.SubCountyName,
+			&i.DistrictID,
+			&i.DistrictName,
+			&i.RegionID,
+			&i.RegionName,
+			&i.DiseaseName,
+			&i.EpiYear,
+			&i.EpiWeek,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFacilityWeeklyDiseaseMetricsByWeekInHealthContext = `-- name: ListFacilityWeeklyDiseaseMetricsByWeekInHealthContext :many
+SELECT
+  m.id, m.source_record_id, m.facility_id, m.disease_id, m.indicator_id, m.epi_week_id, m.metric_value, m.source_name, m.imported_at, m.created_at,
+  f.name AS facility_name,
+  sc.id AS sub_county_id,
+  sc.name AS sub_county_name,
+  dct.id AS district_id,
+  dct.name AS district_name,
+  r.id AS region_id,
+  r.name AS region_name,
+  d.name AS disease_name,
+  ew.epi_year,
+  ew.epi_week
+FROM facility_weekly_metrics m
+JOIN facilities f ON f.id = m.facility_id
+LEFT JOIN sub_counties sc ON sc.id = f.sub_county_id
+LEFT JOIN districts dct ON dct.id = COALESCE(sc.district_id, f.district_id)
+LEFT JOIN regions r ON r.id = COALESCE(dct.region_id, f.region_id)
+JOIN diseases d ON d.id = m.disease_id
+JOIN epi_weeks ew ON ew.id = m.epi_week_id
+WHERE m.epi_week_id = $1
+  AND m.disease_id IS NOT NULL
+  AND f.id = ANY($2::uuid[])
+ORDER BY r.name ASC NULLS LAST,
+         dct.name ASC NULLS LAST,
+         sc.name ASC NULLS LAST,
+         f.name ASC,
+         d.name ASC
+`
+
+type ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextParams struct {
+	EpiWeekID          uuid.UUID   `json:"epi_week_id"`
+	AllowedFacilityIds []uuid.UUID `json:"allowed_facility_ids"`
+}
+
+type ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextRow struct {
+	ID             uuid.UUID      `json:"id"`
+	SourceRecordID sql.NullString `json:"source_record_id"`
+	FacilityID     uuid.UUID      `json:"facility_id"`
+	DiseaseID      uuid.NullUUID  `json:"disease_id"`
+	IndicatorID    uuid.NullUUID  `json:"indicator_id"`
+	EpiWeekID      uuid.UUID      `json:"epi_week_id"`
+	MetricValue    string         `json:"metric_value"`
+	SourceName     sql.NullString `json:"source_name"`
+	ImportedAt     time.Time      `json:"imported_at"`
+	CreatedAt      time.Time      `json:"created_at"`
+	FacilityName   string         `json:"facility_name"`
+	SubCountyID    uuid.NullUUID  `json:"sub_county_id"`
+	SubCountyName  sql.NullString `json:"sub_county_name"`
+	DistrictID     uuid.NullUUID  `json:"district_id"`
+	DistrictName   sql.NullString `json:"district_name"`
+	RegionID       uuid.NullUUID  `json:"region_id"`
+	RegionName     sql.NullString `json:"region_name"`
+	DiseaseName    string         `json:"disease_name"`
+	EpiYear        int32          `json:"epi_year"`
+	EpiWeek        int32          `json:"epi_week"`
+}
+
+func (q *Queries) ListFacilityWeeklyDiseaseMetricsByWeekInHealthContext(ctx context.Context, arg ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextParams) ([]ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextRow, error) {
+	rows, err := q.db.QueryContext(ctx, listFacilityWeeklyDiseaseMetricsByWeekInHealthContext, arg.EpiWeekID, pq.Array(arg.AllowedFacilityIds))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextRow{}
+	for rows.Next() {
+		var i ListFacilityWeeklyDiseaseMetricsByWeekInHealthContextRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.SourceRecordID,

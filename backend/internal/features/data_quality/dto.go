@@ -1,26 +1,34 @@
 package data_quality
 
+import "github.com/google/uuid"
+
+type healthContextScope struct {
+	ContextID          uuid.UUID
+	IncludeDescendants bool
+}
+
 type issueResponse struct {
-	IssueID      int64   `json:"issue_id"`
-	IssueCode    *string `json:"issue_code,omitempty"`
-	Program      *string `json:"program,omitempty"`
-	Dataset      *string `json:"dataset,omitempty"`
-	DataElement  *string `json:"data_element,omitempty"`
-	Region       *string `json:"region,omitempty"`
-	District     *string `json:"district,omitempty"`
-	OrgUnit      *string `json:"org_unit,omitempty"`
-	LevelOfCare  *string `json:"level_of_care,omitempty"`
-	Issue        *string `json:"issue,omitempty"`
-	IssueType    *string `json:"issue_type,omitempty"`
-	DateReported string  `json:"date_reported"`
-	ReportedBy   *string `json:"reported_by,omitempty"`
-	Status       *string `json:"status,omitempty"`
-	Priority     *string `json:"priority,omitempty"`
-	Severity     *string `json:"severity,omitempty"`
-	UpdatedDate  *string `json:"updated_date,omitempty"`
-	UpdatedBy    *string `json:"updated_by,omitempty"`
-	TimePeriod   *string `json:"time_Period,omitempty"`
-	AssignedTo   *string `json:"assigned_to,omitempty"`
+	HealthContextID *uuid.UUID `json:"health_context_id,omitempty"`
+	IssueID         int64      `json:"issue_id"`
+	IssueCode       *string    `json:"issue_code,omitempty"`
+	Program         *string    `json:"program,omitempty"`
+	Dataset         *string    `json:"dataset,omitempty"`
+	DataElement     *string    `json:"data_element,omitempty"`
+	Region          *string    `json:"region,omitempty"`
+	District        *string    `json:"district,omitempty"`
+	OrgUnit         *string    `json:"org_unit,omitempty"`
+	LevelOfCare     *string    `json:"level_of_care,omitempty"`
+	Issue           *string    `json:"issue,omitempty"`
+	IssueType       *string    `json:"issue_type,omitempty"`
+	DateReported    string     `json:"date_reported"`
+	ReportedBy      *string    `json:"reported_by,omitempty"`
+	Status          *string    `json:"status,omitempty"`
+	Priority        *string    `json:"priority,omitempty"`
+	Severity        *string    `json:"severity,omitempty"`
+	UpdatedDate     *string    `json:"updated_date,omitempty"`
+	UpdatedBy       *string    `json:"updated_by,omitempty"`
+	TimePeriod      *string    `json:"time_Period,omitempty"`
+	AssignedTo      *string    `json:"assigned_to,omitempty"`
 }
 
 type createIssueRequest struct {
@@ -120,6 +128,7 @@ type issueProgramSummaryResponse struct {
 }
 
 type listIssuesFilter struct {
+	Scope       healthContextScope
 	Limit       int
 	Offset      int
 	Program     string

@@ -23,6 +23,7 @@ import { ImportExportPanel } from "./ImportExportPanel";
 import { PermissionCatalogPanel } from "./PermissionCatalogPanel";
 import { PolicySimulatorPanel } from "./PolicySimulatorPanel";
 import { RoleTemplatesPanel } from "./RoleTemplatesPanel";
+import { HealthContextsPanel } from "./HealthContextsPanel";
 
 type GovernanceSection =
   | "permissions"
@@ -31,6 +32,7 @@ type GovernanceSection =
   | "changes"
   | "access"
   | "audit"
+  | "health-contexts"
   | "simulator";
 
 type GovernanceToolsPanelProps = {
@@ -174,7 +176,7 @@ export function GovernanceToolsPanel({ activeClientId }: GovernanceToolsPanelPro
       <div className="rbac-page__panel-header">
         <div>
           <h2>Governance Tools</h2>
-          <p>Catalog, import/export, audit, requests, approvals, templates, and simulation.</p>
+          <p>Catalog, contextual access, audit, requests, approvals, templates, and simulation.</p>
         </div>
       </div>
 
@@ -201,6 +203,7 @@ export function GovernanceToolsPanel({ activeClientId }: GovernanceToolsPanelPro
               "changes",
               "access",
               "audit",
+              "health-contexts",
               "simulator",
             ] as GovernanceSection[]
           }
@@ -212,6 +215,7 @@ export function GovernanceToolsPanel({ activeClientId }: GovernanceToolsPanelPro
               changes: "Change requests",
               access: "Access requests",
               audit: "Audit trail",
+              "health-contexts": "Health contexts",
               simulator: "Policy simulator",
             })[item ?? "permissions"]
           }
@@ -259,6 +263,7 @@ export function GovernanceToolsPanel({ activeClientId }: GovernanceToolsPanelPro
         )}
         {activeSection === "access" && <AccessRequestsPanel accessRequests={accessRequests} />}
         {activeSection === "audit" && <AuditTrailPanel />}
+        {activeSection === "health-contexts" && <HealthContextsPanel />}
         {activeSection === "simulator" && (
           <PolicySimulatorPanel
             simulationRoles={simulationRoles}

@@ -49,6 +49,30 @@ func (r *postgresAlertRepository) ListAlerts(ctx context.Context, arg db.ListAle
 	return r.db.ListAlerts(ctx, arg)
 }
 
+func (r *postgresAlertRepository) ListAlertsInHealthContext(
+	ctx context.Context,
+	arg db.ListAlertsParams,
+	scope HealthContextScope,
+) ([]db.ListAlertsRow, error) {
+	allowedIDs, err := scope.allowedIDs(ctx, "surveillance-district", false)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.ListAlertsInHealthContext(ctx, db.ListAlertsInHealthContextParams{
+		EpiWeekID: arg.EpiWeekID, DiseaseID: arg.DiseaseID, DistrictID: arg.DistrictID,
+		RegionID: arg.RegionID, AllowedDistrictIds: allowedIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+	items := make([]db.ListAlertsRow, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, db.ListAlertsRow(row))
+	}
+	return items, nil
+}
+
 func (r *postgresAlertRepository) ListByDisease(ctx context.Context, diseaseID uuid.UUID) ([]db.ListAlertsByDiseaseRow, error) {
 
 	if diseaseID == uuid.Nil {

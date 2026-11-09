@@ -35,6 +35,13 @@ FROM sub_counties
 WHERE district_id = $1
 ORDER BY name ASC;
 
+-- name: ListSubCountiesByDistrictInHealthContext :many
+SELECT *
+FROM sub_counties
+WHERE district_id = sqlc.arg('district_id')
+  AND id = ANY(sqlc.arg('allowed_sub_county_ids')::uuid[])
+ORDER BY name ASC;
+
 -- name: UpsertSubCounty :one
 INSERT INTO sub_counties (
   name,

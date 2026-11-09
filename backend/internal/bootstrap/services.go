@@ -12,6 +12,7 @@ import (
 	documenttemplatefeature "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
+	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
@@ -55,6 +56,7 @@ type services struct {
 	DocumentTemplateColumns documenttemplatefeature.ColumnService
 	Import                  *importsvc.Service
 	RBAC                    *rbacfeature.Service
+	HealthContexts          *healthcontextfeature.Service
 	ReportScheduler         *reportschedulerfeature.Service
 }
 
@@ -275,6 +277,9 @@ func buildServices(deps serviceDependencies) services {
 	rbacService := rbacfeature.NewService(deps.Repositories.RBAC, userService)
 	rbacService.SetKeycloakGroupMembershipManager(deps.AdminKeycloak)
 	rbacService.SetFrontendBaseURL(deps.Config.FrontendBaseURL)
+	healthContextService := healthcontextfeature.NewService(deps.Repositories.HealthContexts)
+	announcementService.SetHealthContextService(healthContextService)
+	emailFeatureService.SetHealthContextService(healthContextService)
 
 	return services{
 		Email:                   emailService,
@@ -304,6 +309,7 @@ func buildServices(deps serviceDependencies) services {
 		DocumentTemplateColumns: documentTemplateColumnService,
 		Import:                  importService,
 		RBAC:                    rbacService,
+		HealthContexts:          healthContextService,
 		ReportScheduler:         reportSchedulerService,
 	}
 }

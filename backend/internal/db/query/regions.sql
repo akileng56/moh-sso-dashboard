@@ -25,6 +25,12 @@ SELECT *
 FROM regions
 ORDER BY name ASC;
 
+-- name: ListRegionsInHealthContext :many
+SELECT *
+FROM regions
+WHERE id = ANY(sqlc.arg('allowed_region_ids')::uuid[])
+ORDER BY name ASC;
+
 -- name: UpsertRegion :one
 INSERT INTO regions (
   name,

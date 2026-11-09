@@ -63,12 +63,14 @@ func (ns NullAlertStatus) Value() (driver.Value, error) {
 type AnnouncementAudienceType string
 
 const (
-	AnnouncementAudienceTypeALLUSERS        AnnouncementAudienceType = "ALL_USERS"
-	AnnouncementAudienceTypeADMINSONLY      AnnouncementAudienceType = "ADMINS_ONLY"
-	AnnouncementAudienceTypeSPECIFICCLIENTS AnnouncementAudienceType = "SPECIFIC_CLIENTS"
-	AnnouncementAudienceTypeSPECIFICROLES   AnnouncementAudienceType = "SPECIFIC_ROLES"
-	AnnouncementAudienceTypeSPECIFICUSERS   AnnouncementAudienceType = "SPECIFIC_USERS"
-	AnnouncementAudienceTypeSPECIFICGROUPS  AnnouncementAudienceType = "SPECIFIC_GROUPS"
+	AnnouncementAudienceTypeALLUSERS                    AnnouncementAudienceType = "ALL_USERS"
+	AnnouncementAudienceTypeADMINSONLY                  AnnouncementAudienceType = "ADMINS_ONLY"
+	AnnouncementAudienceTypeSPECIFICCLIENTS             AnnouncementAudienceType = "SPECIFIC_CLIENTS"
+	AnnouncementAudienceTypeSPECIFICROLES               AnnouncementAudienceType = "SPECIFIC_ROLES"
+	AnnouncementAudienceTypeSPECIFICUSERS               AnnouncementAudienceType = "SPECIFIC_USERS"
+	AnnouncementAudienceTypeSPECIFICGROUPS              AnnouncementAudienceType = "SPECIFIC_GROUPS"
+	AnnouncementAudienceTypeSPECIFICHEALTHCONTEXTS      AnnouncementAudienceType = "SPECIFIC_HEALTH_CONTEXTS"
+	AnnouncementAudienceTypeHEALTHCONTEXTANDDESCENDANTS AnnouncementAudienceType = "HEALTH_CONTEXT_AND_DESCENDANTS"
 )
 
 func (e *AnnouncementAudienceType) Scan(src interface{}) error {
@@ -498,6 +500,15 @@ type AnnouncementAttachment struct {
 	DeletedBy        uuid.NullUUID  `json:"deleted_by"`
 }
 
+type AnnouncementAudienceSnapshot struct {
+	ID               uuid.UUID       `json:"id"`
+	AnnouncementID   uuid.UUID       `json:"announcement_id"`
+	Channel          string          `json:"channel"`
+	RecipientCount   int32           `json:"recipient_count"`
+	RecipientUserIds json.RawMessage `json:"recipient_user_ids"`
+	CreatedAt        time.Time       `json:"created_at"`
+}
+
 type AnnouncementClient struct {
 	AnnouncementID uuid.UUID `json:"announcement_id"`
 	ClientID       uuid.UUID `json:"client_id"`
@@ -508,6 +519,13 @@ type AnnouncementGroup struct {
 	AnnouncementID uuid.UUID `json:"announcement_id"`
 	GroupID        uuid.UUID `json:"group_id"`
 	CreatedAt      time.Time `json:"created_at"`
+}
+
+type AnnouncementHealthContext struct {
+	AnnouncementID     uuid.UUID `json:"announcement_id"`
+	ContextNodeID      uuid.UUID `json:"context_node_id"`
+	IncludeDescendants bool      `json:"include_descendants"`
+	CreatedAt          time.Time `json:"created_at"`
 }
 
 type AnnouncementRole struct {
@@ -554,6 +572,14 @@ type ClientSecret struct {
 	SecretHash string       `json:"secret_hash"`
 	CreatedAt  sql.NullTime `json:"created_at"`
 	ExpiresAt  sql.NullTime `json:"expires_at"`
+}
+
+// Portal-owned health-context ownership for issues stored in the external DWH database.
+type DataQualityIssueContext struct {
+	IssueCode       string    `json:"issue_code"`
+	HealthContextID uuid.UUID `json:"health_context_id"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
 type DataQualityValidationRule struct {
@@ -625,6 +651,7 @@ type Document struct {
 	CreatedAt          time.Time       `json:"created_at"`
 	UpdatedAt          time.Time       `json:"updated_at"`
 	DeletedAt          sql.NullTime    `json:"deleted_at"`
+	HealthContextID    uuid.NullUUID   `json:"health_context_id"`
 }
 
 type DocumentTemplate struct {
@@ -743,6 +770,46 @@ type FacilityWeeklyMetric struct {
 	SourceName     sql.NullString `json:"source_name"`
 	ImportedAt     time.Time      `json:"imported_at"`
 	CreatedAt      time.Time      `json:"created_at"`
+}
+
+type GroupHealthContextAssignment struct {
+	ID            uuid.UUID      `json:"id"`
+	GroupID       uuid.UUID      `json:"group_id"`
+	ContextNodeID uuid.UUID      `json:"context_node_id"`
+	ScopeMode     string         `json:"scope_mode"`
+	Source        string         `json:"source"`
+	CreatedBy     sql.NullString `json:"created_by"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
+}
+
+type HealthContextAlias struct {
+	ID            uuid.UUID       `json:"id"`
+	ContextNodeID uuid.UUID       `json:"context_node_id"`
+	Namespace     string          `json:"namespace"`
+	ExternalID    string          `json:"external_id"`
+	Metadata      json.RawMessage `json:"metadata"`
+	CreatedAt     time.Time       `json:"created_at"`
+}
+
+type HealthContextClosure struct {
+	AncestorID   uuid.UUID `json:"ancestor_id"`
+	DescendantID uuid.UUID `json:"descendant_id"`
+	Depth        int32     `json:"depth"`
+}
+
+type HealthContextNode struct {
+	ID          uuid.UUID       `json:"id"`
+	Code        string          `json:"code"`
+	Name        string          `json:"name"`
+	ContextType string          `json:"context_type"`
+	ParentID    uuid.NullUUID   `json:"parent_id"`
+	Source      string          `json:"source"`
+	Metadata    json.RawMessage `json:"metadata"`
+	Enabled     bool            `json:"enabled"`
+	Version     int32           `json:"version"`
+	CreatedAt   time.Time       `json:"created_at"`
+	UpdatedAt   time.Time       `json:"updated_at"`
 }
 
 type IhpAccessRequest struct {
@@ -1246,10 +1313,31 @@ type User struct {
 	LastLoginAt sql.NullTime   `json:"last_login_at"`
 }
 
+type UserActiveHealthContext struct {
+	UserID        string    `json:"user_id"`
+	ContextNodeID uuid.UUID `json:"context_node_id"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type UserClientAccess struct {
 	UserID    uuid.UUID    `json:"user_id"`
 	ClientID  uuid.UUID    `json:"client_id"`
 	GrantedAt sql.NullTime `json:"granted_at"`
+}
+
+type UserHealthContextAssignment struct {
+	ID              uuid.UUID      `json:"id"`
+	UserID          string         `json:"user_id"`
+	ContextNodeID   uuid.UUID      `json:"context_node_id"`
+	ScopeMode       string         `json:"scope_mode"`
+	IsDefault       bool           `json:"is_default"`
+	ValidFrom       sql.NullTime   `json:"valid_from"`
+	ValidUntil      sql.NullTime   `json:"valid_until"`
+	Source          string         `json:"source"`
+	SourceReference sql.NullString `json:"source_reference"`
+	CreatedBy       sql.NullString `json:"created_by"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 type UserRole struct {

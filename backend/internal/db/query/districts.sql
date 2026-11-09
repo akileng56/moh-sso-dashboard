@@ -28,10 +28,24 @@ FROM districts d
 LEFT JOIN regions r ON r.id = d.region_id
 ORDER BY d.name ASC;
 
+-- name: ListDistrictsInHealthContext :many
+SELECT d.*, r.name AS region_name
+FROM districts d
+LEFT JOIN regions r ON r.id = d.region_id
+WHERE d.id = ANY(sqlc.arg('allowed_district_ids')::uuid[])
+ORDER BY d.name ASC;
+
 -- name: ListDistrictsByRegion :many
 SELECT *
 FROM districts
 WHERE region_id = $1
+ORDER BY name ASC;
+
+-- name: ListDistrictsByRegionInHealthContext :many
+SELECT *
+FROM districts
+WHERE region_id = sqlc.arg('region_id')
+  AND id = ANY(sqlc.arg('allowed_district_ids')::uuid[])
 ORDER BY name ASC;
 
 -- name: UpsertDistrict :one

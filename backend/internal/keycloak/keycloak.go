@@ -48,24 +48,26 @@ type Session struct {
 }
 
 type AuthUser struct {
-	ID                string               `json:"id"`
-	Username          string               `json:"username"`
-	Email             string               `json:"email"`
-	FirstName         string               `json:"firstName"`
-	LastName          string               `json:"lastName"`
-	FullName          string               `json:"fullName"`
-	IsAdmin           bool                 `json:"isAdmin"`
-	IsUser            bool                 `json:"isUser"`
-	RealmRoles        []string             `json:"realmRoles"`
-	ClientRoles       map[string][]string  `json:"clientRoles"`
-	Permissions       []string             `json:"permissions"`
-	Systems           []string             `json:"systems"`
-	AccessibleSystems []authz.SystemAccess `json:"accessibleSystems"`
-	Enabled           bool                 `json:"enabled"`
-	EmailVerified     bool                 `json:"emailVerified"`
-	LastLoginAt       *time.Time           `json:"lastLoginAt"`
-	District          string               `json:"district,omitempty"`
-	Facility          string               `json:"facility,omitempty"`
+	ID                  string                      `json:"id"`
+	Username            string                      `json:"username"`
+	Email               string                      `json:"email"`
+	FirstName           string                      `json:"firstName"`
+	LastName            string                      `json:"lastName"`
+	FullName            string                      `json:"fullName"`
+	IsAdmin             bool                        `json:"isAdmin"`
+	IsUser              bool                        `json:"isUser"`
+	RealmRoles          []string                    `json:"realmRoles"`
+	ClientRoles         map[string][]string         `json:"clientRoles"`
+	Permissions         []string                    `json:"permissions"`
+	Systems             []string                    `json:"systems"`
+	AccessibleSystems   []authz.SystemAccess        `json:"accessibleSystems"`
+	HealthContexts      []authz.HealthContextAccess `json:"healthContexts"`
+	ActiveHealthContext *authz.HealthContextAccess  `json:"activeHealthContext,omitempty"`
+	Enabled             bool                        `json:"enabled"`
+	EmailVerified       bool                        `json:"emailVerified"`
+	LastLoginAt         *time.Time                  `json:"lastLoginAt"`
+	District            string                      `json:"district,omitempty"`
+	Facility            string                      `json:"facility,omitempty"`
 }
 
 func (u *AuthUser) GetAuthorizationFields() (string, []string, map[string][]string) {

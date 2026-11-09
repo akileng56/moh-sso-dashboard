@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createSubCounty = `-- name: CreateSubCounty :one
@@ -133,6 +134,49 @@ ORDER BY name ASC
 
 func (q *Queries) ListSubCountiesByDistrict(ctx context.Context, districtID uuid.UUID) ([]SubCounty, error) {
 	rows, err := q.db.QueryContext(ctx, listSubCountiesByDistrict, districtID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SubCounty{}
+	for rows.Next() {
+		var i SubCounty
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.DistrictID,
+			&i.Code,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSubCountiesByDistrictInHealthContext = `-- name: ListSubCountiesByDistrictInHealthContext :many
+SELECT id, name, district_id, code, created_at, updated_at
+FROM sub_counties
+WHERE district_id = $1
+  AND id = ANY($2::uuid[])
+ORDER BY name ASC
+`
+
+type ListSubCountiesByDistrictInHealthContextParams struct {
+	DistrictID          uuid.UUID   `json:"district_id"`
+	AllowedSubCountyIds []uuid.UUID `json:"allowed_sub_county_ids"`
+}
+
+func (q *Queries) ListSubCountiesByDistrictInHealthContext(ctx context.Context, arg ListSubCountiesByDistrictInHealthContextParams) ([]SubCounty, error) {
+	rows, err := q.db.QueryContext(ctx, listSubCountiesByDistrictInHealthContext, arg.DistrictID, pq.Array(arg.AllowedSubCountyIds))
 	if err != nil {
 		return nil, err
 	}

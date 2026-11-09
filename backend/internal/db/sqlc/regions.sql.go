@@ -10,6 +10,7 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 const createRegion = `-- name: CreateRegion :one
@@ -99,6 +100,42 @@ ORDER BY name ASC
 
 func (q *Queries) ListRegions(ctx context.Context) ([]Region, error) {
 	rows, err := q.db.QueryContext(ctx, listRegions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Region{}
+	for rows.Next() {
+		var i Region
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Code,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listRegionsInHealthContext = `-- name: ListRegionsInHealthContext :many
+SELECT id, name, code, created_at, updated_at
+FROM regions
+WHERE id = ANY($1::uuid[])
+ORDER BY name ASC
+`
+
+func (q *Queries) ListRegionsInHealthContext(ctx context.Context, allowedRegionIds []uuid.UUID) ([]Region, error) {
+	rows, err := q.db.QueryContext(ctx, listRegionsInHealthContext, pq.Array(allowedRegionIds))
 	if err != nil {
 		return nil, err
 	}

@@ -169,6 +169,10 @@ func riskLevelNull(value string) db.NullRiskLevel {
 	}
 }
 
+func requiredTimePtr(value time.Time) *time.Time {
+	return &value
+}
+
 func toEpiWeekResponse(item db.EpiWeek) EpiWeekResponse {
 	return EpiWeekResponse{
 		ID:            item.ID,

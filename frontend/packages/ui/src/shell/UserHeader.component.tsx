@@ -20,6 +20,7 @@ export type UserHeaderProps = {
   homeHref?: string;
   username?: string | null;
   appMenu?: ReactNode;
+  contextSelector?: ReactNode;
   onNavigateHome?: () => void;
   onLogout?: () => void;
   onProfile?: () => void;
@@ -33,6 +34,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
   homeHref = "/portal/apps",
   username,
   appMenu,
+  contextSelector,
   onNavigateHome,
   onLogout,
   onProfile,
@@ -77,6 +79,7 @@ const UserHeader: React.FC<UserHeaderProps> = ({
       </HeaderName>
 
       <HeaderGlobalBar onClickCapture={onGlobalAction}>
+        {contextSelector}
         {appMenu ?? <AppMenuAction />}
         <HeaderGlobalAction
           aria-label={`Signed in as ${username ?? "user"}`}

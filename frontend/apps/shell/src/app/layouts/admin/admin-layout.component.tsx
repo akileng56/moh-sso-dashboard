@@ -42,6 +42,7 @@ import { ConnectedAppMenu } from "@/app/ui-containers/ConnectedAppMenu";
 import { useShellNavigation } from "../useShellNavigation";
 import { RouteBreadcrumbBar } from "@/app/navigation/RouteBreadcrumbBar";
 import { useVersionInfo } from "@/app/version/useVersionInfo";
+import { HealthContextSelector } from "@/app/ui-containers/HealthContextSelector";
 import { useOpenNotifications } from "@/app/ui-containers/ConnectedNotificationsPanel";
 
 import "./admin-layout.scss";
@@ -177,6 +178,7 @@ function HeaderActions() {
 
   return (
     <>
+      <HealthContextSelector />
       <HeaderGlobalAction
         aria-label={
           safeUnreadCount > 0 ? `Notifications, ${safeUnreadCount} unread` : "Notifications"

@@ -32,6 +32,29 @@ func (r *postgresDistrictRepository) List(ctx context.Context) ([]db.ListDistric
 	return r.db.ListDistricts(ctx)
 }
 
+func (r *postgresDistrictRepository) ListInHealthContext(
+	ctx context.Context,
+	scope HealthContextScope,
+) ([]db.ListDistrictsRow, error) {
+	allowedIDs, err := scope.allowedIDs(ctx, "surveillance-district", true)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := r.db.ListDistrictsInHealthContext(ctx, allowedIDs)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]db.ListDistrictsRow, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, db.ListDistrictsRow{
+			ID: row.ID, Name: row.Name, RegionID: row.RegionID, Code: row.Code,
+			CreatedAt: row.CreatedAt, UpdatedAt: row.UpdatedAt, RegionName: row.RegionName,
+		})
+	}
+	return items, nil
+}
+
 func (r *postgresDistrictRepository) ListByRegion(ctx context.Context, regionID uuid.UUID) ([]db.District, error) {
 
 	if regionID == uuid.Nil {
@@ -49,6 +72,28 @@ func (r *postgresDistrictRepository) ListByRegion(ctx context.Context, regionID 
 	}
 
 	return districts, nil
+}
+
+func (r *postgresDistrictRepository) ListByRegionInHealthContext(
+	ctx context.Context,
+	regionID uuid.UUID,
+	scope HealthContextScope,
+) ([]db.District, error) {
+	allowedIDs, err := scope.allowedIDs(ctx, "surveillance-district", true)
+	if err != nil {
+		return nil, err
+	}
+
+	if regionID == uuid.Nil {
+		return []db.District{}, errors.New("region id is required")
+	}
+	return r.db.ListDistrictsByRegionInHealthContext(
+		ctx,
+		db.ListDistrictsByRegionInHealthContextParams{
+			RegionID:           uuid.NullUUID{UUID: regionID, Valid: true},
+			AllowedDistrictIds: allowedIDs,
+		},
+	)
 }
 
 func (r *postgresDistrictRepository) Upsert(ctx context.Context, arg db.UpsertDistrictParams) (db.District, error) {

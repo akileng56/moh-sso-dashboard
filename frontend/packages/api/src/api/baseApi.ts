@@ -31,6 +31,27 @@ type MeResponse = ApiEnvelope<{
 const transportBaseQuery = fetchBaseQuery({
   baseUrl: API.base,
   credentials: "include",
+  prepareHeaders: (headers, { getState }) => {
+    if (typeof window !== "undefined") {
+      const state = getState() as {
+        auth?: {
+          user?: Pick<AuthUser, "healthContexts" | "activeHealthContext"> | null;
+        };
+      };
+      const storedContextID = window.localStorage.getItem("moh.activeHealthContextId");
+      const contextID = storedContextID ?? state.auth?.user?.activeHealthContext?.id ?? null;
+      const contextBelongsToCurrentUser =
+        contextID &&
+        state.auth?.user?.healthContexts?.some((context) => context.id === contextID);
+
+      if (contextBelongsToCurrentUser) {
+        headers.set("X-Health-Context-ID", contextID);
+      } else {
+        headers.delete("X-Health-Context-ID");
+      }
+    }
+    return headers;
+  },
 });
 
 // RTK Query joins root-relative URLs to baseUrl as endpoint fragments.
@@ -228,6 +249,8 @@ export const baseApi = createApi({
     "RbacAudit",
     "Datasets",
     "DataElements",
+    "DataValidationRules",
+    "HealthContext",
     "DQATables",
     "DQARules",
     "DQARuns",

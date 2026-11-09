@@ -24,6 +24,7 @@ import (
 	documentsfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
 	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
+	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
@@ -73,6 +74,7 @@ type HandlerSet struct {
 	GeoJSON                 *geojsonfeature.Handler
 	Email                   *emailfeature.Handler
 	RBAC                    *rbacfeature.Handler
+	HealthContexts          *healthcontextfeature.Handler
 	ReportScheduler         *reportschedulerfeature.Handler
 }
 
@@ -114,6 +116,7 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 		GeoJSON:                       deps.Handlers.GeoJSON,
 		Email:                         deps.Handlers.Email,
 		RBAC:                          deps.Handlers.RBAC,
+		HealthContexts:                deps.Handlers.HealthContexts,
 		ReportScheduler:               deps.Handlers.ReportScheduler,
 		AuthenticatedRateLimitPerMin:  rateLimits.AuthenticatedPerMinute,
 		AuthLoginRateLimitPerMin:      rateLimits.AuthLoginPerMinute,
@@ -200,6 +203,7 @@ func corsConfig(cfg *config.Config) cors.Config {
 			"X-CSRF-Token",
 			"X-Request-ID",
 			"X-Correlation-ID",
+			"X-Health-Context-ID",
 			"Cache-Control",
 			"Pragma",
 		},
