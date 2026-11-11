@@ -18,7 +18,7 @@ func RegisterPublicRoutes(api *gin.RouterGroup, handler *Handler) {
 
 func RegisterProtectedRoutes(protected *gin.RouterGroup, handler *Handler) {
 	announcements := protected.Group("/announcements")
-	announcements.Use(middleware.RequirePermission(authz.PermissionAnnouncementsRead))
+	announcements.Use(middleware.RequireAnyPermission(authz.PermissionPortalAccess, authz.PermissionAnnouncementsRead))
 	{
 		announcements.GET("/:id/attachments/:attachmentId/download", handler.DownloadAnnouncementAttachment)
 		announcements.GET("/me", handler.ListMyAnnouncements)
