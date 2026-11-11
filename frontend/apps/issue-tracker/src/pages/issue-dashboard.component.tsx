@@ -3,9 +3,11 @@ import {
   Button,
   ComboBox,
   Dropdown,
+  Modal,
   Popover,
   PopoverContent,
   Search,
+  TextArea,
   DataTable,
   Table,
   TableHead,
@@ -25,15 +27,24 @@ import {
   Filter,
   ArrowRight,
   Renew,
+  CheckmarkOutline,
+  UserFollow,
+  WarningAlt,
 } from "@carbon/react/icons";
 import { GroupedBarChart, PieChart, SimpleBarChart } from "@carbon/charts-react";
 import { Alignments, ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
 import "@carbon/charts/styles.css";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
-import { PermissionGuard, PERMISSIONS } from "@moh-sso/auth";
+import { useSelector } from "react-redux";
+import { PermissionGuard, PERMISSIONS, selectUser } from "@moh-sso/auth";
 
-import { useGetIssuesQuery, useGetIssuesSummaryByProgramQuery } from "../api";
+import {
+  useCreateTransactionMutation,
+  useGetIssuesQuery,
+  useGetIssuesSummaryByProgramQuery,
+} from "../api";
+import { AssignModal } from "../component/assign-modal.component.tsx";
 import type { Issue } from "../types";
 import { periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
 import {
@@ -92,6 +103,148 @@ type PeriodOption = {
 };
 
 type SortHeader = "region" | "critical" | "open" | "resolved" | "total" | "percentage" | string;
+
+type AgingBucketId = "0-7" | "8-14" | "15-30" | "31-60" | "61-90" | "90+";
+
+type AgingBucketDefinition = {
+  id: AgingBucketId;
+  label: string;
+  shortLabel: string;
+  minDays: number;
+  maxDays: number;
+  color: string;
+  badgeClass: string;
+};
+
+const AGING_BUCKETS: AgingBucketDefinition[] = [
+  {
+    id: "0-7",
+    label: "0–7 Days",
+    shortLabel: "0–7d",
+    minDays: 0,
+    maxDays: 7,
+    color: "#0f62fe",
+    badgeClass: "aging-pill--fresh",
+  },
+  {
+    id: "8-14",
+    label: "8–14 Days",
+    shortLabel: "8–14d",
+    minDays: 8,
+    maxDays: 14,
+    color: "#007d79",
+    badgeClass: "aging-pill--recent",
+  },
+  {
+    id: "15-30",
+    label: "15–30 Days",
+    shortLabel: "15–30d",
+    minDays: 15,
+    maxDays: 30,
+    color: "#d2a106",
+    badgeClass: "aging-pill--aging",
+  },
+  {
+    id: "31-60",
+    label: "31–60 Days",
+    shortLabel: "31–60d",
+    minDays: 31,
+    maxDays: 60,
+    color: "#eb6200",
+    badgeClass: "aging-pill--overdue",
+  },
+  {
+    id: "61-90",
+    label: "61–90 Days",
+    shortLabel: "61–90d",
+    minDays: 61,
+    maxDays: 90,
+    color: "#da1e28",
+    badgeClass: "aging-pill--stale",
+  },
+  {
+    id: "90+",
+    label: "> 90 Days",
+    shortLabel: "> 90d",
+    minDays: 91,
+    maxDays: Number.POSITIVE_INFINITY,
+    color: "#a2191f",
+    badgeClass: "aging-pill--critical",
+  },
+];
+
+type ActionableAgingIssue = {
+  issue: Issue;
+  issueCode: string;
+  ageDays: number;
+  bucket: AgingBucketDefinition;
+  regionName: string;
+  districtName: string;
+  facilityName: string;
+  isCritical: boolean;
+  isUnassigned: boolean;
+  reportedDateLabel: string;
+};
+
+function parseIssueDate(issue: Issue): Date | null {
+  const candidates = [safeString(issue.date_reported), safeString(issue.updated_date)];
+
+  for (const raw of candidates) {
+    if (!raw) continue;
+
+    const isoMatch = raw.match(/^(\d{4})-(0[1-9]|1[0-2])-(\d{2})/);
+    if (isoMatch) {
+      const parsed = new Date(
+        Number(isoMatch[1]),
+        Number(isoMatch[2]) - 1,
+        Number(isoMatch[3]),
+      );
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    const dmyMatch = raw.match(/^(\d{1,2})[/-](0?[1-9]|1[0-2])[/-](\d{4})$/);
+    if (dmyMatch) {
+      const parsed = new Date(
+        Number(dmyMatch[3]),
+        Number(dmyMatch[2]) - 1,
+        Number(dmyMatch[1]),
+      );
+      if (!Number.isNaN(parsed.getTime())) return parsed;
+    }
+
+    const direct = new Date(raw);
+    if (!Number.isNaN(direct.getTime())) return direct;
+  }
+
+  const rawPeriod = safeString(issue.time_Period || issue.time_period);
+  if (rawPeriod) {
+    const code = convertPeriodToCode(rawPeriod);
+    const mMatch = code.match(/^(\d{4})(0[1-9]|1[0-2])$/);
+    if (mMatch) {
+      return new Date(Number(mMatch[1]), Number(mMatch[2]) - 1, 1);
+    }
+    const qMatch = code.match(/^(\d{4})Q([1-4])$/i);
+    if (qMatch) {
+      const startMonth = (Number(qMatch[2]) - 1) * 3;
+      return new Date(Number(qMatch[1]), startMonth, 1);
+    }
+    const yMatch = rawPeriod.match(/\b(19\d\d|20\d\d)\b/);
+    if (yMatch) {
+      return new Date(Number(yMatch[1]), 0, 1);
+    }
+  }
+
+  return null;
+}
+
+function getAgingBucketForDays(ageDays: number): AgingBucketDefinition {
+  for (const bucket of AGING_BUCKETS) {
+    if (ageDays >= bucket.minDays && ageDays <= bucket.maxDays) {
+      return bucket;
+    }
+  }
+  return AGING_BUCKETS[AGING_BUCKETS.length - 1];
+}
 
 function safeString(val: unknown): string {
   if (val == null) return "";
@@ -448,12 +601,14 @@ function aggregateIssuesByRegion(
 
 const IssueDashboard = () => {
   const navigate = useNavigate();
+  const user = useSelector(selectUser);
   const currentYear = new Date().getFullYear();
 
   /* -------------------------------------------------------------
-   * API Queries
+   * API Queries & Mutations
    * ------------------------------------------------------------- */
   const [selectedProgram, setSelectedProgram] = useState<string | undefined>();
+  const [createTransaction, { isLoading: isResolvingIssue }] = useCreateTransactionMutation();
 
   const {
     data: issuesData,
@@ -507,6 +662,16 @@ const IssueDashboard = () => {
   const [chartViewMode, setChartViewMode] = useState<"total" | "status">("total");
   const [selectedChartRegion, setSelectedChartRegion] =
     useState<string>(DEFAULT_CHART_REGION);
+
+  /* Unresolved aging issues visual & action state */
+  const [selectedAgingBucket, setSelectedAgingBucket] = useState<"all" | AgingBucketId>("all");
+  const [agingTriageFilter, setAgingTriageFilter] = useState<
+    "all" | "overdue" | "critical" | "unassigned"
+  >("all");
+  const [assigningIssueCodes, setAssigningIssueCodes] = useState<string[]>([]);
+  const [isAssignReassign, setIsAssignReassign] = useState<boolean>(false);
+  const [resolvingAgingIssue, setResolvingAgingIssue] = useState<ActionableAgingIssue | null>(null);
+  const [resolutionComment, setResolutionComment] = useState<string>("");
 
   /* Expanded districts state for facility breakdown */
   const [expandedDistricts, setExpandedDistricts] = useState<Record<string, boolean>>({});
@@ -1132,6 +1297,275 @@ const IssueDashboard = () => {
   );
 
   /* -------------------------------------------------------------
+   * Unresolved Issue Aging Data, Chart Options & Actionable Queue
+   * ------------------------------------------------------------- */
+  const unresolvedAgingIssues: ActionableAgingIssue[] = useMemo(() => {
+    const nowMs = Date.now();
+    const dayMs = 1000 * 60 * 60 * 24;
+
+    const hasActiveRegionInRows =
+      activeChartRegion === "All Regions" ||
+      pageRegionalSummary.some(
+        (r) =>
+          safeLower(r.region) === safeLower(activeChartRegion) ||
+          (safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
+            safeLower(r.region).includes("south buganda")),
+      );
+
+    const items: ActionableAgingIssue[] = [];
+
+    for (const issue of rawIssues) {
+      if (isIssueResolved(issue.status)) {
+        continue;
+      }
+
+      // Resolve Region
+      let regionName = safeString(issue.region);
+      if (regionName && orgIdToNameMap.has(safeLower(regionName))) {
+        regionName = orgIdToNameMap.get(safeLower(regionName))!;
+      }
+      if (!regionName && issue.org_unit) {
+        regionName = orgToRegionMap.get(safeLower(issue.org_unit)) || "";
+      }
+      if (!regionName && issue.district) {
+        regionName = orgToRegionMap.get(safeLower(issue.district)) || "";
+      }
+      if (!regionName) {
+        regionName = "Unspecified";
+      }
+
+      if (
+        hasActiveRegionInRows &&
+        activeChartRegion !== "All Regions" &&
+        safeLower(regionName) !== safeLower(activeChartRegion) &&
+        !(
+          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
+          safeLower(regionName).includes("south buganda")
+        )
+      ) {
+        continue;
+      }
+
+      // Resolve District
+      let districtName = safeString(issue.district);
+      if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
+        districtName = orgIdToNameMap.get(safeLower(districtName))!;
+      }
+      if (!districtName && issue.org_unit) {
+        districtName =
+          orgToDistrictMap.get(safeLower(issue.org_unit)) || safeString(issue.org_unit);
+      }
+      if (!districtName) {
+        districtName = "Unspecified";
+      }
+
+      // Resolve Facility
+      let facilityName = safeString(issue.org_unit);
+      if (!facilityName) {
+        facilityName = "Unspecified Facility";
+      } else {
+        const mappedName = orgIdToNameMap.get(safeLower(facilityName));
+        if (mappedName) {
+          facilityName = mappedName;
+        }
+      }
+
+      const parsedDate = parseIssueDate(issue);
+      const ageDays = parsedDate
+        ? Math.max(0, Math.floor((nowMs - parsedDate.getTime()) / dayMs))
+        : 0;
+      const bucket = getAgingBucketForDays(ageDays);
+      const isCritical = isCriticalIssue(issue);
+      const isUnassigned = !safeString(issue.assigned_to);
+      const issueCode =
+        safeString(issue.issue_code) ||
+        (issue.issue_id ? `HMIS-${String(issue.issue_id).padStart(4, "0")}` : "ISSUE");
+      const reportedDateLabel =
+        safeString(issue.date_reported).slice(0, 10) ||
+        formatReportingPeriod(issue.time_Period || issue.time_period) ||
+        "N/A";
+
+      items.push({
+        issue,
+        issueCode,
+        ageDays,
+        bucket,
+        regionName,
+        districtName,
+        facilityName,
+        isCritical,
+        isUnassigned,
+        reportedDateLabel,
+      });
+    }
+
+    // Sort actionable backlog: critical + oldest first
+    items.sort((a, b) => {
+      if (b.ageDays !== a.ageDays) return b.ageDays - a.ageDays;
+      if (a.isCritical !== b.isCritical) return a.isCritical ? -1 : 1;
+      return a.isUnassigned === b.isUnassigned ? 0 : a.isUnassigned ? -1 : 1;
+    });
+
+    return items;
+  }, [
+    rawIssues,
+    activeChartRegion,
+    pageRegionalSummary,
+    orgToRegionMap,
+    orgToDistrictMap,
+    orgIdToNameMap,
+  ]);
+
+  const agingMetrics = useMemo(() => {
+    const bucketMap = new Map<
+      AgingBucketId,
+      { total: number; critical: number; unassigned: number; assigned: number }
+    >();
+
+    for (const b of AGING_BUCKETS) {
+      bucketMap.set(b.id, { total: 0, critical: 0, unassigned: 0, assigned: 0 });
+    }
+
+    let overdueCount = 0;
+    let criticalCount = 0;
+    let unassignedCount = 0;
+    let totalAgeDays = 0;
+    let maxAgeDays = 0;
+
+    for (const item of unresolvedAgingIssues) {
+      const bStat = bucketMap.get(item.bucket.id)!;
+      bStat.total += 1;
+      if (item.isCritical) {
+        bStat.critical += 1;
+        criticalCount += 1;
+      }
+      if (item.isUnassigned) {
+        bStat.unassigned += 1;
+        unassignedCount += 1;
+      } else {
+        bStat.assigned += 1;
+      }
+      if (item.ageDays > 30) {
+        overdueCount += 1;
+      }
+      totalAgeDays += item.ageDays;
+      if (item.ageDays > maxAgeDays) {
+        maxAgeDays = item.ageDays;
+      }
+    }
+
+    const totalUnresolved = unresolvedAgingIssues.length;
+    const avgAgeDays = totalUnresolved > 0 ? Math.round(totalAgeDays / totalUnresolved) : 0;
+
+    return {
+      totalUnresolved,
+      overdueCount,
+      criticalCount,
+      unassignedCount,
+      avgAgeDays,
+      maxAgeDays,
+      bucketMap,
+    };
+  }, [unresolvedAgingIssues]);
+
+  const agingChartData = useMemo(() => {
+    if (chartViewMode === "status") {
+      return AGING_BUCKETS.flatMap((bucket) => {
+        const stats = agingMetrics.bucketMap.get(bucket.id) ?? {
+          total: 0,
+          critical: 0,
+          unassigned: 0,
+          assigned: 0,
+        };
+        return [
+          { group: "Critical Open", key: bucket.shortLabel, value: stats.critical },
+          { group: "Unassigned Open", key: bucket.shortLabel, value: stats.unassigned },
+          { group: "Assigned Open", key: bucket.shortLabel, value: stats.assigned },
+        ];
+      });
+    }
+
+    return AGING_BUCKETS.map((bucket) => {
+      const stats = agingMetrics.bucketMap.get(bucket.id);
+      return {
+        group: bucket.label,
+        key: bucket.shortLabel,
+        value: stats?.total ?? 0,
+      };
+    });
+  }, [agingMetrics, chartViewMode]);
+
+  const agingChartOptions = useMemo(
+    () => ({
+      title:
+        activeChartRegion && activeChartRegion !== "All Regions"
+          ? `Unresolved Issue Aging (${activeChartRegion})`
+          : "Unresolved Issue Aging",
+      axes: {
+        left: {
+          mapsTo: "value",
+          title: "Unresolved",
+          scaleType: ScaleTypes.LINEAR,
+        },
+        bottom: {
+          mapsTo: "key",
+          title: "Age Bracket",
+          scaleType: ScaleTypes.LABELS,
+        },
+      },
+      color: {
+        scale:
+          chartViewMode === "status"
+            ? {
+                "Critical Open": "#a2191f",
+                "Unassigned Open": "#eb6200",
+                "Assigned Open": "#0f62fe",
+              }
+            : {
+                "0–7 Days": "#0f62fe",
+                "8–14 Days": "#007d79",
+                "15–30 Days": "#d2a106",
+                "31–60 Days": "#eb6200",
+                "61–90 Days": "#da1e28",
+                "> 90 Days": "#a2191f",
+              },
+      },
+      height: "215px",
+      toolbar: chartToolbarConfig,
+      legend: {
+        enabled: chartViewMode === "status",
+      },
+    }),
+    [activeChartRegion, chartViewMode, chartToolbarConfig],
+  );
+
+  const actionableAgingIssues = useMemo(() => {
+    return unresolvedAgingIssues.filter((item) => {
+      if (selectedAgingBucket !== "all" && item.bucket.id !== selectedAgingBucket) {
+        return false;
+      }
+      if (agingTriageFilter === "overdue" && item.ageDays <= 30) {
+        return false;
+      }
+      if (agingTriageFilter === "critical" && !item.isCritical) {
+        return false;
+      }
+      if (agingTriageFilter === "unassigned" && !item.isUnassigned) {
+        return false;
+      }
+      return true;
+    });
+  }, [unresolvedAgingIssues, selectedAgingBucket, agingTriageFilter]);
+
+  const actionableUnassignedCodes = useMemo(
+    () =>
+      actionableAgingIssues
+        .filter((item) => item.isUnassigned && Boolean(item.issue.issue_code))
+        .map((item) => item.issue.issue_code),
+    [actionableAgingIssues],
+  );
+
+  /* -------------------------------------------------------------
    * Handlers
    * ------------------------------------------------------------- */
   const handleSort = (headerKey: string) => {
@@ -1290,6 +1724,51 @@ const IssueDashboard = () => {
     }
   };
 
+  const handleNavigateToIssueCode = (issueCode: string) => {
+    if (issueCode) {
+      navigate(`/issues?issueCode=${encodeURIComponent(issueCode)}`);
+    } else {
+      navigate("/issues");
+    }
+  };
+
+  const handleOpenAssignSingle = (item: ActionableAgingIssue) => {
+    const code = safeString(item.issue.issue_code) || item.issueCode;
+    if (!code) return;
+    setAssigningIssueCodes([code]);
+    setIsAssignReassign(!item.isUnassigned);
+  };
+
+  const handleOpenBulkAssignUnassigned = () => {
+    if (actionableUnassignedCodes.length === 0) return;
+    setAssigningIssueCodes(actionableUnassignedCodes);
+    setIsAssignReassign(false);
+  };
+
+  const handleConfirmQuickResolve = async () => {
+    if (!resolvingAgingIssue || !resolutionComment.trim()) return;
+    const code =
+      safeString(resolvingAgingIssue.issue.issue_code) || resolvingAgingIssue.issueCode;
+    if (!code) return;
+
+    try {
+      await createTransaction({
+        id: code,
+        body: {
+          resolution_action: resolutionComment.trim(),
+          resolved_by: user?.email || user?.username || "",
+          status: "resolved",
+        },
+      }).unwrap();
+
+      setResolvingAgingIssue(null);
+      setResolutionComment("");
+      handleRefreshAll();
+    } catch (err) {
+      console.error("Failed to resolve aging issue:", err);
+    }
+  };
+
   const handleRefreshAll = () => {
     refetchIssues();
     if (selectedProgram) {
@@ -1428,7 +1907,8 @@ const IssueDashboard = () => {
               <div>
                 <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
                 <p className="dashboard-charts-subtitle">
-                  Column chart comparison of reported issues across regions and districts.
+                  Comparison of reported issues across regions, districts, level of care, and
+                  actionable unresolved issue aging.
                 </p>
               </div>
 
@@ -1484,11 +1964,284 @@ const IssueDashboard = () => {
                 )}
               </div>
 
-              <div className="dashboard-chart-card dashboard-chart-card--full">
+              <div className="dashboard-chart-card">
                 <PieChart
                   data={levelOfCareChartData}
                   options={levelOfCareChartOptions}
                 />
+              </div>
+
+              <div className="dashboard-chart-card aging-visual-card">
+                <div className="aging-visual-chart-wrapper">
+                  {chartViewMode === "status" ? (
+                    <GroupedBarChart data={agingChartData} options={agingChartOptions} />
+                  ) : (
+                    <SimpleBarChart data={agingChartData} options={agingChartOptions} />
+                  )}
+                </div>
+
+                {/* Summary KPI Strip */}
+                <div className="aging-kpi-strip">
+                  <div className="aging-kpi-item">
+                    <span className="aging-kpi-label">Unresolved</span>
+                    <strong className="aging-kpi-val">{agingMetrics.totalUnresolved}</strong>
+                  </div>
+                  <div className="aging-kpi-item aging-kpi-item--overdue">
+                    <span className="aging-kpi-label">Overdue (&gt;30d)</span>
+                    <strong className="aging-kpi-val">{agingMetrics.overdueCount}</strong>
+                  </div>
+                  <div className="aging-kpi-item aging-kpi-item--critical">
+                    <span className="aging-kpi-label">Critical</span>
+                    <strong className="aging-kpi-val">{agingMetrics.criticalCount}</strong>
+                  </div>
+                  <div className="aging-kpi-item aging-kpi-item--unassigned">
+                    <span className="aging-kpi-label">Unassigned</span>
+                    <strong className="aging-kpi-val">{agingMetrics.unassignedCount}</strong>
+                  </div>
+                  <div className="aging-kpi-item">
+                    <span className="aging-kpi-label">Avg / Oldest</span>
+                    <strong className="aging-kpi-val">
+                      {agingMetrics.avgAgeDays}d / {agingMetrics.maxAgeDays}d
+                    </strong>
+                  </div>
+                </div>
+
+                {/* Interactive Bucket & Triage Filters */}
+                <div className="aging-controls-bar">
+                  <div className="aging-bucket-pills" role="group" aria-label="Filter by aging bracket">
+                    <button
+                      type="button"
+                      className={`aging-bucket-chip ${selectedAgingBucket === "all" ? "active" : ""}`}
+                      onClick={() => setSelectedAgingBucket("all")}
+                    >
+                      All ({agingMetrics.totalUnresolved})
+                    </button>
+                    {AGING_BUCKETS.map((bucket) => {
+                      const count = agingMetrics.bucketMap.get(bucket.id)?.total ?? 0;
+                      const isActive = selectedAgingBucket === bucket.id;
+                      return (
+                        <button
+                          key={bucket.id}
+                          type="button"
+                          className={`aging-bucket-chip ${isActive ? "active" : ""}`}
+                          style={
+                            isActive
+                              ? {
+                                  backgroundColor: bucket.color,
+                                  borderColor: bucket.color,
+                                  color: "#ffffff",
+                                }
+                              : undefined
+                          }
+                          onClick={() =>
+                            setSelectedAgingBucket((prev) =>
+                              prev === bucket.id ? "all" : bucket.id,
+                            )
+                          }
+                        >
+                          <span
+                            className="aging-bucket-dot"
+                            style={{
+                              backgroundColor: isActive ? "#ffffff" : bucket.color,
+                            }}
+                          />
+                          {bucket.shortLabel} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="aging-triage-row">
+                    <div className="aging-triage-filters" role="group" aria-label="Quick triage filters">
+                      <button
+                        type="button"
+                        className={`aging-triage-btn ${agingTriageFilter === "all" ? "active" : ""}`}
+                        onClick={() => setAgingTriageFilter("all")}
+                      >
+                        All Backlog
+                      </button>
+                      <button
+                        type="button"
+                        className={`aging-triage-btn ${agingTriageFilter === "overdue" ? "active" : ""}`}
+                        onClick={() =>
+                          setAgingTriageFilter((prev) => (prev === "overdue" ? "all" : "overdue"))
+                        }
+                      >
+                        Overdue &gt;30d ({agingMetrics.overdueCount})
+                      </button>
+                      <button
+                        type="button"
+                        className={`aging-triage-btn ${agingTriageFilter === "critical" ? "active" : ""}`}
+                        onClick={() =>
+                          setAgingTriageFilter((prev) =>
+                            prev === "critical" ? "all" : "critical",
+                          )
+                        }
+                      >
+                        Critical ({agingMetrics.criticalCount})
+                      </button>
+                      <button
+                        type="button"
+                        className={`aging-triage-btn ${agingTriageFilter === "unassigned" ? "active" : ""}`}
+                        onClick={() =>
+                          setAgingTriageFilter((prev) =>
+                            prev === "unassigned" ? "all" : "unassigned",
+                          )
+                        }
+                      >
+                        Unassigned ({agingMetrics.unassignedCount})
+                      </button>
+                    </div>
+
+                    {actionableUnassignedCodes.length > 0 && (
+                      <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                        <Button
+                          size="sm"
+                          kind="ghost"
+                          renderIcon={UserFollow}
+                          onClick={handleOpenBulkAssignUnassigned}
+                          className="aging-bulk-assign-btn"
+                        >
+                          Assign {actionableUnassignedCodes.length} Unassigned
+                        </Button>
+                      </PermissionGuard>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actionable Unresolved Issues List */}
+                <div className="aging-actionable-queue">
+                  {actionableAgingIssues.length === 0 ? (
+                    <div className="aging-empty-queue">
+                      <p>
+                        No unresolved issues match the selected aging bracket or triage filter.
+                      </p>
+                      {(selectedAgingBucket !== "all" || agingTriageFilter !== "all") && (
+                        <Button
+                          size="sm"
+                          kind="ghost"
+                          onClick={() => {
+                            setSelectedAgingBucket("all");
+                            setAgingTriageFilter("all");
+                          }}
+                        >
+                          Clear Aging Filters
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="aging-queue-table-wrap">
+                      <table className="aging-queue-table" aria-label="Actionable aging unresolved issues">
+                        <thead>
+                          <tr>
+                            <th>Issue &amp; Facility</th>
+                            <th>Age</th>
+                            <th>Assignee</th>
+                            <th style={{ textAlign: "right" }}>Quick Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {actionableAgingIssues.slice(0, 25).map((item) => (
+                            <tr key={`${item.issue.issue_id}-${item.issueCode}`}>
+                              <td>
+                                <div className="aging-issue-main">
+                                  <div className="aging-issue-top">
+                                    <button
+                                      type="button"
+                                      className="aging-issue-code-link"
+                                      onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                      title={`Open issue ${item.issueCode}`}
+                                    >
+                                      {item.issueCode}
+                                    </button>
+                                    {item.isCritical && (
+                                      <span className="aging-critical-tag">
+                                        <WarningAlt size={12} /> Critical
+                                      </span>
+                                    )}
+                                    <span className="aging-issue-element">
+                                      {safeString(item.issue.data_element) ||
+                                        safeString(item.issue.dataset) ||
+                                        safeString(item.issue.issue_type) ||
+                                        "Data Quality Issue"}
+                                    </span>
+                                  </div>
+                                  <div className="aging-issue-meta">
+                                    <span>{item.facilityName}</span>
+                                    <span>•</span>
+                                    <span>{item.districtName}</span>
+                                    <span>•</span>
+                                    <span>Reported: {item.reportedDateLabel}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td>
+                                <span className={`aging-pill ${item.bucket.badgeClass}`}>
+                                  {item.ageDays}d
+                                </span>
+                              </td>
+                              <td>
+                                {item.isUnassigned ? (
+                                  <span className="aging-assignee-unassigned">Unassigned</span>
+                                ) : (
+                                  <span
+                                    className="aging-assignee-assigned"
+                                    title={safeString(item.issue.assigned_to)}
+                                  >
+                                    {safeString(item.issue.assigned_to)}
+                                  </span>
+                                )}
+                              </td>
+                              <td>
+                                <div className="aging-row-actions">
+                                  <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                                    <button
+                                      type="button"
+                                      className="aging-action-btn aging-action-btn--assign"
+                                      onClick={() => handleOpenAssignSingle(item)}
+                                      title={
+                                        item.isUnassigned
+                                          ? `Assign ${item.issueCode}`
+                                          : `Re-assign ${item.issueCode}`
+                                      }
+                                    >
+                                      <UserFollow size={14} />
+                                      <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
+                                    </button>
+                                  </PermissionGuard>
+
+                                  <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
+                                    <button
+                                      type="button"
+                                      className="aging-action-btn aging-action-btn--resolve"
+                                      onClick={() => {
+                                        setResolvingAgingIssue(item);
+                                        setResolutionComment("");
+                                      }}
+                                      title={`Resolve ${item.issueCode}`}
+                                    >
+                                      <CheckmarkOutline size={14} />
+                                      <span>Resolve</span>
+                                    </button>
+                                  </PermissionGuard>
+
+                                  <button
+                                    type="button"
+                                    className="aging-action-btn aging-action-btn--view"
+                                    onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                    title={`View full details for ${item.issueCode}`}
+                                  >
+                                    <ArrowRight size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -2153,6 +2906,67 @@ const IssueDashboard = () => {
               )}
             </DataTable>
           </div>
+        )}
+
+        {/* ================= Action Modals for Aging Issues ================= */}
+        {assigningIssueCodes.length > 0 && (
+          <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+            <AssignModal
+              issueCodes={assigningIssueCodes}
+              isReassign={isAssignReassign}
+              onClose={() => setAssigningIssueCodes([])}
+              onSuccess={() => {
+                setAssigningIssueCodes([]);
+                handleRefreshAll();
+              }}
+            />
+          </PermissionGuard>
+        )}
+
+        {resolvingAgingIssue && (
+          <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
+            <Modal
+              open
+              modalHeading={`Resolve Issue [${resolvingAgingIssue.issueCode}]`}
+              primaryButtonText={isResolvingIssue ? "Resolving..." : "Confirm Resolution"}
+              secondaryButtonText="Cancel"
+              primaryButtonDisabled={!resolutionComment.trim() || isResolvingIssue}
+              onRequestClose={() => {
+                if (!isResolvingIssue) {
+                  setResolvingAgingIssue(null);
+                  setResolutionComment("");
+                }
+              }}
+              onRequestSubmit={handleConfirmQuickResolve}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div className="aging-resolve-modal-summary">
+                  <div>
+                    <strong>Facility:</strong> {resolvingAgingIssue.facilityName} (
+                    {resolvingAgingIssue.districtName})
+                  </div>
+                  <div>
+                    <strong>Age:</strong> {resolvingAgingIssue.ageDays} days unresolved (Reported:{" "}
+                    {resolvingAgingIssue.reportedDateLabel})
+                  </div>
+                  <div>
+                    <strong>Issue:</strong> {safeString(resolvingAgingIssue.issue.issue) || "N/A"}
+                  </div>
+                </div>
+
+                <TextArea
+                  data-modal-primary-focus
+                  id="dashboard-aging-resolve-comment"
+                  labelText="Resolution Action / Notes"
+                  placeholder="Describe the corrective action taken to resolve this aging issue..."
+                  value={resolutionComment}
+                  onChange={(e) => setResolutionComment(e.target.value)}
+                  rows={4}
+                  disabled={isResolvingIssue}
+                />
+              </div>
+            </Modal>
+          </PermissionGuard>
         )}
       </div>
     </PermissionGuard>
