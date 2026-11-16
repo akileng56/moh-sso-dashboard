@@ -102,6 +102,8 @@
     "test:dependency-guards": "node --test scripts/check-lockfile.test.mjs scripts/audit-package-dependencies.test.mjs",
     "test:browser": "playwright test",
     "audit:packed": "node scripts/check-packed-packages.mjs",
+    "release:verify-npm": "node scripts/verify-npm-release.mjs",
+    "test:npm-release": "node --test scripts/verify-npm-release.test.mjs",
     "modules:prepare": "node scripts/frontend-modules.mjs prepare",
     "build:docker:source": "npm run build:all && npm run generate:versions && npm run stage:mf && MF_CSS_AUDIT_TARGET=staged npm run audit:mf-css",
     "build:docker:npm-prepared": "npm run generate:import-map && npm run generate:versions && npm run build:shell && npm run stage:mf:npm && MF_CSS_AUDIT_TARGET=staged npm run audit:mf-css && npm run audit:import-map",
