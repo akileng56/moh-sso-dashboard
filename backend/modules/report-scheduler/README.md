@@ -3,12 +3,11 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler`.
 Go package: `reportscheduler`. Requires Go 1.25.4.
 
-This is the standalone release candidate prepared by extraction phase 3. It has
-its own dependency metadata and tests and builds outside the dashboard tree.
-The dashboard continues to run the verified registry-hosted implementation until
-phase 4 publishes and selects a version. The candidate is not yet a production
-dependency or a published release. The host implementation is retained for that
-transition and will be replaced by package adapters when the release is pinned.
+Version `v0.1.0` is the first standalone scheduler release. Its Go module tag is
+`backend/modules/report-scheduler/v0.1.0`. It has independent dependency metadata
+and tests and builds outside the dashboard tree. Hosts select the immutable
+version in their dependency metadata and supply their own HTTP and platform
+adapters.
 
 ## Public API and responsibilities
 
@@ -87,6 +86,7 @@ The repository's `make -C backend modules-check` discovers this module alongside
 Metrics. HTTP permissions, public token-download routes and registry rollback
 remain covered by the dashboard suite and authenticated distribution fixture.
 
-The next phase publishes an immutable module version, verifies a clean download,
-selects it in the host's `go.mod`, replaces retained host implementation files
-with adapters, and reports the selected package version in the module inventory.
+To integrate a release, verify a clean module download, select its version in the
+host's `go.mod`, supply host adapters and report `Version()` in the compiled
+inventory. Production builds use the selected dependency without local workspace
+replacements. Schema changes continue through the host-owned migration runner.
