@@ -23,16 +23,20 @@ Metrics remains the independent Go-package reference in `backend/modules/metrics
 
 Choose a bounded migration rather than moving unrelated domains together.
 Worker-bearing domains need their processing lifecycle migrated with their
-routes. Report Scheduler is the first registry-hosted worker-bearing feature:
-its dependency ports are isolated and the registry owns readiness, startup and
-joined shutdown. Both public token-download routes and protected routes are
-registered in the same module callback. Its independent package release is the
-next extraction step. A standalone release candidate now exists in
-`backend/modules/report-scheduler`, verified outside the host tree against
-disposable PostgreSQL. Its production inventory stage stays `registry-hosted`
-until the host consumes a published version. During this transition, keep fixes
-to retained host scheduler logic aligned with the candidate; remove the retained
-implementation when integrating the release.
+routes. Report Scheduler follows Metrics as an independently versioned Go
+module in `backend/modules/report-scheduler`, selected at `v0.1.0` in the host.
+Its registry definition owns readiness, startup and joined shutdown, together
+with public token-download and protected routes. Host HTTP authorization,
+platform adapters and core schema migrations remain explicit host responsibilities.
+
+The former host implementation has been replaced by aliases and thin constructors
+in `internal/features/report_scheduler/package.go`. Portable implementation tests
+live in the module; host HTTP, queue conversion and registry integration tests
+exercise the selected published dependency. Verify changes with
+`make -C backend modules-check` and
+`python3 infra/scripts/test-report-scheduler-package.py`, then publish an immutable
+nested module tag before updating the host pin. Production builds do not use
+local module replacements.
 
 ## Add a compiled registry integration
 

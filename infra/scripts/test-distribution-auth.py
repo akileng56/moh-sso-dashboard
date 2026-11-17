@@ -179,7 +179,8 @@ def main():
             request(api + inventory, token=outsider, status=403)
             modules = request(api + inventory, token=admin)['data']
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            for module_id in ('audit', 'geojson', 'report-scheduler'):
+            assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            for module_id in ('audit', 'geojson'):
                 assert any(item['id'] == module_id and item['enabled'] for item in modules), module_id
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)

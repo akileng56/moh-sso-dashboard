@@ -68,6 +68,7 @@ class BundleTests(unittest.TestCase):
         selection = json.loads((bundle.ROOT / 'frontend/module-sources.json').read_text())['production']
         self.assertEqual(data['frontend']['versions'], selection['versions'])
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics'], 'v0.1.0')
+        self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler'], 'v0.1.0')
         for field in ('version', 'checksum', 'module'):
             changed = json.loads(json.dumps(data))
             if field == 'version':

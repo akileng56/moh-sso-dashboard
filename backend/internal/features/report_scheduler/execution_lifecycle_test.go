@@ -54,7 +54,7 @@ func TestDeleteSchedulePostgresLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo := &postgresRepository{db: db}
+	repo := NewRepository(db)
 	schedule := "00000000-0000-0000-0000-000000000001"
 	execution := "00000000-0000-0000-0000-000000000002"
 	if err := repo.DeleteSchedule(ctx, schedule, "wrong-owner", false); err != ErrScheduleNotFound {

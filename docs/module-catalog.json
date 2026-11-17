@@ -179,19 +179,25 @@
     },
     {
       "id": "report_scheduler",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Report schedules, execution and delivery",
       "moduleId": "report-scheduler",
       "dependencies": [
         "primary-db",
         "keycloak",
         "health-bi",
+        "email",
+        "users",
         "notifications",
+        "blob-storage",
+        "warehouse",
         "host-audit-recorder"
       ],
-      "workers": ["registry-owned report scheduler worker"],
+      "workers": [
+        "registry-owned report scheduler worker"
+      ],
       "migrations": "core",
-      "next": "Standalone release candidate prepared in backend/modules/report-scheduler; publish and pin a release, then replace retained host implementation with adapters."
+      "next": "Maintain host HTTP/platform adapters and core migrations; release scheduler changes independently and update the reviewed Go dependency pin."
     },
     {
       "id": "sessions",

@@ -10,7 +10,7 @@ inspect the modules actually compiled into the running backend.
 | metrics | Dashboard metrics APIs | Selected Go dependency version | Metrics routes are omitted |
 | audit | Audit read, metrics and export APIs | Backend build version | Audit read routes are omitted; core event recording continues |
 | geojson | Permission-guarded static map assets | Backend build version | GeoJSON routes are omitted; map consumers need availability review |
-| report-scheduler | Report schedules, execution and delivery | Backend build version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
+| report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -24,7 +24,7 @@ Review affected application registrations and navigation when changing API
 availability. Keep Keycloak roles and application lifecycle approval aligned with
 the intended rollout; module configuration does not automatically edit them.
 The audit read module and map asset module have no background workers to stop.
-Report Scheduler now owns its worker through the registry. Its initial persistence
+Report Scheduler is pinned to its published Go package and owns its worker through the registry. Its initial persistence
 heartbeat must succeed within ten seconds before jobs can be claimed. Startup
 fails if scheduler persistence is unavailable. Cleanup cancels and joins the worker
 within the host shutdown deadline before database resources close. Disablement
@@ -48,3 +48,12 @@ For local verification, the authenticated distribution fixture exercises real
 Keycloak roles, module inventory, API disablement and continued core audit
 recording, as well as manifests, backup/restore and restart recovery. It uses
 disposable projects and does not contact an existing production identity provider.
+
+
+Report Scheduler currently selects `v0.1.0` from
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler`.
+Its immutable tag is `backend/modules/report-scheduler/v0.1.0`. A version change
+requires updating the host Go pin/checksums and rebuilding the backend image.
+The package release does not deploy a running installation. Verify the compiled
+inventory reports the selected version, and review scheduler schema compatibility
+before promoting a newly built image pair.

@@ -62,7 +62,7 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		enabled := map[string]bool{}
 		for _, info := range registry.Inventory() {
 			enabled[info.ID] = info.Enabled
-			if info.ID != "metrics" && info.Version != version.Get().Version {
+			if info.ID != "metrics" && info.ID != "report-scheduler" && info.Version != version.Get().Version {
 				t.Fatalf("hosted module %s must report the host version", info.ID)
 			}
 		}

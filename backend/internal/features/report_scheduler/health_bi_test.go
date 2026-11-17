@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strings"
 	"testing"
 	"time"
 
@@ -17,7 +16,6 @@ import (
 func TestHealthBIAdapterContract(t *testing.T) {
 	const id = "Programs/Malaria/Test + report"
 	const key = "scheduler-test-service-key-at-least-32-characters"
-	var generated bool
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			if err := r.ParseForm(); err != nil {
@@ -60,7 +58,6 @@ func TestHealthBIAdapterContract(t *testing.T) {
 			if input.Format != "csv" || period["start"] != "2026-08-31T21:00:00Z" || period["end"] != "2026-09-30T20:59:59Z" || scope["district"] != "Wakiso District" {
 				t.Errorf("unexpected generation payload: %+v", input)
 			}
-			generated = true
 			w.WriteHeader(http.StatusAccepted)
 			json.NewEncoder(w).Encode(map[string]any{"data": HealthBIJob{ID: "job-1", ReportID: id, Status: "queued"}})
 		case "/report-browser/api/v1/report-jobs/job-1":
@@ -99,55 +96,6 @@ func TestHealthBIAdapterContract(t *testing.T) {
 		if res.Code != 400 {
 			t.Fatalf("missing report ID: %d", res.Code)
 		}
-	}
-	service := NewService(nil, client, nil, nil, nil, nil)
-	input := CreateScheduleRequest{HealthBIReportID: id, Frequency: "monthly", Timezone: "Africa/Kampala", PeriodStrategy: "previous_month", OutputFormat: "csv"}
-	if _, err := service.validateSchedule(ctx, input, HealthContext{}); err != nil {
-		t.Fatalf("compatible schedule rejected: %v", err)
-	}
-	input.PeriodStrategy = "previous_day"
-	if _, err := service.validateSchedule(ctx, input, HealthContext{}); err == nil {
-		t.Fatal("unsupported daily reporting period accepted")
-	}
-	input.PeriodStrategy = "previous_month"
-	input.Timezone = "UTC"
-	if _, err := service.validateSchedule(ctx, input, HealthContext{}); err == nil {
-		t.Fatal("incompatible reporting timezone accepted")
-	}
-	period, err := ResolveReportingPeriod("previous_month", "Africa/Kampala", time.Date(2026, 10, 14, 0, 0, 0, 0, time.UTC))
-	if err != nil {
-		t.Fatal(err)
-	}
-	job, err := client.GenerateReport(ctx, id, GenerateReportRequest{Format: "csv", Parameters: buildExecutionParameters(Schedule{HealthContext: HealthContext{Level: "district", District: "Wakiso District"}}, period)})
-	if err != nil || !generated || job.Status != "queued" {
-		t.Fatalf("generate: %+v, %v", job, err)
-	}
-	job, err = client.GetJob(ctx, job.ID)
-	if err != nil || job.Status != "completed" || !strings.Contains(job.ArtifactURL, "?token=") {
-		t.Fatalf("poll: %+v, %v", job, err)
-	}
-}
-
-func TestValidateReportPeriod(t *testing.T) {
-	for _, tc := range []struct {
-		name           string
-		metadata       map[string]any
-		strategy, zone string
-		wantError      bool
-	}{
-		{"supported", map[string]any{"periodStrategies": []any{"previous_month"}}, "previous_month", "Africa/Kampala", false},
-		{"daily rejected", map[string]any{"periodStrategies": []any{"previous_month"}}, "previous_day", "Africa/Kampala", true},
-		{"empty rejected", map[string]any{"periodStrategies": []any{}}, "previous_month", "Africa/Kampala", true},
-		{"timezone rejected", map[string]any{"periodStrategies": []any{"previous_month"}}, "previous_month", "UTC", true},
-		{"malformed rejected", map[string]any{"periodStrategies": "previous_month"}, "previous_month", "Africa/Kampala", true},
-		{"legacy omitted", nil, "previous_day", "UTC", false},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := validateReportPeriod(HealthBIReport{Name: "Test", Metadata: tc.metadata}, tc.strategy, tc.zone)
-			if (err != nil) != tc.wantError {
-				t.Fatalf("error: %v", err)
-			}
-		})
 	}
 }
 

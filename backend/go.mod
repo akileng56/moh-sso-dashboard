@@ -95,4 +95,7 @@ require (
 	google.golang.org/protobuf v1.36.9 // indirect
 )
 
-require github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.1.0
+require (
+	github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.1.0
+	github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler v0.1.0
+)

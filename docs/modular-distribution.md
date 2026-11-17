@@ -311,3 +311,24 @@ The dashboard continues using its phase-2 implementation until a released
 dependency can be selected. The catalogue accurately keeps the runtime stage as
 registry-hosted. Phase 4 publishes/verifies an immutable version and replaces the
 retained host implementation with package adapters and a reviewed dependency pin.
+
+## Report Scheduler extraction: released dependency integration
+
+Report Scheduler `v0.1.0` is published under the immutable nested module tag
+`backend/modules/report-scheduler/v0.1.0`. A clean-cache download verified its
+checksums and source commit. The host now selects that version in `backend/go.mod`
+and records its checksums in `backend/go.sum`, without a local replace directive.
+
+The retained host scheduling/execution/provider/persistence implementation has
+been removed. The feature package supplies aliases and thin constructors, HTTP
+handlers and permission/rate-limit adapters. Bootstrap keeps the platform
+outbox/user/notification translations. Portable implementation tests live in the
+standalone module; host tests exercise HTTP and lifecycle integration against the
+selected dependency. Public OpenAPI schema names remain stable across extraction.
+
+The compiled `report-scheduler` inventory reports the selected dependency version,
+and deployment bundle metadata includes its exact pin. All schema migrations
+remain core-owned. Build a new backend image to consume a release; publishing a
+tag does not change a running deployment. The runtime fixture verifies the actual
+compiled version, real Keycloak permissions, public/protected route disablement,
+stopped heartbeat and worker restart/re-enablement.

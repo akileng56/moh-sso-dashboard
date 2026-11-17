@@ -17,6 +17,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
 	metricsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
+	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
 
 // NewModuleRegistry is the distribution's explicit composition root. Legacy
@@ -67,7 +68,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			geojsonfeature.RegisterProtectedRoutes(routes.Protected, handlers.GeoJSON)
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "report-scheduler", Version: version.Get().Version, Enabled: enabled["report-scheduler"]},
+		Info: module.Info{ID: "report-scheduler", Version: schedulermodule.Version(), Enabled: enabled["report-scheduler"]},
 		Initialize: func(ctx context.Context) (module.Stop, error) {
 			if handlers.ReportScheduler == nil {
 				return nil, errors.New("report scheduler handler is required")
