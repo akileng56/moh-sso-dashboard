@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	db "github.com/moh-sso-dashboard/internal/db/sqlc"
+	db "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics/model"
 )
 
 func stringPtr(value interface{}) *string {
