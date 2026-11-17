@@ -191,7 +191,7 @@
       ],
       "workers": ["registry-owned report scheduler worker"],
       "migrations": "core",
-      "next": "Extract the registry-controlled scheduler into a standalone package, publish a release and integrate a pinned dependency; retain core migration ownership."
+      "next": "Standalone release candidate prepared in backend/modules/report-scheduler; publish and pin a release, then replace retained host implementation with adapters."
     },
     {
       "id": "sessions",

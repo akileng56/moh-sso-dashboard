@@ -30,9 +30,13 @@ operations and waits for the worker before host resources close. The host uses a
 cancellation. Existing SQL claims, retry backoff and stale-claim recovery remain
 unchanged. Re-enabling constructs a fresh worker and resumes persisted work.
 
-Standalone packaging and a pinned released dependency are the next extraction
-phase. Existing schedule, execution, delivery and worker-heartbeat migrations
-remain core-owned; disablement retains schema, history and pending jobs.
+The standalone release candidate is prepared in
+[`backend/modules/report-scheduler`](../../../modules/report-scheduler/README.md).
+It has public service/model/worker/provider/persistence APIs and standalone tests.
+This host implementation remains active until the next phase publishes and pins
+the dependency, then replaces these retained implementation files with adapters.
+Existing schedule, execution, delivery and worker-heartbeat migrations remain
+core-owned; disablement retains schema, history and pending jobs.
 
 ## Health BI contract
 

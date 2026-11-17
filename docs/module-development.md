@@ -27,7 +27,12 @@ routes. Report Scheduler is the first registry-hosted worker-bearing feature:
 its dependency ports are isolated and the registry owns readiness, startup and
 joined shutdown. Both public token-download routes and protected routes are
 registered in the same module callback. Its independent package release is the
-next extraction step.
+next extraction step. A standalone release candidate now exists in
+`backend/modules/report-scheduler`, verified outside the host tree against
+disposable PostgreSQL. Its production inventory stage stays `registry-hosted`
+until the host consumes a published version. During this transition, keep fixes
+to retained host scheduler logic aligned with the candidate; remove the retained
+implementation when integrating the release.
 
 ## Add a compiled registry integration
 

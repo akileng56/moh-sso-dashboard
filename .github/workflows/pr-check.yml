@@ -144,6 +144,9 @@ jobs:
         working-directory: backend
         run: make modules-check
 
+      - name: Standalone Report Scheduler schema and claims
+        run: python3 infra/scripts/test-report-scheduler-package.py
+
       - name: API contract freshness
         run: make contracts-check
 

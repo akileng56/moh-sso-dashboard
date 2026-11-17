@@ -292,3 +292,22 @@ starts, in-flight shutdown, shutdown deadlines, rollback cleanup and route
 disablement. The authenticated container fixture also checks scheduler role access,
 heartbeat preservation while disabled and a fresh worker when re-enabled.
 Standalone packaging, publication and a pinned dependency remain the next phases.
+
+## Report Scheduler extraction: standalone package phase
+
+`backend/modules/report-scheduler` now contains a standalone Go module with public
+types, service, worker, dependency ports, Health BI client and PostgreSQL adapters.
+HTTP authorization and registry integration remain host responsibilities. Its
+dependency graph contains UUID and PostgreSQL libraries and no dashboard imports.
+
+`schema-contract.json` explicitly records host ownership of scheduler migrations
+40 through 47 and shared directory/hierarchy reads. No migration files or migration
+runner are copied into the package. An isolated check copies only the module out
+of the repository, disables Go workspaces, builds/vets it, applies those host-owned
+migrations to disposable PostgreSQL and runs race tests. External-package tests
+exercise concurrent claims, retries, stale claims and idempotent delivery.
+
+The dashboard continues using its phase-2 implementation until a released
+dependency can be selected. The catalogue accurately keeps the runtime stage as
+registry-hosted. Phase 4 publishes/verifies an immutable version and replaces the
+retained host implementation with package adapters and a reviewed dependency pin.
