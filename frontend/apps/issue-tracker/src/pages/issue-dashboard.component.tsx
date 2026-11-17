@@ -41,10 +41,17 @@ import { PermissionGuard, PERMISSIONS, selectUser } from "@moh-sso/auth";
 
 import {
   useCreateTransactionMutation,
+  useGetIssueGeoJsonQuery,
   useGetIssuesQuery,
   useGetIssuesSummaryByProgramQuery,
 } from "../api";
 import { AssignModal } from "../component/assign-modal.component.tsx";
+import {
+  IssueChoroplethMap,
+  normalizeDistrictKey,
+  normalizeRegionKey,
+  type DistrictMapMetric,
+} from "../component/issue-choropleth-map.component.tsx";
 import type { Issue } from "../types";
 import { periodType } from "../../../data-visualizer/src/pages/Constants.tsx";
 import {
@@ -636,6 +643,9 @@ const IssueDashboard = () => {
   const { data: summaryPrograms = [] } = useGetIssuesSummaryByProgramQuery();
   const { data: datasets = [] } = useGetDataSetsQuery();
   const { data: hierarchyData = [] } = useGetHierarchyQuery();
+  const { data: districtGeoJson, isLoading: isLoadingDistrictGeoJson } =
+    useGetIssueGeoJsonQuery("geo_districts");
+  const { data: waterGeoJson } = useGetIssueGeoJsonQuery("geo_water");
 
   /* -------------------------------------------------------------
    * Filters State
@@ -657,8 +667,11 @@ const IssueDashboard = () => {
   const [sortHeader, setSortHeader] = useState<SortHeader>("total");
   const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
 
-  /* Chart view controls */
-  const DEFAULT_CHART_REGION = "South Buganda";
+  /* Visual tabs & chart view controls */
+  const DEFAULT_CHART_REGION = "All Districts";
+  const [activeVisualTab, setActiveVisualTab] = useState<
+    "distribution" | "aging" | "table"
+  >("distribution");
   const [chartViewMode, setChartViewMode] = useState<"total" | "status">("total");
   const [selectedChartRegion, setSelectedChartRegion] =
     useState<string>(DEFAULT_CHART_REGION);
@@ -1030,37 +1043,81 @@ const IssueDashboard = () => {
   }, [regionSearchTerm, filteredGrandTotals, displayedRows]);
 
   /* -------------------------------------------------------------
-   * Column Charts Data & Options (Page-Level, Independent of Table Filters)
+   * District Metrics & Visual Filter Options (Page-Level)
    * ------------------------------------------------------------- */
-  const defaultRegionLabel = useMemo(() => {
-    const match = pageRegionalSummary.find((r) =>
-      safeLower(r.region).includes("south buganda"),
-    );
-    return match ? match.region : DEFAULT_CHART_REGION;
+  const districtMetricsMap = useMemo(() => {
+    const map = new Map<string, DistrictMapMetric>();
+    for (const regionRow of pageRegionalSummary) {
+      for (const d of regionRow.districts) {
+        const key = normalizeDistrictKey(d.district);
+        if (!key || key === "unspecified") continue;
+        const existing = map.get(key);
+        if (existing) {
+          existing.critical += d.critical;
+          existing.open += d.open;
+          existing.resolved += d.resolved;
+          existing.total += d.total;
+          existing.facilitiesCount += d.facilities.length;
+        } else {
+          map.set(key, {
+            district: d.district,
+            region: regionRow.region,
+            critical: d.critical,
+            open: d.open,
+            resolved: d.resolved,
+            total: d.total,
+            facilitiesCount: d.facilities.length,
+          });
+        }
+      }
+    }
+    return map;
   }, [pageRegionalSummary]);
 
   const chartRegionOptions = useMemo(() => {
-    const names = pageRegionalSummary.map((r) => r.region);
-    const hasDefaultRegion = names.some(
-      (name) => safeLower(name) === safeLower(defaultRegionLabel),
-    );
-    return [
-      "All Regions",
-      ...(hasDefaultRegion ? [] : [defaultRegionLabel]),
-      ...names,
-    ];
-  }, [pageRegionalSummary, defaultRegionLabel]);
+    const districtEntries = Array.from(districtMetricsMap.values())
+      .filter((d) => d.district && safeLower(d.district) !== "unspecified")
+      .sort((a, b) => a.district.localeCompare(b.district))
+      .map((d) => d.district);
+
+    const regionNames = pageRegionalSummary
+      .map((r) => r.region)
+      .filter((r) => r && safeLower(r) !== "unspecified")
+      .sort((a, b) => a.localeCompare(b));
+
+    const seen = new Set<string>(["all districts"]);
+    const options: string[] = [DEFAULT_CHART_REGION];
+
+    for (const dName of districtEntries) {
+      const k = safeLower(dName);
+      if (!seen.has(k)) {
+        seen.add(k);
+        options.push(dName);
+      }
+    }
+
+    for (const rName of regionNames) {
+      const k = safeLower(rName);
+      if (!seen.has(k)) {
+        seen.add(k);
+        options.push(rName);
+      }
+    }
+
+    return options;
+  }, [districtMetricsMap, pageRegionalSummary]);
 
   const activeChartRegion = useMemo(() => {
-    const exactMatch = chartRegionOptions.find(
-      (opt) => safeLower(opt) === safeLower(selectedChartRegion),
-    );
-    if (exactMatch) return exactMatch;
-    if (safeLower(selectedChartRegion) === safeLower(DEFAULT_CHART_REGION)) {
-      return defaultRegionLabel;
+    if (!selectedChartRegion || safeLower(selectedChartRegion) === "all districts") {
+      return DEFAULT_CHART_REGION;
     }
-    return defaultRegionLabel;
-  }, [chartRegionOptions, selectedChartRegion, defaultRegionLabel]);
+    const exactMatch = chartRegionOptions.find(
+      (opt) =>
+        safeLower(opt) === safeLower(selectedChartRegion) ||
+        normalizeDistrictKey(opt) === normalizeDistrictKey(selectedChartRegion),
+    );
+    return exactMatch || selectedChartRegion;
+  }, [chartRegionOptions, selectedChartRegion]);
 
   const chartToolbarConfig = useMemo(
     () => ({
@@ -1092,62 +1149,6 @@ const IssueDashboard = () => {
       value: r.total,
     }));
   }, [pageRegionalSummary, chartViewMode]);
-
-  const districtChartData = useMemo(() => {
-    const districtMap = new Map<
-      string,
-      { district: string; critical: number; open: number; resolved: number; total: number }
-    >();
-
-    for (const regionRow of pageRegionalSummary) {
-      if (
-        activeChartRegion !== "All Regions" &&
-        safeLower(regionRow.region) !== safeLower(activeChartRegion) &&
-        !(
-          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
-          safeLower(regionRow.region).includes("south buganda")
-        )
-      ) {
-        continue;
-      }
-
-      for (const d of regionRow.districts) {
-        const existing = districtMap.get(d.district);
-        if (existing) {
-          existing.critical += d.critical;
-          existing.open += d.open;
-          existing.resolved += d.resolved;
-          existing.total += d.total;
-        } else {
-          districtMap.set(d.district, {
-            district: d.district,
-            critical: d.critical,
-            open: d.open,
-            resolved: d.resolved,
-            total: d.total,
-          });
-        }
-      }
-    }
-
-    const sortedDistricts = Array.from(districtMap.values()).sort(
-      (a, b) => b.total - a.total,
-    );
-
-    if (chartViewMode === "status") {
-      return sortedDistricts.flatMap((d) => [
-        { group: "Critical Issues", key: d.district, value: d.critical },
-        { group: "Open Issues", key: d.district, value: d.open },
-        { group: "Resolved Issues", key: d.district, value: d.resolved },
-      ]);
-    }
-
-    return sortedDistricts.map((d) => ({
-      group: "Total Issues",
-      key: d.district,
-      value: d.total,
-    }));
-  }, [pageRegionalSummary, activeChartRegion, chartViewMode]);
 
   const regionChartOptions = useMemo(
     () => ({
@@ -1181,70 +1182,28 @@ const IssueDashboard = () => {
     [chartViewMode, chartToolbarConfig],
   );
 
-  const districtChartOptions = useMemo(
-    () => ({
-      title:
-        activeChartRegion && activeChartRegion !== "All Regions"
-          ? `Issues by District (${activeChartRegion})`
-          : "Issues by District",
-      axes: {
-        left: {
-          mapsTo: "value",
-          title: "Number of Issues",
-          scaleType: ScaleTypes.LINEAR,
-        },
-        bottom: {
-          mapsTo: "key",
-          title: "District",
-          scaleType: ScaleTypes.LABELS,
-        },
-      },
-      color: {
-        scale: {
-          "Total Issues": "#007d79",
-          "Critical Issues": "#a2191f",
-          "Open Issues": "#da1e28",
-          "Resolved Issues": "#198038",
-        },
-      },
-      height: "480px",
-      toolbar: chartToolbarConfig,
-      legend: {
-        enabled: chartViewMode === "status",
-      },
-    }),
-    [activeChartRegion, chartViewMode, chartToolbarConfig],
-  );
-
   const levelOfCareChartData = useMemo(() => {
     const careMap = new Map<
       string,
       { levelOfCare: string; critical: number; open: number; resolved: number; total: number }
     >();
 
-    const hasActiveRegionInRows =
-      activeChartRegion === "All Regions" ||
-      pageRegionalSummary.some(
-        (r) =>
-          safeLower(r.region) === safeLower(activeChartRegion) ||
-          (safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
-            safeLower(r.region).includes("south buganda")),
-      );
+    const isAllSelected =
+      !activeChartRegion ||
+      activeChartRegion === DEFAULT_CHART_REGION ||
+      activeChartRegion === "All Regions";
+    const targetDistKey = normalizeDistrictKey(activeChartRegion);
+    const targetRegKey = normalizeRegionKey(activeChartRegion);
 
     for (const regionRow of pageRegionalSummary) {
-      if (
-        hasActiveRegionInRows &&
-        activeChartRegion !== "All Regions" &&
-        safeLower(regionRow.region) !== safeLower(activeChartRegion) &&
-        !(
-          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
-          safeLower(regionRow.region).includes("south buganda")
-        )
-      ) {
-        continue;
-      }
+      const regionMatches = normalizeRegionKey(regionRow.region) === targetRegKey;
 
       for (const d of regionRow.districts) {
+        const districtMatches = normalizeDistrictKey(d.district) === targetDistKey;
+        if (!isAllSelected && !regionMatches && !districtMatches) {
+          continue;
+        }
+
         for (const f of d.facilities) {
           const careLevel = f.levelOfCare || "Other / Unspecified";
           const existing = careMap.get(careLevel);
@@ -1279,7 +1238,7 @@ const IssueDashboard = () => {
   const levelOfCareChartOptions = useMemo(
     () => ({
       title:
-        activeChartRegion && activeChartRegion !== "All Regions"
+        activeChartRegion && activeChartRegion !== DEFAULT_CHART_REGION
           ? `Issues by Level of Care (${activeChartRegion})`
           : "Issues by Level of Care",
       resizable: true,
@@ -1303,14 +1262,12 @@ const IssueDashboard = () => {
     const nowMs = Date.now();
     const dayMs = 1000 * 60 * 60 * 24;
 
-    const hasActiveRegionInRows =
-      activeChartRegion === "All Regions" ||
-      pageRegionalSummary.some(
-        (r) =>
-          safeLower(r.region) === safeLower(activeChartRegion) ||
-          (safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
-            safeLower(r.region).includes("south buganda")),
-      );
+    const isAllSelected =
+      !activeChartRegion ||
+      activeChartRegion === DEFAULT_CHART_REGION ||
+      activeChartRegion === "All Regions";
+    const targetDistKey = normalizeDistrictKey(activeChartRegion);
+    const targetRegKey = normalizeRegionKey(activeChartRegion);
 
     const items: ActionableAgingIssue[] = [];
 
@@ -1334,18 +1291,6 @@ const IssueDashboard = () => {
         regionName = "Unspecified";
       }
 
-      if (
-        hasActiveRegionInRows &&
-        activeChartRegion !== "All Regions" &&
-        safeLower(regionName) !== safeLower(activeChartRegion) &&
-        !(
-          safeLower(activeChartRegion) === safeLower(DEFAULT_CHART_REGION) &&
-          safeLower(regionName).includes("south buganda")
-        )
-      ) {
-        continue;
-      }
-
       // Resolve District
       let districtName = safeString(issue.district);
       if (districtName && orgIdToNameMap.has(safeLower(districtName))) {
@@ -1357,6 +1302,14 @@ const IssueDashboard = () => {
       }
       if (!districtName) {
         districtName = "Unspecified";
+      }
+
+      if (
+        !isAllSelected &&
+        normalizeRegionKey(regionName) !== targetRegKey &&
+        normalizeDistrictKey(districtName) !== targetDistKey
+      ) {
+        continue;
       }
 
       // Resolve Facility
@@ -1410,7 +1363,6 @@ const IssueDashboard = () => {
   }, [
     rawIssues,
     activeChartRegion,
-    pageRegionalSummary,
     orgToRegionMap,
     orgToDistrictMap,
     orgIdToNameMap,
@@ -1498,7 +1450,7 @@ const IssueDashboard = () => {
   const agingChartOptions = useMemo(
     () => ({
       title:
-        activeChartRegion && activeChartRegion !== "All Regions"
+        activeChartRegion && activeChartRegion !== DEFAULT_CHART_REGION
           ? `Unresolved Issue Aging (${activeChartRegion})`
           : "Unresolved Issue Aging",
       axes: {
@@ -1530,7 +1482,7 @@ const IssueDashboard = () => {
                 "> 90 Days": "#a2191f",
               },
       },
-      height: "215px",
+      height: "300px",
       toolbar: chartToolbarConfig,
       legend: {
         enabled: chartViewMode === "status",
@@ -1724,6 +1676,14 @@ const IssueDashboard = () => {
     }
   };
 
+  const handleNavigateToDistrict = (districtName?: string) => {
+    if (districtName && !districtName.toLowerCase().startsWith("unspecified")) {
+      navigate(`/issues?district=${encodeURIComponent(districtName)}`);
+    } else {
+      navigate("/issues");
+    }
+  };
+
   const handleNavigateToIssueCode = (issueCode: string) => {
     if (issueCode) {
       navigate(`/issues?issueCode=${encodeURIComponent(issueCode)}`);
@@ -1900,18 +1860,18 @@ const IssueDashboard = () => {
           </div>
         </div>
 
-        {/* ================= Column Charts Section ================= */}
-        {!isLoadingIssues && !issuesError && pageRegionalSummary.length > 0 && (
-          <div className="dashboard-charts-section">
-            <div className="dashboard-charts-header">
-              <div>
-                <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
-                <p className="dashboard-charts-subtitle">
-                  Comparison of reported issues across regions, districts, level of care, and
-                  actionable unresolved issue aging.
-                </p>
-              </div>
+        {/* ================= Visual Issue Distribution & Tabbed Views ================= */}
+        <div className="dashboard-charts-section">
+          <div className="dashboard-charts-header">
+            <div>
+              <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
+              <p className="dashboard-charts-subtitle">
+                Comparison of reported issues across districts, regions, level of care, actionable
+                unresolved issue aging, and regional summary breakdowns.
+              </p>
+            </div>
 
+            {activeVisualTab !== "table" && (
               <div className="dashboard-charts-controls">
                 <div className="chart-region-filter">
                   <Dropdown
@@ -1945,307 +1905,397 @@ const IssueDashboard = () => {
                   </Button>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* Tabs below Visual Issue Distribution title */}
+          <div className="dashboard-visual-tabs" role="tablist" aria-label="Issue dashboard visual tabs">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeVisualTab === "distribution"}
+              className={`dashboard-visual-tab ${activeVisualTab === "distribution" ? "active" : ""}`}
+              onClick={() => setActiveVisualTab("distribution")}
+            >
+              <span>Geographic &amp; Care Distribution</span>
+              <span className="dashboard-visual-tab-badge">{pageGrandTotals.total}</span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeVisualTab === "aging"}
+              className={`dashboard-visual-tab ${activeVisualTab === "aging" ? "active" : ""}`}
+              onClick={() => setActiveVisualTab("aging")}
+            >
+              <span>Unresolved Issue Aging</span>
+              <span className="dashboard-visual-tab-badge dashboard-visual-tab-badge--alert">
+                {agingMetrics.totalUnresolved}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeVisualTab === "table"}
+              className={`dashboard-visual-tab ${activeVisualTab === "table" ? "active" : ""}`}
+              onClick={() => setActiveVisualTab("table")}
+            >
+              <span>Regional Summary Table</span>
+              <span className="dashboard-visual-tab-badge">{displayedRows.length}</span>
+            </button>
+          </div>
+
+          {/* Tab 1: Choropleth Map (Row 1) + Issues by Region & Issues by Level of Care (Row 2) */}
+          {activeVisualTab === "distribution" && (
+            <div className="dashboard-visual-tab-panel" role="tabpanel">
+              {isLoadingIssues ? (
+                <div className="dashboard-loading-state">
+                  <InlineLoading status="active" description="Loading issue distribution visuals..." />
+                </div>
+              ) : issuesError ? (
+                <div className="dashboard-empty-state">
+                  <h4>Failed to Load Issue Data</h4>
+                  <p>An error occurred while retrieving issue data from the server.</p>
+                  <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  {/* First Row: Choropleth Map for all districts */}
+                  <div className="dashboard-chart-card dashboard-chart-card--full dashboard-chart-card--map">
+                    <IssueChoroplethMap
+                      geoJson={districtGeoJson}
+                      waterGeoJson={waterGeoJson}
+                      isLoadingGeoJson={isLoadingDistrictGeoJson}
+                      districtMetricsMap={districtMetricsMap}
+                      selectedFilter={activeChartRegion}
+                      chartViewMode={chartViewMode}
+                      onSelectFilter={(district) =>
+                        setSelectedChartRegion(district || DEFAULT_CHART_REGION)
+                      }
+                      onNavigateToDistrict={handleNavigateToDistrict}
+                    />
+                  </div>
+
+                  {/* Second Row: Column Chart (Issues by Region) & Pie Chart (Issues by Level of Care) */}
+                  <div className="dashboard-charts-grid">
+                    <div className="dashboard-chart-card">
+                      {chartViewMode === "status" ? (
+                        <GroupedBarChart data={regionChartData} options={regionChartOptions} />
+                      ) : (
+                        <SimpleBarChart data={regionChartData} options={regionChartOptions} />
+                      )}
+                    </div>
+
+                    <div className="dashboard-chart-card">
+                      <PieChart
+                        data={levelOfCareChartData}
+                        options={levelOfCareChartOptions}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
+          )}
 
-            <div className="dashboard-charts-grid">
-              <div className="dashboard-chart-card">
-                {chartViewMode === "status" ? (
-                  <GroupedBarChart data={regionChartData} options={regionChartOptions} />
-                ) : (
-                  <SimpleBarChart data={regionChartData} options={regionChartOptions} />
-                )}
-              </div>
-
-              <div className="dashboard-chart-card">
-                {chartViewMode === "status" ? (
-                  <GroupedBarChart data={districtChartData} options={districtChartOptions} />
-                ) : (
-                  <SimpleBarChart data={districtChartData} options={districtChartOptions} />
-                )}
-              </div>
-
-              <div className="dashboard-chart-card">
-                <PieChart
-                  data={levelOfCareChartData}
-                  options={levelOfCareChartOptions}
-                />
-              </div>
-
-              <div className="dashboard-chart-card aging-visual-card">
-                <div className="aging-visual-chart-wrapper">
-                  {chartViewMode === "status" ? (
-                    <GroupedBarChart data={agingChartData} options={agingChartOptions} />
-                  ) : (
-                    <SimpleBarChart data={agingChartData} options={agingChartOptions} />
-                  )}
+          {/* Tab 2: Unresolved Issue Aging */}
+          {activeVisualTab === "aging" && (
+            <div className="dashboard-visual-tab-panel" role="tabpanel">
+              {isLoadingIssues ? (
+                <div className="dashboard-loading-state">
+                  <InlineLoading status="active" description="Loading unresolved issue aging..." />
                 </div>
-
-                {/* Summary KPI Strip */}
-                <div className="aging-kpi-strip">
-                  <div className="aging-kpi-item">
-                    <span className="aging-kpi-label">Unresolved</span>
-                    <strong className="aging-kpi-val">{agingMetrics.totalUnresolved}</strong>
-                  </div>
-                  <div className="aging-kpi-item aging-kpi-item--overdue">
-                    <span className="aging-kpi-label">Overdue (&gt;30d)</span>
-                    <strong className="aging-kpi-val">{agingMetrics.overdueCount}</strong>
-                  </div>
-                  <div className="aging-kpi-item aging-kpi-item--critical">
-                    <span className="aging-kpi-label">Critical</span>
-                    <strong className="aging-kpi-val">{agingMetrics.criticalCount}</strong>
-                  </div>
-                  <div className="aging-kpi-item aging-kpi-item--unassigned">
-                    <span className="aging-kpi-label">Unassigned</span>
-                    <strong className="aging-kpi-val">{agingMetrics.unassignedCount}</strong>
-                  </div>
-                  <div className="aging-kpi-item">
-                    <span className="aging-kpi-label">Avg / Oldest</span>
-                    <strong className="aging-kpi-val">
-                      {agingMetrics.avgAgeDays}d / {agingMetrics.maxAgeDays}d
-                    </strong>
-                  </div>
+              ) : issuesError ? (
+                <div className="dashboard-empty-state">
+                  <h4>Failed to Load Issue Data</h4>
+                  <p>An error occurred while retrieving issue data from the server.</p>
+                  <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
+                    Retry
+                  </Button>
                 </div>
+              ) : (
+                <div className="dashboard-chart-card aging-visual-card aging-visual-card--tab">
+                  <div className="aging-visual-chart-wrapper">
+                    {chartViewMode === "status" ? (
+                      <GroupedBarChart data={agingChartData} options={agingChartOptions} />
+                    ) : (
+                      <SimpleBarChart data={agingChartData} options={agingChartOptions} />
+                    )}
+                  </div>
 
-                {/* Interactive Bucket & Triage Filters */}
-                <div className="aging-controls-bar">
-                  <div className="aging-bucket-pills" role="group" aria-label="Filter by aging bracket">
-                    <button
-                      type="button"
-                      className={`aging-bucket-chip ${selectedAgingBucket === "all" ? "active" : ""}`}
-                      onClick={() => setSelectedAgingBucket("all")}
-                    >
-                      All ({agingMetrics.totalUnresolved})
-                    </button>
-                    {AGING_BUCKETS.map((bucket) => {
-                      const count = agingMetrics.bucketMap.get(bucket.id)?.total ?? 0;
-                      const isActive = selectedAgingBucket === bucket.id;
-                      return (
+                  {/* Summary KPI Strip */}
+                  <div className="aging-kpi-strip">
+                    <div className="aging-kpi-item">
+                      <span className="aging-kpi-label">Unresolved</span>
+                      <strong className="aging-kpi-val">{agingMetrics.totalUnresolved}</strong>
+                    </div>
+                    <div className="aging-kpi-item aging-kpi-item--overdue">
+                      <span className="aging-kpi-label">Overdue (&gt;30d)</span>
+                      <strong className="aging-kpi-val">{agingMetrics.overdueCount}</strong>
+                    </div>
+                    <div className="aging-kpi-item aging-kpi-item--critical">
+                      <span className="aging-kpi-label">Critical</span>
+                      <strong className="aging-kpi-val">{agingMetrics.criticalCount}</strong>
+                    </div>
+                    <div className="aging-kpi-item aging-kpi-item--unassigned">
+                      <span className="aging-kpi-label">Unassigned</span>
+                      <strong className="aging-kpi-val">{agingMetrics.unassignedCount}</strong>
+                    </div>
+                    <div className="aging-kpi-item">
+                      <span className="aging-kpi-label">Avg / Oldest</span>
+                      <strong className="aging-kpi-val">
+                        {agingMetrics.avgAgeDays}d / {agingMetrics.maxAgeDays}d
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* Interactive Bucket & Triage Filters */}
+                  <div className="aging-controls-bar">
+                    <div className="aging-bucket-pills" role="group" aria-label="Filter by aging bracket">
+                      <button
+                        type="button"
+                        className={`aging-bucket-chip ${selectedAgingBucket === "all" ? "active" : ""}`}
+                        onClick={() => setSelectedAgingBucket("all")}
+                      >
+                        All ({agingMetrics.totalUnresolved})
+                      </button>
+                      {AGING_BUCKETS.map((bucket) => {
+                        const count = agingMetrics.bucketMap.get(bucket.id)?.total ?? 0;
+                        const isActive = selectedAgingBucket === bucket.id;
+                        return (
+                          <button
+                            key={bucket.id}
+                            type="button"
+                            className={`aging-bucket-chip ${isActive ? "active" : ""}`}
+                            style={
+                              isActive
+                                ? {
+                                    backgroundColor: bucket.color,
+                                    borderColor: bucket.color,
+                                    color: "#ffffff",
+                                  }
+                                : undefined
+                            }
+                            onClick={() =>
+                              setSelectedAgingBucket((prev) =>
+                                prev === bucket.id ? "all" : bucket.id,
+                              )
+                            }
+                          >
+                            <span
+                              className="aging-bucket-dot"
+                              style={{
+                                backgroundColor: isActive ? "#ffffff" : bucket.color,
+                              }}
+                            />
+                            {bucket.shortLabel} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="aging-triage-row">
+                      <div className="aging-triage-filters" role="group" aria-label="Quick triage filters">
                         <button
-                          key={bucket.id}
                           type="button"
-                          className={`aging-bucket-chip ${isActive ? "active" : ""}`}
-                          style={
-                            isActive
-                              ? {
-                                  backgroundColor: bucket.color,
-                                  borderColor: bucket.color,
-                                  color: "#ffffff",
-                                }
-                              : undefined
-                          }
+                          className={`aging-triage-btn ${agingTriageFilter === "all" ? "active" : ""}`}
+                          onClick={() => setAgingTriageFilter("all")}
+                        >
+                          All Backlog
+                        </button>
+                        <button
+                          type="button"
+                          className={`aging-triage-btn ${agingTriageFilter === "overdue" ? "active" : ""}`}
                           onClick={() =>
-                            setSelectedAgingBucket((prev) =>
-                              prev === bucket.id ? "all" : bucket.id,
+                            setAgingTriageFilter((prev) => (prev === "overdue" ? "all" : "overdue"))
+                          }
+                        >
+                          Overdue &gt;30d ({agingMetrics.overdueCount})
+                        </button>
+                        <button
+                          type="button"
+                          className={`aging-triage-btn ${agingTriageFilter === "critical" ? "active" : ""}`}
+                          onClick={() =>
+                            setAgingTriageFilter((prev) =>
+                              prev === "critical" ? "all" : "critical",
                             )
                           }
                         >
-                          <span
-                            className="aging-bucket-dot"
-                            style={{
-                              backgroundColor: isActive ? "#ffffff" : bucket.color,
-                            }}
-                          />
-                          {bucket.shortLabel} ({count})
+                          Critical ({agingMetrics.criticalCount})
                         </button>
-                      );
-                    })}
+                        <button
+                          type="button"
+                          className={`aging-triage-btn ${agingTriageFilter === "unassigned" ? "active" : ""}`}
+                          onClick={() =>
+                            setAgingTriageFilter((prev) =>
+                              prev === "unassigned" ? "all" : "unassigned",
+                            )
+                          }
+                        >
+                          Unassigned ({agingMetrics.unassignedCount})
+                        </button>
+                      </div>
+
+                      {actionableUnassignedCodes.length > 0 && (
+                        <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                          <Button
+                            size="sm"
+                            kind="ghost"
+                            renderIcon={UserFollow}
+                            onClick={handleOpenBulkAssignUnassigned}
+                            className="aging-bulk-assign-btn"
+                          >
+                            Assign {actionableUnassignedCodes.length} Unassigned
+                          </Button>
+                        </PermissionGuard>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="aging-triage-row">
-                    <div className="aging-triage-filters" role="group" aria-label="Quick triage filters">
-                      <button
-                        type="button"
-                        className={`aging-triage-btn ${agingTriageFilter === "all" ? "active" : ""}`}
-                        onClick={() => setAgingTriageFilter("all")}
-                      >
-                        All Backlog
-                      </button>
-                      <button
-                        type="button"
-                        className={`aging-triage-btn ${agingTriageFilter === "overdue" ? "active" : ""}`}
-                        onClick={() =>
-                          setAgingTriageFilter((prev) => (prev === "overdue" ? "all" : "overdue"))
-                        }
-                      >
-                        Overdue &gt;30d ({agingMetrics.overdueCount})
-                      </button>
-                      <button
-                        type="button"
-                        className={`aging-triage-btn ${agingTriageFilter === "critical" ? "active" : ""}`}
-                        onClick={() =>
-                          setAgingTriageFilter((prev) =>
-                            prev === "critical" ? "all" : "critical",
-                          )
-                        }
-                      >
-                        Critical ({agingMetrics.criticalCount})
-                      </button>
-                      <button
-                        type="button"
-                        className={`aging-triage-btn ${agingTriageFilter === "unassigned" ? "active" : ""}`}
-                        onClick={() =>
-                          setAgingTriageFilter((prev) =>
-                            prev === "unassigned" ? "all" : "unassigned",
-                          )
-                        }
-                      >
-                        Unassigned ({agingMetrics.unassignedCount})
-                      </button>
-                    </div>
+                  {/* Actionable Unresolved Issues List */}
+                  <div className="aging-actionable-queue">
+                    {actionableAgingIssues.length === 0 ? (
+                      <div className="aging-empty-queue">
+                        <p>
+                          No unresolved issues match the selected aging bracket or triage filter.
+                        </p>
+                        {(selectedAgingBucket !== "all" || agingTriageFilter !== "all") && (
+                          <Button
+                            size="sm"
+                            kind="ghost"
+                            onClick={() => {
+                              setSelectedAgingBucket("all");
+                              setAgingTriageFilter("all");
+                            }}
+                          >
+                            Clear Aging Filters
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="aging-queue-table-wrap">
+                        <table className="aging-queue-table" aria-label="Actionable aging unresolved issues">
+                          <thead>
+                            <tr>
+                              <th>Issue &amp; Facility</th>
+                              <th>Age</th>
+                              <th>Assignee</th>
+                              <th style={{ textAlign: "right" }}>Quick Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {actionableAgingIssues.slice(0, 25).map((item) => (
+                              <tr key={`${item.issue.issue_id}-${item.issueCode}`}>
+                                <td>
+                                  <div className="aging-issue-main">
+                                    <div className="aging-issue-top">
+                                      <button
+                                        type="button"
+                                        className="aging-issue-code-link"
+                                        onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                        title={`Open issue ${item.issueCode}`}
+                                      >
+                                        {item.issueCode}
+                                      </button>
+                                      {item.isCritical && (
+                                        <span className="aging-critical-tag">
+                                          <WarningAlt size={12} /> Critical
+                                        </span>
+                                      )}
+                                      <span className="aging-issue-element">
+                                        {safeString(item.issue.data_element) ||
+                                          safeString(item.issue.dataset) ||
+                                          safeString(item.issue.issue_type) ||
+                                          "Data Quality Issue"}
+                                      </span>
+                                    </div>
+                                    <div className="aging-issue-meta">
+                                      <span>{item.facilityName}</span>
+                                      <span>•</span>
+                                      <span>{item.districtName}</span>
+                                      <span>•</span>
+                                      <span>Reported: {item.reportedDateLabel}</span>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className={`aging-pill ${item.bucket.badgeClass}`}>
+                                    {item.ageDays}d
+                                  </span>
+                                </td>
+                                <td>
+                                  {item.isUnassigned ? (
+                                    <span className="aging-assignee-unassigned">Unassigned</span>
+                                  ) : (
+                                    <span
+                                      className="aging-assignee-assigned"
+                                      title={safeString(item.issue.assigned_to)}
+                                    >
+                                      {safeString(item.issue.assigned_to)}
+                                    </span>
+                                  )}
+                                </td>
+                                <td>
+                                  <div className="aging-row-actions">
+                                    <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                                      <button
+                                        type="button"
+                                        className="aging-action-btn aging-action-btn--assign"
+                                        onClick={() => handleOpenAssignSingle(item)}
+                                        title={
+                                          item.isUnassigned
+                                            ? `Assign ${item.issueCode}`
+                                            : `Re-assign ${item.issueCode}`
+                                        }
+                                      >
+                                        <UserFollow size={14} />
+                                        <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
+                                      </button>
+                                    </PermissionGuard>
 
-                    {actionableUnassignedCodes.length > 0 && (
-                      <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-                        <Button
-                          size="sm"
-                          kind="ghost"
-                          renderIcon={UserFollow}
-                          onClick={handleOpenBulkAssignUnassigned}
-                          className="aging-bulk-assign-btn"
-                        >
-                          Assign {actionableUnassignedCodes.length} Unassigned
-                        </Button>
-                      </PermissionGuard>
+                                    <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
+                                      <button
+                                        type="button"
+                                        className="aging-action-btn aging-action-btn--resolve"
+                                        onClick={() => {
+                                          setResolvingAgingIssue(item);
+                                          setResolutionComment("");
+                                        }}
+                                        title={`Resolve ${item.issueCode}`}
+                                      >
+                                        <CheckmarkOutline size={14} />
+                                        <span>Resolve</span>
+                                      </button>
+                                    </PermissionGuard>
+
+                                    <button
+                                      type="button"
+                                      className="aging-action-btn aging-action-btn--view"
+                                      onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                      title={`View full details for ${item.issueCode}`}
+                                    >
+                                      <ArrowRight size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </div>
-
-                {/* Actionable Unresolved Issues List */}
-                <div className="aging-actionable-queue">
-                  {actionableAgingIssues.length === 0 ? (
-                    <div className="aging-empty-queue">
-                      <p>
-                        No unresolved issues match the selected aging bracket or triage filter.
-                      </p>
-                      {(selectedAgingBucket !== "all" || agingTriageFilter !== "all") && (
-                        <Button
-                          size="sm"
-                          kind="ghost"
-                          onClick={() => {
-                            setSelectedAgingBucket("all");
-                            setAgingTriageFilter("all");
-                          }}
-                        >
-                          Clear Aging Filters
-                        </Button>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="aging-queue-table-wrap">
-                      <table className="aging-queue-table" aria-label="Actionable aging unresolved issues">
-                        <thead>
-                          <tr>
-                            <th>Issue &amp; Facility</th>
-                            <th>Age</th>
-                            <th>Assignee</th>
-                            <th style={{ textAlign: "right" }}>Quick Actions</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {actionableAgingIssues.slice(0, 25).map((item) => (
-                            <tr key={`${item.issue.issue_id}-${item.issueCode}`}>
-                              <td>
-                                <div className="aging-issue-main">
-                                  <div className="aging-issue-top">
-                                    <button
-                                      type="button"
-                                      className="aging-issue-code-link"
-                                      onClick={() => handleNavigateToIssueCode(item.issueCode)}
-                                      title={`Open issue ${item.issueCode}`}
-                                    >
-                                      {item.issueCode}
-                                    </button>
-                                    {item.isCritical && (
-                                      <span className="aging-critical-tag">
-                                        <WarningAlt size={12} /> Critical
-                                      </span>
-                                    )}
-                                    <span className="aging-issue-element">
-                                      {safeString(item.issue.data_element) ||
-                                        safeString(item.issue.dataset) ||
-                                        safeString(item.issue.issue_type) ||
-                                        "Data Quality Issue"}
-                                    </span>
-                                  </div>
-                                  <div className="aging-issue-meta">
-                                    <span>{item.facilityName}</span>
-                                    <span>•</span>
-                                    <span>{item.districtName}</span>
-                                    <span>•</span>
-                                    <span>Reported: {item.reportedDateLabel}</span>
-                                  </div>
-                                </div>
-                              </td>
-                              <td>
-                                <span className={`aging-pill ${item.bucket.badgeClass}`}>
-                                  {item.ageDays}d
-                                </span>
-                              </td>
-                              <td>
-                                {item.isUnassigned ? (
-                                  <span className="aging-assignee-unassigned">Unassigned</span>
-                                ) : (
-                                  <span
-                                    className="aging-assignee-assigned"
-                                    title={safeString(item.issue.assigned_to)}
-                                  >
-                                    {safeString(item.issue.assigned_to)}
-                                  </span>
-                                )}
-                              </td>
-                              <td>
-                                <div className="aging-row-actions">
-                                  <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-                                    <button
-                                      type="button"
-                                      className="aging-action-btn aging-action-btn--assign"
-                                      onClick={() => handleOpenAssignSingle(item)}
-                                      title={
-                                        item.isUnassigned
-                                          ? `Assign ${item.issueCode}`
-                                          : `Re-assign ${item.issueCode}`
-                                      }
-                                    >
-                                      <UserFollow size={14} />
-                                      <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
-                                    </button>
-                                  </PermissionGuard>
-
-                                  <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
-                                    <button
-                                      type="button"
-                                      className="aging-action-btn aging-action-btn--resolve"
-                                      onClick={() => {
-                                        setResolvingAgingIssue(item);
-                                        setResolutionComment("");
-                                      }}
-                                      title={`Resolve ${item.issueCode}`}
-                                    >
-                                      <CheckmarkOutline size={14} />
-                                      <span>Resolve</span>
-                                    </button>
-                                  </PermissionGuard>
-
-                                  <button
-                                    type="button"
-                                    className="aging-action-btn aging-action-btn--view"
-                                    onClick={() => handleNavigateToIssueCode(item.issueCode)}
-                                    title={`View full details for ${item.issueCode}`}
-                                  >
-                                    <ArrowRight size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Tab 3: Regional Summary Table */}
+          {activeVisualTab === "table" && (
+            <div className="dashboard-visual-tab-panel" role="tabpanel">
 
         {/* ================= Filters Bar ================= */}
         <div className="dashboard-filter-container">
@@ -2907,6 +2957,9 @@ const IssueDashboard = () => {
             </DataTable>
           </div>
         )}
+            </div>
+          )}
+        </div>
 
         {/* ================= Action Modals for Aging Issues ================= */}
         {assigningIssueCodes.length > 0 && (

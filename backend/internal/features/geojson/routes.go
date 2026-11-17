@@ -14,6 +14,7 @@ func RegisterProtectedRoutes(protected *gin.RouterGroup, handler *Handler) {
 			authz.PermissionSurveillanceRead,
 			authz.PermissionDataQualityRead,
 			authz.PermissionReportBrowserRead,
+			authz.PermissionIssueTrackerRead,
 		), handler.GetGeoJSON)
 	}
 }

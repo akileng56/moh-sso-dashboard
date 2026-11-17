@@ -1,4 +1,5 @@
 import { API } from "@moh-sso/config";
+import type { FeatureCollection } from "geojson";
 import type {
   Issue,
   IssuePayload,
@@ -162,6 +163,18 @@ export const issuesApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiEnvelope<IssueTransaction[]>) => res.data,
       invalidatesTags: ["Issues", "Transactions"],
     }),
+
+    getIssueGeoJson: builder.query<FeatureCollection, "geo_water" | "geo_districts">({
+      query: (name) => ({
+        url: `/geojson/${name}`,
+        method: "GET",
+        credentials: "include",
+      }),
+      transformResponse: (
+        res: ApiEnvelope<FeatureCollection> | FeatureCollection,
+      ) => (res && "data" in res ? res.data : res),
+      providesTags: (_result, _error, name) => [{ type: "GeoJson", id: name }],
+    }),
   }),
 });
 
@@ -178,4 +191,5 @@ export const {
   useGetKeycloakGroupsQuery,
   useGetKeycloakGroupMembersQuery,
   useAssignIssuesMutation,
+  useGetIssueGeoJsonQuery,
 } = issuesApi;

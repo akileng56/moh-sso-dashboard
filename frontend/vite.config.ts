@@ -76,7 +76,7 @@ function mergeCookies(existingCookie?: string, extraCookie?: string): string | u
     return existingCookie;
   }
   const merged = new Map<string, string>();
-  for (const source of [existingCookie, extraCookie]) {
+  for (const source of [extraCookie, existingCookie]) {
     for (const [key, value] of parseCookieMap(source).entries()) {
       merged.set(key, value);
     }
@@ -257,6 +257,8 @@ export default defineConfig(({ mode }) => {
           }
 
           if (request.url && /^\/visualizer[-_]proxy(?:\/|\?|$)/.test(request.url)) {
+            const browserSessionId = parseCookieMap(request.headers.cookie).get("sso_session");
+            const fallbackSessionId = parseCookieMap(normalizedVisualizerCookie).get("sso_session");
             const mergedCookie = mergeCookies(
               request.headers.cookie,
               normalizedVisualizerCookie,
@@ -266,8 +268,13 @@ export default defineConfig(({ mode }) => {
             }
             const cookies = parseCookieMap(request.headers.cookie);
             let accessToken = cookies.get("access_token");
-            const sessionId = cookies.get("sso_session");
-            if (!accessToken && sessionId) {
+            const sessionCandidates = Array.from(
+              new Set([browserSessionId, fallbackSessionId, cookies.get("sso_session")].filter(Boolean)),
+            ) as string[];
+            for (const sessionId of sessionCandidates) {
+              if (accessToken) {
+                break;
+              }
               accessToken = await resolveLocalSessionAccessToken(sessionId);
               if (accessToken) {
                 request.headers.cookie = mergeCookies(

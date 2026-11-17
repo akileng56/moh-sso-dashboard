@@ -54,12 +54,17 @@
     "@carbon/charts": "^1.27.3",
     "@carbon/charts-react": "^1.27.3",
     "@carbon/react": "^1.95.0",
+    "leaflet": "^1.9.4",
     "react": "^19.2.0",
+    "react-leaflet": "^5.0.0",
     "react-redux": "^9.2.0",
     "react-router": "^7.9.6",
     "react-dom": "^19.2.0",
     "single-spa": "^6.0.3",
     "react-router-dom": "^7.9.6"
+  },
+  "devDependencies": {
+    "@types/geojson": "^7946.0.16"
   },
   "private": false
 }
