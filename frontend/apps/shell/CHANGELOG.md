@@ -1,5 +1,12 @@
 # @moh-sso/shell
 
+## 1.4.1
+
+### Patch Changes
+
+- Select the corrected shared React runtime packages for frontend deployments and
+  retain exact production package versions with an integrity-checked npm lock.
+
 ## 1.4.0
 
 ### Minor Changes
@@ -33,6 +40,7 @@
   - @moh-sso/ui@1.4.0
 
 <!-- scoped-source-changes -->
+
 ### Source changes
 
 Changes since `frontend/v1.3.2`.

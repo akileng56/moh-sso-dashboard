@@ -1,8 +1,8 @@
 {
-  "generatedAt": "2026-11-17T13:01:24.130Z",
+  "generatedAt": "2026-11-17T13:33:03.863Z",
   "service": {
     "name": "moh-sso-dashboard-frontend",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "commit": "none",
     "buildTime": "unknown"
   },
@@ -57,7 +57,7 @@
     },
     "shell": {
       "name": "@moh-sso/shell",
-      "version": "1.4.0"
+      "version": "1.4.1"
     },
     "surveillance": {
       "name": "@moh-sso/surveillance",

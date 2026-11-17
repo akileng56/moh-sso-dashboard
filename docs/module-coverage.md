@@ -40,26 +40,26 @@ The shell is built from the checkout. This table covers every publishable applic
 
 | Package | Kind | Stage | Production version | Backend features |
 | --- | --- | --- | --- | --- |
-| @moh-sso/announcements | application | published | 1.3.2 | announcements |
-| @moh-sso/api | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/audit | application | published | 1.3.2 | audit |
-| @moh-sso/auth | shared | published | 1.3.2 | auth, authsession |
-| @moh-sso/clients | application | published | 1.3.2 | clients, rbac |
-| @moh-sso/config | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/data-validation | application | published | 1.3.2 | data_quality |
-| @moh-sso/data-visualizer | application | published | 1.3.2 | visualiser |
-| @moh-sso/documents | application | published | 1.3.2 | documents, document_templates, storage_locations |
-| @moh-sso/e-services | application | published | 1.3.2 | clients, rbac |
-| @moh-sso/email | application | published | 1.3.2 | email |
-| @moh-sso/issue-tracker | application | published | 1.3.2 | data_quality |
-| @moh-sso/microfrontend | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/rbac | application | published | 1.3.2 | rbac, health_context |
-| @moh-sso/report-browser | application | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/report-scheduler | application | published | 0.4.2 | report_scheduler |
-| @moh-sso/state | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/surveillance | application | published | 1.3.2 | surveillance, geojson |
-| @moh-sso/types | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/ui | shared | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/users | application | published | 1.3.2 | users |
-| @moh-sso/utilities | application | published | 1.3.2 | frontend/shared or external integration |
-| @moh-sso/utils | shared | published | 1.3.2 | frontend/shared or external integration |
+| @moh-sso/announcements | application | published | 1.4.0 | announcements |
+| @moh-sso/api | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/audit | application | published | 1.4.0 | audit |
+| @moh-sso/auth | shared | published | 1.4.1 | auth, authsession |
+| @moh-sso/clients | application | published | 1.4.0 | clients, rbac |
+| @moh-sso/config | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/data-validation | application | published | 1.4.0 | data_quality |
+| @moh-sso/data-visualizer | application | published | 1.4.0 | visualiser |
+| @moh-sso/documents | application | published | 1.4.0 | documents, document_templates, storage_locations |
+| @moh-sso/e-services | application | published | 1.4.0 | clients, rbac |
+| @moh-sso/email | application | published | 1.4.0 | email |
+| @moh-sso/issue-tracker | application | published | 1.4.0 | data_quality |
+| @moh-sso/microfrontend | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/rbac | application | published | 1.4.0 | rbac, health_context |
+| @moh-sso/report-browser | application | published | 1.4.0 | frontend/shared or external integration |
+| @moh-sso/report-scheduler | application | published | 0.5.0 | report_scheduler |
+| @moh-sso/state | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/surveillance | application | published | 1.4.0 | surveillance, geojson |
+| @moh-sso/types | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/ui | shared | published | 1.4.1 | frontend/shared or external integration |
+| @moh-sso/users | application | published | 1.4.0 | users |
+| @moh-sso/utilities | application | published | 1.4.0 | frontend/shared or external integration |
+| @moh-sso/utils | shared | published | 1.4.1 | frontend/shared or external integration |
