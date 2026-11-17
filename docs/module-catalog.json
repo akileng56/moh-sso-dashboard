@@ -191,7 +191,7 @@
       ],
       "workers": ["host report scheduler worker"],
       "migrations": "core",
-      "next": "Next worker-bearing candidate: inject report provider/delivery ports and transfer schedule claims, readiness, retries and joined shutdown."
+      "next": "Dependency ports isolated; transfer public/protected routes and the worker to registry readiness, cancellation and joined shutdown before standalone packaging."
     },
     {
       "id": "sessions",

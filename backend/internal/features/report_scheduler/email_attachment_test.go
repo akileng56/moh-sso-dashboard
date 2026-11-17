@@ -71,18 +71,18 @@ func (c *attachmentHealthBI) DownloadArtifact(_ context.Context, id string, limi
 }
 
 type attachmentEmail struct {
-	messages []model.Message
+	messages []Message
 	err      error
 }
 
-func (e *attachmentEmail) Queue(_ context.Context, m model.Message) error {
+func (e *attachmentEmail) Queue(_ context.Context, m Message) error {
 	if e.err != nil {
 		return e.err
 	}
 	e.messages = append(e.messages, m)
 	return nil
 }
-func (e *attachmentEmail) ResolveGroupEmailRecipients(context.Context, []string, []string) ([]model.Address, error) {
+func (e *attachmentEmail) ResolveGroupEmailRecipients(context.Context, []string, []string) ([]Address, error) {
 	return nil, nil
 }
 
