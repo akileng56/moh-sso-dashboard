@@ -10,6 +10,7 @@ inspect the modules actually compiled into the running backend.
 | metrics | Dashboard metrics APIs | Selected Go dependency version | Metrics routes are omitted |
 | audit | Audit read, metrics and export APIs | Backend build version | Audit read routes are omitted; core event recording continues |
 | geojson | Permission-guarded static map assets | Backend build version | GeoJSON routes are omitted; map consumers need availability review |
+| report-scheduler | Report schedules, execution and delivery | Backend build version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -23,8 +24,14 @@ Review affected application registrations and navigation when changing API
 availability. Keep Keycloak roles and application lifecycle approval aligned with
 the intended rollout; module configuration does not automatically edit them.
 The audit read module and map asset module have no background workers to stop.
-Worker-bearing legacy features are tracked as planned and cannot yet be disabled
-through this setting.
+Report Scheduler now owns its worker through the registry. Its initial persistence
+heartbeat must succeed within ten seconds before jobs can be claimed. Startup
+fails if scheduler persistence is unavailable. Cleanup cancels and joins the worker
+within the host shutdown deadline before database resources close. Disablement
+retains schedules, history and pending jobs; re-enabling resumes existing claim,
+retry and stale-claim recovery behavior. Previously issued public download links
+are unavailable while disabled. Other worker-bearing legacy features remain
+tracked as planned.
 
 For version changes, select verified Go/npm releases, review dependency files and
 build new images. The frontend pin selection is independent of this backend

@@ -244,7 +244,7 @@ func (s *Service) Overview(ctx context.Context, userID string, all bool, userHea
 
 func (s *Service) UpdateWorkerHeartbeat(ctx context.Context, workerID string, interval time.Duration, heartbeat time.Time, cycleStarted, cycleFinished *time.Time, cycleErr string) error {
 	if s == nil || s.repo == nil {
-		return nil
+		return errors.New("report scheduler repository is required")
 	}
 	return s.repo.UpdateWorkerHeartbeat(ctx, workerID, interval, heartbeat, cycleStarted, cycleFinished, cycleErr)
 }

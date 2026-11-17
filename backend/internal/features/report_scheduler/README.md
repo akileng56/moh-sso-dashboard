@@ -15,13 +15,24 @@ directory and notification service. Audit recording continues through the host.
 DWH. A missing DWH connection permits an already fixed authenticated scope, but
 rejects requests that require validating a district or facility relationship.
 
-The scheduler remains a compiled host feature during this phase. Its HTTP
-authorization adapters still use the host middleware; its worker still starts
-through bootstrap. The next phase transfers both public/protected routes and
-worker startup, readiness, cancellation and joined shutdown to the module
-registry. Standalone packaging and a pinned released dependency follow that
-lifecycle transfer. Existing schedule, execution, delivery and worker-heartbeat
-migrations remain core-owned throughout extraction.
+The scheduler is now a registry-hosted feature with runtime ID
+`report-scheduler`. Setting `DISABLED_MODULES=report-scheduler` and restarting
+omits every scheduler route, including public delivery downloads, and skips worker
+startup. Existing permission checks, token validation and download rate limits
+remain in the feature registrars.
+
+Initialization validates the handler and worker, then writes a heartbeat to the
+existing runtime table with a ten-second readiness deadline. Failure aborts
+startup before any jobs are claimed. A worker instance can start once. Successful
+initialization starts immediate recovery/polling; registry cleanup cancels in-flight
+operations and waits for the worker before host resources close. The host uses a
+15-second shutdown deadline and logs a failure if a dependency does not honor
+cancellation. Existing SQL claims, retry backoff and stale-claim recovery remain
+unchanged. Re-enabling constructs a fresh worker and resumes persisted work.
+
+Standalone packaging and a pinned released dependency are the next extraction
+phase. Existing schedule, execution, delivery and worker-heartbeat migrations
+remain core-owned; disablement retains schema, history and pending jobs.
 
 ## Health BI contract
 

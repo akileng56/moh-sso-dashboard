@@ -179,9 +179,9 @@
     },
     {
       "id": "report_scheduler",
-      "stage": "planned",
+      "stage": "registry-hosted",
       "scope": "Report schedules, execution and delivery",
-      "moduleId": "",
+      "moduleId": "report-scheduler",
       "dependencies": [
         "primary-db",
         "keycloak",
@@ -189,9 +189,9 @@
         "notifications",
         "host-audit-recorder"
       ],
-      "workers": ["host report scheduler worker"],
+      "workers": ["registry-owned report scheduler worker"],
       "migrations": "core",
-      "next": "Dependency ports isolated; transfer public/protected routes and the worker to registry readiness, cancellation and joined shutdown before standalone packaging."
+      "next": "Extract the registry-controlled scheduler into a standalone package, publish a release and integrate a pinned dependency; retain core migration ownership."
     },
     {
       "id": "sessions",

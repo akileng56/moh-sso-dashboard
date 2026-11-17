@@ -272,3 +272,23 @@ The fresh backend image passed real Keycloak, manifest, backup/restore and resta
 checks, including enabled/disabled audit and GeoJSON APIs and continued core audit
 recording. Temporary fixture resources were removed. No additional independent
 Go package release or live deployment was performed in this expansion step.
+
+## Report Scheduler extraction: lifecycle phase
+
+The scheduler now appears as `report-scheduler` in the compiled module inventory.
+Its dependency ports and host adapters were isolated in the first extraction
+phase. The registry now owns both its public delivery-download routes and
+protected scheduler routes, together with worker initialization and cleanup.
+`DISABLED_MODULES=report-scheduler` skips all three.
+
+Initialization requires a handler, worker and successful persistence heartbeat
+before any job claims. Cleanup cancels the worker and waits for its active cycle,
+subject to the host shutdown deadline. The former bootstrap worker start has been
+removed. Existing permissions, download-token checks, rate limits, SQL claims,
+retries and migration ownership remain in their current domains.
+
+Verification includes readiness failure, canceled initialization, duplicate
+starts, in-flight shutdown, shutdown deadlines, rollback cleanup and route
+disablement. The authenticated container fixture also checks scheduler role access,
+heartbeat preservation while disabled and a fresh worker when re-enabled.
+Standalone packaging, publication and a pinned dependency remain the next phases.

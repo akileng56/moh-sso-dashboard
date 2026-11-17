@@ -67,8 +67,10 @@ def wait_ready(url, seconds=180):
 
 def realm_fixture():
     users = []
-    for name in ('admin', 'viewer', 'outsider'):
+    for name in ('admin', 'viewer', 'outsider', 'scheduler'):
         roles = {'dashboard-web': ['portal_user']}
+        if name == 'scheduler':
+            roles['data-statistics'] = ['report-scheduler_access']
         if name == 'viewer':
             roles['fixture-reports'] = ['viewer']
         users.append({'username': name, 'enabled': True, 'emailVerified': True,
@@ -80,7 +82,8 @@ def realm_fixture():
                   'clientRoles': {'realm-management': ['realm-admin']}})
     return {'realm': REALM, 'enabled': True, 'sslRequired': 'none',
             'roles': {'realm': [{'name': 'admin'}, {'name': 'user'}],
-                      'client': {'fixture-reports': [{'name': 'viewer'}], 'dashboard-web': [{'name': 'portal_user'}]}},
+                      'client': {'fixture-reports': [{'name': 'viewer'}], 'dashboard-web': [{'name': 'portal_user'}],
+                                 'data-statistics': [{'name': 'report-scheduler_access'}]}},
             'clients': [
                 {'clientId': 'dashboard-admin', 'secret': SECRET, 'enabled': True,
                  'serviceAccountsEnabled': True, 'publicClient': False, 'protocol': 'openid-connect'},
@@ -92,7 +95,8 @@ def realm_fixture():
                      'protocolMapper': 'oidc-usermodel-property-mapper',
                      'config': {'user.attribute': 'id', 'claim.name': 'user_id', 'jsonType.label': 'String',
                                 'userinfo.token.claim': 'true', 'access.token.claim': 'true'}}]},
-                {'clientId': 'fixture-reports', 'enabled': True, 'publicClient': True}],
+                {'clientId': 'fixture-reports', 'enabled': True, 'publicClient': True},
+                {'clientId': 'data-statistics', 'enabled': True, 'publicClient': True}],
             'users': users}
 
 
@@ -175,7 +179,7 @@ def main():
             request(api + inventory, token=outsider, status=403)
             modules = request(api + inventory, token=admin)['data']
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            for module_id in ('audit', 'geojson'):
+            for module_id in ('audit', 'geojson', 'report-scheduler'):
                 assert any(item['id'] == module_id and item['enabled'] for item in modules), module_id
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)
@@ -243,7 +247,17 @@ def main():
             assert request(manifests + '/import', method='POST', data=body, token=admin)['data']['operation'] == 'noop'
             run(*compose, 'exec', '-T', 'backend-db', 'sh', '-ec',
                 'test "$(psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -At -c "SELECT count(*) FROM ihp_rbac_audit_events WHERE action=\'application.manifest.imported\'")" = 1')
-            backend['environment']['DISABLED_MODULES'] = 'audit,geojson'
+            def scheduler_runtime():
+                return run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                           '-d', 'sso_dashboard', '-At', '-c',
+                           "SELECT worker_id || '|' || last_heartbeat_at::text FROM report_scheduler_runtime WHERE singleton=true")
+
+            enabled_runtime = scheduler_runtime()
+            assert enabled_runtime, 'Enabled scheduler must complete persistence readiness'
+            request(api + '/api/v1/report-scheduler', token=admin, status=403)
+            request(api + '/api/v1/report-scheduler', token=token('scheduler'))
+            request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
+            backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler'
             path.write_text(json.dumps(model))
             run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
             api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
@@ -251,9 +265,15 @@ def main():
             admin = token('admin')
             modules = request(api + inventory, token=admin)['data']
             states = {item['id']: item['enabled'] for item in modules}
-            assert states == {'metrics': True, 'audit': False, 'geojson': False}, states
+            assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False}, states
             request(api + '/api/v1/admin/audit-logs/actions', token=admin, status=404)
             request(api + '/api/v1/geojson/geo_water', token=admin, status=404)
+            request(api + '/api/v1/report-scheduler', token=admin, status=404)
+            request(api + '/api/v1/report-scheduler', token=token('scheduler'), status=404)
+            request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
+            disabled_runtime = scheduler_runtime()
+            assert disabled_runtime.split('|')[0] == enabled_runtime.split('|')[0], 'Disabled scheduler started a new worker'
+
 
             def audit_count():
                 return int(run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
@@ -263,7 +283,17 @@ def main():
             manifests = api + '/api/v1/admin/rbac/application-manifests'
             assert request(manifests + '/import', method='POST', data=body, token=admin)['data']['operation'] == 'noop'
             assert audit_count() > before, 'Disabling audit read APIs must not stop core event recording'
-            print('Module disablement preserves core audit recording', flush=True)
+            assert scheduler_runtime() == disabled_runtime, 'Disabled scheduler updated its heartbeat'
+            backend['environment']['DISABLED_MODULES'] = 'audit,geojson'
+            path.write_text(json.dumps(model))
+            run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
+            api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
+            wait_ready(api + '/health/ready')
+            admin = token('admin')
+            assert scheduler_runtime().split('|')[0] != disabled_runtime.split('|')[0], 'Re-enabled scheduler did not initialize a fresh worker'
+            request(api + '/api/v1/report-scheduler', token=admin, status=403)
+            request(api + '/api/v1/report-scheduler', token=token('scheduler'))
+            print('Module disablement preserves core audit recording; scheduler worker stops and resumes', flush=True)
             print('PASS: real Keycloak authentication, module inventory, admin/role authorization, reviewed import, '
                   'lifecycle activation, idempotence, backup/restore, startup preservation, clean shutdown, restart recovery and module disablement')
         finally:

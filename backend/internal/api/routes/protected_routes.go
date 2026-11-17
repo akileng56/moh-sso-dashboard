@@ -41,7 +41,9 @@ func RegisterProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
 
 	registerRBACProtectedRoutes(protected, deps)
 	registerHealthContextProtectedRoutes(protected, deps)
-	reportschedulerfeature.RegisterProtectedRoutes(protected, deps.ReportScheduler)
+	if deps.Modules == nil {
+		reportschedulerfeature.RegisterProtectedRoutes(protected, deps.ReportScheduler)
+	}
 }
 
 func registerHealthContextProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {

@@ -12,7 +12,7 @@ are registered through application manifests and the database application regist
 | --- | --- | --- |
 | core | Trusted host authentication, authorization or shared platform policy | Backend release |
 | planned | Existing feature wiring remains active; extraction work is tracked | Backend release |
-| registry-hosted | Compiled registry controls its HTTP availability; implementation still lives in the host | Backend build metadata |
+| registry-hosted | Compiled registry controls routes and owned workers; implementation still lives in the host | Backend build metadata |
 | published | Independent package artifacts are selected through reviewed dependency pins | Selected Go/npm package version |
 
 Audit read APIs and GeoJSON are the first expansion after Metrics. Their
@@ -23,8 +23,11 @@ Metrics remains the independent Go-package reference in `backend/modules/metrics
 
 Choose a bounded migration rather than moving unrelated domains together.
 Worker-bearing domains need their processing lifecycle migrated with their
-routes. Report Scheduler is the next worker-bearing candidate in the catalogue;
-its provider/delivery ports, job claims and shutdown contract need review first.
+routes. Report Scheduler is the first registry-hosted worker-bearing feature:
+its dependency ports are isolated and the registry owns readiness, startup and
+joined shutdown. Both public token-download routes and protected routes are
+registered in the same module callback. Its independent package release is the
+next extraction step.
 
 ## Add a compiled registry integration
 
