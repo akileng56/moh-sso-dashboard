@@ -52,6 +52,9 @@ func (r *postgresRepository) ensureSchema(ctx context.Context) {
 }
 
 func (r *postgresRepository) CreateIssue(ctx context.Context, input createIssueInput, scope healthContextScope) (issueResponse, error) {
+	if r.dwhDB == nil {
+		return issueResponse{}, errors.New("DWH connection is not configured")
+	}
 	row := r.dwhDB.QueryRowContext(
 		ctx,
 		`WITH next_issue AS (
@@ -243,6 +246,9 @@ func (r *postgresRepository) ListIssues(ctx context.Context, filter listIssuesFi
 }
 
 func (r *postgresRepository) GetIssuesByCodes(ctx context.Context, issueCodes []string, scope healthContextScope) ([]issueResponse, error) {
+	if r.dwhDB == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	for _, code := range issueCodes {
 		if err := r.requireIssueInScope(ctx, code, scope); err != nil {
 			return nil, err
@@ -319,6 +325,9 @@ func (r *postgresRepository) ListIssueSummaryByProgram(ctx context.Context, limi
 }
 
 func (r *postgresRepository) UpdateIssue(ctx context.Context, input updateIssueInput, scope healthContextScope) (issueResponse, error) {
+	if r.dwhDB == nil {
+		return issueResponse{}, errors.New("DWH connection is not configured")
+	}
 	if err := r.requireIssueInScope(ctx, input.IssueCode, scope); err != nil {
 		return issueResponse{}, err
 	}
@@ -360,6 +369,9 @@ func (r *postgresRepository) UpdateIssue(ctx context.Context, input updateIssueI
 }
 
 func (r *postgresRepository) ResolveIssue(ctx context.Context, input resolveIssueInput, scope healthContextScope) (issueStageResponse, error) {
+	if r.dwhDB == nil {
+		return issueStageResponse{}, errors.New("DWH connection is not configured")
+	}
 	if err := r.requireIssueInScope(ctx, input.IssueCode, scope); err != nil {
 		return issueStageResponse{}, err
 	}
@@ -483,6 +495,9 @@ func (r *postgresRepository) ResolveIssue(ctx context.Context, input resolveIssu
 }
 
 func (r *postgresRepository) AssignIssues(ctx context.Context, input assignIssuesInput, scope healthContextScope) ([]issueStageResponse, error) {
+	if r.dwhDB == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	for _, code := range input.IssueCodes {
 		if err := r.requireIssueInScope(ctx, code, scope); err != nil {
 			return nil, err
@@ -578,6 +593,9 @@ func (r *postgresRepository) AssignIssues(ctx context.Context, input assignIssue
 }
 
 func (r *postgresRepository) ListIssueResolutionTransactions(ctx context.Context, issueCode string, limit int, offset int, scope healthContextScope) ([]issueStageResponse, error) {
+	if r.dwhDB == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	if err := r.requireIssueInScope(ctx, issueCode, scope); err != nil {
 		return nil, err
 	}

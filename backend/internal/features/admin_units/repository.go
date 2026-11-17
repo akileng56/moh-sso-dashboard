@@ -3,6 +3,7 @@ package admin_units
 import (
 	"context"
 	"database/sql"
+	"errors"
 )
 
 type Repository interface {
@@ -26,6 +27,9 @@ func NewRepository(db *sql.DB) Repository {
 }
 
 func (r *postgresRepository) ListOrgUnits(ctx context.Context) ([]OrgUnitFull, error) {
+	if r.db == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			dim_org_hierarchy_key, org_unit_id, org_unit_name, "level",
@@ -71,6 +75,9 @@ func (r *postgresRepository) ListOrgUnits(ctx context.Context) ([]OrgUnitFull, e
 }
 
 func (r *postgresRepository) ListFacilities(ctx context.Context) ([]Facility, error) {
+	if r.db == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			dim_org_hierarchy_key, org_unit_id, org_unit_name, "level",
@@ -191,6 +198,9 @@ func (r *postgresRepository) ListNational(ctx context.Context) ([]OrgUnitSimple,
 }
 
 func (r *postgresRepository) ListHierarchy(ctx context.Context) ([]OrgUnit, error) {
+	if r.db == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT 
 			dim_org_hierarchy_key, org_unit_id, org_unit_name, "level",
@@ -235,6 +245,9 @@ func (r *postgresRepository) ListHierarchy(ctx context.Context) ([]OrgUnit, erro
 }
 
 func (r *postgresRepository) listSimple(ctx context.Context, query string, args ...any) ([]OrgUnitSimple, error) {
+	if r.db == nil {
+		return nil, errors.New("DWH connection is not configured")
+	}
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
