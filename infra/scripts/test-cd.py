@@ -65,12 +65,14 @@ class ImageVersions(unittest.TestCase):
 class BundleTests(unittest.TestCase):
     def test_distribution_metadata_binds_exact_pins_and_dependency_checksums(self):
         data = bundle.distribution_metadata()
-        self.assertEqual(data['frontend']['versions']['@moh-sso/announcements'], '1.3.2')
+        selection = json.loads((bundle.ROOT / 'frontend/module-sources.json').read_text())['production']
+        self.assertEqual(data['frontend']['versions'], selection['versions'])
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics'], 'v0.1.0')
         for field in ('version', 'checksum', 'module'):
             changed = json.loads(json.dumps(data))
             if field == 'version':
-                changed['frontend']['versions']['@moh-sso/announcements'] = '^1.3.2'
+                version = data['frontend']['versions']['@moh-sso/announcements']
+                changed['frontend']['versions']['@moh-sso/announcements'] = '^' + version
             elif field == 'checksum':
                 changed['frontend']['lockSha256'] = 'unverified'
             else:
