@@ -179,19 +179,25 @@
     },
     {
       "id": "report_scheduler",
-      "stage": "planned",
+      "stage": "published",
       "scope": "Report schedules, execution and delivery",
-      "moduleId": "",
+      "moduleId": "report-scheduler",
       "dependencies": [
         "primary-db",
         "keycloak",
         "health-bi",
+        "email",
+        "users",
         "notifications",
+        "blob-storage",
+        "warehouse",
         "host-audit-recorder"
       ],
-      "workers": ["host report scheduler worker"],
+      "workers": [
+        "registry-owned report scheduler worker"
+      ],
       "migrations": "core",
-      "next": "Next worker-bearing candidate: inject report provider/delivery ports and transfer schedule claims, readiness, retries and joined shutdown."
+      "next": "Maintain host HTTP/platform adapters and core migrations; release scheduler changes independently and update the reviewed Go dependency pin."
     },
     {
       "id": "sessions",

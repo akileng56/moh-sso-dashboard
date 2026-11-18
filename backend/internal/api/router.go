@@ -136,7 +136,9 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 	api := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(api, routeDeps)
 	routes.RegisterPublicAnnouncementRoutes(api, routeDeps)
-	routes.RegisterPublicReportSchedulerRoutes(api, routeDeps)
+	if deps.Modules == nil {
+		routes.RegisterPublicReportSchedulerRoutes(api, routeDeps)
+	}
 
 	protected := api.Group("")
 	protected.Use(middleware.ExtractAuthContext(
@@ -159,6 +161,7 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 	routes.RegisterProtectedRoutes(protected, routeDeps)
 	routes.RegisterAdminRoutes(protected, routeDeps)
 	if deps.Modules != nil {
+		deps.Modules.RegisterRoutes(module.Routes{Public: api, Protected: protected, Admin: protected.Group("/admin")})
 		registerModuleInventory(protected, deps.Modules)
 	}
 	docs.Register(r)

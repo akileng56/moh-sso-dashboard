@@ -25,7 +25,7 @@ func TestModuleCatalogMatchesCompiledInventory(t *testing.T) {
 	if err := json.Unmarshal(raw, &catalog); err != nil {
 		t.Fatal(err)
 	}
-	registry, err := router.NewModuleRegistry(router.HandlerSet{}, "", nil)
+	registry, err := router.NewModuleRegistry(router.HandlerSet{}, "", nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

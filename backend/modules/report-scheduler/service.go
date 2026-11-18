@@ -1,10 +1,9 @@
-package report_scheduler
+package reportscheduler
 
 import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -16,9 +15,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/moh-sso-dashboard/internal/model"
-	sharedservice "github.com/moh-sso-dashboard/internal/service"
-	"github.com/moh-sso-dashboard/internal/storage"
 )
 
 type Service struct {
@@ -26,10 +22,10 @@ type Service struct {
 	healthBI             HealthBIClient
 	email                EmailDelivery
 	users                UserLookup
-	fileStorage          storage.Storage
-	dwh                  *sql.DB
-	notifications        sharedservice.NotificationsService
-	audit                *sharedservice.AuditService
+	fileStorage          ArtifactStorage
+	hierarchy            HealthHierarchy
+	notifications        Notifications
+	audit                Audit
 	publicBaseURL        string
 	deliveryLinkTTL      time.Duration
 	emailAttachmentLimit int64
@@ -40,16 +36,19 @@ func NewService(
 	healthBI HealthBIClient,
 	email EmailDelivery,
 	users UserLookup,
-	fileStorage storage.Storage,
-	dwh *sql.DB,
+	fileStorage ArtifactStorage,
+	hierarchy HealthHierarchy,
 ) *Service {
-	return &Service{repo: repo, healthBI: healthBI, email: email, users: users, fileStorage: fileStorage, dwh: dwh, deliveryLinkTTL: 24 * time.Hour, emailAttachmentLimit: 10 << 20}
+	if hierarchy == nil {
+		hierarchy = NewPostgresHealthHierarchy(nil)
+	}
+	return &Service{repo: repo, healthBI: healthBI, email: email, users: users, fileStorage: fileStorage, hierarchy: hierarchy, deliveryLinkTTL: 24 * time.Hour, emailAttachmentLimit: 10 << 20}
 }
 
-func (s *Service) SetNotifications(notifications sharedservice.NotificationsService) {
+func (s *Service) SetNotifications(notifications Notifications) {
 	s.notifications = notifications
 }
-func (s *Service) SetAudit(audit *sharedservice.AuditService) { s.audit = audit }
+func (s *Service) SetAudit(audit Audit) { s.audit = audit }
 func (s *Service) SetPublicBaseURL(value string) {
 	s.publicBaseURL = strings.TrimRight(strings.TrimSpace(value), "/")
 }
@@ -72,6 +71,15 @@ func (s *Service) Module() ModuleResponse {
 		SchedulingEnabled: s != nil && s.repo != nil,
 		HealthBIEnabled:   healthBIEnabled,
 	}
+}
+
+// ListRecipientOptions exposes the directory through the service boundary for
+// host HTTP adapters. The caller must enforce schedule-write permissions.
+func (s *Service) ListRecipientOptions(ctx context.Context, kind, search string, limit int, selected []string) ([]RecipientOption, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("recipient directory is unavailable")
+	}
+	return s.repo.ListRecipientOptions(ctx, kind, search, limit, selected)
 }
 
 func (s *Service) ListReports(ctx context.Context) ([]HealthBIReport, error) {
@@ -245,7 +253,7 @@ func (s *Service) Overview(ctx context.Context, userID string, all bool, userHea
 
 func (s *Service) UpdateWorkerHeartbeat(ctx context.Context, workerID string, interval time.Duration, heartbeat time.Time, cycleStarted, cycleFinished *time.Time, cycleErr string) error {
 	if s == nil || s.repo == nil {
-		return nil
+		return errors.New("report scheduler repository is required")
 	}
 	return s.repo.UpdateWorkerHeartbeat(ctx, workerID, interval, heartbeat, cycleStarted, cycleFinished, cycleErr)
 }
@@ -449,98 +457,7 @@ func (s *Service) validateSchedule(
 }
 
 func (s *Service) constrainHealthContext(ctx context.Context, requested, user HealthContext) (HealthContext, error) {
-	requested.Level = strings.ToLower(strings.TrimSpace(requested.Level))
-	requested.District = strings.TrimSpace(requested.District)
-	requested.Facility = strings.TrimSpace(requested.Facility)
-	user.District = strings.TrimSpace(user.District)
-	user.Facility = strings.TrimSpace(user.Facility)
-
-	if user.Facility != "" {
-		if requested.Facility != "" && !strings.EqualFold(requested.Facility, user.Facility) {
-			return requested, errors.New("requested facility is outside the authenticated user's health context")
-		}
-		if user.District != "" && requested.District != "" && !strings.EqualFold(requested.District, user.District) {
-			return requested, errors.New("requested district is outside the authenticated user's health context")
-		}
-		requested.Facility = user.Facility
-		requested.District = user.District
-		requested.Level = "facility"
-		return requested, nil
-	}
-	if user.District != "" {
-		if requested.District != "" && !strings.EqualFold(requested.District, user.District) {
-			return requested, errors.New("requested district is outside the authenticated user's health context")
-		}
-		if requested.Facility != "" {
-			if s.dwh == nil {
-				return requested, errors.New("facility scope validation requires the DWH connection")
-			}
-			var exists bool
-			err := s.dwh.QueryRowContext(ctx, `SELECT EXISTS (
-				SELECT 1 FROM dwh.dim_org_hierarchy
-				WHERE is_current=true AND "level"='6'
-				  AND (facility_uid=$1 OR facility_name=$1 OR org_unit_id=$1 OR org_unit_name=$1)
-				  AND (district_uid=$2 OR district=$2)
-			)`, requested.Facility, user.District).Scan(&exists)
-			if err != nil {
-				return requested, fmt.Errorf("validate facility health context: %w", err)
-			}
-			if !exists {
-				return requested, errors.New("requested facility is outside the authenticated user's district")
-			}
-			requested.District = user.District
-			requested.Level = "facility"
-			return requested, nil
-		}
-		requested.District = user.District
-		requested.Level = "district"
-		return requested, nil
-	}
-	if requested.Facility != "" {
-		if s.dwh == nil {
-			return requested, errors.New("facility scope validation requires the DWH connection")
-		}
-		var district sql.NullString
-		err := s.dwh.QueryRowContext(ctx, `SELECT district
-			FROM dwh.dim_org_hierarchy
-			WHERE is_current=true AND "level"='6'
-			  AND (facility_uid=$1 OR facility_name=$1 OR org_unit_id=$1 OR org_unit_name=$1)
-			LIMIT 1`, requested.Facility).Scan(&district)
-		if errors.Is(err, sql.ErrNoRows) {
-			return requested, errors.New("requested facility was not found in the health hierarchy")
-		}
-		if err != nil {
-			return requested, fmt.Errorf("validate facility health context: %w", err)
-		}
-		if requested.District != "" && district.Valid && !strings.EqualFold(requested.District, district.String) {
-			return requested, errors.New("requested facility does not belong to the requested district")
-		}
-		if requested.District == "" && district.Valid {
-			requested.District = district.String
-		}
-		requested.Level = "facility"
-		return requested, nil
-	}
-	if requested.District != "" {
-		if s.dwh == nil {
-			return requested, errors.New("district scope validation requires the DWH connection")
-		}
-		var exists bool
-		err := s.dwh.QueryRowContext(ctx, `SELECT EXISTS (
-			SELECT 1 FROM dwh.dim_org_hierarchy
-			WHERE is_current=true AND (district_uid=$1 OR district=$1)
-		)`, requested.District).Scan(&exists)
-		if err != nil {
-			return requested, fmt.Errorf("validate district health context: %w", err)
-		}
-		if !exists {
-			return requested, errors.New("requested district was not found in the health hierarchy")
-		}
-		requested.Level = "district"
-		return requested, nil
-	}
-	requested.Level = "national"
-	return requested, nil
+	return s.hierarchy.Constrain(ctx, requested, user)
 }
 
 func validateRecipients(recipients []ScheduleRecipient) error {
@@ -602,8 +519,8 @@ func (s *Service) PreviewRecipients(ctx context.Context, recipients []ScheduleRe
 func (s *Service) resolveRecipients(
 	ctx context.Context,
 	recipients []ScheduleRecipient,
-) ([]model.Address, []string, error) {
-	emailByAddress := map[string]model.Address{}
+) ([]Address, []string, error) {
+	emailByAddress := map[string]Address{}
 	portalUsers := map[string]struct{}{}
 	groupIDs := []string{}
 	groupPaths := []string{}
@@ -619,7 +536,7 @@ func (s *Service) resolveRecipients(
 		switch recipientType {
 		case "email":
 			parsed, _ := mail.ParseAddress(value)
-			emailByAddress[strings.ToLower(parsed.Address)] = model.Address{Name: parsed.Name, Email: parsed.Address}
+			emailByAddress[strings.ToLower(parsed.Address)] = Address{Name: parsed.Name, Email: parsed.Address}
 		case "user":
 			if s.users == nil {
 				return nil, nil, errors.New("user repository is required to resolve report recipients")
@@ -630,7 +547,7 @@ func (s *Service) resolveRecipients(
 				return nil, nil, fmt.Errorf("resolve report recipient user %s: %w", value, err)
 			}
 			if user != nil && user.Enabled && strings.TrimSpace(user.Email) != "" {
-				emailByAddress[strings.ToLower(user.Email)] = model.Address{Name: user.FullName, Email: user.Email}
+				emailByAddress[strings.ToLower(user.Email)] = Address{Name: user.FullName, Email: user.Email}
 			}
 		case "group":
 			if strings.HasPrefix(value, "/") {
@@ -656,7 +573,7 @@ func (s *Service) resolveRecipients(
 		}
 	}
 
-	emails := make([]model.Address, 0, len(emailByAddress))
+	emails := make([]Address, 0, len(emailByAddress))
 	for _, address := range emailByAddress {
 		emails = append(emails, address)
 	}
@@ -1038,7 +955,7 @@ func (s *Service) notifyExecutionFailure(ctx context.Context, schedule Schedule,
 		"error":        message,
 	})
 	if s.notifications != nil {
-		_, _ = s.notifications.Notify(ctx, model.Notification{
+		_ = s.notifications.Notify(ctx, Notification{
 			Type:       "REPORT_SCHEDULER_FAILURE",
 			Title:      "Scheduled report failed",
 			Message:    fmt.Sprintf("%s: %s", schedule.ReportName, message),
@@ -1056,8 +973,8 @@ func (s *Service) notifyExecutionFailure(ctx context.Context, schedule Schedule,
 	if userErr != nil || owner == nil || strings.TrimSpace(owner.Email) == "" {
 		return
 	}
-	_ = s.email.Queue(ctx, model.Message{
-		To:       []model.Address{{Name: owner.FullName, Email: owner.Email}},
+	_ = s.email.Queue(ctx, Message{
+		To:       []Address{{Name: owner.FullName, Email: owner.Email}},
 		Subject:  fmt.Sprintf("Scheduled report failed: %s", schedule.ReportName),
 		TextBody: fmt.Sprintf("The scheduled report %q failed after retries. Error: %s", schedule.ReportName, message),
 		HTMLBody: fmt.Sprintf("<p>The scheduled report <strong>%s</strong> failed after retries.</p><p>%s</p>", html.EscapeString(schedule.ReportName), html.EscapeString(message)),

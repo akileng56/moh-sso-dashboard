@@ -1,0 +1,27 @@
+{
+  "owner": "dashboard-host",
+  "minimumHostMigration": 47,
+  "requiredMigrations": [
+    "000040_create_report_scheduler_schema.up.sql",
+    "000041_extend_report_scheduler_delivery.up.sql",
+    "000042_report_scheduler_execution_engine.up.sql",
+    "000043_report_scheduler_retries_history.up.sql",
+    "000044_report_scheduler_security_monitoring.up.sql",
+    "000045_report_scheduler_operational_indexes.up.sql",
+    "000046_report_scheduler_runtime_interval.up.sql",
+    "000047_repair_report_execution_polling_status.up.sql"
+  ],
+  "schedulerTables": [
+    "report_schedules",
+    "report_schedule_recipients",
+    "report_executions",
+    "report_artifacts",
+    "report_deliveries",
+    "report_scheduler_runtime"
+  ],
+  "sharedReadTables": [
+    "users",
+    "ihp_rbac_groups",
+    "dwh.dim_org_hierarchy"
+  ]
+}

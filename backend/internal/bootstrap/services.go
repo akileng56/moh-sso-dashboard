@@ -125,10 +125,10 @@ func buildServices(deps serviceDependencies) services {
 			deps.Config.HealthBIKeycloakClientSecret,
 			deps.Config.HealthBITimeout,
 		),
-		emailFeatureService,
-		deps.Repositories.Users,
+		reportEmailAdapter{emailFeatureService},
+		reportUserAdapter{deps.Repositories.Users},
 		deps.FileStorage,
-		deps.Databases.DWH,
+		reportschedulerfeature.NewPostgresHealthHierarchy(deps.Databases.DWH),
 	)
 
 	publisher := cache.NewNotificationPublisher(deps.CacheClient)
@@ -148,7 +148,7 @@ func buildServices(deps serviceDependencies) services {
 		notificationsService,
 		deps.Config,
 	)
-	reportSchedulerService.SetNotifications(notificationsService)
+	reportSchedulerService.SetNotifications(reportNotificationAdapter{notificationsService})
 	reportSchedulerService.SetAudit(auditService)
 	reportSchedulerService.SetPublicBaseURL(deps.Config.AppBaseURL)
 	reportSchedulerService.SetDeliveryLinkTTL(deps.Config.ReportSchedulerDeliveryLinkTTL)

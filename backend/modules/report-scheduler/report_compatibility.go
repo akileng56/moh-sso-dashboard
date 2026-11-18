@@ -1,4 +1,4 @@
-package report_scheduler
+package reportscheduler
 
 import (
 	"encoding/json"

@@ -22,7 +22,7 @@ type auditReadFixture struct{ auditfeature.Service }
 
 func TestHostedModuleInitializationRequiresOnlyEnabledHandlers(t *testing.T) {
 	for _, disabled := range []string{"metrics,geojson", "metrics,audit", "metrics,audit,geojson"} {
-		registry, err := NewModuleRegistry(HandlerSet{}, disabled, nil)
+		registry, err := NewModuleRegistry(HandlerSet{}, disabled+",report-scheduler", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -50,7 +50,7 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 	}
 	for _, disabled := range []string{"", "audit", "geojson", "audit,geojson"} {
 		handlers := HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: auditfeature.NewHandler(auditReadFixture{}, nil), GeoJSON: geojsonfeature.NewHandler(assets)}
-		registry, err := NewModuleRegistry(handlers, disabled, nil)
+		registry, err := NewModuleRegistry(handlers, disabled+",report-scheduler", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,7 +62,7 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		enabled := map[string]bool{}
 		for _, info := range registry.Inventory() {
 			enabled[info.ID] = info.Enabled
-			if info.ID != "metrics" && info.Version != version.Get().Version {
+			if info.ID != "metrics" && info.ID != "report-scheduler" && info.Version != version.Get().Version {
 				t.Fatalf("hosted module %s must report the host version", info.ID)
 			}
 		}

@@ -9,6 +9,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/geography"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	"github.com/moh-sso-dashboard/internal/middleware"
@@ -170,7 +171,7 @@ func Run() {
 		AuthzResolver:  authzResolver,
 	})
 
-	modules, err := router.NewModuleRegistry(handlers.Router, cfg.DisabledModules, rateLimiter)
+	modules, err := router.NewModuleRegistry(handlers.Router, cfg.DisabledModules, rateLimiter, reportschedulerfeature.NewWorker(services.ReportScheduler, cfg.ReportSchedulerWorkerInterval, appLogger.Error))
 	if err != nil {
 		panic("invalid module configuration: " + err.Error())
 	}
@@ -202,7 +203,6 @@ func Run() {
 		Logger:                         appLogger,
 		DQADB:                          dbs.DQA,
 		DWHDB:                          dbs.DWH,
-		ReportScheduler:                services.ReportScheduler,
 	})
 
 	services.Notifications.NotifySystemStartup(ctx, cfg.Environment)

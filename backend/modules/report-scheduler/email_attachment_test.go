@@ -1,4 +1,4 @@
-package report_scheduler
+package reportscheduler
 
 import (
 	"context"
@@ -9,10 +9,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	emailutil "github.com/moh-sso-dashboard/internal/email"
-	"github.com/moh-sso-dashboard/internal/model"
-	"github.com/moh-sso-dashboard/internal/storage"
 )
 
 type attachmentRepository struct {
@@ -71,18 +67,18 @@ func (c *attachmentHealthBI) DownloadArtifact(_ context.Context, id string, limi
 }
 
 type attachmentEmail struct {
-	messages []model.Message
+	messages []Message
 	err      error
 }
 
-func (e *attachmentEmail) Queue(_ context.Context, m model.Message) error {
+func (e *attachmentEmail) Queue(_ context.Context, m Message) error {
 	if e.err != nil {
 		return e.err
 	}
 	e.messages = append(e.messages, m)
 	return nil
 }
-func (e *attachmentEmail) ResolveGroupEmailRecipients(context.Context, []string, []string) ([]model.Address, error) {
+func (e *attachmentEmail) ResolveGroupEmailRecipients(context.Context, []string, []string) ([]Address, error) {
 	return nil, nil
 }
 
@@ -113,17 +109,19 @@ func TestReportEmailQueuesPDFAttachmentThatSurvivesSerialization(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var restored model.Message
+	var restored Message
 	if err := json.Unmarshal(payload, &restored); err != nil {
 		t.Fatal(err)
 	}
-	attachments, err := emailutil.NormalizeAttachments(nil, restored.Attachments)
-	if err != nil {
-		t.Fatal(err)
+	if len(restored.Attachments) != 1 {
+		t.Fatal("attachment lost during serialization")
 	}
-	if len(attachments) != 1 || attachments[0].FileName != "monthly-report.pdf" || attachments[0].ContentType != "application/pdf" || string(attachments[0].Data) != string(c.data) {
-		t.Fatalf("PDF did not survive email queue serialization: %+v", attachments)
+	attachment := restored.Attachments[0]
+	data, err := base64.StdEncoding.DecodeString(attachment.DataBase64)
+	if err != nil || attachment.FileName != "monthly-report.pdf" || attachment.ContentType != "application/pdf" || string(data) != string(c.data) {
+		t.Fatalf("PDF did not survive email serialization: %+v %v", attachment, err)
 	}
+
 	if !strings.Contains(msg.TextBody, "is attached") || !strings.Contains(msg.TextBody, "/public/deliveries/") || strings.Contains(msg.HTMLBody, "<strong>Monthly <report>") {
 		t.Fatal("attachment email must retain the secure link and escape the report name")
 	}
@@ -166,7 +164,7 @@ func TestPortalDeliveryDoesNotDownloadEmailAttachment(t *testing.T) {
 	}
 }
 
-type attachmentStorage struct{ storage.Storage }
+type attachmentStorage struct{ ArtifactStorage }
 
 func (attachmentStorage) Download(context.Context, string) (io.ReadCloser, error) {
 	return io.NopCloser(strings.NewReader("%PDF-1.7\nstored PDF")), nil

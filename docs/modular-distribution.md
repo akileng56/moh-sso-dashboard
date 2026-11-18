@@ -272,3 +272,63 @@ The fresh backend image passed real Keycloak, manifest, backup/restore and resta
 checks, including enabled/disabled audit and GeoJSON APIs and continued core audit
 recording. Temporary fixture resources were removed. No additional independent
 Go package release or live deployment was performed in this expansion step.
+
+## Report Scheduler extraction: lifecycle phase
+
+The scheduler now appears as `report-scheduler` in the compiled module inventory.
+Its dependency ports and host adapters were isolated in the first extraction
+phase. The registry now owns both its public delivery-download routes and
+protected scheduler routes, together with worker initialization and cleanup.
+`DISABLED_MODULES=report-scheduler` skips all three.
+
+Initialization requires a handler, worker and successful persistence heartbeat
+before any job claims. Cleanup cancels the worker and waits for its active cycle,
+subject to the host shutdown deadline. The former bootstrap worker start has been
+removed. Existing permissions, download-token checks, rate limits, SQL claims,
+retries and migration ownership remain in their current domains.
+
+Verification includes readiness failure, canceled initialization, duplicate
+starts, in-flight shutdown, shutdown deadlines, rollback cleanup and route
+disablement. The authenticated container fixture also checks scheduler role access,
+heartbeat preservation while disabled and a fresh worker when re-enabled.
+Standalone packaging, publication and a pinned dependency remain the next phases.
+
+## Report Scheduler extraction: standalone package phase
+
+`backend/modules/report-scheduler` now contains a standalone Go module with public
+types, service, worker, dependency ports, Health BI client and PostgreSQL adapters.
+HTTP authorization and registry integration remain host responsibilities. Its
+dependency graph contains UUID and PostgreSQL libraries and no dashboard imports.
+
+`schema-contract.json` explicitly records host ownership of scheduler migrations
+40 through 47 and shared directory/hierarchy reads. No migration files or migration
+runner are copied into the package. An isolated check copies only the module out
+of the repository, disables Go workspaces, builds/vets it, applies those host-owned
+migrations to disposable PostgreSQL and runs race tests. External-package tests
+exercise concurrent claims, retries, stale claims and idempotent delivery.
+
+The dashboard continues using its phase-2 implementation until a released
+dependency can be selected. The catalogue accurately keeps the runtime stage as
+registry-hosted. Phase 4 publishes/verifies an immutable version and replaces the
+retained host implementation with package adapters and a reviewed dependency pin.
+
+## Report Scheduler extraction: released dependency integration
+
+Report Scheduler `v0.1.0` is published under the immutable nested module tag
+`backend/modules/report-scheduler/v0.1.0`. A clean-cache download verified its
+checksums and source commit. The host now selects that version in `backend/go.mod`
+and records its checksums in `backend/go.sum`, without a local replace directive.
+
+The retained host scheduling/execution/provider/persistence implementation has
+been removed. The feature package supplies aliases and thin constructors, HTTP
+handlers and permission/rate-limit adapters. Bootstrap keeps the platform
+outbox/user/notification translations. Portable implementation tests live in the
+standalone module; host tests exercise HTTP and lifecycle integration against the
+selected dependency. Public OpenAPI schema names remain stable across extraction.
+
+The compiled `report-scheduler` inventory reports the selected dependency version,
+and deployment bundle metadata includes its exact pin. All schema migrations
+remain core-owned. Build a new backend image to consume a release; publishing a
+tag does not change a running deployment. The runtime fixture verifies the actual
+compiled version, real Keycloak permissions, public/protected route disablement,
+stopped heartbeat and worker restart/re-enablement.

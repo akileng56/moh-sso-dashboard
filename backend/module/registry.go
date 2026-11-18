@@ -19,9 +19,11 @@ type Info struct {
 	Enabled bool   `json:"enabled"`
 }
 
-// Routes contains groups with the host's authentication, audit and rate limits.
+// Routes contains host groups. Public has no authentication; its routes must
+// validate their own access tokens and apply appropriate rate limits.
 // Modules must apply their resource permissions to the routes they register.
 type Routes struct {
+	Public    *gin.RouterGroup
 	Protected *gin.RouterGroup
 	Admin     *gin.RouterGroup
 }

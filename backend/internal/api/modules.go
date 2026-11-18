@@ -11,17 +11,19 @@ import (
 	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
 	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
 	metricsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
+	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
 
 // NewModuleRegistry is the distribution's explicit composition root. Legacy
 // features enter this inventory only as their registration is migrated.
-func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.Limiter) (*module.Registry, error) {
-	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true}
+func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.Limiter, scheduler *reportschedulerfeature.Worker) (*module.Registry, error) {
+	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true, "report-scheduler": true}
 	for _, id := range strings.Split(disabled, ",") {
 		id = strings.TrimSpace(id)
 		if id == "" {
@@ -64,6 +66,25 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 		},
 		Register: func(routes module.Routes) {
 			geojsonfeature.RegisterProtectedRoutes(routes.Protected, handlers.GeoJSON)
+		},
+	}, module.Definition{
+		Info: module.Info{ID: "report-scheduler", Version: schedulermodule.Version(), Enabled: enabled["report-scheduler"]},
+		Initialize: func(ctx context.Context) (module.Stop, error) {
+			if handlers.ReportScheduler == nil {
+				return nil, errors.New("report scheduler handler is required")
+			}
+			if scheduler == nil {
+				return nil, errors.New("report scheduler worker is required")
+			}
+			return scheduler.Initialize(ctx)
+		},
+		Register: func(routes module.Routes) {
+			if routes.Protected != nil {
+				reportschedulerfeature.RegisterProtectedRoutes(routes.Protected, handlers.ReportScheduler)
+			}
+			if routes.Public != nil {
+				reportschedulerfeature.RegisterPublicRoutes(routes.Public, handlers.ReportScheduler, limiter)
+			}
 		},
 	})
 }

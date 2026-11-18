@@ -12,7 +12,7 @@ are registered through application manifests and the database application regist
 | --- | --- | --- |
 | core | Trusted host authentication, authorization or shared platform policy | Backend release |
 | planned | Existing feature wiring remains active; extraction work is tracked | Backend release |
-| registry-hosted | Compiled registry controls its HTTP availability; implementation still lives in the host | Backend build metadata |
+| registry-hosted | Compiled registry controls routes and owned workers; implementation still lives in the host | Backend build metadata |
 | published | Independent package artifacts are selected through reviewed dependency pins | Selected Go/npm package version |
 
 Audit read APIs and GeoJSON are the first expansion after Metrics. Their
@@ -23,8 +23,20 @@ Metrics remains the independent Go-package reference in `backend/modules/metrics
 
 Choose a bounded migration rather than moving unrelated domains together.
 Worker-bearing domains need their processing lifecycle migrated with their
-routes. Report Scheduler is the next worker-bearing candidate in the catalogue;
-its provider/delivery ports, job claims and shutdown contract need review first.
+routes. Report Scheduler follows Metrics as an independently versioned Go
+module in `backend/modules/report-scheduler`, selected at `v0.1.0` in the host.
+Its registry definition owns readiness, startup and joined shutdown, together
+with public token-download and protected routes. Host HTTP authorization,
+platform adapters and core schema migrations remain explicit host responsibilities.
+
+The former host implementation has been replaced by aliases and thin constructors
+in `internal/features/report_scheduler/package.go`. Portable implementation tests
+live in the module; host HTTP, queue conversion and registry integration tests
+exercise the selected published dependency. Verify changes with
+`make -C backend modules-check` and
+`python3 infra/scripts/test-report-scheduler-package.py`, then publish an immutable
+nested module tag before updating the host pin. Production builds do not use
+local module replacements.
 
 ## Add a compiled registry integration
 

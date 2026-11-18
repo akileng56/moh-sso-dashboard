@@ -94,7 +94,7 @@ func TestRecipientOptionsPostgresDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	repo := &postgresRepository{db: db}
+	repo := NewRepository(db)
 	options, err := repo.ListRecipientOptions(ctx, "email", "", 100, nil)
 	if err != nil || len(options) != 1 || options[0].Value != "one" || !strings.Contains(options[0].Label, "test@example.invalid") {
 		t.Fatalf("email directory: %+v %v", options, err)
