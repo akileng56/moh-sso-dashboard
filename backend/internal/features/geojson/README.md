@@ -61,6 +61,26 @@ HTTP envelopes, headers, streaming and permissions stay in the host.
 `assets.go`, `service.go` and the portable service tests build and run without
 Gin, host files, database drivers or external dependencies.
 
+## Phase 3: standalone package verification
+
+The release candidate lives in `backend/modules/geojson` at
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`.
+It contains only the reader/asset contract, layer resolution, read/error
+orchestration and selected-version reporting. It requires no third-party
+dependencies, so no `go.sum` is necessary.
+
+The module has its own portable and external-package tests. The isolated
+verifier copies only the module to a temporary directory, starts with an empty
+module cache and disables workspaces and module downloads. It verifies the
+dependency graph, builds, vets and runs uncached race tests, then builds and
+runs a separate consuming module through a temporary local replacement.
+Dependency metadata must remain unchanged throughout verification.
+The PR workflow runs this verifier alongside the existing module checks.
+
+The dashboard deliberately retains its phase-2 implementation and reports the
+host version until an immutable release has been published, downloaded and
+pinned. Directory access, assets, HTTP policy and Docker packaging stay here.
+
 ## Verification and next phases
 
 Tests cover real bundled layers, permission denial before asset access,
@@ -73,8 +93,6 @@ go test -race ./internal/features/geojson ./internal/api ./internal/bootstrap
 make contracts-check
 ```
 
-The next phases are:
-
-1. Build and verify the standalone module and an external consumer.
-2. Publish a version, pin its verified checksums and replace the retained
-   host implementation with adapters.
+The next phase publishes an immutable version, verifies a clean download and
+checksums, pins it in the dashboard and replaces the retained portable host
+implementation with thin package adapters.

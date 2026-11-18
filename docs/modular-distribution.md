@@ -443,3 +443,36 @@ completed with external downloads disabled. The full backend suite, targeted
 GeoJSON/API/bootstrap race tests, vet, existing standalone module checks,
 catalogue validation and its seven tests also passed. All 366 OpenAPI routes
 remain current.
+
+
+## GeoJSON extraction: standalone package phase
+
+The standalone release candidate at `backend/modules/geojson` declares
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson` and Go 1.25.4.
+It copies the portable layer/asset contracts and service without changing their
+behavior, and adds dependency-version reporting and external-package tests.
+There are no third-party dependencies, map assets, storage/HTTP adapters,
+migrations or workers in the module. A checksum file is unnecessary until an
+external dependency is introduced.
+
+`infra/scripts/test-geojson-package.py` copies only this module outside the
+dashboard with an empty module cache, disables workspaces and dependency
+downloads, verifies its dependency graph and runs build/vet/uncached race tests.
+It also compiles and runs a separate consumer module, checking that public APIs
+and local-replacement version reporting work without host files. All dependency
+metadata remains read-only. The PR workflow runs the verifier automatically.
+
+The dashboard still uses its retained phase-2 implementation, remains
+registry-hosted and reports the host version. It has no GeoJSON dependency pin
+or production replacement. Publishing and verifying an immutable release,
+selecting its checksums and replacing retained code with adapters are the next
+phase. Host assets, directory access, permissions, HTTP serving and Docker
+packaging keep their existing ownership.
+
+Phase 3 verification passed the isolated empty-cache/no-download verifier,
+uncached race tests, external-package tests and a separately built consumer.
+The consumer verified local replacement versions report `dev`, including Go
+build metadata containing `(devel)`. Portable source/tests match the retained
+host implementation byte for byte. Existing module checks, the full backend
+suite, vet, all 366 OpenAPI routes, catalogue validation and its seven tests,
+and workflow actionlint checks also passed.
