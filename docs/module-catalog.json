@@ -6,10 +6,10 @@
       "stage": "planned",
       "scope": "Administrative geography API",
       "moduleId": "",
-      "dependencies": ["health_context", "primary-db"],
+      "dependencies": ["health_context", "warehouse"],
       "workers": [],
       "migrations": "core",
-      "next": "Inject health-context visibility and administrative-geography repository ports before registry migration."
+      "next": "Portable models, repository, hierarchy and visibility ports isolated behind host adapters; next register all nine routes and verify disablement and contextual permissions."
     },
     {
       "id": "announcements",

@@ -712,3 +712,41 @@ stored attachment download paths, all-group disablement and re-enablement with
 records/bytes preserved, backup/restore, core audit recording and scheduler
 stop/resume. SQL definitions, migrations and generated SQLC files are unchanged.
 The release tag is upstream; publication does not deploy the backend.
+
+### Administrative Units phase 1 — portable contracts and visibility ports
+
+Created `feat/extract-admin-units` from the completed Announcements integration.
+Administrative Units remains planned/host-wired. Its five models and nine
+repository contracts now live in portable files. Existing PostgreSQL queries
+remain in a host adapter; the hierarchy builder moved unchanged from the HTTP
+handler to the portable core.
+
+A feature-owned visibility port returns only node code and alias namespace/
+external ID. Portable resolution retains DWH alias requirements, namespace/
+whitespace/deduplication behavior and the exact UG-descendants exception.
+Filtering retains ancestor matching for full/facility rows and direct matching
+for simple rows. The host adapts validated selected UUID/scope context and shared
+health-context calls, classifies forbidden errors and preserves provider causes.
+Existing unselected behavior, all nine routes, error envelopes and hierarchy
+semantics remain unchanged. Bootstrap composes the ports explicitly and the
+previous constructor remains available for compatibility.
+
+The catalogue now identifies the actual warehouse dependency (the existing DWH
+connection), alongside health_context. Database/migration ownership and query
+contents are unchanged. No registry module or new worker is introduced.
+
+`infra/scripts/test-admin-units-core.py` builds/vets/race-tests the portable
+core in a temporary standard-library-only module with workspaces/downloads
+disabled and an empty module cache. CI runs the check. Portable tests cover
+hierarchy and visibility behavior; host regressions exercise all nine route
+families against allowed/denied/missing mapping and context cases.
+Registry integration and disablement checks remain the next phase.
+
+Phase 1 verification passed the isolated standard-library-only build/vet/
+uncached race check, targeted Administrative Units/bootstrap/API race tests,
+the full backend suite, backend vet, existing packaged-module checks, all 366
+API contracts, catalogue validation/seven tests and workflow actionlint.
+Model fields/JSON tags and the hierarchy algorithm were compared with the
+preceding commit and are unchanged. SQL implementation bodies match after
+trailing whitespace cleanup in three moved SELECT lines. Registry
+integration, standalone publication and deployment were not performed.

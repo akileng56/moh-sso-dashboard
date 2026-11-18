@@ -99,10 +99,9 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.Announcements,
 		deps.Services.Audit,
 	)
-	adminunitsHandler := adminunitsfeature.NewHandler(
-		deps.Config,
-		deps.Databases.DWH,
-		deps.Services.HealthContexts,
+	adminunitsHandler := adminunitsfeature.NewHandlerWithPorts(
+		adminunitsfeature.NewService(adminunitsfeature.NewRepository(deps.Databases.DWH)),
+		adminunitsfeature.NewHealthContextVisibilityReader(deps.Services.HealthContexts),
 	)
 	visualiserHandler := visualiserfeature.NewHandler(
 		deps.Config,
