@@ -332,3 +332,47 @@ remain core-owned. Build a new backend image to consume a release; publishing a
 tag does not change a running deployment. The runtime fixture verifies the actual
 compiled version, real Keycloak permissions, public/protected route disablement,
 stopped heartbeat and worker restart/re-enablement.
+
+
+## Audit extraction: released dependency integration
+
+Audit `v0.1.0` is published under `backend/modules/audit/v0.1.0`, pointing to
+release commit `bd1bc5d095eaf5db66fccc108b0f1686defb897c`. A clean download in
+the verification environment passed the official Go signed checksum log.
+The verified archive was transferred to the host using a temporary file proxy;
+SHA-256 transfer integrity and full release-source parity were checked before
+pinning. The dashboard selects this version and its verified checksums in
+`backend/go.mod` and `backend/go.sum`, without local replacements. No persistent
+proxy configuration or checksum-verification exception was introduced.
+
+Host public types and constructors now delegate to the package. SQLC adapters,
+optional Redis, HTTP validation/permissions, export limits, core event recording
+and migrations retain host ownership. The compiled inventory reports the selected
+package version; deployment bundle metadata records the pin.
+
+The live export check exposed an existing PostgreSQL error: nullable export
+filters lacked explicit parameter types. The host SQL query now casts text and
+UUID filters consistently with the list query, and its bindings were regenerated
+with sqlc v1.30.0. JSON exports are verified with both absent and populated
+action filters, and CSV exports retain their existing eight columns. The
+published portable package did not require a change.
+
+Verification passed with `GOWORK=off`: full backend tests, targeted
+Audit/API/bootstrap race checks, vet, standalone package/external-consumer
+checks, module checks, all 366 OpenAPI routes, catalogue checks and seven tests,
+and all 32 distribution bundle tests.
+
+The real Keycloak distribution fixture passed against a freshly compiled Linux
+binary packaged on an existing local backend runtime image. It verified the
+actual Audit version, administrator/viewer permissions, a seeded typed Redis
+cache hit, JSON/CSV exports, module disablement, continued core event recording,
+backup/restore and restart recovery. The host recorder deliberately invalidates
+Audit caches when recording events, so the fixture seeds a distinguishable cached
+response rather than assuming two unrestricted reads return identical records.
+
+A fresh build through `infra/docker/backend/Dockerfile` remains unverified in
+this environment: Docker's download of an existing AWS dependency was refused
+by the Go proxy, and Alpine package requests stalled. The local fixture image
+verifies the integrated binary and runtime behavior; rebuild the standard
+production image with working outbound access before deployment. Publishing
+the library or committing the host integration does not deploy a running site.

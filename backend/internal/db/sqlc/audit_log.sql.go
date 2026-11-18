@@ -344,23 +344,23 @@ WHERE
   a.created_at >= $1
   AND a.created_at <  $2
 
-  AND ($3 IS NULL OR a.action = $3)
-  AND ($4 IS NULL OR a.user_id = $4)
-  AND ($5 IS NULL OR a.metadata->>'client_id' = $5)
-  AND ($6 IS NULL OR a.metadata->>'ip' = $6)
-  AND ($7 IS NULL OR a.metadata->>'success' = $7)
+  AND ($3::text IS NULL OR a.action = $3::text)
+  AND ($4::uuid IS NULL OR a.user_id = $4::uuid)
+  AND ($5::text IS NULL OR a.metadata->>'client_id' = $5::text)
+  AND ($6::text IS NULL OR a.metadata->>'ip' = $6::text)
+  AND ($7::text IS NULL OR a.metadata->>'success' = $7::text)
 
 ORDER BY a.created_at ASC, a.id ASC
 `
 
 type ExportAuditLogsParams struct {
-	StartTime sql.NullTime `json:"start_time"`
-	EndTime   sql.NullTime `json:"end_time"`
-	Action    interface{}  `json:"action"`
-	UserID    interface{}  `json:"user_id"`
-	ClientID  interface{}  `json:"client_id"`
-	Ip        interface{}  `json:"ip"`
-	Success   interface{}  `json:"success"`
+	StartTime sql.NullTime   `json:"start_time"`
+	EndTime   sql.NullTime   `json:"end_time"`
+	Action    sql.NullString `json:"action"`
+	UserID    uuid.NullUUID  `json:"user_id"`
+	ClientID  sql.NullString `json:"client_id"`
+	Ip        sql.NullString `json:"ip"`
+	Success   sql.NullString `json:"success"`
 }
 
 type ExportAuditLogsRow struct {

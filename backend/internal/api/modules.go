@@ -16,6 +16,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	auditmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	metricsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
@@ -46,7 +47,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			metricsfeature.RegisterAdminRoutes(routes.Admin, handlers.Metrics)
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "audit", Version: version.Get().Version, Enabled: enabled["audit"]},
+		Info: module.Info{ID: "audit", Version: auditmodule.Version(), Enabled: enabled["audit"]},
 		Initialize: func(context.Context) (module.Stop, error) {
 			if handlers.Audit == nil {
 				return nil, errors.New("audit read handler is required")

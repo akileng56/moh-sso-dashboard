@@ -5,6 +5,8 @@ Uses generated fixture users/secrets, isolated Compose volumes and loopback port
 Never reads private operator settings or contacts an existing identity provider.
 """
 import argparse
+import csv
+import io
 import gzip
 import json
 import os
@@ -22,8 +24,8 @@ SECRET = 'distribution-auth-fixture-only'
 REALM = 'distribution-fixture'
 
 
-def run(*args, env=None):
-    result = subprocess.run(args, cwd=ROOT, env=env, text=True, capture_output=True)
+def run(*args, env=None, input=None):
+    result = subprocess.run(args, cwd=ROOT, env=env, input=input, text=True, capture_output=True)
     if result.returncode:
         raise RuntimeError(f'{args[0]} {args[1]} failed: {result.stderr[-2500:]}')
     return result.stdout.strip()
@@ -180,10 +182,36 @@ def main():
             modules = request(api + inventory, token=admin)['data']
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            for module_id in ('audit', 'geojson'):
+            assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            for module_id in ('geojson',):
                 assert any(item['id'] == module_id and item['enabled'] for item in modules), module_id
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)
+            audit_range = 'from=1970-01-01T00:00:00Z&to=2100-01-01T00:00:00Z'
+            audit_list = api + '/api/v1/admin/audit-logs?' + audit_range + '&limit=1'
+            first_page = request(audit_list, token=admin)['data']
+            assert first_page['items'], 'Expected fixture audit records'
+            # Core recording invalidates audit_logs:* on every new event. Seed a
+            # distinguishable typed response to prove this request uses Redis.
+            first_page['items'][0]['action'] = 'fixture-cached-audit-read'
+            cache_key = 'audit_logs:' + urllib.parse.urlparse(audit_list).query
+            assert run(*compose, 'exec', '-T', 'redis', 'redis-cli', '-x',
+                       'SETEX', cache_key, '20', input=json.dumps(first_page)) == 'OK'
+            assert request(audit_list, token=admin)['data'] == first_page, 'Typed Redis cache hit was not preserved'
+            request(audit_list, token=viewer, status=403)
+            audit_export = api + '/api/v1/admin/audit-logs/export?' + audit_range
+            exported = request(audit_export + '&format=json', token=admin)['data']
+            assert exported['manifest']['record_count'] == len(exported['items'])
+            assert exported['items'], 'Expected exported fixture audit records'
+            exported_action = exported['items'][0]['action']
+            filtered = request(audit_export + '&format=json&' +
+                               urllib.parse.urlencode({'action': exported_action}), token=admin)['data']
+            assert filtered['items'] and all(item['action'] == exported_action for item in filtered['items'])
+            assert exported['manifest']['hash_algo'] == 'sha256' and len(exported['manifest']['payload_sha256']) == 64
+            csv_rows = list(csv.reader(io.StringIO(request(audit_export + '&format=csv', token=admin))))
+            assert csv_rows and csv_rows[0] == ['created_at', 'user_id', 'username', 'action', 'ip', 'client_id', 'success', 'metadata_json']
+            request(audit_export + '&format=json', token=viewer, status=403)
+
             request(api + '/api/v1/geojson/geo_water', token=admin)
             document = {'apiVersion': 'portal.moh.go.ug/v1alpha1', 'kind': 'Application',
                 'metadata': {'id': 'fixture-reports', 'name': 'Fixture Reports', 'version': '1.0.0'},

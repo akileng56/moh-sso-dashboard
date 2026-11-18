@@ -383,11 +383,11 @@ WHERE
   a.created_at >= sqlc.arg(start_time)
   AND a.created_at <  sqlc.arg(end_time)
 
-  AND (sqlc.narg(action) IS NULL OR a.action = sqlc.narg(action))
-  AND (sqlc.narg(user_id) IS NULL OR a.user_id = sqlc.narg(user_id))
-  AND (sqlc.narg(client_id) IS NULL OR a.metadata->>'client_id' = sqlc.narg(client_id))
-  AND (sqlc.narg(ip) IS NULL OR a.metadata->>'ip' = sqlc.narg(ip))
-  AND (sqlc.narg(success) IS NULL OR a.metadata->>'success' = sqlc.narg(success))
+  AND (sqlc.narg(action)::text IS NULL OR a.action = sqlc.narg(action)::text)
+  AND (sqlc.narg(user_id)::uuid IS NULL OR a.user_id = sqlc.narg(user_id)::uuid)
+  AND (sqlc.narg(client_id)::text IS NULL OR a.metadata->>'client_id' = sqlc.narg(client_id)::text)
+  AND (sqlc.narg(ip)::text IS NULL OR a.metadata->>'ip' = sqlc.narg(ip)::text)
+  AND (sqlc.narg(success)::text IS NULL OR a.metadata->>'success' = sqlc.narg(success)::text)
 
 ORDER BY a.created_at ASC, a.id ASC;
 

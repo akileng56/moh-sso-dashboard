@@ -30,13 +30,13 @@
     },
     {
       "id": "audit",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Audit read, metrics and export APIs only",
       "moduleId": "audit",
       "dependencies": ["primary-db", "redis", "rbac", "host-audit-recorder"],
       "workers": [],
       "migrations": "core",
-      "next": "Standalone release candidate prepared in backend/modules/audit; publish and pin a release, then replace retained host code with adapters. Core event recording and migrations stay in the host."
+      "next": "Maintain host SQLC/cache/HTTP adapters and core event recording/migrations; release Audit read changes independently and update the reviewed Go pin."
     },
     {
       "id": "auth",

@@ -8,7 +8,7 @@ inspect the modules actually compiled into the running backend.
 | Runtime ID | Scope | Version reported | Effect of disablement |
 | --- | --- | --- | --- |
 | metrics | Dashboard metrics APIs | Selected Go dependency version | Metrics routes are omitted |
-| audit | Audit read, metrics and export APIs | Backend build version | Audit read routes are omitted; core event recording continues |
+| audit | Audit read, metrics and export APIs | Selected Go dependency version | Audit read routes are omitted; core event recording continues |
 | geojson | Permission-guarded static map assets | Backend build version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 
@@ -57,3 +57,12 @@ requires updating the host Go pin/checksums and rebuilding the backend image.
 The package release does not deploy a running installation. Verify the compiled
 inventory reports the selected version, and review scheduler schema compatibility
 before promoting a newly built image pair.
+
+
+Audit read APIs select `v0.1.0` from
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/audit`, published under `backend/modules/audit/v0.1.0`. Its compiled inventory
+version comes from the selected dependency. SQLC queries/mapping, optional Redis
+cache, HTTP authorization and export limits remain host adapters. Core event
+recording and all audit migrations retain host ownership. Publishing a library
+tag does not deploy the running dashboard; rebuild and promote the verified
+backend image to consume an updated pin.
