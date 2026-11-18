@@ -176,3 +176,26 @@ func TestHealthVisibilityAdapterMapsOnlyRequiredValuesAndPreservesCauses(t *test
 		t.Fatal("invalid adapter id accepted")
 	}
 }
+
+// Host-only port fixtures; portable behavior tests live in the published module.
+func textPtr(s string) *string { return &s }
+
+type visibilityFixture struct {
+	ctx               context.Context
+	id                string
+	descendants       bool
+	aliasCalls        int
+	code              string
+	aliases           []VisibilityAlias
+	nodeErr, aliasErr error
+}
+
+func (f *visibilityFixture) GetNode(ctx context.Context, id string) (VisibilityNode, error) {
+	f.ctx, f.id = ctx, id
+	return VisibilityNode{Code: f.code}, f.nodeErr
+}
+func (f *visibilityFixture) ListAliasesInScope(ctx context.Context, id string, descendants bool) ([]VisibilityAlias, error) {
+	f.ctx, f.id, f.descendants = ctx, id, descendants
+	f.aliasCalls++
+	return f.aliases, f.aliasErr
+}

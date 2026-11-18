@@ -12,7 +12,7 @@ inspect the modules actually compiled into the running backend.
 | geojson | Permission-guarded static map assets | Selected Go dependency version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 | announcements | Public, audience and administrative announcements, including attachments | Selected Go dependency version | All public, protected and admin announcement routes are omitted; shared delivery workers continue |
-| admin-units | Organizational units, facilities and hierarchy lookup | Host build version (not separately published yet) | All nine Administrative Units routes are omitted; Visualizer routes, health-context services and warehouse data remain |
+| admin-units | Organizational units, facilities and hierarchy lookup | Selected Go dependency version | All nine Administrative Units routes are omitted; Visualizer routes, health-context services and warehouse data remain |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -102,8 +102,9 @@ lookups. Enabled registration retains the same system access, selected health
 context and read-permission alternatives as the legacy route path. Other
 Visualizer routes retain their registration and guards.
 
-Administrative Units now has a verified standalone candidate in
-`backend/modules/admin-units`. The dashboard still uses its retained core and
-reports the host build version. Packaging alone does not publish a version,
-select a Go dependency or change runtime availability. Publication, verified
-download/checksums, host pinning and replacement with adapters are next.
+Administrative Units selects `v0.1.0` from
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units`, published
+under `backend/modules/admin-units/v0.1.0`. Its inventory reports the selected
+dependency. Warehouse queries/connections, health-context authorization and HTTP
+guards remain host adapters. Version changes require reviewing Go pins/checksums
+and rebuilding the backend image; publishing a library does not deploy it.

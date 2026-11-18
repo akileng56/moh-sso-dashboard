@@ -153,6 +153,8 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units v0.1.0 h1:NLHCTl+G2j94ju891KQ8Fd4i1ikOguIZmVElQuxcwxM=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units v0.1.0/go.mod h1:UAYLeeLxDiiN42WBuk7yUuVQ/D/6p7TxnB4OhFPaaL8=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0 h1:tXGt12Cy87fVqsA9Ha+v8yZcUUZwtKlAa0ge/L25cGk=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0/go.mod h1:Z8YwPcJE8rzTift16mh5bOXLJbkqsrAWgcK70VBxAO8=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.1.0 h1:Ici5U7QTf/3/Dj/vFu0mZI1aI+XzlLuT2KqvI41IlL8=

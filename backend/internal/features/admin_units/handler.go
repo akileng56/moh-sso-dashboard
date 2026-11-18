@@ -197,7 +197,7 @@ func (h *Handler) GetHierarchy(c *gin.Context) {
 			FacilityUID: item.FacilityUID, FacilityName: item.FacilityName,
 		})
 	}
-	tree := buildHierarchyTree(orgUnits)
+	tree := BuildHierarchyTree(orgUnits)
 
 	response.OK(c, http.StatusOK, toTreeNodeResponses(tree))
 }

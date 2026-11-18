@@ -70,6 +70,7 @@ class BundleTests(unittest.TestCase):
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/audit'], 'v0.1.0')
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson'], 'v0.1.0')
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements'], 'v0.1.0')
+        self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units'], 'v0.1.0')
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics'], 'v0.1.0')
         self.assertEqual(data['backend']['modules']['github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler'], 'v0.1.0')
         for field in ('version', 'checksum', 'module'):

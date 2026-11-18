@@ -3,10 +3,9 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units`.
 Requires Go 1.25.4. The package uses only the standard library.
 
-This package is prepared for its first standalone release. No version has
-been published or selected by the dashboard yet. Local replacements report
-`dev`. The dashboard retains the matching core and reports its host build
-version until release verification and pinning.
+Version `v0.1.0` is published under `backend/modules/admin-units/v0.1.0`.
+The dashboard selects this immutable dependency with reviewed checksums and
+host-owned SQL/health-context/HTTP adapters. Local replacements report `dev`.
 
 ## Public API
 
@@ -71,5 +70,9 @@ with race instrumentation. The consumer uses public APIs for all nine lookup
 contracts, nullable filters, hierarchy construction, visibility, errors and
 module version reporting.
 
-Until the release/pinning phase, the verifier also rejects drift between the
-retained portable host files and the extracted core. CI runs this verification.
+CI runs the package verification. The host integration uses aliases and
+delegates; no retained host core remains. To verify the published download
+using a fresh cache and no replacement, run
+`python3 infra/scripts/test-admin-units-release.py`. This explicit release
+check requires network access and validates checksums, selected dependency
+version, source parity and an independent public consumer.

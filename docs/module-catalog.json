@@ -3,13 +3,13 @@
   "backend": [
     {
       "id": "admin_units",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Administrative geography API",
       "moduleId": "admin-units",
       "dependencies": ["health_context", "warehouse"],
       "workers": [],
       "migrations": "core",
-      "next": "Standalone Administrative Units package and external consumer verified; next publish v0.1.0, verify download/checksums, pin it and replace the retained host core with adapters."
+      "next": "Maintain warehouse, health-context and HTTP adapters; release core changes independently and select reviewed Go pins."
     },
     {
       "id": "announcements",

@@ -15,8 +15,8 @@ import (
 	adminunits "github.com/moh-sso-dashboard/internal/features/admin_units"
 	health "github.com/moh-sso-dashboard/internal/features/health_context"
 	"github.com/moh-sso-dashboard/internal/middleware"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 )
 
 const otherAdminUnitModules = "metrics,audit,geojson,report-scheduler,announcements"
@@ -80,7 +80,7 @@ func TestAdminUnitsProductionRouterPreservesRoutesAndDisablement(t *testing.T) {
 			for _, item := range registry.Inventory() {
 				if item.ID == "admin-units" {
 					found = true
-					if item.Version != version.Get().Version || item.Enabled != (mode == "enabled") {
+					if item.Version != adminunitsmodule.Version() || item.Enabled != (mode == "enabled") {
 						t.Fatalf("inventory: %+v", item)
 					}
 				}

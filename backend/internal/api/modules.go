@@ -17,8 +17,8 @@ import (
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 	auditmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
@@ -112,7 +112,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			}
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "admin-units", Version: version.Get().Version, Enabled: enabled["admin-units"]},
+		Info: module.Info{ID: "admin-units", Version: adminunitsmodule.Version(), Enabled: enabled["admin-units"]},
 		Initialize: func(context.Context) (module.Stop, error) {
 			if handlers.AdminUnits == nil {
 				return nil, errors.New("administrative units handler is required")

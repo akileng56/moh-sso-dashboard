@@ -188,7 +188,7 @@ def main():
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'admin-units' and item['version'] and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'admin-units' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             # The fixture's warehouse uses its isolated backend database. Supply
             # only the dimension contract used by Administrative Units.
             warehouse_sql = '''CREATE SCHEMA IF NOT EXISTS dwh;

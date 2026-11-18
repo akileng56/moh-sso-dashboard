@@ -24,10 +24,6 @@ def main():
     with tempfile.TemporaryDirectory(prefix='moh-admin-units-package-') as tmp:
         root = Path(tmp)
         standalone = root / 'module'
-        # The host retains its core until the release/pinning phase.
-        host = ROOT / 'backend/internal/features/admin_units'
-        for name in ('models.go', 'repository.go', 'service.go', 'hierarchy.go', 'visibility.go', 'core_test.go'):
-            assert (host / name).read_bytes() == (MODULE / name).read_bytes(), 'Retained core drift: ' + name
         shutil.copytree(MODULE, standalone)
         env = {**os.environ, 'GOWORK': 'off', 'GOTOOLCHAIN': 'local',
                'GOPROXY': 'off', 'GOMODCACHE': str(root / 'empty-module-cache')}

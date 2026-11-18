@@ -821,3 +821,44 @@ instrumentation, unchanged dependency metadata and retained-core parity checks.
 The full backend suite, backend vet, all packaged-module checks, all 366 API
 contracts, catalogue validation/seven tests and workflow actionlint also passed.
 No version was published or pinned, and no runtime deployment was performed.
+
+### Administrative Units phase 4 — publication and pinned host integration
+
+Published `backend/modules/admin-units/v0.1.0` upstream from the verified
+phase-3 commit `d299ea76`. The host selects
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units v0.1.0`
+with reviewed Go checksums and no local replacement. Runtime inventory now
+reports the selected dependency version instead of the host build version.
+
+Removed the retained host models, repository/service contracts and
+implementations, hierarchy algorithm and visibility policy. Compatibility names
+refer to published types/functions and the same forbidden sentinel. The HTTP
+adapter delegates hierarchy construction after existing row scoping.
+Warehouse queries, health-context authorization/selection, HTTP response
+mapping, system/read permissions, registration, migrations and lifecycle remain
+host-owned and unchanged.
+
+Portable regressions remain in the independent package; host tests retain the
+nine-route/adapter coverage and verify type/sentinel identity, public delegation,
+request contexts and error causes. The obsolete retained-core verifier and CI
+step are removed. The standalone package verifier and modules-check remain in
+CI, while CD and real-runtime checks require the v0.1.0 dependency/inventory.
+
+`infra/scripts/test-admin-units-release.py` downloads the published version
+into a fresh module cache, validates exact reviewed checksums and the selected
+dependency graph, rejects replacements and builds/vets/runs an independent
+consumer with race instrumentation and v0.1.0 version reporting. All shipped Go
+sources are compared to the release. This explicit release check requires
+network access; the isolated package verifier keeps downloads disabled.
+
+Phase 4 verification passed the fresh-cache published consumer and exact
+checksum/dependency/source-parity check, isolated package build/vet/uncached
+race tests, targeted Administrative Units/health-context/bootstrap/API race
+checks, the full backend suite and vet, all packaged-module checks and 366 API
+contracts, catalogue validation/seven tests, 32 CD tests and workflow actionlint.
+The standard production Dockerfile built successfully with the published pin.
+Its disposable real-Keycloak/PostgreSQL fixture verified inventory v0.1.0, all
+nine warehouse reads, authentication/system/context guards, disablement and
+re-enablement with data parity, backup/restore, core audit recording and
+scheduler stop/resume. Warehouse SQL, migrations and worker ownership are
+unchanged. The release tag is upstream; publication does not deploy the backend.
