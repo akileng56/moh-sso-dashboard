@@ -51,7 +51,9 @@ func registerHealthContextProtectedRoutes(protected *gin.RouterGroup, deps Depen
 }
 
 func registerAnnouncementRoutes(protected *gin.RouterGroup, deps Dependencies) {
-	announcementfeature.RegisterProtectedRoutes(protected, deps.Announcements)
+	if deps.Modules == nil {
+		announcementfeature.RegisterProtectedRoutes(protected, deps.Announcements)
+	}
 }
 
 func registerEmailRoutes(protected *gin.RouterGroup, deps Dependencies) {

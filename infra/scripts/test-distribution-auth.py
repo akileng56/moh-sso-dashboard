@@ -5,6 +5,7 @@ Uses generated fixture users/secrets, isolated Compose volumes and loopback port
 Never reads private operator settings or contacts an existing identity provider.
 """
 import argparse
+import base64
 import csv
 import io
 import gzip
@@ -186,6 +187,36 @@ def main():
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'announcements' and item['version'] and item['enabled'] for item in modules), modules
+            announcement_api = '/api/v1/admin/announcements'
+            announcement = request(api + announcement_api, method='POST', token=admin, status=201,
+                data={'title': 'Module fixture', 'message': 'Registry delivery check', 'level': 'INFO',
+                      'status': 'DRAFT', 'audience_type': 'ALL_USERS', 'notify_by_email': False})['data']
+            announcement_id = announcement['id']
+            attachment_text = 'name,value\nregistry,fixture\n'
+            attachment = request(api + announcement_api + '/' + announcement_id + '/attachments',
+                method='POST', token=admin, status=201,
+                data={'file_name': 'registry.csv', 'content_type': 'text/csv',
+                      'data_base64': base64.b64encode(attachment_text.encode()).decode(),
+                      'include_in_email': False})['data']
+            announcement_downloads = [
+                '/api/v1/announcements/' + announcement_id + '/attachments/' + attachment['id'] + '/download',
+                announcement_api + '/' + announcement_id + '/attachments/' + attachment['id'] + '/download']
+            for download in announcement_downloads:
+                request(api + download, status=401)
+                request(api + download, token=token('map-denied'), status=403)
+                assert request(api + download, token=admin) == attachment_text
+            request(api + announcement_api, token=token('map-denied'), status=403)
+            request(api + announcement_api, method='POST', data={}, token=outsider, status=403)
+            request(api + announcement_api + '/' + announcement_id + '/publish',
+                    method='POST', data={}, token=outsider, status=403)
+            request(api + announcement_api + '/' + announcement_id + '/publish', method='POST', data={}, token=admin)
+            for path_suffix in ('public', 'active'):
+                items = request(api + '/api/v1/announcements/' + path_suffix)['data']
+                assert any(item['id'] == announcement_id for item in items), items
+            request(api + '/api/v1/announcements/me', token=outsider, status=403)
+            request(api + '/api/v1/announcements/me', token=admin)
+            print('Announcements routes, permissions, publication and attachment streaming passed', flush=True)
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)
             audit_range = 'from=1970-01-01T00:00:00Z&to=2100-01-01T00:00:00Z'
@@ -319,7 +350,7 @@ def main():
             request(api + '/api/v1/report-scheduler', token=admin, status=403)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'))
             request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
-            backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler'
+            backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler,announcements'
             path.write_text(json.dumps(model))
             run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
             api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
@@ -327,12 +358,20 @@ def main():
             admin = token('admin')
             modules = request(api + inventory, token=admin)['data']
             states = {item['id']: item['enabled'] for item in modules}
-            assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False}, states
+            assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False, 'announcements': False}, states
             request(api + '/api/v1/admin/audit-logs/actions', token=admin, status=404)
             request(api + '/api/v1/geojson/geo_water', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'), status=404)
             request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
+            for announcement_path in [
+                    '/api/v1/announcements/public', '/api/v1/announcements/active',
+                    '/api/v1/announcements/me', announcement_api, *announcement_downloads]:
+                request(api + announcement_path, token=admin, status=404)
+                request(api + announcement_path, status=404)
+            request(api + announcement_api, method='POST', data={}, token=admin, status=404)
+            request(api + announcement_api + '/' + announcement_id + '/publish',
+                    method='POST', data={}, token=admin, status=404)
             disabled_runtime = scheduler_runtime()
             assert disabled_runtime.split('|')[0] == enabled_runtime.split('|')[0], 'Disabled scheduler started a new worker'
 
@@ -355,6 +394,13 @@ def main():
             assert scheduler_runtime().split('|')[0] != disabled_runtime.split('|')[0], 'Re-enabled scheduler did not initialize a fresh worker'
             request(api + '/api/v1/report-scheduler', token=admin, status=403)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'))
+            modules = request(api + inventory, token=admin)['data']
+            assert any(item['id'] == 'announcements' and item['enabled'] for item in modules), modules
+            assert request(api + announcement_api + '/' + announcement_id, token=admin)['data']['status'] == 'PUBLISHED'
+            for download in announcement_downloads:
+                assert request(api + download, token=admin) == attachment_text
+            assert any(item['id'] == announcement_id for item in request(api + '/api/v1/announcements/public')['data'])
+            print('Announcements disablement removes every route group; re-enabling preserves records and attachments', flush=True)
             print('Module disablement preserves core audit recording; scheduler worker stops and resumes', flush=True)
             print('PASS: real Keycloak authentication, module inventory, admin/role authorization, reviewed import, '
                   'lifecycle activation, idempotence, backup/restore, startup preservation, clean shutdown, restart recovery and module disablement')

@@ -57,7 +57,9 @@ func registerAdminNotificationRoutes(admin *gin.RouterGroup, deps Dependencies) 
 }
 
 func registerAdminAnnouncementRoutes(admin *gin.RouterGroup, deps Dependencies) {
-	announcementfeature.RegisterAdminRoutes(admin, deps.Announcements, deps.Limiter)
+	if deps.Modules == nil {
+		announcementfeature.RegisterAdminRoutes(admin, deps.Announcements, deps.Limiter)
+	}
 }
 
 func registerAdminRBACRoutes(admin *gin.RouterGroup, deps Dependencies) {

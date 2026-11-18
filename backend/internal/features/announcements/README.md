@@ -1,7 +1,14 @@
 # Announcements extraction
 
-Announcements remains host-wired. It has not been registered as a disableable
-module or published as a separately versioned package yet.
+Announcements is registry-hosted under runtime ID `announcements`. It reports
+the host build version until separately published. All 26 public, protected
+and admin routes (including attachment downloads and writes) are registered
+together. `DISABLED_MODULES=announcements` omits them after a backend restart.
+The legacy route path remains available only when no registry is supplied.
+
+Disablement preserves records and stored attachments. Shared notification
+workers, queued deliveries, core audit recording and schema ownership remain
+with the host; disabling Announcements does not cancel pending notifications.
 
 ## Portable contracts and service
 
@@ -76,8 +83,14 @@ make -C backend contracts-check
 
 Next:
 
-1. Register all public/protected/admin routes as one module and verify
-   disablement, permissions, attachment access and delivery behavior.
-2. Build and verify the standalone module and an external consumer.
-3. Publish a version, verify its download/checksums, pin it and replace the
+1. Build and verify the standalone module and an external consumer.
+2. Publish a version, verify its download/checksums, pin it and replace the
    retained host implementation with adapters.
+
+Phase 3 tests cover required enabled handlers, disabled initialization without
+dependencies, host version inventory, exact legacy/registry route parity,
+absence of every disabled route in the production router, public access,
+authentication, separate read/write/publish permissions, attachment bytes and
+headers, and denial before persistence/storage access. The authenticated
+distribution fixture additionally verifies publication, stored attachment
+streaming, disablement and re-enablement with real Keycloak and PostgreSQL.

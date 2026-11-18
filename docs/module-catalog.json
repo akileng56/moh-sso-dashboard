@@ -13,9 +13,9 @@
     },
     {
       "id": "announcements",
-      "stage": "planned",
+      "stage": "registry-hosted",
       "scope": "Announcements and audience delivery",
-      "moduleId": "",
+      "moduleId": "announcements",
       "dependencies": [
         "users",
         "rbac",
@@ -26,7 +26,7 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Portable announcement, persistence and delivery contracts isolated behind host adapters; next integrate all route groups into the registry and verify disablement before standalone packaging."
+      "next": "All public, protected and admin routes are registry-hosted with disablement checks; next build and verify the standalone package before publishing and selecting a version."
     },
     {
       "id": "audit",

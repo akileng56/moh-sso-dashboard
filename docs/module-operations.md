@@ -11,6 +11,7 @@ inspect the modules actually compiled into the running backend.
 | audit | Audit read, metrics and export APIs | Selected Go dependency version | Audit read routes are omitted; core event recording continues |
 | geojson | Permission-guarded static map assets | Selected Go dependency version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
+| announcements | Public, audience and administrative announcements, including attachments | Host build version (not separately published yet) | All public, protected and admin announcement routes are omitted; shared delivery workers continue |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -23,7 +24,12 @@ recording services retain their lifecycle.
 Review affected application registrations and navigation when changing API
 availability. Keep Keycloak roles and application lifecycle approval aligned with
 the intended rollout; module configuration does not automatically edit them.
-The audit read module and map asset module have no background workers to stop.
+Announcements, the audit read module and map asset module have no background workers to stop.
+Announcements disablement takes effect after a backend restart. It preserves
+announcement records, audience selections and attachment objects. It does not
+cancel notifications already queued in the shared notification outbox; that
+worker serves other modules and retains its host lifecycle. Re-enable the module
+and restart to restore access to existing records and attachment downloads.
 Report Scheduler is pinned to its published Go package and owns its worker through the registry. Its initial persistence
 heartbeat must succeed within ten seconds before jobs can be claimed. Startup
 fails if scheduler persistence is unavailable. Cleanup cancels and joins the worker

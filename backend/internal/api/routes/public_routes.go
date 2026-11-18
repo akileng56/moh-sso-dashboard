@@ -8,7 +8,9 @@ import (
 )
 
 func RegisterPublicAnnouncementRoutes(api *gin.RouterGroup, deps Dependencies) {
-	announcementfeature.RegisterPublicRoutes(api, deps.Announcements)
+	if deps.Modules == nil {
+		announcementfeature.RegisterPublicRoutes(api, deps.Announcements)
+	}
 }
 
 func RegisterPublicReportSchedulerRoutes(api *gin.RouterGroup, deps Dependencies) {

@@ -603,3 +603,35 @@ strings, repository context/error propagation, nil/empty collection shape,
 notification wire/byte payload parity, normalization limits and non-secret
 settings conversion. SQL definitions, migrations and generated SQLC files are
 unchanged.
+
+### Announcements phase 3 — registry integration and disablement
+
+Announcements is registry-hosted as `announcements`, reporting the host build
+version pending independent packaging. All 26 public, protected and admin
+routes are composed through the registry. Legacy registrars run only without
+a registry, so disabled modules cannot leak routes through the compatibility
+path. Existing permissions and write/publication rate limits stay attached to
+the same handlers. Enabled initialization requires a handler; disabled
+initialization requires no Announcements dependencies.
+
+`DISABLED_MODULES=announcements` removes all announcement endpoints, including
+public listings and both attachment download paths, after restart. Records,
+audience mappings and stored attachments remain available when re-enabled.
+Announcements owns no worker. Shared notification workers and queued deliveries,
+core audit recording and migrations retain their host lifecycle. Disablement
+does not cancel previously queued notifications.
+
+The runtime catalogue now marks Announcements registry-hosted. Independent
+packaging, external-consumer verification, publishing and host pin selection
+remain subsequent phases. No SQL definitions, migrations or generated SQLC
+files changed, and deferred document/storage features remain outside this phase.
+
+Phase 3 verification passed the portable-core build/vet/race check, targeted
+Announcements/bootstrap/API race checks, the full backend suite, vet, all
+packaged-module checks, catalogue validation and its seven tests, and all 366
+API contracts. The standard production Dockerfile built successfully. Its
+disposable real-Keycloak/PostgreSQL fixture passed publication and permission
+checks, CSV attachment uploads and both download paths, disablement of all
+three route groups, and re-enablement with records and attachment bytes intact.
+Existing manifest lifecycle, database/upload backup restore, core audit
+recording and scheduler stop/resume checks also passed.
