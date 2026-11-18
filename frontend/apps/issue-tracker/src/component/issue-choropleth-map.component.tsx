@@ -101,9 +101,9 @@ function formatDistrictLabel(rawName: string): string {
 function hasGeoJsonFeatures(geoJson?: FeatureCollection): geoJson is FeatureCollection {
   return Boolean(
     geoJson &&
-      geoJson.type === "FeatureCollection" &&
-      Array.isArray(geoJson.features) &&
-      geoJson.features.length > 0,
+    geoJson.type === "FeatureCollection" &&
+    Array.isArray(geoJson.features) &&
+    geoJson.features.length > 0,
   );
 }
 
@@ -166,7 +166,8 @@ function FitMapToSelection({
       const fullBounds = fullLayer.getBounds();
       if (fullBounds.isValid()) {
         map.invalidateSize();
-        map.fitBounds(fullBounds, { animate: false, padding: [20, 20] });
+        const fitZoom = map.getBoundsZoom(fullBounds, false, L.point(12, 12));
+        map.setView(fullBounds.getCenter(), Math.max(7, fitZoom), { animate: false });
       }
       return;
     }
@@ -200,8 +201,8 @@ function FitMapToSelection({
         map.invalidateSize();
         map.fitBounds(subBounds, {
           animate: true,
-          padding: [32, 32],
-          maxZoom: matchingFeatures.length === 1 ? 9 : 8,
+          padding: [24, 24],
+          maxZoom: matchingFeatures.length === 1 ? 10 : 9,
         });
         return;
       }
@@ -210,7 +211,8 @@ function FitMapToSelection({
     const fallbackLayer = L.geoJSON(geoJson);
     const fallbackBounds = fallbackLayer.getBounds();
     if (fallbackBounds.isValid()) {
-      map.fitBounds(fallbackBounds, { animate: false, padding: [20, 20] });
+      const fitZoom = map.getBoundsZoom(fallbackBounds, false, L.point(12, 12));
+      map.setView(fallbackBounds.getCenter(), Math.max(7, fitZoom), { animate: false });
     }
   }, [geoJson, selectedFilter, districtMetricsMap, map]);
 
@@ -273,11 +275,11 @@ export function IssueChoroplethMap({
     const filteredDistricts = isAllSelected
       ? allDistricts
       : allDistricts.filter((d) => {
-          const dKey = normalizeDistrictKey(d.district);
-          const targetDKey = normalizeDistrictKey(selectedFilter);
-          if (dKey === targetDKey) return true;
-          return normalizeRegionKey(d.region) === normalizeRegionKey(selectedFilter);
-        });
+        const dKey = normalizeDistrictKey(d.district);
+        const targetDKey = normalizeDistrictKey(selectedFilter);
+        if (dKey === targetDKey) return true;
+        return normalizeRegionKey(d.region) === normalizeRegionKey(selectedFilter);
+      });
 
     const totalPolygonCount =
       geoJson?.type === "FeatureCollection" ? geoJson.features.length : 146;
@@ -285,7 +287,7 @@ export function IssueChoroplethMap({
     return {
       affectedDistrictsCount: allDistricts.length,
       totalPolygonCount,
-      topDistricts: filteredDistricts.slice(0, 10),
+      topDistricts: filteredDistricts.slice(0, 12),
       maxDistrictTotal: allDistricts[0]?.total ?? 0,
     };
   }, [districtMetricsMap, isAllSelected, selectedFilter, geoJson]);
@@ -378,8 +380,9 @@ export function IssueChoroplethMap({
       const fullLayer = L.geoJSON(geoJson);
       const bounds = fullLayer.getBounds();
       if (bounds.isValid()) {
-        mapRef.current.fitBounds(bounds, { animate: false, padding: [20, 20] });
         mapRef.current.invalidateSize();
+        const fitZoom = mapRef.current.getBoundsZoom(bounds, false, L.point(12, 12));
+        mapRef.current.setView(bounds.getCenter(), Math.max(7, fitZoom), { animate: false });
       }
     }
   };
@@ -406,8 +409,8 @@ export function IssueChoroplethMap({
         <div>
           <h4 className="issue-choropleth-title">
             {isAllSelected
-              ? "Issues by District — Uganda Choropleth Map (All Districts)"
-              : `Issues by District — ${selectedFilter}`}
+              ? "Issues by District - All Districts"
+              : `Issues by District -  ${selectedFilter}`}
           </h4>
           <p className="issue-choropleth-subtitle">
             <strong>{mapSummaryStats.affectedDistrictsCount}</strong> of{" "}

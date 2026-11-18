@@ -31,13 +31,20 @@ import {
   UserFollow,
   WarningAlt,
 } from "@carbon/react/icons";
-import { GroupedBarChart, PieChart, SimpleBarChart } from "@carbon/charts-react";
+import {
+  AreaChart,
+  GroupedBarChart,
+  LineChart,
+  PieChart,
+  SimpleBarChart,
+} from "@carbon/charts-react";
 import { Alignments, ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
 import "@carbon/charts/styles.css";
 import * as XLSX from "xlsx";
 import { useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { PermissionGuard, PERMISSIONS, selectUser } from "@moh-sso/auth";
+import { PageShell } from "@moh-sso/ui";
 
 import {
   useCreateTransactionMutation,
@@ -1430,20 +1437,27 @@ const IssueDashboard = () => {
           assigned: 0,
         };
         return [
-          { group: "Critical Open", key: bucket.shortLabel, value: stats.critical },
-          { group: "Unassigned Open", key: bucket.shortLabel, value: stats.unassigned },
-          { group: "Assigned Open", key: bucket.shortLabel, value: stats.assigned },
+          { group: "Critical Open", key: bucket.label, value: stats.critical },
+          { group: "Unassigned Open", key: bucket.label, value: stats.unassigned },
+          { group: "Assigned Open", key: bucket.label, value: stats.assigned },
         ];
       });
     }
 
-    return AGING_BUCKETS.map((bucket) => {
+    return AGING_BUCKETS.flatMap((bucket) => {
       const stats = agingMetrics.bucketMap.get(bucket.id);
-      return {
-        group: bucket.label,
-        key: bucket.shortLabel,
-        value: stats?.total ?? 0,
-      };
+      return [
+        {
+          group: "Total Unresolved",
+          key: bucket.label,
+          value: stats?.total ?? 0,
+        },
+        {
+          group: "Critical Open",
+          key: bucket.label,
+          value: stats?.critical ?? 0,
+        },
+      ];
     });
   }, [agingMetrics, chartViewMode]);
 
@@ -1451,12 +1465,12 @@ const IssueDashboard = () => {
     () => ({
       title:
         activeChartRegion && activeChartRegion !== DEFAULT_CHART_REGION
-          ? `Unresolved Issue Aging (${activeChartRegion})`
-          : "Unresolved Issue Aging",
+          ? `Unresolved Issue Aging Series (${activeChartRegion})`
+          : "Unresolved Issue Aging Series",
       axes: {
         left: {
           mapsTo: "value",
-          title: "Unresolved",
+          title: "Unresolved Issues",
           scaleType: ScaleTypes.LINEAR,
         },
         bottom: {
@@ -1465,27 +1479,29 @@ const IssueDashboard = () => {
           scaleType: ScaleTypes.LABELS,
         },
       },
+      curve: "curveMonotoneX",
+      points: {
+        enabled: true,
+        radius: 5,
+        filled: true,
+      },
       color: {
         scale:
           chartViewMode === "status"
             ? {
-                "Critical Open": "#a2191f",
-                "Unassigned Open": "#eb6200",
-                "Assigned Open": "#0f62fe",
-              }
+              "Critical Open": "#a2191f",
+              "Unassigned Open": "#eb6200",
+              "Assigned Open": "#0f62fe",
+            }
             : {
-                "0–7 Days": "#0f62fe",
-                "8–14 Days": "#007d79",
-                "15–30 Days": "#d2a106",
-                "31–60 Days": "#eb6200",
-                "61–90 Days": "#da1e28",
-                "> 90 Days": "#a2191f",
-              },
+              "Total Unresolved": "#0f62fe",
+              "Critical Open": "#a2191f",
+            },
       },
-      height: "300px",
+      height: "360px",
       toolbar: chartToolbarConfig,
       legend: {
-        enabled: chartViewMode === "status",
+        enabled: true,
       },
     }),
     [activeChartRegion, chartViewMode, chartToolbarConfig],
@@ -1748,38 +1764,39 @@ const IssueDashboard = () => {
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
       <div className="issue-dashboard-page">
         {/* ================= Header ================= */}
-        <div className="dashboard-header">
-          <div className="dashboard-header-text">
-            <h4 className="dashboard-title">Issue Summary</h4>
-            <p className="dashboard-subtitle">
-              Aggregated overview of reported data quality issues categorized by resolution status
-              and grouped by region.
-            </p>
+        <PageShell
+          title="Issue Summary"
+          subtitle="Aggregated overview of reported data quality issues categorized by resolution status and grouped by region."
+        >
+          <div className="dashboard-header">
+            <div className="dashboard-header-text">
+              <h4 className="dashboard-title"> </h4>
+              <p className="dashboard-subtitle"></p>
+            </div>
+
+            <div className="dashboard-actions">
+              <Button
+                size="sm"
+                kind="ghost"
+                renderIcon={Renew}
+                onClick={handleRefreshAll}
+                disabled={isLoadingIssues}
+              >
+                Refresh
+              </Button>
+
+              <Button
+                size="sm"
+                kind="secondary"
+                renderIcon={Download}
+                onClick={handleExportExcel}
+                disabled={displayedRows.length === 0 || isTableLoading}
+              >
+                Export Summary (.xlsx)
+              </Button>
+            </div>
           </div>
-
-          <div className="dashboard-actions">
-            <Button
-              size="sm"
-              kind="ghost"
-              renderIcon={Renew}
-              onClick={handleRefreshAll}
-              disabled={isLoadingIssues}
-            >
-              Refresh
-            </Button>
-
-            <Button
-              size="sm"
-              kind="secondary"
-              renderIcon={Download}
-              onClick={handleExportExcel}
-              disabled={displayedRows.length === 0 || isTableLoading}
-            >
-              Export Summary (.xlsx)
-            </Button>
-          </div>
-        </div>
-
+        </PageShell>
         {/* ================= KPI Metric Cards ================= */}
         <div className="kpi-grid">
           <div className="kpi-card kpi-card--total">
@@ -1866,8 +1883,7 @@ const IssueDashboard = () => {
             <div>
               <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
               <p className="dashboard-charts-subtitle">
-                Comparison of reported issues across districts, regions, level of care, actionable
-                unresolved issue aging, and regional summary breakdowns.
+                Comparison of reported issues across districts, regions.
               </p>
             </div>
 
@@ -1917,7 +1933,7 @@ const IssueDashboard = () => {
               className={`dashboard-visual-tab ${activeVisualTab === "distribution" ? "active" : ""}`}
               onClick={() => setActiveVisualTab("distribution")}
             >
-              <span>Geographic &amp; Care Distribution</span>
+              <span>Geographic Issue Distribution</span>
               <span className="dashboard-visual-tab-badge">{pageGrandTotals.total}</span>
             </button>
 
@@ -2020,35 +2036,44 @@ const IssueDashboard = () => {
                 <div className="dashboard-chart-card aging-visual-card aging-visual-card--tab">
                   <div className="aging-visual-chart-wrapper">
                     {chartViewMode === "status" ? (
-                      <GroupedBarChart data={agingChartData} options={agingChartOptions} />
+                      <LineChart data={agingChartData} options={agingChartOptions} />
                     ) : (
-                      <SimpleBarChart data={agingChartData} options={agingChartOptions} />
+                      <AreaChart data={agingChartData} options={agingChartOptions} />
                     )}
                   </div>
 
-                  {/* Summary KPI Strip */}
+                  {/* Summary KPI Cards Strip */}
                   <div className="aging-kpi-strip">
                     <div className="aging-kpi-item">
-                      <span className="aging-kpi-label">Unresolved</span>
+                      <span className="aging-kpi-label">Unresolved Backlog</span>
                       <strong className="aging-kpi-val">{agingMetrics.totalUnresolved}</strong>
+                      <span className="aging-kpi-subtext">Total open issues in queue</span>
                     </div>
                     <div className="aging-kpi-item aging-kpi-item--overdue">
-                      <span className="aging-kpi-label">Overdue (&gt;30d)</span>
+                      <span className="aging-kpi-label">Overdue (&gt;30 Days)</span>
                       <strong className="aging-kpi-val">{agingMetrics.overdueCount}</strong>
+                      <span className="aging-kpi-subtext">
+                        {agingMetrics.totalUnresolved > 0
+                          ? `${Math.round((agingMetrics.overdueCount / agingMetrics.totalUnresolved) * 100)}% of backlog`
+                          : "0% of backlog"}
+                      </span>
                     </div>
                     <div className="aging-kpi-item aging-kpi-item--critical">
-                      <span className="aging-kpi-label">Critical</span>
+                      <span className="aging-kpi-label">Critical Unresolved</span>
                       <strong className="aging-kpi-val">{agingMetrics.criticalCount}</strong>
+                      <span className="aging-kpi-subtext">High-priority open issues</span>
                     </div>
                     <div className="aging-kpi-item aging-kpi-item--unassigned">
                       <span className="aging-kpi-label">Unassigned</span>
                       <strong className="aging-kpi-val">{agingMetrics.unassignedCount}</strong>
+                      <span className="aging-kpi-subtext">Awaiting owner assignment</span>
                     </div>
                     <div className="aging-kpi-item">
-                      <span className="aging-kpi-label">Avg / Oldest</span>
+                      <span className="aging-kpi-label">Average / Oldest Age</span>
                       <strong className="aging-kpi-val">
                         {agingMetrics.avgAgeDays}d / {agingMetrics.maxAgeDays}d
                       </strong>
+                      <span className="aging-kpi-subtext">Mean &amp; max days open</span>
                     </div>
                   </div>
 
@@ -2060,7 +2085,7 @@ const IssueDashboard = () => {
                         className={`aging-bucket-chip ${selectedAgingBucket === "all" ? "active" : ""}`}
                         onClick={() => setSelectedAgingBucket("all")}
                       >
-                        All ({agingMetrics.totalUnresolved})
+                        All Brackets ({agingMetrics.totalUnresolved})
                       </button>
                       {AGING_BUCKETS.map((bucket) => {
                         const count = agingMetrics.bucketMap.get(bucket.id)?.total ?? 0;
@@ -2073,10 +2098,10 @@ const IssueDashboard = () => {
                             style={
                               isActive
                                 ? {
-                                    backgroundColor: bucket.color,
-                                    borderColor: bucket.color,
-                                    color: "#ffffff",
-                                  }
+                                  backgroundColor: bucket.color,
+                                  borderColor: bucket.color,
+                                  color: "#ffffff",
+                                }
                                 : undefined
                             }
                             onClick={() =>
@@ -2091,7 +2116,7 @@ const IssueDashboard = () => {
                                 backgroundColor: isActive ? "#ffffff" : bucket.color,
                               }}
                             />
-                            {bucket.shortLabel} ({count})
+                            {bucket.label} ({count})
                           </button>
                         );
                       })}
@@ -2143,7 +2168,7 @@ const IssueDashboard = () => {
                         <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
                           <Button
                             size="sm"
-                            kind="ghost"
+                            kind="secondary"
                             renderIcon={UserFollow}
                             onClick={handleOpenBulkAssignUnassigned}
                             className="aging-bulk-assign-btn"
@@ -2155,7 +2180,7 @@ const IssueDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Actionable Unresolved Issues List */}
+                  {/* Actionable Unresolved Issues Cards */}
                   <div className="aging-actionable-queue">
                     {actionableAgingIssues.length === 0 ? (
                       <div className="aging-empty-queue">
@@ -2176,115 +2201,115 @@ const IssueDashboard = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="aging-queue-table-wrap">
-                        <table className="aging-queue-table" aria-label="Actionable aging unresolved issues">
-                          <thead>
-                            <tr>
-                              <th>Issue &amp; Facility</th>
-                              <th>Age</th>
-                              <th>Assignee</th>
-                              <th style={{ textAlign: "right" }}>Quick Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {actionableAgingIssues.slice(0, 25).map((item) => (
-                              <tr key={`${item.issue.issue_id}-${item.issueCode}`}>
-                                <td>
-                                  <div className="aging-issue-main">
-                                    <div className="aging-issue-top">
-                                      <button
-                                        type="button"
-                                        className="aging-issue-code-link"
-                                        onClick={() => handleNavigateToIssueCode(item.issueCode)}
-                                        title={`Open issue ${item.issueCode}`}
-                                      >
-                                        {item.issueCode}
-                                      </button>
-                                      {item.isCritical && (
-                                        <span className="aging-critical-tag">
-                                          <WarningAlt size={12} /> Critical
-                                        </span>
-                                      )}
-                                      <span className="aging-issue-element">
-                                        {safeString(item.issue.data_element) ||
-                                          safeString(item.issue.dataset) ||
-                                          safeString(item.issue.issue_type) ||
-                                          "Data Quality Issue"}
-                                      </span>
-                                    </div>
-                                    <div className="aging-issue-meta">
-                                      <span>{item.facilityName}</span>
-                                      <span>•</span>
-                                      <span>{item.districtName}</span>
-                                      <span>•</span>
-                                      <span>Reported: {item.reportedDateLabel}</span>
-                                    </div>
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className={`aging-pill ${item.bucket.badgeClass}`}>
-                                    {item.ageDays}d
+                      <div className="aging-issue-cards-grid" aria-label="Actionable aging unresolved issues">
+                        {actionableAgingIssues.slice(0, 24).map((item) => (
+                          <div
+                            key={`${item.issue.issue_id}-${item.issueCode}`}
+                            className={`aging-issue-card ${item.isCritical ? "aging-issue-card--critical" : ""}`}
+                          >
+                            <div className="aging-issue-card-header">
+                              <div className="aging-issue-top">
+                                <button
+                                  type="button"
+                                  className="aging-issue-code-link"
+                                  onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                  title={`Open issue ${item.issueCode}`}
+                                >
+                                  {item.issueCode}
+                                </button>
+                                {item.isCritical && (
+                                  <span className="aging-critical-tag">
+                                    <WarningAlt size={14} /> Critical
                                   </span>
-                                </td>
-                                <td>
-                                  {item.isUnassigned ? (
-                                    <span className="aging-assignee-unassigned">Unassigned</span>
-                                  ) : (
-                                    <span
-                                      className="aging-assignee-assigned"
-                                      title={safeString(item.issue.assigned_to)}
-                                    >
-                                      {safeString(item.issue.assigned_to)}
-                                    </span>
-                                  )}
-                                </td>
-                                <td>
-                                  <div className="aging-row-actions">
-                                    <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-                                      <button
-                                        type="button"
-                                        className="aging-action-btn aging-action-btn--assign"
-                                        onClick={() => handleOpenAssignSingle(item)}
-                                        title={
-                                          item.isUnassigned
-                                            ? `Assign ${item.issueCode}`
-                                            : `Re-assign ${item.issueCode}`
-                                        }
-                                      >
-                                        <UserFollow size={14} />
-                                        <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
-                                      </button>
-                                    </PermissionGuard>
+                                )}
+                              </div>
 
-                                    <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
-                                      <button
-                                        type="button"
-                                        className="aging-action-btn aging-action-btn--resolve"
-                                        onClick={() => {
-                                          setResolvingAgingIssue(item);
-                                          setResolutionComment("");
-                                        }}
-                                        title={`Resolve ${item.issueCode}`}
-                                      >
-                                        <CheckmarkOutline size={14} />
-                                        <span>Resolve</span>
-                                      </button>
-                                    </PermissionGuard>
+                              <span className={`aging-pill ${item.bucket.badgeClass}`}>
+                                {item.ageDays} days open
+                              </span>
+                            </div>
 
-                                    <button
-                                      type="button"
-                                      className="aging-action-btn aging-action-btn--view"
-                                      onClick={() => handleNavigateToIssueCode(item.issueCode)}
-                                      title={`View full details for ${item.issueCode}`}
-                                    >
-                                      <ArrowRight size={14} />
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                            <div className="aging-issue-element">
+                              {safeString(item.issue.data_element) ||
+                                safeString(item.issue.dataset) ||
+                                safeString(item.issue.issue_type) ||
+                                "Data Quality Issue"}
+                            </div>
+
+                            <div className="aging-issue-meta">
+                              <span>
+                                <strong>Facility:</strong> {item.facilityName}
+                              </span>
+                              <span>•</span>
+                              <span>
+                                <strong>District:</strong> {item.districtName} ({item.regionName})
+                              </span>
+                              <span>•</span>
+                              <span>
+                                <strong>Reported:</strong> {item.reportedDateLabel}
+                              </span>
+                            </div>
+
+                            <div className="aging-issue-card-footer">
+                              <div className="aging-issue-assignee-wrap">
+                                <span className="aging-issue-assignee-label">Assignee:</span>
+                                {item.isUnassigned ? (
+                                  <span className="aging-assignee-unassigned">Unassigned</span>
+                                ) : (
+                                  <span
+                                    className="aging-assignee-assigned"
+                                    title={safeString(item.issue.assigned_to)}
+                                  >
+                                    {safeString(item.issue.assigned_to)}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="aging-row-actions">
+                                <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                                  <button
+                                    type="button"
+                                    className="aging-action-btn aging-action-btn--assign"
+                                    onClick={() => handleOpenAssignSingle(item)}
+                                    title={
+                                      item.isUnassigned
+                                        ? `Assign ${item.issueCode}`
+                                        : `Re-assign ${item.issueCode}`
+                                    }
+                                  >
+                                    <UserFollow size={16} />
+                                    <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
+                                  </button>
+                                </PermissionGuard>
+
+                                <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
+                                  <button
+                                    type="button"
+                                    className="aging-action-btn aging-action-btn--resolve"
+                                    onClick={() => {
+                                      setResolvingAgingIssue(item);
+                                      setResolutionComment("");
+                                    }}
+                                    title={`Resolve ${item.issueCode}`}
+                                  >
+                                    <CheckmarkOutline size={16} />
+                                    <span>Resolve</span>
+                                  </button>
+                                </PermissionGuard>
+
+                                <button
+                                  type="button"
+                                  className="aging-action-btn aging-action-btn--view"
+                                  onClick={() => handleNavigateToIssueCode(item.issueCode)}
+                                  title={`View full details for ${item.issueCode}`}
+                                >
+                                  <span>Details</span>
+                                  <ArrowRight size={16} />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -2297,666 +2322,662 @@ const IssueDashboard = () => {
           {activeVisualTab === "table" && (
             <div className="dashboard-visual-tab-panel" role="tabpanel">
 
-        {/* ================= Filters Bar ================= */}
-        <div className="dashboard-filter-container">
-          {/* Period Filter Popover */}
-          <div ref={periodPopoverRef} className="issue-filter-wrapper">
-            <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
-              <Button
-                size="sm"
-                kind="tertiary"
-                renderIcon={ChevronDown}
-                onClick={() => setIsPeriodPopoverOpen((prev) => !prev)}
-              >
-                {selectedPeriod
-                  ? `Period: ${selectedPeriod}`
-                  : isYearFilterApplied || selectedYear !== currentYear
-                  ? `Year: ${selectedYear}`
-                  : "Reporting Period"}
-              </Button>
-
-              <PopoverContent className="filter-popover-content">
-                <div className="popover-inner">
-                  <Dropdown
-                    id="dashboard-filter-year"
-                    titleText="Year"
-                    label="Select year"
-                    items={years}
-                    selectedItem={selectedYear}
-                    itemToString={(item) => (item == null ? "" : String(item))}
-                    onChange={handleYearChange}
-                  />
-
-                  <Dropdown
-                    id="dashboard-filter-period-type"
-                    titleText="Period Type"
-                    label="Select period type"
-                    items={periodType}
-                    selectedItem={periodType.find((item) => item.value === selectedPeriodType)}
-                    itemToString={(item) => item?.label ?? ""}
-                    onChange={handlePeriodTypeChange}
-                  />
-
-                  <ComboBox
-                    id="dashboard-filter-period"
-                    titleText="Period"
-                    placeholder="Search or select period..."
-                    items={availablePeriods}
-                    selectedItem={
-                      availablePeriods.find((item) => item.label === selectedPeriod) ?? null
-                    }
-                    itemToString={(item) => item?.label ?? ""}
-                    shouldFilterItem={({ item, inputValue }) => {
-                      if (!inputValue) return true;
-                      const query = inputValue.toLowerCase().trim();
-                      const label = (item?.label ?? "").toLowerCase();
-                      const id = (item?.id ?? "").toLowerCase();
-                      return label.includes(query) || id.includes(query);
-                    }}
-                    onChange={handlePeriodChange}
-                  />
-
-                  <div className="popover-footer">
+              {/* ================= Filters Bar ================= */}
+              <div className="dashboard-filter-container">
+                {/* Period Filter Popover */}
+                <div ref={periodPopoverRef} className="issue-filter-wrapper">
+                  <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
                     <Button
                       size="sm"
-                      kind="ghost"
-                      onClick={() => {
-                        setSelectedPeriod("");
-                        setIsYearFilterApplied(false);
-                        setSelectedYear(currentYear);
-                        setAvailablePeriods(
-                          fetchAvailablePeriods(selectedPeriodType, currentYear.toString()),
-                        );
-                        setIsPeriodPopoverOpen(false);
-                      }}
+                      kind="tertiary"
+                      renderIcon={ChevronDown}
+                      onClick={() => setIsPeriodPopoverOpen((prev) => !prev)}
                     >
-                      Clear
+                      {selectedPeriod
+                        ? `Period: ${selectedPeriod}`
+                        : isYearFilterApplied || selectedYear !== currentYear
+                          ? `Year: ${selectedYear}`
+                          : "Reporting Period"}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!selectedPeriod) {
-                          setIsYearFilterApplied(true);
-                        }
-                        setIsPeriodPopoverOpen(false);
-                      }}
-                    >
-                      Apply
-                    </Button>
-                  </div>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
 
-          {/* Dataset Filter */}
-          <div style={{ minWidth: "15rem" }}>
-            <ComboBox
-              id="dashboard-dataset-filter"
-              size="sm"
-              titleText=""
-              placeholder="Filter by Dataset"
-              items={datasetNames}
-              selectedItem={selectedDataset || null}
-              shouldFilterItem={({ item, inputValue }) =>
-                !inputValue ||
-                String(item ?? "")
-                  .toLowerCase()
-                  .includes(inputValue.toLowerCase().trim())
-              }
-              onChange={({ selectedItem }: SelectEvent<string>) =>
-                setSelectedDataset(selectedItem ?? "")
-              }
-            />
-          </div>
+                    <PopoverContent className="filter-popover-content">
+                      <div className="popover-inner">
+                        <Dropdown
+                          id="dashboard-filter-year"
+                          titleText="Year"
+                          label="Select year"
+                          items={years}
+                          selectedItem={selectedYear}
+                          itemToString={(item) => (item == null ? "" : String(item))}
+                          onChange={handleYearChange}
+                        />
 
-          {/* Program Filter */}
-          {programNames.length > 0 && (
-            <div style={{ minWidth: "15rem" }}>
-              <ComboBox
-                id="dashboard-program-filter"
-                size="sm"
-                titleText=""
-                placeholder="Filter by Program"
-                items={programNames}
-                selectedItem={selectedProgram || null}
-                shouldFilterItem={({ item, inputValue }) =>
-                  !inputValue ||
-                  String(item ?? "")
-                    .toLowerCase()
-                    .includes(inputValue.toLowerCase().trim())
-                }
-                onChange={({ selectedItem }: SelectEvent<string>) =>
-                  setSelectedProgram(selectedItem ?? undefined)
-                }
-              />
-            </div>
-          )}
+                        <Dropdown
+                          id="dashboard-filter-period-type"
+                          titleText="Period Type"
+                          label="Select period type"
+                          items={periodType}
+                          selectedItem={periodType.find((item) => item.value === selectedPeriodType)}
+                          itemToString={(item) => item?.label ?? ""}
+                          onChange={handlePeriodTypeChange}
+                        />
 
-          {/* Reset Filters */}
-          <Button
-            size="sm"
-            kind="ghost"
-            renderIcon={Filter}
-            disabled={!hasActiveFilters}
-            onClick={handleResetFilters}
-          >
-            Reset Filters
-          </Button>
+                        <ComboBox
+                          id="dashboard-filter-period"
+                          titleText="Period"
+                          placeholder="Search or select period..."
+                          items={availablePeriods}
+                          selectedItem={
+                            availablePeriods.find((item) => item.label === selectedPeriod) ?? null
+                          }
+                          itemToString={(item) => item?.label ?? ""}
+                          shouldFilterItem={({ item, inputValue }) => {
+                            if (!inputValue) return true;
+                            const query = inputValue.toLowerCase().trim();
+                            const label = (item?.label ?? "").toLowerCase();
+                            const id = (item?.id ?? "").toLowerCase();
+                            return label.includes(query) || id.includes(query);
+                          }}
+                          onChange={handlePeriodChange}
+                        />
 
-          {hasActiveFilters && (
-            <span className="filter-active-indicator">
-              Active Filters:{" "}
-              {[
-                selectedPeriod && `Period: ${selectedPeriod}`,
-                (isYearFilterApplied || selectedYear !== currentYear) &&
-                  !selectedPeriod &&
-                  `Year: ${selectedYear}`,
-                selectedDataset && `Dataset: ${selectedDataset}`,
-                selectedProgram && `Program: ${selectedProgram}`,
-              ]
-                .filter(Boolean)
-                .join(", ")}
-            </span>
-          )}
-        </div>
-
-        {/* ================= Search & Toolbar Row ================= */}
-        <div className="dashboard-toolbar-row">
-          <div className="dashboard-search">
-            <Search
-              labelText="Search regions, districts, or facilities"
-              placeholder="Search by region, district, or facility name..."
-              value={regionSearchTerm}
-              onChange={(e) => setRegionSearchTerm(e.target.value)}
-              size="sm"
-              closeButtonLabelText="Clear search"
-            />
-          </div>
-        </div>
-
-        {/* ================= Data Table Section ================= */}
-        {isTableLoading ? (
-          <div className="dashboard-loading-state">
-            <InlineLoading status="active" description="Loading regional issue summaries..." />
-          </div>
-        ) : issuesError ? (
-          <div className="dashboard-empty-state">
-            <h4>Failed to Load Issue Data</h4>
-            <p>An error occurred while retrieving issue data from the server.</p>
-            <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
-              Retry
-            </Button>
-          </div>
-        ) : displayedRows.length === 0 ? (
-          <div className="dashboard-empty-state">
-            <h4>No Regional Issues Found</h4>
-            <p>
-              {hasActiveFilters || regionSearchTerm
-                ? "No issues match the selected filters or search criteria. Try adjusting or resetting the filters."
-                : "There are currently no recorded issues to summarize."}
-            </p>
-            {hasActiveFilters && (
-              <Button size="sm" kind="tertiary" onClick={handleResetFilters}>
-                Reset Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="summary-table-container">
-            <DataTable rows={displayedRows} headers={tableHeaders}>
-              {({
-                rows,
-                headers,
-                getTableProps,
-                getHeaderProps,
-                getRowProps,
-                getExpandHeaderProps,
-              }) => (
-                <Table {...getTableProps()} aria-label="Regional issue summary table">
-                  <TableHead>
-                    <TableRow>
-                      <TableExpandHeader {...getExpandHeaderProps()} />
-                      {headers.map((header) => {
-                        const isSorted = sortHeader === header.key;
-                        const { key: headerKey, ...headerProps } = getHeaderProps({
-                          header,
-                          isSortable: true,
-                          onClick: () => handleSort(header.key),
-                        });
-                        return (
-                          <TableHeader
-                            key={headerKey}
-                            {...headerProps}
-                            isSortable
-                            isSortHeader={isSorted}
-                            sortDirection={isSorted ? sortDirection : "NONE"}
+                        <div className="popover-footer">
+                          <Button
+                            size="sm"
+                            kind="ghost"
+                            onClick={() => {
+                              setSelectedPeriod("");
+                              setIsYearFilterApplied(false);
+                              setSelectedYear(currentYear);
+                              setAvailablePeriods(
+                                fetchAvailablePeriods(selectedPeriodType, currentYear.toString()),
+                              );
+                              setIsPeriodPopoverOpen(false);
+                            }}
                           >
-                            {header.header}
-                          </TableHeader>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHead>
-
-                  <TableBody>
-                    {rows.map((row) => {
-                      const summaryItem = displayedRows.find((item) => item.id === row.id);
-                      const { key: rowKey, ...rowProps } = getRowProps({ row });
-
-                      return (
-                        <Fragment key={row.id}>
-                          <TableExpandRow key={rowKey} {...rowProps}>
-                            {row.cells.map((cell) => {
-                              const headerKey = cell.info.header;
-
-                              if (headerKey === "region") {
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <div className="region-cell">
-                                      <span>{cell.value}</span>
-                                    </div>
-                                  </TableCell>
-                                );
+                            Clear
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!selectedPeriod) {
+                                setIsYearFilterApplied(true);
                               }
+                              setIsPeriodPopoverOpen(false);
+                            }}
+                          >
+                            Apply
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-                              if (headerKey === "critical") {
-                                const count = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <span
-                                      className={`severity-pill ${
-                                        count > 0
-                                          ? "severity-pill--critical"
-                                          : "severity-pill--zero"
-                                      }`}
-                                    >
-                                      {count > 0 ? count : "-"}
-                                    </span>
-                                  </TableCell>
-                                );
-                              }
+                {/* Dataset Filter */}
+                <div style={{ minWidth: "15rem" }}>
+                  <ComboBox
+                    id="dashboard-dataset-filter"
+                    size="sm"
+                    titleText=""
+                    placeholder="Filter by Dataset"
+                    items={datasetNames}
+                    selectedItem={selectedDataset || null}
+                    shouldFilterItem={({ item, inputValue }) =>
+                      !inputValue ||
+                      String(item ?? "")
+                        .toLowerCase()
+                        .includes(inputValue.toLowerCase().trim())
+                    }
+                    onChange={({ selectedItem }: SelectEvent<string>) =>
+                      setSelectedDataset(selectedItem ?? "")
+                    }
+                  />
+                </div>
 
-                              if (headerKey === "open") {
-                                const count = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <span className="stat-cell">
-                                      <span className="stat-dot stat-dot--open" />
-                                      {count}
-                                    </span>
-                                  </TableCell>
-                                );
-                              }
+                {/* Program Filter */}
+                {programNames.length > 0 && (
+                  <div style={{ minWidth: "15rem" }}>
+                    <ComboBox
+                      id="dashboard-program-filter"
+                      size="sm"
+                      titleText=""
+                      placeholder="Filter by Program"
+                      items={programNames}
+                      selectedItem={selectedProgram || null}
+                      shouldFilterItem={({ item, inputValue }) =>
+                        !inputValue ||
+                        String(item ?? "")
+                          .toLowerCase()
+                          .includes(inputValue.toLowerCase().trim())
+                      }
+                      onChange={({ selectedItem }: SelectEvent<string>) =>
+                        setSelectedProgram(selectedItem ?? undefined)
+                      }
+                    />
+                  </div>
+                )}
 
-                              if (headerKey === "resolved") {
-                                const count = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <span className="stat-cell">
-                                      <span className="stat-dot stat-dot--resolved" />
-                                      {count}
-                                    </span>
-                                  </TableCell>
-                                );
-                              }
+                {/* Reset Filters */}
+                <Button
+                  size="sm"
+                  kind="ghost"
+                  renderIcon={Filter}
+                  disabled={!hasActiveFilters}
+                  onClick={handleResetFilters}
+                >
+                  Reset Filters
+                </Button>
 
-                              if (headerKey === "total") {
-                                const count = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <span className="total-pill">{count}</span>
-                                  </TableCell>
-                                );
-                              }
+                {hasActiveFilters && (
+                  <span className="filter-active-indicator">
+                    Active Filters:{" "}
+                    {[
+                      selectedPeriod && `Period: ${selectedPeriod}`,
+                      (isYearFilterApplied || selectedYear !== currentYear) &&
+                      !selectedPeriod &&
+                      `Year: ${selectedYear}`,
+                      selectedDataset && `Dataset: ${selectedDataset}`,
+                      selectedProgram && `Program: ${selectedProgram}`,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")}
+                  </span>
+                )}
+              </div>
 
-                              if (headerKey === "percentage") {
-                                const pct = Number(cell.value || 0);
-                                return (
-                                  <TableCell key={cell.id}>
-                                    <div className="share-bar-wrapper">
-                                      <div className="share-bar-bg">
-                                        <div
-                                          className="share-bar-fill"
-                                          style={{ width: `${Math.min(100, pct)}%` }}
-                                        />
-                                      </div>
-                                      <span className="share-percent-text">{pct.toFixed(1)}%</span>
-                                    </div>
-                                  </TableCell>
-                                );
-                              }
+              {/* ================= Search & Toolbar Row ================= */}
+              <div className="dashboard-toolbar-row">
+                <div className="dashboard-search">
+                  <Search
+                    labelText="Search regions, districts, or facilities"
+                    placeholder="Search by region, district, or facility name..."
+                    value={regionSearchTerm}
+                    onChange={(e) => setRegionSearchTerm(e.target.value)}
+                    size="sm"
+                    closeButtonLabelText="Clear search"
+                  />
+                </div>
+              </div>
 
-                              return <TableCell key={cell.id}>{cell.value ?? "-"}</TableCell>;
+              {/* ================= Data Table Section ================= */}
+              {isTableLoading ? (
+                <div className="dashboard-loading-state">
+                  <InlineLoading status="active" description="Loading regional issue summaries..." />
+                </div>
+              ) : issuesError ? (
+                <div className="dashboard-empty-state">
+                  <h4>Failed to Load Issue Data</h4>
+                  <p>An error occurred while retrieving issue data from the server.</p>
+                  <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
+                    Retry
+                  </Button>
+                </div>
+              ) : displayedRows.length === 0 ? (
+                <div className="dashboard-empty-state">
+                  <h4>No Regional Issues Found</h4>
+                  <p>
+                    {hasActiveFilters || regionSearchTerm
+                      ? "No issues match the selected filters or search criteria. Try adjusting or resetting the filters."
+                      : "There are currently no recorded issues to summarize."}
+                  </p>
+                  {hasActiveFilters && (
+                    <Button size="sm" kind="tertiary" onClick={handleResetFilters}>
+                      Reset Filters
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <div className="summary-table-container">
+                  <DataTable rows={displayedRows} headers={tableHeaders}>
+                    {({
+                      rows,
+                      headers,
+                      getTableProps,
+                      getHeaderProps,
+                      getRowProps,
+                      getExpandHeaderProps,
+                    }) => (
+                      <Table {...getTableProps()} aria-label="Regional issue summary table">
+                        <TableHead>
+                          <TableRow>
+                            <TableExpandHeader {...getExpandHeaderProps()} />
+                            {headers.map((header) => {
+                              const isSorted = sortHeader === header.key;
+                              const { key: headerKey, ...headerProps } = getHeaderProps({
+                                header,
+                                isSortable: true,
+                                onClick: () => handleSort(header.key),
+                              });
+                              return (
+                                <TableHeader
+                                  key={headerKey}
+                                  {...headerProps}
+                                  isSortable
+                                  isSortHeader={isSorted}
+                                  sortDirection={isSorted ? sortDirection : "NONE"}
+                                >
+                                  {header.header}
+                                </TableHeader>
+                              );
                             })}
-                          </TableExpandRow>
+                          </TableRow>
+                        </TableHead>
 
-                          <TableExpandedRow key={`expanded-${row.id}`} colSpan={headers.length + 1}>
-                            {row.isExpanded && summaryItem && (
-                              <div className="expanded-panel">
-                                <div className="expanded-panel-header">
-                                  <div>
-                                    <h4 className="expanded-panel-title">
-                                      District & Facility Breakdown for {summaryItem.region} Region
-                                    </h4>
-                                    <p
-                                      style={{
-                                        fontSize: "0.8125rem",
-                                        color: "#525252",
-                                        margin: "0.25rem 0 0",
-                                      }}
-                                    >
-                                      {summaryItem.districts.length} district(s) |{" "}
-                                      {summaryItem.districts.reduce(
-                                        (acc, d) => acc + d.facilities.length,
-                                        0,
-                                      )}{" "}
-                                      facility(ies) affected | <strong>{summaryItem.total}</strong>{" "}
-                                      total issues (
-                                      {summaryItem.critical > 0 && (
-                                        <>
-                                          <span style={{ color: "#a2191f", fontWeight: 600 }}>
-                                            {summaryItem.critical} Critical
+                        <TableBody>
+                          {rows.map((row) => {
+                            const summaryItem = displayedRows.find((item) => item.id === row.id);
+                            const { key: rowKey, ...rowProps } = getRowProps({ row });
+
+                            return (
+                              <Fragment key={row.id}>
+                                <TableExpandRow key={rowKey} {...rowProps}>
+                                  {row.cells.map((cell) => {
+                                    const headerKey = cell.info.header;
+
+                                    if (headerKey === "region") {
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <div className="region-cell">
+                                            <span>{cell.value}</span>
+                                          </div>
+                                        </TableCell>
+                                      );
+                                    }
+
+                                    if (headerKey === "critical") {
+                                      const count = Number(cell.value || 0);
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <span
+                                            className={`severity-pill ${count > 0
+                                              ? "severity-pill--critical"
+                                              : "severity-pill--zero"
+                                              }`}
+                                          >
+                                            {count > 0 ? count : "-"}
                                           </span>
-                                          {", "}
-                                        </>
-                                      )}
-                                      <span style={{ color: "#da1e28", fontWeight: 600 }}>
-                                        {summaryItem.open} Open
-                                      </span>
-                                      ,{" "}
-                                      <span style={{ color: "#198038", fontWeight: 600 }}>
-                                        {summaryItem.resolved} Resolved
-                                      </span>
-                                      )
-                                    </p>
-                                  </div>
+                                        </TableCell>
+                                      );
+                                    }
 
-                                  <div
-                                    style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-                                  >
-                                    <Button
-                                      size="sm"
-                                      kind="ghost"
-                                      onClick={() =>
-                                        toggleAllDistrictsInRegion(
-                                          summaryItem.region,
-                                          summaryItem.districts,
-                                        )
-                                      }
-                                    >
-                                      {isEveryDistrictExpanded(
-                                        summaryItem.region,
-                                        summaryItem.districts,
-                                      )
-                                        ? "Collapse All Facilities"
-                                        : "Expand All Facilities"}
-                                    </Button>
+                                    if (headerKey === "open") {
+                                      const count = Number(cell.value || 0);
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <span className="stat-cell">
+                                            <span className="stat-dot stat-dot--open" />
+                                            {count}
+                                          </span>
+                                        </TableCell>
+                                      );
+                                    }
 
-                                    <Button
-                                      size="sm"
-                                      kind="tertiary"
-                                      renderIcon={ArrowRight}
-                                      onClick={() => handleNavigateToIssues(summaryItem.region)}
-                                    >
-                                      View Issues in {summaryItem.region}
-                                    </Button>
-                                  </div>
-                                </div>
+                                    if (headerKey === "resolved") {
+                                      const count = Number(cell.value || 0);
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <span className="stat-cell">
+                                            <span className="stat-dot stat-dot--resolved" />
+                                            {count}
+                                          </span>
+                                        </TableCell>
+                                      );
+                                    }
 
-                                <div className="district-table-wrapper">
-                                  <table>
-                                    <thead>
-                                      <tr>
-                                        <th>District</th>
-                                        <th>Critical Issues</th>
-                                        <th>Open</th>
-                                        <th>Resolved</th>
-                                        <th>Total Issues</th>
-                                        <th style={{ width: "4rem", textAlign: "center" }}>
-                                          Actions
-                                        </th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {summaryItem.districts.map((d) => {
-                                        const expanded = isDistrictExpanded(summaryItem.region, d);
+                                    if (headerKey === "total") {
+                                      const count = Number(cell.value || 0);
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <span className="total-pill">{count}</span>
+                                        </TableCell>
+                                      );
+                                    }
 
-                                        return (
-                                          <Fragment key={d.district}>
-                                            <tr
-                                              className={`district-row ${expanded ? "district-row--expanded" : ""}`}
-                                            >
-                                              <td>
-                                                <button
-                                                  type="button"
-                                                  aria-expanded={expanded}
-                                                  className="district-expand-btn"
-                                                  onClick={() =>
-                                                    toggleDistrict(summaryItem.region, d)
-                                                  }
-                                                  title={
-                                                    expanded
-                                                      ? "Collapse facility breakdown"
-                                                      : "Expand facility breakdown"
-                                                  }
-                                                >
-                                                  {expanded ? (
-                                                    <ChevronDown
-                                                      size={16}
-                                                      className="district-expand-icon"
-                                                    />
-                                                  ) : (
-                                                    <ChevronRight
-                                                      size={16}
-                                                      className="district-expand-icon"
-                                                    />
-                                                  )}
-                                                  <span className="district-name-text">
-                                                    {d.district}
-                                                  </span>
-                                                  <span className="district-facility-badge">
-                                                    {d.facilities.length}{" "}
-                                                    {d.facilities.length === 1
-                                                      ? "facility"
-                                                      : "facilities"}
-                                                  </span>
-                                                </button>
-                                              </td>
-                                              <td>
-                                                <span
-                                                  className={`severity-pill ${
-                                                    d.critical > 0
-                                                      ? "severity-pill--critical"
-                                                      : "severity-pill--zero"
-                                                  }`}
-                                                >
-                                                  {d.critical > 0 ? d.critical : "-"}
+                                    if (headerKey === "percentage") {
+                                      const pct = Number(cell.value || 0);
+                                      return (
+                                        <TableCell key={cell.id}>
+                                          <div className="share-bar-wrapper">
+                                            <div className="share-bar-bg">
+                                              <div
+                                                className="share-bar-fill"
+                                                style={{ width: `${Math.min(100, pct)}%` }}
+                                              />
+                                            </div>
+                                            <span className="share-percent-text">{pct.toFixed(1)}%</span>
+                                          </div>
+                                        </TableCell>
+                                      );
+                                    }
+
+                                    return <TableCell key={cell.id}>{cell.value ?? "-"}</TableCell>;
+                                  })}
+                                </TableExpandRow>
+
+                                <TableExpandedRow key={`expanded-${row.id}`} colSpan={headers.length + 1}>
+                                  {row.isExpanded && summaryItem && (
+                                    <div className="expanded-panel">
+                                      <div className="expanded-panel-header">
+                                        <div>
+                                          <h4 className="expanded-panel-title">
+                                            District & Facility Breakdown for {summaryItem.region} Region
+                                          </h4>
+                                          <p
+                                            style={{
+                                              fontSize: "0.8125rem",
+                                              color: "#525252",
+                                              margin: "0.25rem 0 0",
+                                            }}
+                                          >
+                                            {summaryItem.districts.length} district(s) |{" "}
+                                            {summaryItem.districts.reduce(
+                                              (acc, d) => acc + d.facilities.length,
+                                              0,
+                                            )}{" "}
+                                            facility(ies) affected | <strong>{summaryItem.total}</strong>{" "}
+                                            total issues (
+                                            {summaryItem.critical > 0 && (
+                                              <>
+                                                <span style={{ color: "#a2191f", fontWeight: 600 }}>
+                                                  {summaryItem.critical} Critical
                                                 </span>
-                                              </td>
-                                              <td>
-                                                <span className="stat-cell">
-                                                  <span className="stat-dot stat-dot--open" />
-                                                  {d.open}
-                                                </span>
-                                              </td>
-                                              <td>
-                                                <span className="stat-cell">
-                                                  <span className="stat-dot stat-dot--resolved" />
-                                                  {d.resolved}
-                                                </span>
-                                              </td>
-                                              <td>
-                                                <strong>{d.total}</strong>
-                                              </td>
-                                              <td className="table-action-cell">
-                                                <Button
-                                                  size="sm"
-                                                  kind="ghost"
-                                                  hasIconOnly
-                                                  renderIcon={ArrowRight}
-                                                  iconDescription={`View issues in ${d.district}`}
-                                                  tooltipPosition="left"
-                                                  onClick={() => handleNavigateToIssues(d.district)}
-                                                />
-                                              </td>
+                                                {", "}
+                                              </>
+                                            )}
+                                            <span style={{ color: "#da1e28", fontWeight: 600 }}>
+                                              {summaryItem.open} Open
+                                            </span>
+                                            ,{" "}
+                                            <span style={{ color: "#198038", fontWeight: 600 }}>
+                                              {summaryItem.resolved} Resolved
+                                            </span>
+                                            )
+                                          </p>
+                                        </div>
+
+                                        <div
+                                          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
+                                        >
+                                          <Button
+                                            size="sm"
+                                            kind="ghost"
+                                            onClick={() =>
+                                              toggleAllDistrictsInRegion(
+                                                summaryItem.region,
+                                                summaryItem.districts,
+                                              )
+                                            }
+                                          >
+                                            {isEveryDistrictExpanded(
+                                              summaryItem.region,
+                                              summaryItem.districts,
+                                            )
+                                              ? "Collapse All Facilities"
+                                              : "Expand All Facilities"}
+                                          </Button>
+
+                                          <Button
+                                            size="sm"
+                                            kind="tertiary"
+                                            renderIcon={ArrowRight}
+                                            onClick={() => handleNavigateToIssues(summaryItem.region)}
+                                          >
+                                            View Issues in {summaryItem.region}
+                                          </Button>
+                                        </div>
+                                      </div>
+
+                                      <div className="district-table-wrapper">
+                                        <table>
+                                          <thead>
+                                            <tr>
+                                              <th>District</th>
+                                              <th>Critical Issues</th>
+                                              <th>Open</th>
+                                              <th>Resolved</th>
+                                              <th>Total Issues</th>
+                                              <th style={{ width: "4rem", textAlign: "center" }}>
+                                                Actions
+                                              </th>
                                             </tr>
+                                          </thead>
+                                          <tbody>
+                                            {summaryItem.districts.map((d) => {
+                                              const expanded = isDistrictExpanded(summaryItem.region, d);
 
-                                            {expanded && (
-                                              <tr className="facility-breakdown-row">
-                                                <td colSpan={6}>
-                                                  <div className="facility-breakdown-panel">
-                                                    <div className="facility-breakdown-header">
-                                                      <span className="facility-breakdown-title">
-                                                        Facilities in {d.district} (
-                                                        {d.facilities.length})
-                                                      </span>
-                                                    </div>
-                                                    {d.facilities.length === 0 ? (
-                                                      <p
-                                                        style={{
-                                                          margin: "0.5rem 0",
-                                                          color: "#6f6f6f",
-                                                          fontSize: "0.8125rem",
-                                                        }}
+                                              return (
+                                                <Fragment key={d.district}>
+                                                  <tr
+                                                    className={`district-row ${expanded ? "district-row--expanded" : ""}`}
+                                                  >
+                                                    <td>
+                                                      <button
+                                                        type="button"
+                                                        aria-expanded={expanded}
+                                                        className="district-expand-btn"
+                                                        onClick={() =>
+                                                          toggleDistrict(summaryItem.region, d)
+                                                        }
+                                                        title={
+                                                          expanded
+                                                            ? "Collapse facility breakdown"
+                                                            : "Expand facility breakdown"
+                                                        }
                                                       >
-                                                        No health facilities recorded for this
-                                                        district.
-                                                      </p>
-                                                    ) : (
-                                                      <table className="facility-table">
-                                                        <thead>
-                                                          <tr>
-                                                            <th>Health Facility / Org Unit</th>
-                                                            <th>Critical Issues</th>
-                                                            <th>Open</th>
-                                                            <th>Resolved</th>
-                                                            <th>Total Issues</th>
-                                                            <th
+                                                        {expanded ? (
+                                                          <ChevronDown
+                                                            size={16}
+                                                            className="district-expand-icon"
+                                                          />
+                                                        ) : (
+                                                          <ChevronRight
+                                                            size={16}
+                                                            className="district-expand-icon"
+                                                          />
+                                                        )}
+                                                        <span className="district-name-text">
+                                                          {d.district}
+                                                        </span>
+                                                        <span className="district-facility-badge">
+                                                          {d.facilities.length}{" "}
+                                                          {d.facilities.length === 1
+                                                            ? "facility"
+                                                            : "facilities"}
+                                                        </span>
+                                                      </button>
+                                                    </td>
+                                                    <td>
+                                                      <span
+                                                        className={`severity-pill ${d.critical > 0
+                                                          ? "severity-pill--critical"
+                                                          : "severity-pill--zero"
+                                                          }`}
+                                                      >
+                                                        {d.critical > 0 ? d.critical : "-"}
+                                                      </span>
+                                                    </td>
+                                                    <td>
+                                                      <span className="stat-cell">
+                                                        <span className="stat-dot stat-dot--open" />
+                                                        {d.open}
+                                                      </span>
+                                                    </td>
+                                                    <td>
+                                                      <span className="stat-cell">
+                                                        <span className="stat-dot stat-dot--resolved" />
+                                                        {d.resolved}
+                                                      </span>
+                                                    </td>
+                                                    <td>
+                                                      <strong>{d.total}</strong>
+                                                    </td>
+                                                    <td className="table-action-cell">
+                                                      <Button
+                                                        size="sm"
+                                                        kind="ghost"
+                                                        hasIconOnly
+                                                        renderIcon={ArrowRight}
+                                                        iconDescription={`View issues in ${d.district}`}
+                                                        tooltipPosition="left"
+                                                        onClick={() => handleNavigateToIssues(d.district)}
+                                                      />
+                                                    </td>
+                                                  </tr>
+
+                                                  {expanded && (
+                                                    <tr className="facility-breakdown-row">
+                                                      <td colSpan={6}>
+                                                        <div className="facility-breakdown-panel">
+                                                          <div className="facility-breakdown-header">
+                                                            <span className="facility-breakdown-title">
+                                                              Facilities in {d.district} (
+                                                              {d.facilities.length})
+                                                            </span>
+                                                          </div>
+                                                          {d.facilities.length === 0 ? (
+                                                            <p
                                                               style={{
-                                                                width: "4rem",
-                                                                textAlign: "center",
+                                                                margin: "0.5rem 0",
+                                                                color: "#6f6f6f",
+                                                                fontSize: "0.8125rem",
                                                               }}
                                                             >
-                                                              Actions
-                                                            </th>
-                                                          </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                          {d.facilities.map((f) => (
-                                                            <tr key={f.facility}>
-                                                              <td>
-                                                                <span className="facility-name-cell">
-                                                                  {f.facility}
-                                                                </span>
-                                                              </td>
-                                                              <td>
-                                                                <span
-                                                                  className={`severity-pill ${
-                                                                    f.critical > 0
-                                                                      ? "severity-pill--critical"
-                                                                      : "severity-pill--zero"
-                                                                  }`}
-                                                                >
-                                                                  {f.critical > 0
-                                                                    ? f.critical
-                                                                    : "-"}
-                                                                </span>
-                                                              </td>
-                                                              <td>
-                                                                <span className="stat-cell">
-                                                                  <span className="stat-dot stat-dot--open" />
-                                                                  {f.open}
-                                                                </span>
-                                                              </td>
-                                                              <td>
-                                                                <span className="stat-cell">
-                                                                  <span className="stat-dot stat-dot--resolved" />
-                                                                  {f.resolved}
-                                                                </span>
-                                                              </td>
-                                                              <td>
-                                                                <strong>{f.total}</strong>
-                                                              </td>
-                                                              <td className="table-action-cell">
-                                                                <Button
-                                                                  size="sm"
-                                                                  kind="ghost"
-                                                                  hasIconOnly
-                                                                  renderIcon={ArrowRight}
-                                                                  iconDescription={`View issues in ${f.facility}`}
-                                                                  tooltipPosition="left"
-                                                                  onClick={() =>
-                                                                    handleNavigateToIssues(
-                                                                      f.facility,
-                                                                    )
-                                                                  }
-                                                                />
-                                                              </td>
-                                                            </tr>
-                                                          ))}
-                                                        </tbody>
-                                                      </table>
-                                                    )}
-                                                  </div>
-                                                </td>
-                                              </tr>
-                                            )}
-                                          </Fragment>
-                                        );
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
-                            )}
-                          </TableExpandedRow>
-                        </Fragment>
-                      );
-                    })}
+                                                              No health facilities recorded for this
+                                                              district.
+                                                            </p>
+                                                          ) : (
+                                                            <table className="facility-table">
+                                                              <thead>
+                                                                <tr>
+                                                                  <th>Health Facility / Org Unit</th>
+                                                                  <th>Critical Issues</th>
+                                                                  <th>Open</th>
+                                                                  <th>Resolved</th>
+                                                                  <th>Total Issues</th>
+                                                                  <th
+                                                                    style={{
+                                                                      width: "4rem",
+                                                                      textAlign: "center",
+                                                                    }}
+                                                                  >
+                                                                    Actions
+                                                                  </th>
+                                                                </tr>
+                                                              </thead>
+                                                              <tbody>
+                                                                {d.facilities.map((f) => (
+                                                                  <tr key={f.facility}>
+                                                                    <td>
+                                                                      <span className="facility-name-cell">
+                                                                        {f.facility}
+                                                                      </span>
+                                                                    </td>
+                                                                    <td>
+                                                                      <span
+                                                                        className={`severity-pill ${f.critical > 0
+                                                                          ? "severity-pill--critical"
+                                                                          : "severity-pill--zero"
+                                                                          }`}
+                                                                      >
+                                                                        {f.critical > 0
+                                                                          ? f.critical
+                                                                          : "-"}
+                                                                      </span>
+                                                                    </td>
+                                                                    <td>
+                                                                      <span className="stat-cell">
+                                                                        <span className="stat-dot stat-dot--open" />
+                                                                        {f.open}
+                                                                      </span>
+                                                                    </td>
+                                                                    <td>
+                                                                      <span className="stat-cell">
+                                                                        <span className="stat-dot stat-dot--resolved" />
+                                                                        {f.resolved}
+                                                                      </span>
+                                                                    </td>
+                                                                    <td>
+                                                                      <strong>{f.total}</strong>
+                                                                    </td>
+                                                                    <td className="table-action-cell">
+                                                                      <Button
+                                                                        size="sm"
+                                                                        kind="ghost"
+                                                                        hasIconOnly
+                                                                        renderIcon={ArrowRight}
+                                                                        iconDescription={`View issues in ${f.facility}`}
+                                                                        tooltipPosition="left"
+                                                                        onClick={() =>
+                                                                          handleNavigateToIssues(
+                                                                            f.facility,
+                                                                          )
+                                                                        }
+                                                                      />
+                                                                    </td>
+                                                                  </tr>
+                                                                ))}
+                                                              </tbody>
+                                                            </table>
+                                                          )}
+                                                        </div>
+                                                      </td>
+                                                    </tr>
+                                                  )}
+                                                </Fragment>
+                                              );
+                                            })}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  )}
+                                </TableExpandedRow>
+                              </Fragment>
+                            );
+                          })}
 
-                    {/* ================= Grand Total Summary Row ================= */}
-                    <TableRow className="grand-total-row">
-                      <TableCell />
-                      <TableCell>
-                        <strong>TOTAL (All Regions)</strong>
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`severity-pill ${
-                            tableGrandTotals.critical > 0
-                              ? "severity-pill--critical"
-                              : "severity-pill--zero"
-                          }`}
-                        >
-                          <strong>{tableGrandTotals.critical}</strong>
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="stat-cell">
-                          <span className="stat-dot stat-dot--open" />
-                          <strong>{tableGrandTotals.open}</strong>
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="stat-cell">
-                          <span className="stat-dot stat-dot--resolved" />
-                          <strong>{tableGrandTotals.resolved}</strong>
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className="total-pill">{tableGrandTotals.total}</span>
-                      </TableCell>
-                      <TableCell>
-                        <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>100.0%</span>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                          {/* ================= Grand Total Summary Row ================= */}
+                          <TableRow className="grand-total-row">
+                            <TableCell />
+                            <TableCell>
+                              <strong>TOTAL (All Regions)</strong>
+                            </TableCell>
+                            <TableCell>
+                              <span
+                                className={`severity-pill ${tableGrandTotals.critical > 0
+                                  ? "severity-pill--critical"
+                                  : "severity-pill--zero"
+                                  }`}
+                              >
+                                <strong>{tableGrandTotals.critical}</strong>
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="stat-cell">
+                                <span className="stat-dot stat-dot--open" />
+                                <strong>{tableGrandTotals.open}</strong>
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="stat-cell">
+                                <span className="stat-dot stat-dot--resolved" />
+                                <strong>{tableGrandTotals.resolved}</strong>
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className="total-pill">{tableGrandTotals.total}</span>
+                            </TableCell>
+                            <TableCell>
+                              <span style={{ fontSize: "0.8125rem", fontWeight: 700 }}>100.0%</span>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    )}
+                  </DataTable>
+                </div>
               )}
-            </DataTable>
-          </div>
-        )}
             </div>
           )}
         </div>
@@ -3022,7 +3043,7 @@ const IssueDashboard = () => {
           </PermissionGuard>
         )}
       </div>
-    </PermissionGuard>
+    </PermissionGuard >
   );
 };
 

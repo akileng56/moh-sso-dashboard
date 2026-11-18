@@ -22,6 +22,7 @@ import {
   useGetIssueByCodeQuery,
 } from "../api";
 import { PERMISSIONS, PermissionGuard, selectUser } from "@moh-sso/auth";
+import { PageShell } from "@moh-sso/ui";
 
 function getIssueCodeFromUrl(): string {
   if (typeof window === "undefined") return "";
@@ -748,57 +749,60 @@ const IssueTracker = () => {
   return (
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
       <div className="issue-tracker-page">
-        <div className="issue-label-container">
-          <div>
-            <h4 className="issue-label">Registered Issues</h4>
-            <p className="issue-subtitle">
-              Review, filter, assign, and resolve reported data quality issues.
-            </p>
+        <PageShell
+          title="Registered Issues"
+          subtitle="Review, filter, assign, and resolve reported data quality issues."
+        >
+          <div className="issue-label-container">
+            <div>
+              <h4 className="issue-label"></h4>
+              <p className="issue-subtitle"></p>
+            </div>
+
+            <div className="issue-toolbar-actions">
+              <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+                <Button
+                  size="sm"
+                  kind="tertiary"
+                  disabled={selectedIssueCodes.length === 0}
+                  onClick={() => setShowAssignModal(true)}
+                >
+                  {areAllSelectedAssigned ? "Re-assign Selected" : "Assign Selected"}{" "}
+                  {selectedIssueCodes.length > 0 ? `(${selectedIssueCodes.length})` : ""}
+                </Button>
+              </PermissionGuard>
+
+              <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
+                <Button size="sm" kind="ghost" renderIcon={Download} onClick={downloadTemplate}>
+                  Template
+                </Button>
+              </PermissionGuard>
+
+              <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
+                <Button
+                  size="sm"
+                  kind="secondary"
+                  renderIcon={Upload}
+                  onClick={() => setShowImportModal(true)}
+                >
+                  Import Issues
+                </Button>
+              </PermissionGuard>
+
+              <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
+                <Button
+                  size="sm"
+                  kind="primary"
+                  renderIcon={Add}
+                  className="dwh-btn-width"
+                  onClick={() => setShowModal(true)}
+                >
+                  New Issue
+                </Button>
+              </PermissionGuard>
+            </div>
           </div>
-
-          <div className="issue-toolbar-actions">
-            <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-              <Button
-                size="sm"
-                kind="tertiary"
-                disabled={selectedIssueCodes.length === 0}
-                onClick={() => setShowAssignModal(true)}
-              >
-                {areAllSelectedAssigned ? "Re-assign Selected" : "Assign Selected"}{" "}
-                {selectedIssueCodes.length > 0 ? `(${selectedIssueCodes.length})` : ""}
-              </Button>
-            </PermissionGuard>
-
-            <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
-              <Button size="sm" kind="ghost" renderIcon={Download} onClick={downloadTemplate}>
-                Template
-              </Button>
-            </PermissionGuard>
-
-            <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
-              <Button
-                size="sm"
-                kind="secondary"
-                renderIcon={Upload}
-                onClick={() => setShowImportModal(true)}
-              >
-                Import Issues
-              </Button>
-            </PermissionGuard>
-
-            <PermissionGuard permission={PERMISSIONS.issueTrackerWrite}>
-              <Button
-                size="sm"
-                kind="primary"
-                renderIcon={Add}
-                className="dwh-btn-width"
-                onClick={() => setShowModal(true)}
-              >
-                New Issue
-              </Button>
-            </PermissionGuard>
-          </div>
-        </div>
+        </PageShell>
         <div className="issue-tracker-assignments">
           <Tabs
             selectedIndex={activeTab === "assigned_to_me" ? 0 : 1}

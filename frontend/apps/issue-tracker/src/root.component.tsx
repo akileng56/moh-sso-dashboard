@@ -33,19 +33,14 @@ export function IssueTrackerRoot(props: MicrofrontendRuntimeProps) {
   return (
     <div className="moh-microfrontend-root issue-tracker-module">
       <BrowserRouter basename={basename}>
-        <PageShell
-          title="Issue Tracker"
-          subtitle="Monitor data quality, review summaries, and manage reported issues."
-        >
-          <Routes>
-            <Route path="dashboard/*" element={<IssueDashboard />} />
-            <Route path="dashboard" element={<IssueDashboard />} />
-            <Route path="issues/*" element={<IssueTracker />} />
-            <Route path="issues" element={<IssueTracker />} />
-            <Route index element={<IssueTrackerIndexRedirect />} />
-            <Route path="*" element={<IssueTracker />} />
-          </Routes>
-        </PageShell>
+        <Routes>
+          <Route path="dashboard/*" element={<IssueDashboard />} />
+          <Route path="dashboard" element={<IssueDashboard />} />
+          <Route path="issues/*" element={<IssueTracker />} />
+          <Route path="issues" element={<IssueTracker />} />
+          <Route index element={<IssueTrackerIndexRedirect />} />
+          <Route path="*" element={<IssueTracker />} />
+        </Routes>
       </BrowserRouter>
     </div>
   );
