@@ -26,7 +26,7 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "All public, protected and admin routes are registry-hosted with disablement checks; next build and verify the standalone package before publishing and selecting a version."
+      "next": "Standalone Announcements package and external consumer verified; next publish v0.1.0, verify its download/checksums, pin it and replace the retained host core with adapters."
     },
     {
       "id": "audit",

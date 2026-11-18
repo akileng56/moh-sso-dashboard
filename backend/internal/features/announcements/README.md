@@ -83,8 +83,7 @@ make -C backend contracts-check
 
 Next:
 
-1. Build and verify the standalone module and an external consumer.
-2. Publish a version, verify its download/checksums, pin it and replace the
+1. Publish a version, verify its download/checksums, pin it and replace the
    retained host implementation with adapters.
 
 Phase 3 tests cover required enabled handlers, disabled initialization without
@@ -94,3 +93,11 @@ authentication, separate read/write/publish permissions, attachment bytes and
 headers, and denial before persistence/storage access. The authenticated
 distribution fixture additionally verifies publication, stored attachment
 streaming, disablement and re-enablement with real Keycloak and PostgreSQL.
+
+Phase 4 adds `backend/modules/announcements` with the portable core and public
+contracts, UUID-only dependency, version reporting and portable regression
+tests. The dashboard retains its implementation pending release selection.
+`infra/scripts/test-announcements-package.py` rejects core drift, verifies the
+package outside the host tree with downloads/workspaces disabled and a private
+UUID-only cache, then builds and runs an independent public-API consumer. The
+PR workflow and automatic `modules-check` discovery include the package.

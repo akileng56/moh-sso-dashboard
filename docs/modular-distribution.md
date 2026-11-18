@@ -635,3 +635,40 @@ checks, CSV attachment uploads and both download paths, disablement of all
 three route groups, and re-enablement with records and attachment bytes intact.
 Existing manifest lifecycle, database/upload backup restore, core audit
 recording and scheduler stop/resume checks also passed.
+
+### Announcements phase 4 — standalone package and external consumer
+
+`backend/modules/announcements` contains the unchanged portable lifecycle,
+audience, persistence, attachment and notification contracts/core. It depends
+only on the standard library and UUID v1.6.0; its module path is
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements`.
+It exposes dependency version reporting with `dev` for local replacements.
+
+The package has no HTTP/SQLC/Keycloak/cache adapter, schema migration or worker.
+Existing host adapters retain authentication/authorization, storage, SQL
+transactions, email normalization, notification execution and core audit.
+The dashboard retains its current core until a published version is selected;
+the standalone verifier rejects drift between the two portable copies.
+
+The package verifier copies the module outside the host tree with workspaces
+and network downloads disabled. A private cache contains only the pinned UUID
+artifacts checked against reviewed checksums. It checks dependency graphs,
+build/vet/uncached race tests and unchanged metadata. An independent consumer
+builds and runs the public constructor, models, lifecycle, best-effort
+notifications, attachment streams/checksums, context and error propagation.
+CI runs the verifier; `modules-check` automatically discovers the new module.
+
+Announcements remains registry-hosted in the runtime catalogue. Publication,
+immutable tag verification, host Go pin selection and replacement of retained
+host implementation with adapters are the next phase. No host Go pin, runtime
+version, route, migration or worker ownership changed.
+
+Phase 4 verification passed isolated build/vet/uncached race checks with the
+exact UUID-only dependency graph, checksum verification, immutable dependency
+metadata and the independent public-API consumer. Portable tests cover audience
+filtering/deduplication, group fallbacks, health-context scope, lifecycle
+metadata, notification best-effort behavior, attachment checksums/orphan cleanup,
+configured upload limits and missing email-normalizer behavior. The retained
+host-core verifier, full backend suite, backend vet, all packaged-module checks,
+all 366 API contracts, catalogue validation/seven tests and workflow actionlint
+also passed. Publication and dashboard dependency integration were not performed.

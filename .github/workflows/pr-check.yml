@@ -153,6 +153,9 @@ jobs:
       - name: Portable Announcements contracts and core
         run: python3 infra/scripts/test-announcements-core.py
 
+      - name: Standalone Announcements package and external consumer
+        run: python3 infra/scripts/test-announcements-package.py
+
       - name: Standalone Report Scheduler schema and claims
         run: python3 infra/scripts/test-report-scheduler-package.py
 

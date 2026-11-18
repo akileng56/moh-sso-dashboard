@@ -82,3 +82,10 @@ safe errors, headers, byte ranges and conditional reads. The package does not
 contain map files: ship the three existing assets in the backend image and
 verify actual map responses before rollout. Publishing the library does not
 deploy the running dashboard.
+
+Announcements now has a verified standalone candidate in
+`backend/modules/announcements`. The dashboard still uses its retained host
+implementation and reports the host build version. Independent packaging does
+not publish a version, change the running registry version or select a host Go
+dependency. Publication, verified download/checksums and host pin/adapters are
+the next phase.
