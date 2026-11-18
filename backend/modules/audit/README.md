@@ -3,12 +3,9 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/audit`.
 Requires Go 1.25.4.
 
-This is the standalone release candidate prepared in extraction phase 3. It is
-independently buildable and tested, with its own dependency metadata. It has not
-been published or selected by the dashboard yet. The host retains its verified
-implementation until phase 4 publishes an immutable version and replaces that
-implementation with adapters and a reviewed dependency pin. The runtime catalogue
-therefore remains `registry-hosted` during this transition.
+Version `v0.1.0` is the first standalone Audit read release. Its Go module tag
+is `backend/modules/audit/v0.1.0`. Hosts select the immutable dependency version
+and supply their repository/cache implementations and HTTP authorization.
 
 ## Public API
 
@@ -69,6 +66,8 @@ encoding/write/flush failures. An external-package consumer test exercises publi
 ports and the read-to-export pipeline without host code.
 
 Host SQLC mapping, HTTP authorization, large-response headers and module
-disablement remain covered by dashboard tests. Phase 4 will verify a clean
-download of a published version, pin it in the host, replace retained code with
-adapters and verify runtime behavior against that selected dependency.
+disablement remain covered by dashboard tests. To integrate a release, verify a
+clean download, pin it in host dependency metadata, supply adapters and report
+`Version()` in the compiled inventory. Production builds use the selected
+dependency without local workspace replacements. Event recording and migrations
+remain host-owned.
