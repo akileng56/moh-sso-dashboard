@@ -67,5 +67,10 @@ list response for both warm and cold cache paths; routes and payload fields are
 unchanged.
 
 The feature remains registry-hosted and reports the backend build version.
-The next phases prepare and test a standalone module, then publish and pin a
-release with thin host adapters. No Audit module version has been published yet.
+The standalone release candidate now lives in
+[`backend/modules/audit`](../../../modules/audit/README.md), with its own dependency
+metadata, public APIs, portable tests and an external-consumer test. SQLC/cache
+implementations, HTTP permissions, event recording and schema migrations remain
+host-owned. The next phase publishes and pins a release, then replaces the
+retained portable host implementation with adapters. No Audit module version
+has been published yet.

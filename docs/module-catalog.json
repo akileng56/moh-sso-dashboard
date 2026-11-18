@@ -36,7 +36,7 @@
       "dependencies": ["primary-db", "redis", "rbac", "host-audit-recorder"],
       "workers": [],
       "migrations": "core",
-      "next": "Portable typed reader and export APIs isolated; prepare a standalone Audit read module. Host SQLC adapters, permissions, core event recording and migrations stay in the host."
+      "next": "Standalone release candidate prepared in backend/modules/audit; publish and pin a release, then replace retained host code with adapters. Core event recording and migrations stay in the host."
     },
     {
       "id": "auth",
