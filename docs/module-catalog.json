@@ -26,7 +26,7 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Separate audience, attachment and delivery ports; preserve public/protected/admin route groups and publication behavior."
+      "next": "Phase 1 audience/storage contracts and host adapters isolated; next remove SQLC/configuration and notification-payload coupling, then integrate all route groups into the registry before standalone packaging."
     },
     {
       "id": "audit",

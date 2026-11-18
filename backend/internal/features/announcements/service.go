@@ -14,23 +14,17 @@ import (
 	"github.com/moh-sso-dashboard/internal/config"
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	emailutil "github.com/moh-sso-dashboard/internal/email"
-	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
-	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	userRepository "github.com/moh-sso-dashboard/internal/features/users"
-	"github.com/moh-sso-dashboard/internal/keycloak"
 	models "github.com/moh-sso-dashboard/internal/model"
-	sharedservice "github.com/moh-sso-dashboard/internal/service"
-	"github.com/moh-sso-dashboard/internal/storage"
 	"github.com/moh-sso-dashboard/internal/utils"
 )
 
 type Service struct {
 	repo           Repository
-	userRepo       userRepository.UserRepository
-	rbacRepo       rbacfeature.Repository
-	healthContexts *healthcontextfeature.Service
-	notifications  sharedservice.NotificationsService
-	storage        storage.Storage
+	users          UserDirectory
+	groups         GroupDirectory
+	healthContexts HealthAudience
+	notifications  NotificationPublisher
+	storage        AttachmentStorage
 	cfg            *config.Config
 }
 
@@ -48,39 +42,15 @@ type AnnouncementEmailAttachmentLink struct {
 	URL         string
 }
 
-func NewService(
-	repo Repository,
-	userRepo userRepository.UserRepository,
-	notifications sharedservice.NotificationsService,
-	fileStorage storage.Storage,
-	cfg ...*config.Config,
-) *Service {
+// NewServiceWithPorts accepts narrow feature-owned dependency contracts.
+func NewServiceWithPorts(repo Repository, ports ServicePorts, cfg ...*config.Config) *Service {
 	var appConfig *config.Config
 	if len(cfg) > 0 {
 		appConfig = cfg[0]
 	}
-
-	return &Service{
-		repo:          repo,
-		userRepo:      userRepo,
-		notifications: notifications,
-		storage:       fileStorage,
-		cfg:           appConfig,
-	}
-}
-
-func (s *Service) SetRBACRepository(repo rbacfeature.Repository) {
-	if s == nil {
-		return
-	}
-	s.rbacRepo = repo
-}
-
-func (s *Service) SetHealthContextService(service *healthcontextfeature.Service) {
-	if s == nil {
-		return
-	}
-	s.healthContexts = service
+	return &Service{repo: repo, users: ports.Users, groups: ports.Groups,
+		healthContexts: ports.HealthContexts, notifications: ports.Notifications,
+		storage: ports.Storage, cfg: appConfig}
 }
 
 func (s *Service) ValidateGroupAudience(ctx context.Context, groupIDs []uuid.UUID) error {
@@ -92,7 +62,7 @@ func (s *Service) ValidateGroupAudience(ctx context.Context, groupIDs []uuid.UUI
 		return errors.New("announcement service is nil")
 	}
 
-	if s.rbacRepo == nil {
+	if s.groups == nil {
 		return errors.New("rbac repository is required for group audience")
 	}
 
@@ -107,7 +77,7 @@ func (s *Service) ValidateGroupAudience(ctx context.Context, groupIDs []uuid.UUI
 		}
 		seen[groupID] = struct{}{}
 
-		if _, err := s.rbacRepo.GetGroup(ctx, groupID.String()); err != nil {
+		if err := s.groups.ValidateGroup(ctx, groupID.String()); err != nil {
 			return fmt.Errorf("validate group audience [%s]: %w", groupID, err)
 		}
 	}
@@ -141,7 +111,7 @@ func (s *Service) ResolveHealthContextRecipients(
 	for _, userID := range userIDs {
 		wanted[strings.TrimSpace(userID)] = struct{}{}
 	}
-	users, err := s.userRepo.ListUsers()
+	users, err := s.users.ListUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list health context audience users: %w", err)
 	}
@@ -180,7 +150,7 @@ func (s *Service) resolveStoredHealthContextRecipients(
 	for _, userID := range userIDs {
 		wanted[strings.TrimSpace(userID)] = struct{}{}
 	}
-	users, err := s.userRepo.ListUsers()
+	users, err := s.users.ListUsers(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -1730,7 +1700,7 @@ func (s *Service) resolveAnnouncementEmailRecipients(
 		return nil, errors.New("announcement repository is nil")
 	}
 
-	if s.userRepo == nil {
+	if s.users == nil {
 		return nil, errors.New("user repository is nil")
 	}
 
@@ -1790,7 +1760,7 @@ func (s *Service) resolveAnnouncementEmailRecipients(
 func (s *Service) resolveAllUsersEmailRecipients(
 	ctx context.Context,
 ) ([]AnnouncementEmailRecipient, error) {
-	users, err := s.userRepo.ListUsers()
+	users, err := s.users.ListUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
@@ -1809,7 +1779,7 @@ func (s *Service) resolveSpecificUsersEmailRecipients(
 			continue
 		}
 
-		user, err := s.userRepo.GetUserByID(userID)
+		user, err := s.users.GetUserByID(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("get user by id %s: %w", userID.String(), err)
 		}
@@ -1841,7 +1811,7 @@ func (s *Service) resolveUsersByRealmRoles(
 			continue
 		}
 
-		users, err := s.userRepo.GetUsersByRealmRole(ctx, roleName)
+		users, err := s.users.GetUsersByRealmRole(ctx, roleName)
 		if err != nil {
 			return nil, fmt.Errorf("get users by realm role %q: %w", roleName, err)
 		}
@@ -1863,7 +1833,7 @@ func (s *Service) resolveUsersByClientAccess(
 	ctx context.Context,
 	clientIDs []uuid.UUID,
 ) ([]AnnouncementEmailRecipient, error) {
-	allUsers, err := s.userRepo.ListUsers()
+	allUsers, err := s.users.ListUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list users for client access resolution: %w", err)
 	}
@@ -1889,7 +1859,7 @@ func (s *Service) resolveUsersByClientAccess(
 			continue
 		}
 
-		assignments, err := s.userRepo.GetUserClientRoles(ctx, userID)
+		assignments, err := s.users.GetUserClientRoles(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("get user client roles for user %s: %w", userID, err)
 		}
@@ -1913,7 +1883,7 @@ func (s *Service) resolveUsersByRBACGroups(
 	ctx context.Context,
 	groupIDs []uuid.UUID,
 ) ([]AnnouncementEmailRecipient, error) {
-	if s.rbacRepo == nil {
+	if s.groups == nil {
 		return nil, errors.New("rbac repository is required for group audience resolution")
 	}
 
@@ -1924,13 +1894,13 @@ func (s *Service) resolveUsersByRBACGroups(
 			continue
 		}
 
-		members, err := s.rbacRepo.ListGroupMembers(ctx, groupID.String())
+		members, err := s.groups.ListGroupMembers(ctx, groupID.String())
 		if err != nil {
 			return nil, fmt.Errorf("list members for group %s: %w", groupID.String(), err)
 		}
 
 		for _, member := range members {
-			recipient, ok, err := s.announcementRecipientFromGroupMember(member)
+			recipient, ok, err := s.announcementRecipientFromGroupMember(ctx, member)
 			if err != nil {
 				return nil, err
 			}
@@ -1947,13 +1917,14 @@ func (s *Service) resolveUsersByRBACGroups(
 }
 
 func (s *Service) announcementRecipientFromGroupMember(
-	member rbacfeature.GroupMember,
+	ctx context.Context,
+	member AudienceGroupMember,
 ) (AnnouncementEmailRecipient, bool, error) {
 	userID := uuid.Nil
 	parsedUserID, err := uuid.Parse(strings.TrimSpace(member.UserID))
 	if err == nil && parsedUserID != uuid.Nil {
 		userID = parsedUserID
-		user, err := s.userRepo.GetUserByID(parsedUserID)
+		user, err := s.users.GetUserByID(ctx, parsedUserID)
 		if err != nil {
 			return AnnouncementEmailRecipient{}, false, fmt.Errorf("get group member user %s: %w", parsedUserID, err)
 		}
@@ -1982,7 +1953,7 @@ func (s *Service) announcementRecipientFromGroupMember(
 	}, true, nil
 }
 
-func announcementRecipientFromUser(user models.User) (AnnouncementEmailRecipient, bool) {
+func announcementRecipientFromUser(user AudienceUser) (AnnouncementEmailRecipient, bool) {
 	if !user.Enabled {
 		return AnnouncementEmailRecipient{}, false
 	}
@@ -2019,7 +1990,7 @@ func announcementRecipientFromUser(user models.User) (AnnouncementEmailRecipient
 }
 
 func uniqueAnnouncementRecipientsFromUsers(
-	users []models.User,
+	users []AudienceUser,
 ) []AnnouncementEmailRecipient {
 	seen := make(map[string]AnnouncementEmailRecipient)
 
@@ -2048,12 +2019,12 @@ func announcementRecipientMapToSlice(
 }
 
 func userHasAnyAnnouncementClientAccess(
-	assignments []keycloak.UserClientRoleAssignment,
+	assignments []ClientAccess,
 	clientIDSet map[string]struct{},
 ) bool {
 	for _, assignment := range assignments {
 		candidates := []string{
-			assignment.Id,
+			assignment.ID,
 			assignment.ClientID,
 		}
 

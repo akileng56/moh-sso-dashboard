@@ -181,14 +181,16 @@ func buildServices(deps serviceDependencies) services {
 		deps.Config,
 	)
 
-	announcementService := announcementfeature.NewService(
+	announcementService := announcementfeature.NewServiceWithPorts(
 		deps.Repositories.Announcements,
-		deps.Repositories.Users,
-		notificationsService,
-		deps.FileStorage,
+		announcementfeature.ServicePorts{
+			Users:         announcementfeature.NewUserDirectory(deps.Repositories.Users),
+			Groups:        announcementfeature.NewGroupDirectory(deps.Repositories.RBAC),
+			Notifications: notificationsService,
+			Storage:       deps.FileStorage,
+		},
 		deps.Config,
 	)
-	announcementService.SetRBACRepository(deps.Repositories.RBAC)
 
 	diseaseService := surveillancefeature.NewDiseaseService(
 		deps.Logger,

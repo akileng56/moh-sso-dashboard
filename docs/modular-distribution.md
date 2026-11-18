@@ -521,3 +521,39 @@ backup/restore, clean shutdown/restart recovery, module disablement, continued
 core audit recording and scheduler stop/resume. Disposable fixture containers
 and volumes were removed on completion. The library release and source push
 do not publish this image to a registry or deploy a running installation.
+
+
+## Announcements extraction: dependency boundary phase
+
+Announcements is the next selected extraction. Storage Locations, Document
+Templates and Documents are deferred and unchanged. Phase 1 introduces
+feature-owned user, group-member and client-access models, narrow audience and
+attachment-storage interfaces, and a single-operation notification publisher.
+The service no longer imports users, RBAC, health-context, Keycloak, shared
+notification-service or storage implementation packages directly; compatibility
+constructors and identity translations live in host adapters.
+
+Bootstrap composes these ports explicitly. Actor-authorized health-context
+resolution and stored-audience expansion remain distinct host operations.
+Existing enabled-user filtering, fallback group recipients, email deduplication,
+client matching, attachment checksums/orphan cleanup and best-effort delivery
+are preserved. Context-aware host calls receive request contexts; legacy user
+list/detail calls only reject cancellation before starting because their
+underlying signatures lack context support.
+
+The feature remains planned/host-wired in the catalogue. SQLC persistence,
+configuration, notification payload types, email normalization, HTTP policy and
+host delivery workers are not portable or transferred yet. Subsequent phases
+must isolate those models/values, register all public/protected/admin routes and
+verify disablement together, then build an independent module before release
+publication and host pinning.
+
+Phase 1 verification passed targeted Announcements/bootstrap/API race tests,
+the full backend suite, vet, existing independent-module checks, catalogue
+validation and its seven tests, and all 366 current OpenAPI endpoints.
+Audience/storage contracts also built and passed vet outside the host tree with
+only the existing UUID dependency and module downloads disabled. Regression
+tests exercised actor scope and contextual errors, user/group translation and
+filtering, both client identifiers, cancellation before legacy calls, attachment
+checksums and cleanup, notification payload forwarding, and permission denial
+before dependency access.
