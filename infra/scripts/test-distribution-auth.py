@@ -32,8 +32,8 @@ def run(*args, env=None, input=None):
     return result.stdout.strip()
 
 
-def request(url, *, method='GET', data=None, token=None, status=200, form=False):
-    headers = {}
+def request(url, *, method='GET', data=None, token=None, status=200, form=False, extra_headers=None):
+    headers = dict(extra_headers or {})
     if token:
         headers['Authorization'] = 'Bearer ' + token
     if data is not None:
@@ -188,6 +188,42 @@ def main():
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'admin-units' and item['version'] and item['enabled'] for item in modules), modules
+            # The fixture's warehouse uses its isolated backend database. Supply
+            # only the dimension contract used by Administrative Units.
+            warehouse_sql = '''CREATE SCHEMA IF NOT EXISTS dwh;
+                CREATE TABLE dwh.dim_org_hierarchy (
+                    dim_org_hierarchy_key bigint, org_unit_id text, org_unit_name text, level text,
+                    country_uid text, region_uid text, region text, district_uid text, district text,
+                    sub_county_uid text, sub_county text, division_uid text, division text,
+                    facility_uid text, facility_name text, row_version bigint, is_current boolean);
+                INSERT INTO dwh.dim_org_hierarchy
+                SELECT n, 'fixture-' || n, (ARRAY['Uganda','Central','District','LocalGovt','Subcounty','Hospital'])[n],
+                    n::text, 'ug', 'r1', 'Central', 'd1', 'District', 's1', 'Subcounty',
+                    'division1', 'Division', 'f1', 'Hospital', 1, true
+                FROM generate_series(1,6) AS n;'''
+            run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                '-d', 'sso_dashboard', '-v', 'ON_ERROR_STOP=1', input=warehouse_sql)
+            national_id = run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                '-d', 'sso_dashboard', '-At', '-c', "SELECT id FROM health_context_nodes WHERE code='UG' AND enabled=true")
+            assert national_id, 'National context must exist in the disposable fixture'
+            admin_unit_headers = {'X-Health-Context-ID': national_id}
+            admin_unit_paths = [('GET', 'orgunits'), ('GET', 'facilities'), ('GET', 'district'),
+                ('POST', 'subcounties'), ('POST', 'localgovt'), ('POST', 'districts'),
+                ('GET', 'region'), ('GET', 'national'), ('GET', 'hierarchy')]
+            admin_unit_reader = token('outsider')
+            admin_unit_data = {}
+            for method, suffix in admin_unit_paths:
+                url = api + '/api/v1/visualizer/adminunits/' + suffix
+                payload = {} if method == 'POST' else None
+                request(url, method=method, data=payload, status=401)
+                request(url, method=method, data=payload, token=token('map-denied'), status=403)
+                request(url, method=method, data=payload, token=admin, extra_headers=admin_unit_headers, status=403)
+                request(url, method=method, data=payload, token=admin_unit_reader, status=400)
+                response = request(url, method=method, data=payload, token=admin_unit_reader, extra_headers=admin_unit_headers)
+                assert response['data'], 'Expected warehouse fixture rows: ' + suffix
+                admin_unit_data[suffix] = response['data']
+            print('Administrative Units inventory, nine warehouse routes and authentication/context checks passed', flush=True)
             announcement_api = '/api/v1/admin/announcements'
             announcement = request(api + announcement_api, method='POST', token=admin, status=201,
                 data={'title': 'Module fixture', 'message': 'Registry delivery check', 'level': 'INFO',
@@ -350,7 +386,7 @@ def main():
             request(api + '/api/v1/report-scheduler', token=admin, status=403)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'))
             request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
-            backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler,announcements'
+            backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler,announcements,admin-units'
             path.write_text(json.dumps(model))
             run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
             api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
@@ -358,7 +394,7 @@ def main():
             admin = token('admin')
             modules = request(api + inventory, token=admin)['data']
             states = {item['id']: item['enabled'] for item in modules}
-            assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False, 'announcements': False}, states
+            assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False, 'announcements': False, 'admin-units': False}, states
             request(api + '/api/v1/admin/audit-logs/actions', token=admin, status=404)
             request(api + '/api/v1/geojson/geo_water', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=admin, status=404)
@@ -372,6 +408,11 @@ def main():
             request(api + announcement_api, method='POST', data={}, token=admin, status=404)
             request(api + announcement_api + '/' + announcement_id + '/publish',
                     method='POST', data={}, token=admin, status=404)
+            for method, suffix in admin_unit_paths:
+                url = api + '/api/v1/visualizer/adminunits/' + suffix
+                payload = {} if method == 'POST' else None
+                request(url, method=method, data=payload, token=admin, extra_headers=admin_unit_headers, status=404)
+                request(url, method=method, data=payload, status=404)
             disabled_runtime = scheduler_runtime()
             assert disabled_runtime.split('|')[0] == enabled_runtime.split('|')[0], 'Disabled scheduler started a new worker'
 
@@ -401,6 +442,14 @@ def main():
                 assert request(api + download, token=admin) == attachment_text
             assert any(item['id'] == announcement_id for item in request(api + '/api/v1/announcements/public')['data'])
             print('Announcements disablement removes every route group; re-enabling preserves records and attachments', flush=True)
+            assert any(item['id'] == 'admin-units' and item['enabled'] for item in modules), modules
+            admin_unit_reader = token('outsider')
+            for method, suffix in admin_unit_paths:
+                response = request(api + '/api/v1/visualizer/adminunits/' + suffix,
+                    method=method, data={} if method == 'POST' else None,
+                    token=admin_unit_reader, extra_headers=admin_unit_headers)
+                assert response['data'] == admin_unit_data[suffix], 'Administrative Units data changed after re-enablement'
+            print('Administrative Units disablement removes all nine routes; re-enabling preserves warehouse reads', flush=True)
             print('Module disablement preserves core audit recording; scheduler worker stops and resumes', flush=True)
             print('PASS: real Keycloak authentication, module inventory, admin/role authorization, reviewed import, '
                   'lifecycle activation, idempotence, backup/restore, startup preservation, clean shutdown, restart recovery and module disablement')

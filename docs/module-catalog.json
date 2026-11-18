@@ -3,13 +3,13 @@
   "backend": [
     {
       "id": "admin_units",
-      "stage": "planned",
+      "stage": "registry-hosted",
       "scope": "Administrative geography API",
-      "moduleId": "",
+      "moduleId": "admin-units",
       "dependencies": ["health_context", "warehouse"],
       "workers": [],
       "migrations": "core",
-      "next": "Portable models, repository, hierarchy and visibility ports isolated behind host adapters; next register all nine routes and verify disablement and contextual permissions."
+      "next": "Nine routes are registry-hosted with system, permission and health-context guards; next build and verify the standalone package."
     },
     {
       "id": "announcements",

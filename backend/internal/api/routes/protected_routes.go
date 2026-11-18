@@ -31,9 +31,7 @@ func RegisterProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	registerSessionRoutes(protected, deps)
 	registerNotificationRoutes(protected, deps)
 
-	contextScoped := protected.Group("")
-	contextScoped.Use(middleware.RequireSystem(authz.SystemDataStatistics))
-	contextScoped.Use(deps.HealthContexts.RequireAccessibleSelection())
+	contextScoped := ContextScopedGroup(protected, deps.HealthContexts)
 	registerDocumentRoutes(contextScoped, deps)
 	registerDataQualityRoutes(contextScoped, deps)
 	registerVisualiserRoutes(contextScoped, deps)
@@ -90,4 +88,12 @@ func registerRBACProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) 
 
 func registerNotificationRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	notificationsfeature.RegisterProtectedRoutes(protected, deps.Notifications)
+}
+
+// ContextScopedGroup retains the shared system and selected-context boundary.
+func ContextScopedGroup(protected *gin.RouterGroup, contexts *healthcontextfeature.Handler) *gin.RouterGroup {
+	group := protected.Group("")
+	group.Use(middleware.RequireSystem(authz.SystemDataStatistics))
+	group.Use(contexts.RequireAccessibleSelection())
+	return group
 }

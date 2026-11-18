@@ -66,7 +66,7 @@ class Coverage(unittest.TestCase):
             catalog.load_catalog(self.root)
 
     def test_planned_feature_cannot_claim_a_runtime_module(self):
-        self.update(lambda data: data['backend'][0].update(moduleId='not_registered'))
+        self.update(lambda data: data['backend'][0].update(stage='planned', moduleId='not_registered'))
         with self.assertRaisesRegex(ValueError, 'Only registry-integrated'):
             catalog.load_catalog(self.root)
 

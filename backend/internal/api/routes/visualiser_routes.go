@@ -9,7 +9,8 @@ import (
 	"github.com/moh-sso-dashboard/internal/middleware"
 )
 
-func registerVisualiserRoutes(protected *gin.RouterGroup, deps Dependencies) {
+// VisualiserGroup retains the common read permissions for visualizer consumers.
+func VisualiserGroup(protected *gin.RouterGroup) *gin.RouterGroup {
 	visualiser := protected.Group("/visualizer")
 	visualiser.Use(middleware.RequireAnyPermission(
 		authz.PermissionReportBrowserRead,
@@ -17,6 +18,13 @@ func registerVisualiserRoutes(protected *gin.RouterGroup, deps Dependencies) {
 		authz.PermissionDataQualityRead,
 		authz.PermissionSurveillanceRead,
 	))
-	adminunitsfeature.RegisterVisualiserRoutes(visualiser, deps.AdminUnits)
+	return visualiser
+}
+
+func registerVisualiserRoutes(protected *gin.RouterGroup, deps Dependencies) {
+	visualiser := VisualiserGroup(protected)
+	if deps.Modules == nil {
+		adminunitsfeature.RegisterVisualiserRoutes(visualiser, deps.AdminUnits)
+	}
 	visualiserfeature.RegisterRoutes(visualiser, deps.Visualiser)
 }

@@ -1,8 +1,10 @@
 # Administrative Units extraction
 
-Phase 1 isolates the portable contracts and behavior. The feature remains
-host-wired and has not yet entered the module registry or been independently
-published.
+The feature is registry-hosted as `admin-units`, reporting the host build
+version pending standalone packaging. All nine existing routes are registered
+together. Enabled initialization requires the Administrative Units and shared
+health-context handlers. Disabled initialization skips both requirements.
+The portable contracts and behavior were isolated in phase 1.
 
 | Source | Responsibility |
 | --- | --- |
@@ -57,5 +59,22 @@ Host tests cover all nine HTTP routes across unselected, restricted, national,
 invalid, missing-adapter, unmapped, forbidden and failed lookup contexts, plus
 health-context value conversion and error and request-context forwarding.
 
-Next: registry integration and disablement/permission checks, then standalone
-package verification and finally version publication/pinning with host adapters.
+Phase 2 moves registration into the module registry. Legacy registration runs
+only when no registry is supplied. The registry and legacy paths share the
+same system/health-context and Visualizer permission group helpers; enabling
+the module cannot skip those guards. `DISABLED_MODULES=admin-units` removes
+all nine routes after restart, preserving unrelated Visualizer endpoints,
+shared health-context services and existing warehouse data. There are no
+module-owned workers.
+
+Registry regressions cover exact legacy/registry route parity, production
+router disablement for all nine endpoints, unchanged unrelated Visualizer
+routes, initialization/inventory, all four alternative read permissions,
+system denial, missing/invalid/inaccessible context selection, provider
+failures and scoped row filtering. Disabled requests touch no module or
+health-context dependencies. The authenticated distribution fixture seeds only
+its disposable warehouse dimension and exercises real Keycloak authentication,
+selected national context, lookups, disablement and re-enablement.
+
+Next: standalone package and external-consumer verification, then publication
+and host dependency pinning/adapters.

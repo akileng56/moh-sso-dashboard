@@ -750,3 +750,42 @@ Model fields/JSON tags and the hierarchy algorithm were compared with the
 preceding commit and are unchanged. SQL implementation bodies match after
 trailing whitespace cleanup in three moved SELECT lines. Registry
 integration, standalone publication and deployment were not performed.
+
+### Administrative Units phase 2 — registry integration and disablement
+
+Administrative Units is registry-hosted as `admin-units`, reporting the host
+build version until independently packaged/published. Enabled initialization
+requires both its handler and the shared health-context handler. Disabled
+initialization and registration are skipped.
+
+All nine `/api/v1/visualizer/adminunits/*` routes now enter through the
+registry. Legacy registration is gated on the absence of a registry. Shared
+host route-group helpers retain the same Data Statistics system requirement,
+health-context selection validation and OR read permissions (report browser,
+documents, data quality or surveillance). Unrelated Visualizer routes retain
+their registration and guards.
+
+`DISABLED_MODULES=admin-units` removes all nine routes after a backend restart.
+The module owns no workers. Shared health-context services, warehouse rows and
+schema ownership remain unchanged; re-enablement restores existing lookups.
+
+Unit regressions exercise production-router route parity and disabled 404s,
+unrelated Visualizer preservation, required enabled dependencies, host version
+inventory, anonymous/system/permission denials, all read alternatives, selected
+context requirements/errors and scoped rows. The real authenticated fixture
+creates a small warehouse dimension only in its disposable database and checks
+all nine reads, context selection, disablement and data parity after restart.
+The catalogue now marks the feature registry-hosted. A catalogue negative test
+now explicitly marks its malformed entry planned instead of depending on the
+first feature's current stage. Standalone packaging remains the next phase.
+
+Phase 2 verification passed the portable-core dependency/build/vet/uncached
+race check, targeted Administrative Units/health-context/bootstrap/API race
+tests, the full backend suite and vet, all existing packaged-module checks and
+366 API contracts, catalogue validation/seven tests and workflow actionlint.
+The standard production Dockerfile built successfully. Its disposable real
+Keycloak/PostgreSQL fixture passed all nine warehouse reads, system and
+authentication denial, required/selected national context, inventory,
+disablement and re-enablement with identical data. Backup/restore, core audit
+recording and scheduler stop/resume checks also passed. No production SQL,
+migrations, dependency pins or worker ownership changed.

@@ -18,7 +18,7 @@ import (
 	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 )
 
-const otherAnnouncementModules = "metrics,audit,geojson,report-scheduler"
+const otherAnnouncementModules = "metrics,audit,geojson,report-scheduler,admin-units"
 
 type announcementRouteRepository struct {
 	announcement.Repository

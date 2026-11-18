@@ -12,6 +12,7 @@ inspect the modules actually compiled into the running backend.
 | geojson | Permission-guarded static map assets | Selected Go dependency version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 | announcements | Public, audience and administrative announcements, including attachments | Selected Go dependency version | All public, protected and admin announcement routes are omitted; shared delivery workers continue |
+| admin-units | Organizational units, facilities and hierarchy lookup | Host build version (not separately published yet) | All nine Administrative Units routes are omitted; Visualizer routes, health-context services and warehouse data remain |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -91,3 +92,12 @@ storage adapters, HTTP authorization/rate limits, email normalization, shared
 notification workers and audit recording. A version change requires reviewing
 the Go pin/checksums and rebuilding the backend image. Publishing the module
 does not deploy a running installation.
+
+
+Administrative Units is registry-hosted under `admin-units`. Set
+`DISABLED_MODULES=admin-units` and restart/recreate the backend to omit all nine
+`/api/v1/visualizer/adminunits/*` endpoints. It owns no workers and does not
+modify warehouse data or schemas. Re-enable and restart to restore existing
+lookups. Enabled registration retains the same system access, selected health
+context and read-permission alternatives as the legacy route path. Other
+Visualizer routes retain their registration and guards.

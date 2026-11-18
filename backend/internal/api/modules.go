@@ -8,6 +8,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	hostroutes "github.com/moh-sso-dashboard/internal/api/routes"
+	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
 	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
@@ -15,6 +17,7 @@ import (
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
+	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
 	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 	auditmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
@@ -26,7 +29,7 @@ import (
 // NewModuleRegistry is the distribution's explicit composition root. Legacy
 // features enter this inventory only as their registration is migrated.
 func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.Limiter, scheduler *reportschedulerfeature.Worker) (*module.Registry, error) {
-	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true, "report-scheduler": true, "announcements": true}
+	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true, "report-scheduler": true, "announcements": true, "admin-units": true}
 	for _, id := range strings.Split(disabled, ",") {
 		id = strings.TrimSpace(id)
 		if id == "" {
@@ -106,6 +109,23 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			}
 			if routes.Admin != nil {
 				announcementfeature.RegisterAdminRoutes(routes.Admin, handlers.Announcements, limiter)
+			}
+		},
+	}, module.Definition{
+		Info: module.Info{ID: "admin-units", Version: version.Get().Version, Enabled: enabled["admin-units"]},
+		Initialize: func(context.Context) (module.Stop, error) {
+			if handlers.AdminUnits == nil {
+				return nil, errors.New("administrative units handler is required")
+			}
+			if handlers.HealthContexts == nil {
+				return nil, errors.New("health-context handler is required for administrative units")
+			}
+			return nil, nil
+		},
+		Register: func(routes module.Routes) {
+			if routes.Protected != nil {
+				scoped := hostroutes.ContextScopedGroup(routes.Protected, handlers.HealthContexts)
+				adminunitsfeature.RegisterVisualiserRoutes(hostroutes.VisualiserGroup(scoped), handlers.AdminUnits)
 			}
 		},
 	})
