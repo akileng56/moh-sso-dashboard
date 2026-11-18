@@ -3,10 +3,10 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements`.
 Requires Go 1.25.4 and `github.com/google/uuid v1.6.0`.
 
-This is the standalone package prepared for its first release. No version is
-published or selected by the dashboard yet. Local consumers report `dev`.
-The dashboard retains the matching implementation and reports its host build
-version until a verified release is pinned in the integration phase.
+Version `v0.1.0` is published under `backend/modules/announcements/v0.1.0`.
+The dashboard selects this immutable Go dependency with reviewed checksums.
+Hosts supply persistence, identity, storage, normalization and notification
+adapters. Local/unversioned consumers report `dev`.
 
 ## Public API
 
@@ -83,5 +83,8 @@ builds, vets and runs `testdata/consumer/main.go` in a separate module using
 only public APIs. The consumer exercises lifecycle, notifications, nullable
 values, attachment upload/download and repository error propagation.
 
-Until host integration, the verifier rejects changes that cause the retained
-portable host implementation and extracted implementation to drift.
+The dashboard integration uses aliases and adapters; no retained host core
+remains. To verify the published dependency with a fresh module cache and no
+replacement, run `python3 infra/scripts/test-announcements-release.py`.
+This release check requires network access and verifies downloaded checksums,
+selected version, source parity and an independent consumer.

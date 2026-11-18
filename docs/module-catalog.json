@@ -13,7 +13,7 @@
     },
     {
       "id": "announcements",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Announcements and audience delivery",
       "moduleId": "announcements",
       "dependencies": [
@@ -26,7 +26,7 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Standalone Announcements package and external consumer verified; next publish v0.1.0, verify its download/checksums, pin it and replace the retained host core with adapters."
+      "next": "Maintain host SQLC, identity, storage, HTTP and notification adapters; release core changes independently and select reviewed Go pins."
     },
     {
       "id": "audit",

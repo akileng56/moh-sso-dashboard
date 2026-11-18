@@ -14,8 +14,8 @@ import (
 	"github.com/moh-sso-dashboard/internal/config"
 	announcement "github.com/moh-sso-dashboard/internal/features/announcements"
 	"github.com/moh-sso-dashboard/internal/middleware"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 )
 
 const otherAnnouncementModules = "metrics,audit,geojson,report-scheduler"
@@ -74,7 +74,7 @@ func TestAnnouncementsInitializationAndVersion(t *testing.T) {
 		}
 		defer stop(context.Background())
 		for _, item := range registry.Inventory() {
-			if item.ID == "announcements" && (item.Enabled || item.Version != version.Get().Version) {
+			if item.ID == "announcements" && (item.Enabled || item.Version != announcementmodule.Version()) {
 				t.Fatalf("inventory: %+v", item)
 			}
 		}
@@ -109,7 +109,7 @@ func TestAnnouncementsProductionRouterDisablement(t *testing.T) {
 			for _, item := range registry.Inventory() {
 				if item.ID == "announcements" {
 					found = true
-					if item.Enabled != (mode == "enabled") || item.Version != version.Get().Version {
+					if item.Enabled != (mode == "enabled") || item.Version != announcementmodule.Version() {
 						t.Fatalf("inventory: %+v", item)
 					}
 				}

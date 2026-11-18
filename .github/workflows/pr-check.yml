@@ -150,9 +150,6 @@ jobs:
       - name: Standalone GeoJSON package
         run: python3 infra/scripts/test-geojson-package.py
 
-      - name: Portable Announcements contracts and core
-        run: python3 infra/scripts/test-announcements-core.py
-
       - name: Standalone Announcements package and external consumer
         run: python3 infra/scripts/test-announcements-package.py
 

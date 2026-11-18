@@ -83,12 +83,8 @@ func TestHostEmailNormalizerMatchesExistingPolicyAndPortableCoreFailsClosed(t *t
 	if _, err := NewEmailAttachmentNormalizer(cfg).NormalizeAttachments([]Attachment{{FileName: "x.pdf", Data: []byte("too large")}}); err == nil {
 		t.Fatal("host attachment limits bypassed")
 	}
-	core := NewServiceWithSettings(nil, ServicePorts{}, nil)
-	if _, err := core.normalizeAnnouncementEmailOptions(AnnouncementEmailOptions{Attachments: items, IncludeAttachmentsInEmail: true}); err == nil {
-		t.Fatal("missing email policy silently accepted")
-	}
 	host := NewServiceWithPorts(nil, ServicePorts{}, cfg)
-	if host.emailAttachments == nil {
+	if host.ports.EmailAttachments == nil {
 		t.Fatal("host constructor omitted normalization adapter")
 	}
 }
@@ -119,8 +115,11 @@ func TestSettingsExcludeSecretsAndPreserveDecisionValues(t *testing.T) {
 	if AnnouncementSettings(nil) != nil {
 		t.Fatal("nil settings changed default behavior")
 	}
-	for _, event := range []announcementEvent{AnnouncementCreated, AnnouncementUpdated, AnnouncementDeleted, AnnouncementArchived, AnnouncementScheduled, AnnouncementPublished, AnnouncementDrafted} {
-		host := models.NotificationType(event)
+	for _, event := range []interface {
+		Title() string
+		Severity() string
+	}{AnnouncementCreated, AnnouncementUpdated, AnnouncementDeleted, AnnouncementArchived, AnnouncementScheduled, AnnouncementPublished, AnnouncementDrafted} {
+		host := models.NotificationType(reflect.ValueOf(event).String())
 		if event.Title() != host.Title() || event.Severity() != host.Severity() {
 			t.Fatalf("event labels changed: %s", event)
 		}

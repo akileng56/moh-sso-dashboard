@@ -11,7 +11,7 @@ inspect the modules actually compiled into the running backend.
 | audit | Audit read, metrics and export APIs | Selected Go dependency version | Audit read routes are omitted; core event recording continues |
 | geojson | Permission-guarded static map assets | Selected Go dependency version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
-| announcements | Public, audience and administrative announcements, including attachments | Host build version (not separately published yet) | All public, protected and admin announcement routes are omitted; shared delivery workers continue |
+| announcements | Public, audience and administrative announcements, including attachments | Selected Go dependency version | All public, protected and admin announcement routes are omitted; shared delivery workers continue |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
 comma-separated list, such as `audit,geojson`, in the backend environment and
@@ -83,9 +83,11 @@ contain map files: ship the three existing assets in the backend image and
 verify actual map responses before rollout. Publishing the library does not
 deploy the running dashboard.
 
-Announcements now has a verified standalone candidate in
-`backend/modules/announcements`. The dashboard still uses its retained host
-implementation and reports the host build version. Independent packaging does
-not publish a version, change the running registry version or select a host Go
-dependency. Publication, verified download/checksums and host pin/adapters are
-the next phase.
+Announcements selects `v0.1.0` from
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements`, published
+under `backend/modules/announcements/v0.1.0`. Its inventory version comes from
+the selected dependency. The host retains SQLC/persistence mapping, identity and
+storage adapters, HTTP authorization/rate limits, email normalization, shared
+notification workers and audit recording. A version change requires reviewing
+the Go pin/checksums and rebuilding the backend image. Publishing the module
+does not deploy a running installation.

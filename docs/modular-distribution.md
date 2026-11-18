@@ -672,3 +672,43 @@ configured upload limits and missing email-normalizer behavior. The retained
 host-core verifier, full backend suite, backend vet, all packaged-module checks,
 all 366 API contracts, catalogue validation/seven tests and workflow actionlint
 also passed. Publication and dashboard dependency integration were not performed.
+
+### Announcements phase 5 — publication and pinned host integration
+
+Published `backend/modules/announcements/v0.1.0` upstream from the verified
+phase-4 commit `e384437e`. The host selects
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0`
+with Go checksum verification and no local replacement. Runtime inventory
+reports the selected dependency version rather than the host build version.
+
+The retained models, contracts, lifecycle, audience and attachment core have
+been removed from the host. Compatibility aliases point to the selected
+package; a thin composition wrapper embeds its service. Existing startup-only
+setters recompose ports before serving requests. SQLC/postgres operations,
+mapping, identity/storage adapters, HTTP permissions/rate limits, normalization,
+shared delivery workers, core audit recording and migrations remain host-owned.
+
+Portable business regression tests remain in the independent module. Host
+tests retain SQLC/model and wire-payload regression coverage and add public
+delegation/compatibility composition checks. CI runs the standalone package
+verifier and packaged-module checks. The obsolete retained-core verifier was
+removed.
+
+`infra/scripts/test-announcements-release.py` downloads v0.1.0 into a fresh
+module cache, verifies reviewed host checksums and absence of replacements,
+builds/vets/runs a separate consumer with race instrumentation and checks its
+reported dependency version. It compares all shipped Go sources to the release.
+This explicit publication check requires network access; the package verifier
+continues to run with downloads disabled.
+
+Phase 5 verification passed the fresh-cache published consumer and checksum/
+source-parity check; the isolated package build/vet/uncached race check; targeted
+Announcements/bootstrap/API race tests; the full backend suite and vet; all
+packaged-module checks and 366 API contracts; catalogue validation/seven tests;
+32 CD tests and workflow actionlint. The standard production Dockerfile built
+successfully using the published dependency. Its disposable real-Keycloak/
+PostgreSQL fixture verified inventory v0.1.0, permissions, publication, both
+stored attachment download paths, all-group disablement and re-enablement with
+records/bytes preserved, backup/restore, core audit recording and scheduler
+stop/resume. SQL definitions, migrations and generated SQLC files are unchanged.
+The release tag is upstream; publication does not deploy the backend.

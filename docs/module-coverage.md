@@ -11,7 +11,7 @@ Registry integration does not imply independent Go packaging. Planned domains ar
 | Feature | Stage | Runtime ID | Scope | Dependencies | Workers | Migration owner | Next work |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | admin_units | planned | — | Administrative geography API | health_context, primary-db | none | core | Inject health-context visibility and administrative-geography repository ports before registry migration. |
-| announcements | registry-hosted | announcements | Announcements and audience delivery | users, rbac, health_context, email, notifications, blob-storage | none | core | Standalone Announcements package and external consumer verified; next publish v0.1.0, verify its download/checksums, pin it and replace the retained host core with adapters. |
+| announcements | published | announcements | Announcements and audience delivery | users, rbac, health_context, email, notifications, blob-storage | none | core | Maintain host SQLC, identity, storage, HTTP and notification adapters; release core changes independently and select reviewed Go pins. |
 | audit | published | audit | Audit read, metrics and export APIs only | primary-db, redis, rbac, host-audit-recorder | none | core | Maintain host SQLC/cache/HTTP adapters and core event recording/migrations; release Audit read changes independently and update the reviewed Go pin. |
 | auth | core | — | OIDC login, callback and token lifecycle | keycloak, authsession, host-audit-recorder | none | core | Keep authentication in the trusted host; extensions consume authenticated groups and injected identity. |
 | authsession | core | — | Opaque browser-session backing store | redis | none | none | Retain with authentication; do not expose stored tokens through module contracts. |

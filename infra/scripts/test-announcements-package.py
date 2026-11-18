@@ -24,13 +24,6 @@ def main():
     with tempfile.TemporaryDirectory(prefix='moh-announcements-package-') as tmp:
         root = Path(tmp)
         standalone = root / 'module'
-        # During extraction the host retains the implementation until a reviewed
-        # release can be pinned. Reject drift between both copies in this phase.
-        host = ROOT / 'backend/internal/features/announcements'
-        for name in ('models.go', 'repository.go', 'notification_port.go', 'settings.go',
-                     'ports.go', 'service.go', 'attachment_service.go', 'inputs.go', 'values.go',
-                     'core_portable_test.go'):
-            assert (host / name).read_bytes() == (MODULE / name).read_bytes(), 'Retained core drift: ' + name
         shutil.copytree(MODULE, standalone)
         env = {**os.environ, 'GOWORK': 'off', 'GOTOOLCHAIN': 'local',
                'GOPROXY': 'off', 'GOMODCACHE': str(root / 'private-module-cache')}

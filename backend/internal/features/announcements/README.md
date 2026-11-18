@@ -1,103 +1,51 @@
-# Announcements extraction
+# Announcements host adapters
 
-Announcements is registry-hosted under runtime ID `announcements`. It reports
-the host build version until separately published. All 26 public, protected
-and admin routes (including attachment downloads and writes) are registered
-together. `DISABLED_MODULES=announcements` omits them after a backend restart.
-The legacy route path remains available only when no registry is supplied.
+The host selects `github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0`
+with reviewed checksums and no local replacement. Runtime inventory reports the
+selected dependency version. The release tag is
+`backend/modules/announcements/v0.1.0`.
 
-Disablement preserves records and stored attachments. Shared notification
-workers, queued deliveries, core audit recording and schema ownership remain
-with the host; disabling Announcements does not cancel pending notifications.
+## Boundaries
 
-## Portable contracts and service
-
-Phase 2 removes host model, SQLC, configuration, email and utility imports from
-the announcement service and attachment orchestration.
-
-| Source | Responsibility |
+| Source | Host responsibility |
 | --- | --- |
-| `models.go` | Feature-owned announcements, attachments, enums, statistics and persistence inputs |
-| `inputs.go`, `values.go` | Service inputs, recipient/context models and input value normalization |
-| `repository.go` | All 53 persistence operations using feature-owned values |
-| `ports.go` | User/group/context audience contracts and stream-based attachment storage |
-| `notification_port.go` | Feature-owned notifications, delivery requests, attachments, channels and publisher/normalizer contracts |
-| `settings.go` | Only non-secret values used for branding, URLs, SMS and attachment decisions |
-| `service.go`, `attachment_service.go` | Portable business, audience, attachment and delivery orchestration |
+| `contracts.go` | Compatibility aliases to published types, ports, inputs, enums and notification constants |
+| `service_host.go` | Compose and embed the selected core; no lifecycle or audience implementation remains |
+| `ports_host.go` | Map users/groups, snapshot non-secret settings, retain configuration constructors and startup setters |
+| `repository_host.go`, `repository_postgres.go` | SQLC persistence contract, existing SQL queries and transactions |
+| `repository_adapter.go`, `mapper_postgres.go` | Translate SQLC records into selected package models and back |
+| `delivery_host.go` | Map notification payloads and delegate existing host email normalization |
+| `handler.go`, `dto.go`, `mapper.go`, `routes.go` | HTTP DTOs/responses, authorization, route contracts and rate limits |
 
-Standard-library `sql.NullString`/`sql.NullTime` and UUID nullable values remain
-value types in the contract to preserve null versus zero semantics. No generated
-SQLC type alias, PostgreSQL driver, host model or host configuration is exposed.
-Unknown enum strings and invalid-but-nonzero nullable values are preserved by
-persistence translation rather than silently normalized.
+`Service` embeds the published service. Compatibility setters rebuild its
+composition from the same repository, settings and selected ports. They are
+startup-only and run before requests/workers begin; they are not runtime
+configuration or concurrent mutation APIs. Prefer supplying `ServicePorts`
+when dependencies are already available.
 
-`NewServiceWithSettings` composes the portable service.
-`NotificationPublisher.Publish` accepts only the feature's own payload.
-`EmailAttachmentNormalizer` delegates attachment validation and normalization;
-when normalization is required, a missing adapter fails closed.
+All 26 public/protected/admin routes remain registered as one module.
+`DISABLED_MODULES=announcements` removes all these routes after restart,
+including both attachment download paths. Re-enabling restores access to
+existing records and objects. Shared notification workers, queued deliveries,
+audit recording and migrations retain their host lifecycle.
 
-## Host adapters
-
-`repository_host.go` retains the SQLC-side contract.
-`repository_adapter.go` and `mapper_postgres.go` translate records, pagination,
-lifecycle inputs, status values and statistics. The existing SQL queries,
-transactions and underlying repository method bodies remain unchanged;
-`NewAnnouncementRepository` wraps that implementation in the adapter.
-
-`delivery_host.go` translates notification envelopes, all delivery channels,
-templates, recipients, schedules, retries and attachment representations to the
-existing host service. It delegates attachment normalization to the existing
-email policy, preserving validation and size/type limits. Notification errors
-remain best effort in the announcement service.
-
-`ports_host.go` retains `NewService`, `NewServiceWithPorts` and the existing
-RBAC/health-context setters. It builds the non-secret settings snapshot and
-adapts identity dependencies. Bootstrap explicitly wraps the host notifier.
-Context-aware host calls receive request contexts; legacy user list/detail
-operations can only reject cancellation before they start because their host
-signatures lack contexts.
-
-The host retains HTTP DTOs/mapping, all public/protected/admin routes,
-permissions, rate limits, contextual authorization, storage providers, SQLC
-persistence, migrations, core audit recording and delivery workers.
-Storage Locations, Document Templates and Documents remain deferred.
-
-## Verification and next phases
-
-The isolated verifier copies only portable source files outside the dashboard,
-checks that the dependency graph contains only its temporary module and UUID,
-and runs build/vet/uncached race checks with downloads disabled.
-It tests create/publish flows, delivery metadata, repository errors and the
-email normalization boundary without host files. The PR workflow runs it.
-
-Host tests additionally cover all 20 model translations in both nullable
-states, future enum values, collection nil/empty distinctions, context/error
-forwarding, notification wire and byte payload parity, schedules/channels,
-attachment normalization, secret exclusion and existing audience/storage behavior.
+## Verification
 
 ```sh
-python3 infra/scripts/test-announcements-core.py
+python3 infra/scripts/test-announcements-package.py
+python3 infra/scripts/test-announcements-release.py
 go -C backend test -race ./internal/features/announcements ./internal/bootstrap ./internal/api
-make -C backend contracts-check
+make -C backend modules-check contracts-check
 ```
 
-Next:
+The package verifier uses an isolated UUID-only cache with downloads disabled.
+The release verifier intentionally downloads v0.1.0 into a fresh cache, validates
+the host checksums, rejects replacements and builds/runs an independent public
+consumer that must report v0.1.0. It also compares the shipped Go sources.
 
-1. Publish a version, verify its download/checksums, pin it and replace the
-   retained host implementation with adapters.
-
-Phase 3 tests cover required enabled handlers, disabled initialization without
-dependencies, host version inventory, exact legacy/registry route parity,
-absence of every disabled route in the production router, public access,
-authentication, separate read/write/publish permissions, attachment bytes and
-headers, and denial before persistence/storage access. The authenticated
-distribution fixture additionally verifies publication, stored attachment
-streaming, disablement and re-enablement with real Keycloak and PostgreSQL.
-
-Phase 4 adds `backend/modules/announcements` with the portable core and public
-contracts, UUID-only dependency, version reporting and portable regression
-tests. The dashboard retains its implementation pending release selection.
-`infra/scripts/test-announcements-package.py` rejects core drift, verifies the
-package outside the host tree with downloads/workspaces disabled and a private
-UUID-only cache, then builds and runs an independent public-API consumer. The
-PR workflow and automatic `modules-check` discovery include the package.
+Host regressions cover model round trips, SQLC mapping and context/errors,
+notification wire/byte payloads, normalization limits, settings/secret exclusion,
+compatibility composition, permissions and full route disablement. Portable
+lifecycle, audience and attachment tests now live in the standalone module.
+The authenticated distribution fixture checks real Keycloak/PostgreSQL,
+publication, stored attachment downloads, version inventory and re-enablement.

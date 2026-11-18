@@ -187,7 +187,7 @@ def main():
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'announcements' and item['version'] and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             announcement_api = '/api/v1/admin/announcements'
             announcement = request(api + announcement_api, method='POST', token=admin, status=201,
                 data={'title': 'Module fixture', 'message': 'Registry delivery check', 'level': 'INFO',

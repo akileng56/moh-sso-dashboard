@@ -320,3 +320,11 @@ func normalizeAnnouncementStatus(v AnnouncementStatus) string {
 func normalizeAudienceType(v AnnouncementAudienceType) string {
 	return strings.ToUpper(strings.TrimSpace(string(v)))
 }
+
+// nullStringValue formats nullable attachment metadata for the HTTP response.
+func nullStringValue(ns sql.NullString) string {
+	if !ns.Valid {
+		return ""
+	}
+	return strings.TrimSpace(ns.String)
+}

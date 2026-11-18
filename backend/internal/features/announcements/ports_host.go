@@ -108,7 +108,8 @@ func (a *hostGroupDirectory) ListGroupMembers(ctx context.Context, id string) ([
 // SetRBACRepository and SetHealthContextService retain existing host wiring.
 func (s *Service) SetRBACRepository(repo rbacfeature.Repository) {
 	if s != nil {
-		s.groups = NewGroupDirectory(repo)
+		s.ports.Groups = NewGroupDirectory(repo)
+		s.recompose()
 	}
 }
 func (s *Service) SetHealthContextService(service *healthcontextfeature.Service) {
@@ -116,10 +117,12 @@ func (s *Service) SetHealthContextService(service *healthcontextfeature.Service)
 		return
 	}
 	if service == nil {
-		s.healthContexts = nil
+		s.ports.HealthContexts = nil
+		s.recompose()
 		return
 	}
-	s.healthContexts = service
+	s.ports.HealthContexts = service
+	s.recompose()
 }
 
 // NewServiceWithPorts preserves host configuration-based construction.
