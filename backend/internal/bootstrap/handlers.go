@@ -70,7 +70,13 @@ func buildHandlers(deps handlerDependencies) handlers {
 	clientHandler := clientfeature.NewHandler(deps.Services.Clients, deps.Services.Audit, deps.Cache)
 	userHandler := userfeature.NewHandler(deps.Services.Users, deps.Services.Audit, deps.Cache)
 	metricsHandler := metricsfeature.NewHandler(deps.Services.Metrics)
-	auditHandler := auditfeature.NewHandler(auditfeature.NewService(auditfeature.NewRepository(deps.Store)), deps.Cache)
+	// Preserve the optional-cache behavior when converting a concrete pointer to
+	// the feature's interface: a typed nil pointer must not become a non-nil port.
+	var auditCache auditfeature.Cache
+	if deps.Cache != nil {
+		auditCache = deps.Cache
+	}
+	auditHandler := auditfeature.NewHandler(auditfeature.NewService(auditfeature.NewRepository(deps.Store)), auditCache)
 	notificationsHandler := notificationsfeature.NewHandler(deps.Services.Notifications, deps.Services.Audit)
 
 	documentHandler := documentsfeature.NewHandler(

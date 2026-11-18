@@ -11,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/http/response"
 )
 
@@ -21,10 +20,10 @@ import (
 
 type Handler struct {
 	service Service
-	cache   *cache.RedisCache
+	cache   Cache
 }
 
-func NewHandler(service Service, cache *cache.RedisCache) *Handler {
+func NewHandler(service Service, cache Cache) *Handler {
 	return &Handler{
 		service: service,
 		cache:   cache,
@@ -78,7 +77,7 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 
 	if h.cache != nil {
 		var cached gin.H
-		if ok, _ := h.cache.Get(c.Request.Context(), cacheKey, &cached); ok {
+		if ok, err := h.cache.Get(c.Request.Context(), cacheKey, &cached); err == nil && ok {
 			response.OK(c, http.StatusOK, cached)
 			return
 		}

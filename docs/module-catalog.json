@@ -36,7 +36,7 @@
       "dependencies": ["primary-db", "redis", "rbac", "host-audit-recorder"],
       "workers": [],
       "migrations": "core",
-      "next": "Define public cache/repository ports and response contracts before independent packaging. Core event recording remains in the host."
+      "next": "Read-only repository/response contracts and optional cache port isolated; separate portable read/export implementation before standalone packaging. Core event recording remains in the host."
     },
     {
       "id": "auth",
