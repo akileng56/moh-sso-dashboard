@@ -2545,9 +2545,6 @@ components:
       required:
         - subject
       type: object
-    gin.H:
-      additionalProperties: {}
-      type: object
     handler.HealthComponentStatus:
       properties:
         database:
@@ -8291,39 +8288,22 @@ paths:
           content:
             application/json:
               schema:
-                anyOf:
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/gin.H'
-                      meta:
-                        properties:
-                          requestId:
-                            type: string
-                        type: object
-                      success:
-                        enum:
-                          - true
-                        type: boolean
-                    required:
-                      - success
-                      - data
+                properties:
+                  data:
+                    $ref: '#/components/schemas/audit.AuditLogListResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
                     type: object
-                  - properties:
-                      data:
-                        $ref: '#/components/schemas/audit.AuditLogListResponse'
-                      meta:
-                        properties:
-                          requestId:
-                            type: string
-                        type: object
-                      success:
-                        enum:
-                          - true
-                        type: boolean
-                    required:
-                      - success
-                      - data
-                    type: object
+                  success:
+                    enum:
+                      - true
+                    type: boolean
+                required:
+                  - success
+                  - data
+                type: object
           description: OK
         "400":
           content:

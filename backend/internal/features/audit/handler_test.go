@@ -46,7 +46,11 @@ func TestBuildAuditManifestUsesRecordCount(t *testing.T) {
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := from.Add(24 * time.Hour)
 
-	manifest := buildAuditManifest(from, to, []AuditLogResponse{{ID: "one"}, {ID: "two"}}, 2, nil)
+	export, err := BuildExport(from, to, []AuditLogResponse{{ID: "one"}, {ID: "two"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := export.Manifest
 
 	if got := manifest.RecordCount; got != 2 {
 		t.Fatalf("expected record_count 2, got %v", got)

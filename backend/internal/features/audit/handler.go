@@ -1,9 +1,7 @@
 package audit
 
 import (
-	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -20,13 +18,13 @@ import (
 
 type Handler struct {
 	service Service
-	cache   Cache
+	reader  *CachedReader
 }
 
 func NewHandler(service Service, cache Cache) *Handler {
 	return &Handler{
 		service: service,
-		cache:   cache,
+		reader:  NewCachedReader(service, cache),
 	}
 }
 
@@ -71,16 +69,6 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 	to, ok := mustParseTimeRFC3339(c, "to")
 	if !ok {
 		return
-	}
-
-	cacheKey := auditLogsCacheKey(c)
-
-	if h.cache != nil {
-		var cached gin.H
-		if ok, err := h.cache.Get(c.Request.Context(), cacheKey, &cached); err == nil && ok {
-			response.OK(c, http.StatusOK, cached)
-			return
-		}
 	}
 
 	// filters
@@ -131,7 +119,7 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 		limit = int32(n)
 	}
 
-	resp, err := h.service.ListAuditLogs(c.Request.Context(), ListAuditLogsInput{
+	resp, err := h.reader.ListAuditLogs(c.Request.Context(), ListAuditLogsInput{
 		StartTime:       from,
 		EndTime:         to,
 		Action:          action,
@@ -142,19 +130,10 @@ func (h *Handler) ListAuditLogs(c *gin.Context) {
 		CursorCreatedAt: cursorCreatedAt,
 		CursorID:        cursorID,
 		Limit:           limit,
-	})
+	}, c.Request.URL.RawQuery)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Failed to list audit logs")
 		return
-	}
-
-	if h.cache != nil {
-		_ = h.cache.Set(
-			c.Request.Context(),
-			cacheKey,
-			resp,
-			20*time.Second, // perfect for audit logs
-		)
 	}
 
 	response.OK(c, http.StatusOK, resp)
@@ -309,64 +288,26 @@ func (h *Handler) ExportAuditLogs(c *gin.Context) {
 		return
 	}
 
-	manifest := buildAuditManifest(from, to, items, len(items), c)
+	export, err := BuildExport(from, to, items)
+	if err != nil {
+		response.Fail(c, http.StatusInternalServerError, "INTERNAL_ERROR", "Export failed")
+		return
+	}
 
 	if format == "json" {
 		c.Header("Content-Type", "application/json")
 		c.Header("Content-Disposition", "attachment; filename=audit_logs_export.json")
-		response.OK(c, http.StatusOK, toAuditExportResponse(manifest, items))
+		response.OK(c, http.StatusOK, export)
 		return
 	}
 
-	writeAuditCSV(c, items, manifest)
-}
-
-/* =========================================================
- * Helpers (export + sql nulls)
- * ========================================================= */
-
-func buildAuditManifest(from, to time.Time, rows any, recordCount int, c *gin.Context) AuditExportManifest {
-	return toAuditExportManifest(from, to, rows, recordCount)
-}
-
-func writeAuditCSV(c *gin.Context, rows []AuditLogResponse, manifest AuditExportManifest) {
+	// Headers must precede streaming, including exports larger than CSV's buffer.
+	manifestBytes, _ := json.Marshal(export.Manifest)
 	c.Header("Content-Type", "text/csv")
 	c.Header("Content-Disposition", "attachment; filename=audit_logs_export.csv")
-
-	w := csv.NewWriter(c.Writer)
-	defer w.Flush()
-
-	_ = w.Write([]string{
-		"created_at", "user_id", "username", "action",
-		"ip", "client_id", "success", "metadata_json",
-	})
-
-	for _, r := range rows {
-		metaJSON, _ := json.Marshal(r.Metadata)
-		success := ""
-		if r.Success != nil {
-			success = strconv.FormatBool(*r.Success)
-		}
-
-		_ = w.Write([]string{
-			r.CreatedAt,
-			r.UserID,
-			r.Username,
-			r.Action,
-			r.IP,
-			r.ClientID,
-			success,
-			string(metaJSON),
-		})
-	}
-
-	manifestBytes, _ := json.Marshal(manifest)
 	c.Header("X-Audit-Export-Manifest", string(manifestBytes))
-}
-
-func auditLogsCacheKey(c *gin.Context) string {
-	return fmt.Sprintf(
-		"audit_logs:%s",
-		c.Request.URL.RawQuery,
-	)
+	if err := WriteCSV(c.Writer, export.Items); err != nil {
+		_ = c.Error(err)
+		c.Abort()
+	}
 }

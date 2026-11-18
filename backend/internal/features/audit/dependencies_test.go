@@ -1,7 +1,6 @@
 package audit
 
 import (
-	"context"
 	"crypto/sha256"
 	"encoding/csv"
 	"encoding/hex"
@@ -18,60 +17,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/authz"
 )
-
-type auditReadFixture struct {
-	Repository
-	inputs []ListAuditLogsInput
-	items  []AuditLogResponse
-	err    error
-}
-
-func (r *auditReadFixture) ListAuditLogs(_ context.Context, input ListAuditLogsInput) (AuditLogListResponse, error) {
-	r.inputs = append(r.inputs, input)
-	return AuditLogListResponse{Items: r.items, HasMore: true, NextCursor: AuditCursor{CursorID: input.CursorID, CursorCreatedAt: input.CursorCreatedAt}}, r.err
-}
-func (r *auditReadFixture) ExportAuditLogs(context.Context, ExportAuditLogsInput) ([]AuditLogResponse, error) {
-	return r.items, r.err
-}
-
-type auditCacheFixture struct {
-	payload        []byte
-	getErr, setErr error
-	gets, sets     int
-	key            string
-	ttl            time.Duration
-}
-
-func (c *auditCacheFixture) Get(_ context.Context, key string, dest any) (bool, error) {
-	c.gets++
-	c.key = key
-	if c.getErr != nil {
-		return true, c.getErr
-	} // A failed adapter may leave partial data.
-	if c.payload == nil {
-		return false, nil
-	}
-	if err := json.Unmarshal(c.payload, dest); err != nil {
-		return false, err
-	}
-	return true, nil
-}
-func (c *auditCacheFixture) Set(_ context.Context, key string, value any, ttl time.Duration) error {
-	c.sets++
-	c.key = key
-	c.ttl = ttl
-	if c.setErr != nil {
-		return c.setErr
-	}
-	var err error
-	c.payload, err = json.Marshal(value)
-	return err
-}
-
-func auditFixtureItems() []AuditLogResponse {
-	success := false
-	return []AuditLogResponse{{ID: "11111111-1111-1111-1111-111111111111", CreatedAt: "2026-11-18T06:00:00Z", Username: "fixture", Action: "login_failed", IP: "127.0.0.1", ClientID: "dashboard-web", Success: &success, Metadata: map[string]any{"success": false, "message": "fixture, quoted \"value\""}}}
-}
 
 func TestAuditReadCachePortPreservesQueriesAndResponses(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -199,6 +144,61 @@ func TestAuditExportPortPreservesJSONAndCSVContracts(t *testing.T) {
 			if err := json.Unmarshal([]byte(rows[1][7]), &metadata); err != nil || !reflect.DeepEqual(metadata, repo.items[0].Metadata) {
 				t.Fatal("CSV metadata quoting changed")
 			}
+		}
+	}
+}
+
+func TestAuditCSVManifestHeaderPrecedesLargeBody(t *testing.T) {
+	repo := &auditReadFixture{items: auditFixtureItems()}
+	repo.items[0].Metadata["large"] = strings.Repeat("payload", 2000)
+	router := gin.New()
+	router.GET("/export", NewHandler(NewService(repo), nil).ExportAuditLogs)
+	res := httptest.NewRecorder()
+	router.ServeHTTP(res, httptest.NewRequest("GET", "/export?from=2026-11-18T00:00:00Z&to=2026-11-19T00:00:00Z", nil))
+	if res.Code != 200 || res.Body.Len() <= 4096 {
+		t.Fatalf("large export failed: %d bytes=%d", res.Code, res.Body.Len())
+	}
+	// Result uses the headers actually sent at the first write, not the mutable map.
+	sent := res.Result()
+	defer sent.Body.Close()
+	var manifest AuditExportManifest
+	if err := json.Unmarshal([]byte(sent.Header.Get("X-Audit-Export-Manifest")), &manifest); err != nil {
+		t.Fatalf("streaming manifest header missing: %v", err)
+	}
+	payload, _ := json.Marshal(repo.items)
+	hash := sha256.Sum256(payload)
+	if manifest.RecordCount != 1 || manifest.PayloadSHA256 != hex.EncodeToString(hash[:]) {
+		t.Fatalf("streaming manifest changed: %+v", manifest)
+	}
+	if sent.Header.Get("Content-Type") != "text/csv" || sent.Header.Get("Content-Disposition") != "attachment; filename=audit_logs_export.csv" {
+		t.Fatalf("streaming headers changed: %v", sent.Header)
+	}
+}
+
+func TestAuditExportEncodingFailurePrecedesStreaming(t *testing.T) {
+	for _, format := range []string{"json", "csv"} {
+		repo := &auditReadFixture{items: auditFixtureItems()}
+		repo.items[0].Metadata["unsupported"] = make(chan int)
+		router := gin.New()
+		router.GET("/export", NewHandler(NewService(repo), nil).ExportAuditLogs)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, httptest.NewRequest("GET", "/export?from=2026-11-18T00:00:00Z&to=2026-11-19T00:00:00Z&format="+format, nil))
+		if res.Code != 500 || !strings.Contains(res.Body.String(), "Export failed") || res.Result().Header.Get("Content-Disposition") != "" {
+			t.Fatalf("failed export started streaming: %d %s", res.Code, res.Body.String())
+		}
+	}
+}
+
+func TestAuditValidatesFiltersBeforeCacheLookup(t *testing.T) {
+	for _, invalid := range []string{"limit=0", "limit=201", "limit=bad", "user_id=bad", "cursor_id=bad", "cursor_created_at=bad"} {
+		repo := &auditReadFixture{items: auditFixtureItems()}
+		cache := &auditCacheFixture{payload: []byte("{}")}
+		router := gin.New()
+		router.GET("/logs", NewHandler(NewService(repo), cache).ListAuditLogs)
+		res := httptest.NewRecorder()
+		router.ServeHTTP(res, httptest.NewRequest("GET", "/logs?from=2026-11-18T00:00:00Z&to=2026-11-19T00:00:00Z&"+invalid, nil))
+		if res.Code != 400 || cache.gets != 0 || len(repo.inputs) != 0 {
+			t.Fatalf("invalid query reached reader: %s status=%d gets=%d", invalid, res.Code, cache.gets)
 		}
 	}
 }
