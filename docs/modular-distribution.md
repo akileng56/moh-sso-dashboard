@@ -370,9 +370,21 @@ backup/restore and restart recovery. The host recorder deliberately invalidates
 Audit caches when recording events, so the fixture seeds a distinguishable cached
 response rather than assuming two unrestricted reads return identical records.
 
-A fresh build through `infra/docker/backend/Dockerfile` remains unverified in
-this environment: Docker's download of an existing AWS dependency was refused
-by the Go proxy, and Alpine package requests stalled. The local fixture image
-verifies the integrated binary and runtime behavior; rebuild the standard
-production image with working outbound access before deployment. Publishing
-the library or committing the host integration does not deploy a running site.
+The standard production Dockerfile subsequently built successfully after
+outbound access recovered. Docker downloaded and verified all Go modules and
+completed the full multi-stage build without Dockerfile changes. The local
+`moh-sso-audit-phase4:backend` image is Linux ARM64, built from clean integration
+commit `477680dd287262ee1727a7b7288a4a342bf98ca9`, with image ID
+`sha256:ff6d4a3948c03bf881481c28bf7f52f1dda11e8b8dbfa3decbbd1697d57389c7`.
+Its OCI revision label matches that source commit.
+
+The additional authenticated fixture run against this exact production image
+was stopped before backend readiness because Docker's local disk filled. Its
+disposable containers/volumes were cleaned up. The earlier complete fixture
+against the freshly compiled integration binary remains the runtime validation;
+the production-image fixture must be repeated after sufficient Docker disk
+space is available. Only disposable Audit images and selected build-cache
+records were removed; existing application volumes were not changed.
+
+The integration branch has been pushed to origin. Building or pushing source
+does not publish this image to a registry or deploy a running installation.
