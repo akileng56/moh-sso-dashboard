@@ -153,6 +153,9 @@ jobs:
       - name: Portable Administrative Units core
         run: python3 infra/scripts/test-admin-units-core.py
 
+      - name: Standalone Administrative Units package and external consumer
+        run: python3 infra/scripts/test-admin-units-package.py
+
       - name: Standalone Announcements package and external consumer
         run: python3 infra/scripts/test-announcements-package.py
 

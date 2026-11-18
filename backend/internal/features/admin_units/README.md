@@ -1,7 +1,7 @@
 # Administrative Units extraction
 
 The feature is registry-hosted as `admin-units`, reporting the host build
-version pending standalone packaging. All nine existing routes are registered
+version pending standalone publication and pinning. All nine existing routes are registered
 together. Enabled initialization requires the Administrative Units and shared
 health-context handlers. Disabled initialization skips both requirements.
 The portable contracts and behavior were isolated in phase 1.
@@ -76,5 +76,13 @@ health-context dependencies. The authenticated distribution fixture seeds only
 its disposable warehouse dimension and exercises real Keycloak authentication,
 selected national context, lookups, disablement and re-enablement.
 
-Next: standalone package and external-consumer verification, then publication
-and host dependency pinning/adapters.
+Phase 3 adds `backend/modules/admin-units` with the unchanged portable core,
+standard-library-only dependencies, public hierarchy construction and version
+reporting. The dashboard retains its implementation until a reviewed release
+is selected. The package verifier rejects drift in the retained core files,
+builds/vets/race-tests outside the host tree with an empty cache and downloads/
+workspaces disabled, then builds and runs an independent public-API consumer.
+CI and automatic `modules-check` discovery include the package.
+
+Next: publish v0.1.0, verify its download/checksums, pin it and replace the
+retained core with package aliases/adapters.

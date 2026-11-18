@@ -101,3 +101,9 @@ modify warehouse data or schemas. Re-enable and restart to restore existing
 lookups. Enabled registration retains the same system access, selected health
 context and read-permission alternatives as the legacy route path. Other
 Visualizer routes retain their registration and guards.
+
+Administrative Units now has a verified standalone candidate in
+`backend/modules/admin-units`. The dashboard still uses its retained core and
+reports the host build version. Packaging alone does not publish a version,
+select a Go dependency or change runtime availability. Publication, verified
+download/checksums, host pinning and replacement with adapters are next.

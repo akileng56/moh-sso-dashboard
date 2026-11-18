@@ -789,3 +789,35 @@ authentication denial, required/selected national context, inventory,
 disablement and re-enablement with identical data. Backup/restore, core audit
 recording and scheduler stop/resume checks also passed. No production SQL,
 migrations, dependency pins or worker ownership changed.
+
+### Administrative Units phase 3 — standalone package and external consumer
+
+`backend/modules/admin-units` contains the unchanged portable models,
+repository/service contracts, hierarchy and visibility core with their
+regression tests. The module path is
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units`; Go 1.25.4
+and the standard library are sufficient. A public `BuildHierarchyTree`
+wrapper lets host adapters delegate construction after scoping caller-supplied
+rows. Dependency version reporting returns dev for local source replacements.
+
+The package owns no HTTP, database/identity adapters, migrations or workers.
+The host retains its core until a verified release is selected. The standalone
+verifier rejects drift between matching portable source/test files, copies the
+package outside the host tree and checks exact module graphs, build/vet/
+uncached race tests and unchanged metadata with an empty cache and workspaces/
+downloads disabled. A separate consumer module builds/vets/runs public APIs
+with race instrumentation, covering all nine lookups, optional filter values,
+hierarchy construction/deduplication/nullability, visibility and error causes.
+CI runs this check; modules-check discovers the new nested Go module.
+
+Administrative Units remains registry-hosted with the host build version.
+Publication, download/checksum verification, host Go pin selection and replacing
+retained implementation with adapters remain the next phase. No host Go pin,
+runtime routes, SQL, migration or worker ownership changes in this phase.
+
+Phase 3 verification passed the isolated standard-library-only dependency graph,
+build/vet/uncached race tests and separate public-API consumer with race
+instrumentation, unchanged dependency metadata and retained-core parity checks.
+The full backend suite, backend vet, all packaged-module checks, all 366 API
+contracts, catalogue validation/seven tests and workflow actionlint also passed.
+No version was published or pinned, and no runtime deployment was performed.
