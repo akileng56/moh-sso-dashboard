@@ -109,7 +109,7 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Databases.DWH,
 		deps.Services.HealthContexts,
 	)
-	geoJSONHandler := geojsonfeature.NewHandler("./assets/geojson")
+	geoJSONHandler := geojsonfeature.NewHandlerWithReader(geojsonfeature.NewDirectoryReader("./assets/geojson"))
 	emailHandler := emailfeature.NewHandler(deps.Services.EmailFeature)
 	rbacHandler := rbacfeature.NewHandler(deps.Services.RBAC)
 	healthContextHandler := healthcontextfeature.NewHandler(

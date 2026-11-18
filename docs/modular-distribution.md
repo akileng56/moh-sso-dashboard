@@ -388,3 +388,29 @@ records were removed; existing application volumes were not changed.
 
 The integration branch has been pushed to origin. Building or pushing source
 does not publish this image to a registry or deploy a running installation.
+
+
+## GeoJSON extraction: asset boundary phase
+
+GeoJSON is the next extraction after Audit. It already participates in registry
+enablement/disablement and has no worker or migration lifecycle. Phase 1
+introduces standard-library-only `Asset` and `AssetReader` contracts and a
+host directory adapter; bootstrap injects the adapter into the HTTP handler.
+The existing directory constructor remains compatible.
+
+The three public layer names and their filenames remain fixed. Authentication
+and the existing any-permission gate run in host middleware before asset
+access. The HTTP adapter preserves raw GeoJSON media type, cache/nosniff
+headers, safe error envelopes, conditional responses and byte ranges, and
+closes streams on every completion path.
+
+The runtime remains registry-hosted and reports the host version. Assets stay
+in the host Docker image. Portable layer resolution, standalone verification,
+publication and selection of a released Go dependency are subsequent phases.
+
+Phase 1 verification passed the full backend test suite, targeted
+GeoJSON/API/bootstrap race checks, vet, standalone module checks, catalogue
+validation and its seven tests. OpenAPI validation reports all 366 endpoints
+current. Regression coverage includes all three permission alternatives, denial
+before storage access, actual bundled files, conditional/range requests and
+stream closure on failure.
