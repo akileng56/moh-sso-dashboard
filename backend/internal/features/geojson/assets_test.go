@@ -223,3 +223,16 @@ func TestDirectoryReaderHonorsContextAndCanonicalFilenames(t *testing.T) {
 		t.Fatal("directory must not be served")
 	}
 }
+
+func TestResolvedLayerReaderErrorCannotBecomeHTTPNotFound(t *testing.T) {
+	router := gin.New()
+	router.GET("/geojson/:name", NewHandlerWithReader(assetReaderFunc(func(context.Context, string) (Asset, error) {
+		return Asset{}, ErrUnknownLayer
+	})).GetGeoJSON)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/geojson/geo_water", nil))
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("storage error became status %d", rec.Code)
+	}
+	assertAPIErrorCode(t, rec.Body.Bytes(), "GEOJSON_LOAD_FAILED")
+}

@@ -122,7 +122,7 @@
       "dependencies": ["geojson-assets", "rbac"],
       "workers": [],
       "migrations": "none",
-      "next": "Asset-reader and host authorization boundaries isolated; next move the fixed layer allowlist and portable read/error handling behind the contract, then verify and publish a standalone package."
+      "next": "Portable layer resolution and read/error handling isolated; next build and verify the standalone package and external consumer before publication, pinning and host adapter integration."
     },
     {
       "id": "health_context",

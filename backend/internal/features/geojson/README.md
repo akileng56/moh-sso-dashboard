@@ -17,7 +17,7 @@ accepts only single-component filenames for regular files. Bootstrap explicitly
 injects it through `NewHandlerWithReader`. `NewHandler(basePath)` remains a
 compatible convenience constructor.
 
-The HTTP handler retains the exact public-name allowlist:
+The portable service retains the exact public-name allowlist:
 
 | Public name | Host asset |
 | --- | --- |
@@ -40,6 +40,27 @@ The response remains raw `application/geo+json`, with
 `http.ServeContent` retains modification-time validation and byte-range behavior.
 Map assets and their Docker packaging remain host-owned.
 
+## Phase 2: portable resolution and error handling
+
+`ResolveLayer` owns the immutable, case-sensitive public-name mapping above.
+`Service.Open` resolves names before storage access, forwards the request context
+to the reader and returns a `Layer` with its canonical filename, modification
+time and stream. Successful calls transfer stream ownership to the caller.
+Failed or canceled reads close any returned stream and return an empty layer,
+including when a reader returns both content and an error.
+
+Unknown names match `ErrUnknownLayer`. Reader failures, absent readers, empty
+content and canceled reads match `ErrLoadFailed`. Load errors expose a stable
+message while preserving original and close-error causes for `errors.Is/As`.
+Thus even an absent file for a recognized layer remains a load failure.
+
+The HTTP handler now delegates to the service and maps only resolution failures
+to the existing 404 response. Storage failures retain the existing 500 response,
+even when a reader's underlying error also matches `ErrUnknownLayer`.
+HTTP envelopes, headers, streaming and permissions stay in the host.
+`assets.go`, `service.go` and the portable service tests build and run without
+Gin, host files, database drivers or external dependencies.
+
 ## Verification and next phases
 
 Tests cover real bundled layers, permission denial before asset access,
@@ -54,7 +75,6 @@ make contracts-check
 
 The next phases are:
 
-1. Move layer resolution and portable read/error handling behind the reader contract.
-2. Build and verify the standalone module and an external consumer.
-3. Publish a version, pin its verified checksums and replace the retained
+1. Build and verify the standalone module and an external consumer.
+2. Publish a version, pin its verified checksums and replace the retained
    host implementation with adapters.

@@ -414,3 +414,32 @@ validation and its seven tests. OpenAPI validation reports all 366 endpoints
 current. Regression coverage includes all three permission alternatives, denial
 before storage access, actual bundled files, conditional/range requests and
 stream closure on failure.
+
+
+## GeoJSON extraction: portable service phase
+
+Phase 2 moves the fixed public layer-to-filename mapping into `ResolveLayer`
+and portable read orchestration into `Service.Open`. The service accepts the
+existing asset-reader contract, preserves modification times and transfers
+successful streams to its caller. It closes streams returned on failed or
+canceled reads.
+
+Unknown names are classified as `ErrUnknownLayer` before storage access.
+Reader failures, missing readers/content and cancellation match `ErrLoadFailed`
+with stable error text; original causes and close failures remain discoverable
+through `errors.Is/As`. The HTTP adapter translates these errors into the
+existing 404/500 envelopes and preserves streaming headers, range/conditional
+handling and host authorization. A storage error cannot turn a resolved layer
+into an HTTP 404.
+
+The service and its reader contract contain only standard-library types. The
+host retains directory access, bundled assets, Docker packaging and permission
+middleware. The module remains registry-hosted at the host version; standalone
+packaging and release selection are subsequent phases.
+
+Phase 2 verification passed an isolated temporary module containing only the
+reader contract, service and portable tests: build, vet and uncached race tests
+completed with external downloads disabled. The full backend suite, targeted
+GeoJSON/API/bootstrap race tests, vet, existing standalone module checks,
+catalogue validation and its seven tests also passed. All 366 OpenAPI routes
+remain current.

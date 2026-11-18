@@ -1,6 +1,7 @@
 package geojson
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -8,7 +9,7 @@ import (
 )
 
 type Handler struct {
-	assets AssetReader
+	service *Service
 }
 
 // NewHandler preserves the host's directory-based construction API.
@@ -18,45 +19,28 @@ func NewHandler(basePath string) *Handler {
 
 // NewHandlerWithReader accepts the asset port without owning storage policy.
 func NewHandlerWithReader(assets AssetReader) *Handler {
-	return &Handler{assets: assets}
+	return &Handler{service: NewService(assets)}
 }
 
 func (h *Handler) GetGeoJSON(c *gin.Context) {
-	name := c.Param("name")
-
-	files := map[string]string{
-		"geo_water":       "uga_water.geojson",
-		"geo_districts":   "uganda_districts.geojson",
-		"geo_subcounties": "uganda_subcounties.geojson",
+	var service *Service
+	if h != nil {
+		service = h.service
 	}
-
-	filename, exists := files[name]
-	if !exists {
-		response.Fail(c, http.StatusNotFound, "NOT_FOUND", "requested geojson does not exist")
-		return
-	}
-
-	if h == nil || h.assets == nil {
-		response.Fail(c, http.StatusInternalServerError, "GEOJSON_LOAD_FAILED", "failed to load geojson file")
-		return
-	}
-	asset, err := h.assets.Open(c.Request.Context(), filename)
+	layer, err := service.Open(c.Request.Context(), c.Param("name"))
 	if err != nil {
-		// The caller closes any returned stream, including on failure.
-		if asset.Content != nil {
-			_ = asset.Content.Close()
+		// Only resolution can produce a 404; a reader failure remains a load error.
+		if errors.Is(err, ErrUnknownLayer) && !errors.Is(err, ErrLoadFailed) {
+			response.Fail(c, http.StatusNotFound, "NOT_FOUND", "requested geojson does not exist")
+		} else {
+			response.Fail(c, http.StatusInternalServerError, "GEOJSON_LOAD_FAILED", "failed to load geojson file")
 		}
-		response.Fail(c, http.StatusInternalServerError, "GEOJSON_LOAD_FAILED", "failed to load geojson file")
 		return
 	}
-	if asset.Content == nil {
-		response.Fail(c, http.StatusInternalServerError, "GEOJSON_LOAD_FAILED", "failed to load geojson file")
-		return
-	}
-	defer asset.Content.Close()
+	defer layer.Content.Close()
 
 	c.Header("Content-Type", "application/geo+json")
 	c.Header("Cache-Control", "public, max-age=86400")
 	c.Header("X-Content-Type-Options", "nosniff")
-	http.ServeContent(c.Writer, c.Request, filename, asset.ModifiedAt, asset.Content)
+	http.ServeContent(c.Writer, c.Request, layer.Filename, layer.ModifiedAt, layer.Content)
 }
