@@ -3,9 +3,9 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`.
 Requires Go 1.25.4 and has no third-party dependencies.
 
-This is the standalone release candidate. It is not published or selected by
-the dashboard yet. The future nested-module release tag is
-`backend/modules/geojson/v0.1.0`.
+Version `v0.1.0` is the first standalone GeoJSON release. Its immutable
+nested-module release tag is `backend/modules/geojson/v0.1.0`. Hosts select the
+verified dependency version and supply storage, asset packaging and HTTP policy.
 
 ## Public API
 
@@ -54,10 +54,10 @@ resolver, database driver, migrations or background workers. Hosts provide
 storage and ship the map assets; packaging this library does not package or
 deploy those assets.
 
-The dashboard temporarily retains its matching portable implementation until
-a published release can be pinned and verified. Its registry module still
-reports the host version. Publication and host adapter integration are the next
-phase.
+Dashboard consumers select a reviewed Go dependency version and report the
+selected module version through their compiled inventory. Local workspace or
+directory replacements report `dev`; they must not be used as a production pin.
+The host retains only its storage/HTTP adapters after release integration.
 
 ## Verification
 
