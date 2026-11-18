@@ -150,6 +150,9 @@ jobs:
       - name: Standalone GeoJSON package
         run: python3 infra/scripts/test-geojson-package.py
 
+      - name: Portable Announcements contracts and core
+        run: python3 infra/scripts/test-announcements-core.py
+
       - name: Standalone Report Scheduler schema and claims
         run: python3 infra/scripts/test-report-scheduler-package.py
 

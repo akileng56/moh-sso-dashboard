@@ -13,10 +13,10 @@ import (
 )
 
 // NewService retains the host constructor while adapting identity dependencies.
-func NewService(repo Repository, users userfeature.UserRepository, notifications NotificationPublisher,
+func NewService(repo Repository, users userfeature.UserRepository, notifications HostNotificationSender,
 	fileStorage storage.Storage, cfg ...*config.Config) *Service {
 	return NewServiceWithPorts(repo, ServicePorts{
-		Users: NewUserDirectory(users), Notifications: notifications, Storage: fileStorage,
+		Users: NewUserDirectory(users), Notifications: NewNotificationPublisher(notifications), Storage: fileStorage,
 	}, cfg...)
 }
 
@@ -120,4 +120,32 @@ func (s *Service) SetHealthContextService(service *healthcontextfeature.Service)
 		return
 	}
 	s.healthContexts = service
+}
+
+// NewServiceWithPorts preserves host configuration-based construction.
+func NewServiceWithPorts(repo Repository, ports ServicePorts, cfg ...*config.Config) *Service {
+	var appConfig *config.Config
+	if len(cfg) > 0 {
+		appConfig = cfg[0]
+	}
+	if ports.EmailAttachments == nil {
+		ports.EmailAttachments = NewEmailAttachmentNormalizer(appConfig)
+	}
+	return NewServiceWithSettings(repo, ports, AnnouncementSettings(appConfig))
+}
+
+func AnnouncementSettings(cfg *config.Config) *Settings {
+	if cfg == nil {
+		return nil
+	}
+	out := &Settings{}
+	out.SMS.Enabled, out.SMS.MaxLength = cfg.SMS.Enabled, cfg.SMS.MaxLength
+	out.Announcement.MaxAttachments, out.Announcement.MaxAttachmentBytes = cfg.Announcement.MaxAttachments, cfg.Announcement.MaxAttachmentBytes
+	out.Announcement.AllowedAttachmentTypes = cfg.Announcement.AllowedAttachmentTypes
+	out.Email.AllowedAttachmentTypes = cfg.Email.AllowedAttachmentTypes
+	out.Notification.PlatformName, out.Notification.SystemAdminName = cfg.Notification.PlatformName, cfg.Notification.SystemAdminName
+	out.Notification.SystemAdminEmail, out.Notification.AdminDashboardURL = cfg.Notification.SystemAdminEmail, cfg.Notification.AdminDashboardURL
+	out.StorageProvider, out.AppBaseURL = cfg.StorageProvider, cfg.AppBaseURL
+	out.FrontendBaseURL, out.FrontendRedirectURI = cfg.FrontendBaseURL, cfg.FrontendRedirectURI
+	return out
 }

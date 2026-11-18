@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/moh-sso-dashboard/internal/authz"
-	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
 	userfeature "github.com/moh-sso-dashboard/internal/features/users"
 	"github.com/moh-sso-dashboard/internal/keycloak"
@@ -273,19 +272,19 @@ type attachmentRepoFixture struct {
 	Repository
 	persistErr error
 	creates    int
-	params     db.CreateAnnouncementAttachmentParams
+	params     CreateAnnouncementAttachmentParams
 }
 
-func (*attachmentRepoFixture) GetByID(context.Context, uuid.UUID) (db.Announcement, error) {
-	return db.Announcement{}, nil
+func (*attachmentRepoFixture) GetByID(context.Context, uuid.UUID) (Announcement, error) {
+	return Announcement{}, nil
 }
 func (*attachmentRepoFixture) CountAttachments(context.Context, uuid.UUID) (int64, error) {
 	return 0, nil
 }
-func (f *attachmentRepoFixture) CreateAttachment(_ context.Context, params db.CreateAnnouncementAttachmentParams) (db.AnnouncementAttachment, error) {
+func (f *attachmentRepoFixture) CreateAttachment(_ context.Context, params CreateAnnouncementAttachmentParams) (AnnouncementAttachment, error) {
 	f.creates++
 	f.params = params
-	return db.AnnouncementAttachment{ID: params.ID}, f.persistErr
+	return AnnouncementAttachment{ID: params.ID}, f.persistErr
 }
 
 type attachmentStorageFixture struct {
@@ -344,19 +343,19 @@ func TestAttachmentPortPreservesChecksumAndFailureCleanup(t *testing.T) {
 
 type publisherFixture struct {
 	ctx  context.Context
-	item models.Notification
+	item Notification
 }
 
-func (f *publisherFixture) Notify(ctx context.Context, item models.Notification) (*models.Notification, error) {
+func (f *publisherFixture) Publish(ctx context.Context, item Notification) error {
 	f.ctx, f.item = ctx, item
-	return nil, errors.New("optional delivery failure")
+	return errors.New("optional delivery failure")
 }
 
 func TestNotificationPortPreservesBestEffortPayloadAndDefaultAudience(t *testing.T) {
 	publisher := &publisherFixture{}
 	ctx := context.Background()
 	svc := NewServiceWithPorts(nil, ServicePorts{Notifications: publisher})
-	notification := models.Notification{Type: "fixture", Metadata: []byte(`{"id":"fixture"}`), Deliveries: []models.NotificationDeliveryRequest{{Channel: models.NotificationChannelEmail, TemplateName: "announcement"}}}
+	notification := Notification{Type: "fixture", Metadata: []byte(`{"id":"fixture"}`), Deliveries: []NotificationDeliveryRequest{{Channel: NotificationChannelEmail, TemplateName: "announcement"}}}
 	svc.notify(ctx, notification)
 	notification.TargetRole = "admin"
 	if publisher.ctx != ctx || !reflect.DeepEqual(publisher.item, notification) {

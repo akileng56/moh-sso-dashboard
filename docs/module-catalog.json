@@ -26,7 +26,7 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Phase 1 audience/storage contracts and host adapters isolated; next remove SQLC/configuration and notification-payload coupling, then integrate all route groups into the registry before standalone packaging."
+      "next": "Portable announcement, persistence and delivery contracts isolated behind host adapters; next integrate all route groups into the registry and verify disablement before standalone packaging."
     },
     {
       "id": "audit",

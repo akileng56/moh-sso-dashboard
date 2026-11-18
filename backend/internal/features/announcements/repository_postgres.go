@@ -27,10 +27,10 @@ func NewAnnouncementRepository(
 	store db.Store,
 	log logger.Logger,
 ) AnnouncementRepository {
-	return &announcementsRepository{
+	return &persistenceAdapter{host: &announcementsRepository{
 		db:     store,
 		logger: &log,
-	}
+	}}
 }
 
 type txStore interface {

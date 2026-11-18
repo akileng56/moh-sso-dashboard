@@ -16,9 +16,6 @@ import (
 	"unicode"
 
 	"github.com/google/uuid"
-
-	db "github.com/moh-sso-dashboard/internal/db/sqlc"
-	"github.com/moh-sso-dashboard/internal/model"
 )
 
 type UploadAnnouncementAttachmentInput struct {
@@ -43,7 +40,7 @@ type UpdateAnnouncementAttachmentInput struct {
 }
 
 type AnnouncementAttachmentDownload struct {
-	Attachment db.AnnouncementAttachment
+	Attachment AnnouncementAttachment
 	Reader     io.ReadCloser
 }
 
@@ -51,47 +48,47 @@ func (s *Service) UploadAttachment(
 	ctx context.Context,
 	announcementID uuid.UUID,
 	input UploadAnnouncementAttachmentInput,
-) (db.AnnouncementAttachment, error) {
+) (AnnouncementAttachment, error) {
 	if s == nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement service is nil")
+		return AnnouncementAttachment{}, errors.New("announcement service is nil")
 	}
 	if s.repo == nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement repository is nil")
+		return AnnouncementAttachment{}, errors.New("announcement repository is nil")
 	}
 	if s.storage == nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement attachment storage is nil")
+		return AnnouncementAttachment{}, errors.New("announcement attachment storage is nil")
 	}
 	if announcementID == uuid.Nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement id is required")
+		return AnnouncementAttachment{}, errors.New("announcement id is required")
 	}
 
 	if _, err := s.repo.GetByID(ctx, announcementID); err != nil {
-		return db.AnnouncementAttachment{}, fmt.Errorf("get announcement: %w", err)
+		return AnnouncementAttachment{}, fmt.Errorf("get announcement: %w", err)
 	}
 
 	existingCount, err := s.repo.CountAttachments(ctx, announcementID)
 	if err != nil {
-		return db.AnnouncementAttachment{}, err
+		return AnnouncementAttachment{}, err
 	}
 	if existingCount >= int64(s.announcementMaxAttachments()) {
-		return db.AnnouncementAttachment{}, fmt.Errorf("announcement attachment limit exceeded: max %d", s.announcementMaxAttachments())
+		return AnnouncementAttachment{}, fmt.Errorf("announcement attachment limit exceeded: max %d", s.announcementMaxAttachments())
 	}
 
 	originalName := strings.TrimSpace(input.FileName)
 	safeName := sanitizeAttachmentFileName(originalName)
 	if safeName == "" {
-		return db.AnnouncementAttachment{}, errors.New("attachment file name is required")
+		return AnnouncementAttachment{}, errors.New("attachment file name is required")
 	}
 	if !s.announcementAttachmentExtensionAllowed(safeName) {
-		return db.AnnouncementAttachment{}, fmt.Errorf("attachment type is not allowed: %s", filepath.Ext(safeName))
+		return AnnouncementAttachment{}, fmt.Errorf("attachment type is not allowed: %s", filepath.Ext(safeName))
 	}
 	if input.Inline && strings.TrimSpace(input.ContentID) == "" {
-		return db.AnnouncementAttachment{}, errors.New("content_id is required for inline attachments")
+		return AnnouncementAttachment{}, errors.New("content_id is required for inline attachments")
 	}
 
 	data, err := readAttachmentBytes(input, s.announcementMaxAttachmentBytes())
 	if err != nil {
-		return db.AnnouncementAttachment{}, err
+		return AnnouncementAttachment{}, err
 	}
 
 	attachmentID := uuid.New()
@@ -111,10 +108,10 @@ func (s *Service) UploadAttachment(
 	}
 
 	if err := s.storage.Upload(ctx, objectKey, bytes.NewReader(data), int64(len(data)), contentType); err != nil {
-		return db.AnnouncementAttachment{}, fmt.Errorf("upload announcement attachment: %w", err)
+		return AnnouncementAttachment{}, fmt.Errorf("upload announcement attachment: %w", err)
 	}
 
-	params := db.CreateAnnouncementAttachmentParams{
+	params := CreateAnnouncementAttachmentParams{
 		ID:               attachmentID,
 		AnnouncementID:   announcementID,
 		FileName:         safeName,
@@ -134,7 +131,7 @@ func (s *Service) UploadAttachment(
 	attachment, err := s.repo.CreateAttachment(ctx, params)
 	if err != nil {
 		_ = s.storage.Delete(ctx, objectKey)
-		return db.AnnouncementAttachment{}, err
+		return AnnouncementAttachment{}, err
 	}
 
 	return attachment, nil
@@ -143,7 +140,7 @@ func (s *Service) UploadAttachment(
 func (s *Service) ListAttachments(
 	ctx context.Context,
 	announcementID uuid.UUID,
-) ([]db.AnnouncementAttachment, error) {
+) ([]AnnouncementAttachment, error) {
 	if s == nil || s.repo == nil {
 		return nil, errors.New("announcement service repository is nil")
 	}
@@ -158,20 +155,20 @@ func (s *Service) UpdateAttachment(
 	announcementID uuid.UUID,
 	attachmentID uuid.UUID,
 	input UpdateAnnouncementAttachmentInput,
-) (db.AnnouncementAttachment, error) {
+) (AnnouncementAttachment, error) {
 	if s == nil || s.repo == nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement service repository is nil")
+		return AnnouncementAttachment{}, errors.New("announcement service repository is nil")
 	}
 	if announcementID == uuid.Nil || attachmentID == uuid.Nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement id and attachment id are required")
+		return AnnouncementAttachment{}, errors.New("announcement id and attachment id are required")
 	}
 
-	current, err := s.repo.GetAttachmentByID(ctx, db.GetAnnouncementAttachmentByIDParams{
+	current, err := s.repo.GetAttachmentByID(ctx, GetAnnouncementAttachmentByIDParams{
 		ID:             attachmentID,
 		AnnouncementID: announcementID,
 	})
 	if err != nil {
-		return db.AnnouncementAttachment{}, err
+		return AnnouncementAttachment{}, err
 	}
 
 	includeInEmail := current.IncludeInEmail
@@ -189,7 +186,7 @@ func (s *Service) UpdateAttachment(
 		contentID = nullableStringValue(*input.ContentID)
 	}
 	if inline && strings.TrimSpace(contentID.String) == "" {
-		return db.AnnouncementAttachment{}, errors.New("content_id is required for inline attachments")
+		return AnnouncementAttachment{}, errors.New("content_id is required for inline attachments")
 	}
 
 	sortOrder := current.SortOrder
@@ -197,7 +194,7 @@ func (s *Service) UpdateAttachment(
 		sortOrder = *input.SortOrder
 	}
 
-	return s.repo.UpdateAttachment(ctx, db.UpdateAnnouncementAttachmentParams{
+	return s.repo.UpdateAttachment(ctx, UpdateAnnouncementAttachmentParams{
 		ID:             attachmentID,
 		AnnouncementID: announcementID,
 		IncludeInEmail: includeInEmail,
@@ -212,14 +209,14 @@ func (s *Service) DeleteAttachment(
 	announcementID uuid.UUID,
 	attachmentID uuid.UUID,
 	deletedBy uuid.UUID,
-) (db.AnnouncementAttachment, error) {
+) (AnnouncementAttachment, error) {
 	if s == nil || s.repo == nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement service repository is nil")
+		return AnnouncementAttachment{}, errors.New("announcement service repository is nil")
 	}
 	if announcementID == uuid.Nil || attachmentID == uuid.Nil {
-		return db.AnnouncementAttachment{}, errors.New("announcement id and attachment id are required")
+		return AnnouncementAttachment{}, errors.New("announcement id and attachment id are required")
 	}
-	return s.repo.SoftDeleteAttachment(ctx, db.SoftDeleteAnnouncementAttachmentParams{
+	return s.repo.SoftDeleteAttachment(ctx, SoftDeleteAnnouncementAttachmentParams{
 		ID:             attachmentID,
 		AnnouncementID: announcementID,
 		DeletedBy:      uuid.NullUUID{UUID: deletedBy, Valid: deletedBy != uuid.Nil},
@@ -238,7 +235,7 @@ func (s *Service) OpenAttachmentDownload(
 		return AnnouncementAttachmentDownload{}, errors.New("announcement attachment storage is nil")
 	}
 
-	attachment, err := s.repo.GetAttachmentByID(ctx, db.GetAnnouncementAttachmentByIDParams{
+	attachment, err := s.repo.GetAttachmentByID(ctx, GetAnnouncementAttachmentByIDParams{
 		ID:             attachmentID,
 		AnnouncementID: announcementID,
 	})
@@ -304,7 +301,7 @@ func (s *Service) withPersistedAnnouncementEmailAttachments(
 			return AnnouncementEmailOptions{}, closeErr
 		}
 
-		options.Attachments = append(options.Attachments, model.Attachment{
+		options.Attachments = append(options.Attachments, Attachment{
 			FileName:    attachment.OriginalFileName,
 			ContentType: attachment.ContentType.String,
 			Data:        data,
@@ -387,11 +384,11 @@ func (s *Service) announcementAttachmentExtensionAllowed(fileName string) bool {
 
 func (s *Service) announcementAllowedAttachmentTypes() map[string]struct{} {
 	raw := ""
-	if s != nil && s.cfg != nil {
-		raw = s.cfg.Announcement.AllowedAttachmentTypes
+	if s != nil && s.settings != nil {
+		raw = s.settings.Announcement.AllowedAttachmentTypes
 	}
-	if strings.TrimSpace(raw) == "" && s != nil && s.cfg != nil {
-		raw = s.cfg.Email.AllowedAttachmentTypes
+	if strings.TrimSpace(raw) == "" && s != nil && s.settings != nil {
+		raw = s.settings.Email.AllowedAttachmentTypes
 	}
 	out := map[string]struct{}{}
 	for _, item := range strings.Split(raw, ",") {
@@ -404,22 +401,22 @@ func (s *Service) announcementAllowedAttachmentTypes() map[string]struct{} {
 }
 
 func (s *Service) announcementMaxAttachments() int {
-	if s != nil && s.cfg != nil && s.cfg.Announcement.MaxAttachments > 0 {
-		return s.cfg.Announcement.MaxAttachments
+	if s != nil && s.settings != nil && s.settings.Announcement.MaxAttachments > 0 {
+		return s.settings.Announcement.MaxAttachments
 	}
 	return 10
 }
 
 func (s *Service) announcementMaxAttachmentBytes() int64 {
-	if s != nil && s.cfg != nil && s.cfg.Announcement.MaxAttachmentBytes > 0 {
-		return s.cfg.Announcement.MaxAttachmentBytes
+	if s != nil && s.settings != nil && s.settings.Announcement.MaxAttachmentBytes > 0 {
+		return s.settings.Announcement.MaxAttachmentBytes
 	}
 	return 10 * 1024 * 1024
 }
 
 func (s *Service) storageProvider() string {
-	if s != nil && s.cfg != nil && strings.TrimSpace(s.cfg.StorageProvider) != "" {
-		return strings.ToLower(strings.TrimSpace(s.cfg.StorageProvider))
+	if s != nil && s.settings != nil && strings.TrimSpace(s.settings.StorageProvider) != "" {
+		return strings.ToLower(strings.TrimSpace(s.settings.StorageProvider))
 	}
 	return "local"
 }

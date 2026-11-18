@@ -186,7 +186,7 @@ func buildServices(deps serviceDependencies) services {
 		announcementfeature.ServicePorts{
 			Users:         announcementfeature.NewUserDirectory(deps.Repositories.Users),
 			Groups:        announcementfeature.NewGroupDirectory(deps.Repositories.RBAC),
-			Notifications: notificationsService,
+			Notifications: announcementfeature.NewNotificationPublisher(notificationsService),
 			Storage:       deps.FileStorage,
 		},
 		deps.Config,

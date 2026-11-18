@@ -1,78 +1,83 @@
 # Announcements extraction
 
-Announcements remains a host-wired feature. It has not been registered as a
-disableable module, packaged independently, published or pinned yet.
+Announcements remains host-wired. It has not been registered as a disableable
+module or published as a separately versioned package yet.
 
-## Phase 1: dependency contracts
+## Portable contracts and service
 
-`ports.go` defines feature-owned audience models and narrow interfaces:
+Phase 2 removes host model, SQLC, configuration, email and utility imports from
+the announcement service and attachment orchestration.
 
-| Contract | Responsibility |
+| Source | Responsibility |
 | --- | --- |
-| `AudienceUser` | Identity, enabled status, email and display-name fields needed for recipients |
-| `AudienceGroupMember` | Group-member identity and fallback email/name |
-| `ClientAccess` | Both internal and public client identifiers used by existing matching |
-| `UserDirectory` | User listing/detail, realm-role membership and client-access lookup |
-| `GroupDirectory` | Group validation and membership expansion |
-| `HealthAudience` | Actor-authorized audience resolution and separate stored-audience expansion |
-| `AttachmentStorage` | Upload, download and orphan cleanup through streams/object keys |
+| `models.go` | Feature-owned announcements, attachments, enums, statistics and persistence inputs |
+| `inputs.go`, `values.go` | Service inputs, recipient/context models and input value normalization |
+| `repository.go` | All 53 persistence operations using feature-owned values |
+| `ports.go` | User/group/context audience contracts and stream-based attachment storage |
+| `notification_port.go` | Feature-owned notifications, delivery requests, attachments, channels and publisher/normalizer contracts |
+| `settings.go` | Only non-secret values used for branding, URLs, SMS and attachment decisions |
+| `service.go`, `attachment_service.go` | Portable business, audience, attachment and delivery orchestration |
 
-These contracts use standard-library types and UUIDs without importing users,
-RBAC, Keycloak, health-context or storage implementation packages.
+Standard-library `sql.NullString`/`sql.NullTime` and UUID nullable values remain
+value types in the contract to preserve null versus zero semantics. No generated
+SQLC type alias, PostgreSQL driver, host model or host configuration is exposed.
+Unknown enum strings and invalid-but-nonzero nullable values are preserved by
+persistence translation rather than silently normalized.
 
-`ServicePorts` composes those dependencies. Bootstrap uses
-`NewServiceWithPorts` and the host user/group adapters.
-`ports_host.go` preserves the existing `NewService`, `SetRBACRepository` and
-`SetHealthContextService` entry points. A nil concrete health-context pointer
-remains a nil optional interface.
+`NewServiceWithSettings` composes the portable service.
+`NotificationPublisher.Publish` accepts only the feature's own payload.
+`EmailAttachmentNormalizer` delegates attachment validation and normalization;
+when normalization is required, a missing adapter fails closed.
 
-Host adapters preserve recipient fields, both client identifiers, group lookup
-errors and email fallback. Context-aware host calls receive the request context.
-Legacy user list/detail methods cannot cancel in-flight operations because
-their host signatures lack a context; adapters reject already-canceled calls
-before invoking them.
+## Host adapters
 
-`NotificationPublisher` narrows the notification dependency to `Notify`.
-Notification payloads are still host model types in this phase. Their portable
-conversion is subsequent work; this feature is not yet independently buildable.
+`repository_host.go` retains the SQLC-side contract.
+`repository_adapter.go` and `mapper_postgres.go` translate records, pagination,
+lifecycle inputs, status values and statistics. The existing SQL queries,
+transactions and underlying repository method bodies remain unchanged;
+`NewAnnouncementRepository` wraps that implementation in the adapter.
 
-## Preserved behavior
+`delivery_host.go` translates notification envelopes, all delivery channels,
+templates, recipients, schedules, retries and attachment representations to the
+existing host service. It delegates attachment normalization to the existing
+email policy, preserving validation and size/type limits. Notification errors
+remain best effort in the announcement service.
 
-Recipient resolution retains enabled-user filtering, empty-email rejection,
-case-insensitive deduplication, realm/client/group audience matching and separate
-actor-scoped versus stored health-context resolution. The host remains
-authoritative for contextual authorization; extraction must not bypass it.
-Map iteration still leaves recipient ordering unspecified.
+`ports_host.go` retains `NewService`, `NewServiceWithPorts` and the existing
+RBAC/health-context setters. It builds the non-secret settings snapshot and
+adapts identity dependencies. Bootstrap explicitly wraps the host notifier.
+Context-aware host calls receive request contexts; legacy user list/detail
+operations can only reject cancellation before they start because their host
+signatures lack contexts.
 
-Attachments retain their host configuration, limits, checksums, object-key
-layout, persistence and cleanup. A failed metadata insert removes the uploaded
-object. Delivery remains best effort with existing notification envelopes,
-channels, scheduling, email/SMS behavior and default admin targeting.
-
-Public, protected and admin routes, permission gates and rate limits have not
-changed. SQLC persistence, configuration, email attachment normalization,
-notification payload conversion, core audit recording and migrations remain
-host-owned at this stage. Delivery workers belong to the existing host services;
-no worker ownership is transferred in phase 1.
+The host retains HTTP DTOs/mapping, all public/protected/admin routes,
+permissions, rate limits, contextual authorization, storage providers, SQLC
+persistence, migrations, core audit recording and delivery workers.
+Storage Locations, Document Templates and Documents remain deferred.
 
 ## Verification and next phases
 
-Regression coverage checks user filtering/deduplication, client identifiers,
-group fallback, actor scope, context/error forwarding, host model translation,
-optional nil dependencies, attachment checksums/orphan cleanup, best-effort
-notifications and permission denial before dependencies are accessed.
+The isolated verifier copies only portable source files outside the dashboard,
+checks that the dependency graph contains only its temporary module and UUID,
+and runs build/vet/uncached race checks with downloads disabled.
+It tests create/publish flows, delivery metadata, repository errors and the
+email normalization boundary without host files. The PR workflow runs it.
+
+Host tests additionally cover all 20 model translations in both nullable
+states, future enum values, collection nil/empty distinctions, context/error
+forwarding, notification wire and byte payload parity, schedules/channels,
+attachment normalization, secret exclusion and existing audience/storage behavior.
 
 ```sh
-go test -race ./internal/features/announcements ./internal/bootstrap ./internal/api
-make contracts-check
+python3 infra/scripts/test-announcements-core.py
+go -C backend test -race ./internal/features/announcements ./internal/bootstrap ./internal/api
+make -C backend contracts-check
 ```
 
 Next:
 
-1. Separate portable announcement/repository and delivery models, configuration
-   values and email normalization from host representations.
-2. Integrate all public/protected/admin routes into the registry and verify
-   disablement, permissions, attachment access and delivery behavior together.
-3. Build and verify the standalone package and a separate external consumer.
-4. Publish an immutable version, verify its download/checksums, pin it and
-   replace the retained host implementation with adapters.
+1. Register all public/protected/admin routes as one module and verify
+   disablement, permissions, attachment access and delivery behavior.
+2. Build and verify the standalone module and an external consumer.
+3. Publish a version, verify its download/checksums, pin it and replace the
+   retained host implementation with adapters.

@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	db "github.com/moh-sso-dashboard/internal/db/sqlc"
-	"github.com/moh-sso-dashboard/internal/model"
 )
 
 type AnnouncementRepository interface {
@@ -13,19 +11,19 @@ type AnnouncementRepository interface {
 	// Core CRUD
 	// ---------------------------------
 
-	Create(ctx context.Context, params db.CreateAnnouncementParams) (db.Announcement, error)
-	GetByID(ctx context.Context, id uuid.UUID) (db.Announcement, error)
-	Update(ctx context.Context, params db.UpdateAnnouncementParams) (db.Announcement, error)
-	MarkEmailNotificationSent(ctx context.Context, id uuid.UUID) (db.Announcement, error)
-	MarkSMSNotificationQueued(ctx context.Context, id uuid.UUID) (db.Announcement, error)
+	Create(ctx context.Context, params CreateAnnouncementParams) (Announcement, error)
+	GetByID(ctx context.Context, id uuid.UUID) (Announcement, error)
+	Update(ctx context.Context, params UpdateAnnouncementParams) (Announcement, error)
+	MarkEmailNotificationSent(ctx context.Context, id uuid.UUID) (Announcement, error)
+	MarkSMSNotificationQueued(ctx context.Context, id uuid.UUID) (Announcement, error)
 	ListSMSRecipientsForUsers(ctx context.Context, userIDs []uuid.UUID) ([]AnnouncementSMSRecipient, error)
-	CreateAttachment(ctx context.Context, params db.CreateAnnouncementAttachmentParams) (db.AnnouncementAttachment, error)
-	ListAttachmentsByAnnouncementID(ctx context.Context, announcementID uuid.UUID) ([]db.AnnouncementAttachment, error)
-	ListEmailAttachments(ctx context.Context, announcementID uuid.UUID) ([]db.AnnouncementAttachment, error)
+	CreateAttachment(ctx context.Context, params CreateAnnouncementAttachmentParams) (AnnouncementAttachment, error)
+	ListAttachmentsByAnnouncementID(ctx context.Context, announcementID uuid.UUID) ([]AnnouncementAttachment, error)
+	ListEmailAttachments(ctx context.Context, announcementID uuid.UUID) ([]AnnouncementAttachment, error)
 	CountAttachments(ctx context.Context, announcementID uuid.UUID) (int64, error)
-	GetAttachmentByID(ctx context.Context, params db.GetAnnouncementAttachmentByIDParams) (db.AnnouncementAttachment, error)
-	UpdateAttachment(ctx context.Context, params db.UpdateAnnouncementAttachmentParams) (db.AnnouncementAttachment, error)
-	SoftDeleteAttachment(ctx context.Context, params db.SoftDeleteAnnouncementAttachmentParams) (db.AnnouncementAttachment, error)
+	GetAttachmentByID(ctx context.Context, params GetAnnouncementAttachmentByIDParams) (AnnouncementAttachment, error)
+	UpdateAttachment(ctx context.Context, params UpdateAnnouncementAttachmentParams) (AnnouncementAttachment, error)
+	SoftDeleteAttachment(ctx context.Context, params SoftDeleteAnnouncementAttachmentParams) (AnnouncementAttachment, error)
 
 	SoftDelete(
 		ctx context.Context,
@@ -37,7 +35,7 @@ type AnnouncementRepository interface {
 		ctx context.Context,
 		id uuid.UUID,
 		updatedBy uuid.UUID,
-	) (db.Announcement, error)
+	) (Announcement, error)
 
 	// ---------------------------------
 	// Listing / search
@@ -45,8 +43,8 @@ type AnnouncementRepository interface {
 
 	ListAdmin(
 		ctx context.Context,
-		params db.ListAnnouncementsAdminParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsAdminParams,
+	) ([]Announcement, error)
 
 	CountAdmin(
 		ctx context.Context,
@@ -54,18 +52,18 @@ type AnnouncementRepository interface {
 
 	ListByStatus(
 		ctx context.Context,
-		params db.ListAnnouncementsByStatusParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsByStatusParams,
+	) ([]Announcement, error)
 
 	CountByStatus(
 		ctx context.Context,
-		status model.AnnouncementStatus,
+		status AnnouncementStatus,
 	) (int64, error)
 
 	SearchAdmin(
 		ctx context.Context,
-		params db.SearchAnnouncementsAdminParams,
-	) ([]db.Announcement, error)
+		params SearchAnnouncementsAdminParams,
+	) ([]Announcement, error)
 
 	CountSearchAdmin(
 		ctx context.Context,
@@ -74,8 +72,8 @@ type AnnouncementRepository interface {
 
 	ListActivePublished(
 		ctx context.Context,
-		params db.ListActivePublishedAnnouncementsParams,
-	) ([]db.Announcement, error)
+		params ListActivePublishedAnnouncementsParams,
+	) ([]Announcement, error)
 
 	CountActivePublished(
 		ctx context.Context,
@@ -83,8 +81,8 @@ type AnnouncementRepository interface {
 
 	ListCreatedByUser(
 		ctx context.Context,
-		params db.ListAnnouncementsCreatedByUserParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsCreatedByUserParams,
+	) ([]Announcement, error)
 
 	CountCreatedByUser(
 		ctx context.Context,
@@ -95,47 +93,47 @@ type AnnouncementRepository interface {
 	// Lifecycle actions
 	// ---------------------------------
 
-	PublishNow(ctx context.Context, id uuid.UUID, publishedBy uuid.UUID) (db.Announcement, error)
+	PublishNow(ctx context.Context, id uuid.UUID, publishedBy uuid.UUID) (Announcement, error)
 	Draft(
 		ctx context.Context,
-		params db.DraftAnnouncementParams,
-	) (db.Announcement, error)
+		params DraftAnnouncementParams,
+	) (Announcement, error)
 
 	Schedule(
 		ctx context.Context,
-		params db.ScheduleAnnouncementParams,
-	) (db.Announcement, error)
+		params ScheduleAnnouncementParams,
+	) (Announcement, error)
 
 	Archive(
 		ctx context.Context,
 		id uuid.UUID,
 		archivedBy uuid.UUID,
-	) (db.Announcement, error)
+	) (Announcement, error)
 
 	UnarchiveToDraft(
 		ctx context.Context,
 		id uuid.UUID,
 		updatedBy uuid.UUID,
-	) (db.Announcement, error)
+	) (Announcement, error)
 
 	UpdateStatus(
 		ctx context.Context,
-		params db.UpdateAnnouncementStatusParams,
-	) (db.Announcement, error)
+		params UpdateAnnouncementStatusParams,
+	) (Announcement, error)
 
 	SetPinned(
 		ctx context.Context,
 		id uuid.UUID,
 		isPinned bool,
 		updatedBy uuid.UUID,
-	) (db.Announcement, error)
+	) (Announcement, error)
 
 	SetPriority(
 		ctx context.Context,
 		id uuid.UUID,
 		priority int32,
 		updatedBy uuid.UUID,
-	) (db.Announcement, error)
+	) (Announcement, error)
 
 	// ---------------------------------
 	// Audience mappings
@@ -234,24 +232,24 @@ type AnnouncementRepository interface {
 
 	ListForClient(
 		ctx context.Context,
-		params db.ListAnnouncementsForClientParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsForClientParams,
+	) ([]Announcement, error)
 
 	ListForRole(
 		ctx context.Context,
-		params db.ListAnnouncementsForRoleParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsForRoleParams,
+	) ([]Announcement, error)
 
 	ListForUser(
 		ctx context.Context,
-		params db.ListAnnouncementsForUserParams,
-	) ([]db.Announcement, error)
+		params ListAnnouncementsForUserParams,
+	) ([]Announcement, error)
 
 	ListPublicAnnouncements(
 		ctx context.Context,
 		limit int32,
 		offset int32,
-	) ([]db.Announcement, error)
+	) ([]Announcement, error)
 
 	// ---------------------------------
 	// Reporting
@@ -259,7 +257,7 @@ type AnnouncementRepository interface {
 
 	GetStats(
 		ctx context.Context,
-	) (db.GetAnnouncementStatsRow, error)
+	) (GetAnnouncementStatsRow, error)
 }
 
 type Repository = AnnouncementRepository

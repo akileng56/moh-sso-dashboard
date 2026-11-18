@@ -6,12 +6,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	db "github.com/moh-sso-dashboard/internal/db/sqlc"
-	"github.com/moh-sso-dashboard/internal/model"
 )
 
-type announcement = db.Announcement
+type announcement = Announcement
 
 func nullStringPtr(ns sql.NullString) *string {
 	if !ns.Valid {
@@ -27,22 +24,22 @@ func nullTimePtr(nt sql.NullTime) *time.Time {
 	return &nt.Time
 }
 
-func toAnnouncementResponse(a db.Announcement) AnnouncementResponse {
+func toAnnouncementResponse(a Announcement) AnnouncementResponse {
 	return AnnouncementResponse{
 		ID:                      a.ID.String(),
 		Title:                   a.Title,
 		Message:                 a.Message,
 		Summary:                 nullStringPtr(a.Summary),
-		Level:                   normalizeLevel(model.AnnouncementLevel(a.Level)),
+		Level:                   normalizeLevel(AnnouncementLevel(a.Level)),
 		Tag:                     nullStringPtr(a.Tag),
 		LinkURL:                 nullStringPtr(a.LinkUrl),
 		LinkLabel:               nullStringPtr(a.LinkLabel),
 		Priority:                a.Priority,
 		IsPinned:                a.IsPinned,
-		Status:                  normalizeAnnouncementStatus(model.AnnouncementStatus(a.Status)),
+		Status:                  normalizeAnnouncementStatus(AnnouncementStatus(a.Status)),
 		PublishAt:               nullTimePtr(a.PublishAt),
 		ExpiresAt:               nullTimePtr(a.ExpiresAt),
-		AudienceType:            normalizeAudienceType(model.AnnouncementAudienceType(a.AudienceType)),
+		AudienceType:            normalizeAudienceType(AnnouncementAudienceType(a.AudienceType)),
 		NotifyByEmail:           a.NotifyByEmail,
 		EmailNotificationSentAt: nullTimePtr(a.EmailNotificationSentAt),
 		NotifyBySMS:             a.NotifyBySms,
@@ -63,22 +60,22 @@ func toAnnouncementResponse(a db.Announcement) AnnouncementResponse {
 }
 
 func toAnnouncementResponseWithAttachments(
-	a db.Announcement,
-	attachments []db.AnnouncementAttachment,
+	a Announcement,
+	attachments []AnnouncementAttachment,
 ) AnnouncementResponse {
 	return toAnnouncementResponseWithAttachmentBase(a, attachments, "/api/v1/admin/announcements")
 }
 
 func toUserAnnouncementResponseWithAttachments(
-	a db.Announcement,
-	attachments []db.AnnouncementAttachment,
+	a Announcement,
+	attachments []AnnouncementAttachment,
 ) AnnouncementResponse {
 	return toAnnouncementResponseWithAttachmentBase(a, attachments, "/api/v1/announcements")
 }
 
 func toAnnouncementResponseWithAttachmentBase(
-	a db.Announcement,
-	attachments []db.AnnouncementAttachment,
+	a Announcement,
+	attachments []AnnouncementAttachment,
 	downloadBasePath string,
 ) AnnouncementResponse {
 	res := toAnnouncementResponse(a)
@@ -126,21 +123,21 @@ func uuidStrings(values []uuid.UUID) []string {
 
 func toAnnouncementAttachmentResponse(
 	announcementID uuid.UUID,
-	attachment db.AnnouncementAttachment,
+	attachment AnnouncementAttachment,
 ) AnnouncementAttachmentResponse {
 	return toAnnouncementAttachmentResponseWithDownloadBase(announcementID, attachment, "/api/v1/admin/announcements")
 }
 
 func toUserAnnouncementAttachmentResponse(
 	announcementID uuid.UUID,
-	attachment db.AnnouncementAttachment,
+	attachment AnnouncementAttachment,
 ) AnnouncementAttachmentResponse {
 	return toAnnouncementAttachmentResponseWithDownloadBase(announcementID, attachment, "/api/v1/announcements")
 }
 
 func toAnnouncementAttachmentResponseWithDownloadBase(
 	announcementID uuid.UUID,
-	attachment db.AnnouncementAttachment,
+	attachment AnnouncementAttachment,
 	downloadBasePath string,
 ) AnnouncementAttachmentResponse {
 	downloadBasePath = strings.TrimRight(strings.TrimSpace(downloadBasePath), "/")
@@ -171,7 +168,7 @@ func toAnnouncementAttachmentResponseWithDownloadBase(
 
 func toAnnouncementAttachmentResponses(
 	announcementID uuid.UUID,
-	attachments []db.AnnouncementAttachment,
+	attachments []AnnouncementAttachment,
 	downloadBasePath ...string,
 ) []AnnouncementAttachmentResponse {
 	basePath := "/api/v1/admin/announcements"
@@ -186,7 +183,7 @@ func toAnnouncementAttachmentResponses(
 	return out
 }
 
-func toAnnouncementStatsResponse(stats db.GetAnnouncementStatsRow) AnnouncementStatsResponse {
+func toAnnouncementStatsResponse(stats GetAnnouncementStatsRow) AnnouncementStatsResponse {
 	return AnnouncementStatsResponse{
 		Total:          stats.Total,
 		DraftCount:     stats.DraftCount,
@@ -197,10 +194,10 @@ func toAnnouncementStatsResponse(stats db.GetAnnouncementStatsRow) AnnouncementS
 	}
 }
 
-func mapAnnouncementAttachments(in []announcementAttachmentRequest) []model.Attachment {
-	out := make([]model.Attachment, 0, len(in))
+func mapAnnouncementAttachments(in []announcementAttachmentRequest) []Attachment {
+	out := make([]Attachment, 0, len(in))
 	for _, attachment := range in {
-		out = append(out, model.Attachment{
+		out = append(out, Attachment{
 			FileName:    strings.TrimSpace(attachment.FileName),
 			ContentType: strings.TrimSpace(attachment.ContentType),
 			Path:        strings.TrimSpace(attachment.Path),
@@ -312,38 +309,14 @@ func nullUUIDString(v uuid.NullUUID) string {
 	return v.UUID.String()
 }
 
-func normalizeLevel(v model.AnnouncementLevel) string {
+func normalizeLevel(v AnnouncementLevel) string {
 	return strings.ToUpper(strings.TrimSpace(string(v)))
 }
 
-func normalizeAnnouncementStatus(v model.AnnouncementStatus) string {
+func normalizeAnnouncementStatus(v AnnouncementStatus) string {
 	return strings.ToUpper(strings.TrimSpace(string(v)))
 }
 
-func normalizeAudienceType(v model.AnnouncementAudienceType) string {
+func normalizeAudienceType(v AnnouncementAudienceType) string {
 	return strings.ToUpper(strings.TrimSpace(string(v)))
-}
-
-func dbAnnouncementLevel(value string) db.AnnouncementLevel {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if value == "" {
-		return db.AnnouncementLevelINFO
-	}
-	return db.AnnouncementLevel(value)
-}
-
-func dbAnnouncementStatus(value string) db.AnnouncementStatus {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if value == "" {
-		return db.AnnouncementStatusDRAFT
-	}
-	return db.AnnouncementStatus(value)
-}
-
-func dbAnnouncementAudienceType(value string) db.AnnouncementAudienceType {
-	value = strings.ToUpper(strings.TrimSpace(value))
-	if value == "" {
-		return db.AnnouncementAudienceTypeALLUSERS
-	}
-	return db.AnnouncementAudienceType(value)
 }

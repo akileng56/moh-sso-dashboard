@@ -557,3 +557,49 @@ tests exercised actor scope and contextual errors, user/group translation and
 filtering, both client identifiers, cancellation before legacy calls, attachment
 checksums and cleanup, notification payload forwarding, and permission denial
 before dependency access.
+
+
+## Announcements extraction: portable models and delivery phase
+
+Phase 2 introduces 20 feature-owned persistence model/input types, local enum
+values, service inputs and a 53-method repository contract without SQLC or host
+model imports. Standard-library nullable values and UUIDs retain existing
+null-versus-zero semantics. Explicit host converters preserve every field,
+including unknown enum values and nullable values with nonzero inactive data.
+
+A translating repository adapter wraps the existing SQLC implementation.
+Underlying SQL queries, transaction handling and repository method bodies
+remain unchanged. The constructor now returns the adapter; model translation
+is contained in host-only files.
+
+Notifications, deliveries and email attachments now use feature-owned payloads.
+The host publisher converts envelopes, channels, recipient/template/payload
+maps, schedules, retries and raw/base64/path attachment representations. The
+host email normalizer retains existing validation/limits. Publication still
+uses best-effort notification forwarding and existing event labels.
+
+The service consumes a non-secret `Settings` snapshot instead of host Config.
+Host constructors and configuration-based construction remain available through
+adapters; a portable constructor accepts only repository, dependency ports and
+settings. The service, attachment orchestration, inputs and contracts now build
+without host files. HTTP request/response DTOs and mapping stay in the host.
+
+`infra/scripts/test-announcements-core.py` checks a temporary isolated module's
+dependency graph and runs read-only build/vet/uncached race checks with module
+downloads disabled. Its tests exercise create/publish, delivery metadata,
+repository errors and normalization delegation. The PR workflow runs this check.
+
+Announcements remains planned/host-wired. Registry integration for all route
+groups, module-disablement checks, independent module packaging and published
+version selection remain subsequent phases. No migration or delivery-worker
+ownership changed, and the deferred document/storage modules were not modified.
+
+Phase 2 verification passed the isolated portable-core dependency/build/vet/race
+checks, targeted Announcements/bootstrap/API race tests, the full backend suite,
+vet, existing module checks, catalogue validation and its seven tests, workflow
+actionlint, and all 366 current API contracts. Host regression tests exercised
+all 20 model round trips with both nullable validity states, unknown enum
+strings, repository context/error propagation, nil/empty collection shape,
+notification wire/byte payload parity, normalization limits and non-secret
+settings conversion. SQL definitions, migrations and generated SQLC files are
+unchanged.
