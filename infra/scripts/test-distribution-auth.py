@@ -69,15 +69,17 @@ def wait_ready(url, seconds=180):
 
 def realm_fixture():
     users = []
-    for name in ('admin', 'viewer', 'outsider', 'scheduler'):
+    for name in ('admin', 'viewer', 'outsider', 'scheduler', 'map-denied'):
         roles = {'dashboard-web': ['portal_user']}
+        if name == 'map-denied':
+            roles = {}
         if name == 'scheduler':
             roles['data-statistics'] = ['report-scheduler_access']
         if name == 'viewer':
             roles['fixture-reports'] = ['viewer']
         users.append({'username': name, 'enabled': True, 'emailVerified': True,
                       'firstName': name, 'lastName': 'Fixture', 'email': name + '@fixture.example.org',
-                      'realmRoles': ['admin' if name == 'admin' else 'user'], 'clientRoles': roles,
+                      'realmRoles': [] if name == 'map-denied' else ['admin' if name == 'admin' else 'user'], 'clientRoles': roles,
                       'credentials': [{'type': 'password', 'value': SECRET, 'temporary': False}]})
     users.append({'username': 'service-account-dashboard-admin', 'enabled': True,
                   'serviceAccountClientId': 'dashboard-admin',
@@ -183,8 +185,7 @@ def main():
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            for module_id in ('geojson',):
-                assert any(item['id'] == module_id and item['enabled'] for item in modules), module_id
+            assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)
             audit_range = 'from=1970-01-01T00:00:00Z&to=2100-01-01T00:00:00Z'
@@ -212,7 +213,39 @@ def main():
             assert csv_rows and csv_rows[0] == ['created_at', 'user_id', 'username', 'action', 'ip', 'client_id', 'success', 'metadata_json']
             request(audit_export + '&format=json', token=viewer, status=403)
 
-            request(api + '/api/v1/geojson/geo_water', token=admin)
+            geo_url = api + '/api/v1/geojson/'
+            request(geo_url + 'geo_water', status=401)
+            # Realm user defaults grant map access. Use a roleless principal
+            # to verify denial without changing the host authorization policy.
+            request(geo_url + 'geo_water', token=outsider)
+            request(geo_url + 'geo_water', token=token('map-denied'), status=403)
+            unknown = request(geo_url + 'not_allowed', token=admin, status=404)
+            assert unknown['error']['code'] == 'NOT_FOUND'
+            auth_headers = {'Authorization': 'Bearer ' + admin}
+            for layer_name in ('geo_water', 'geo_districts', 'geo_subcounties'):
+                with urllib.request.urlopen(urllib.request.Request(geo_url + layer_name, headers=auth_headers), timeout=10) as result:
+                    assert result.code == 200 and result.headers.get_content_type() == 'application/geo+json'
+                    assert result.headers.get('Cache-Control') == 'public, max-age=86400'
+                    assert result.headers.get('X-Content-Type-Options') == 'nosniff'
+                    raw_layer = result.read()
+                    collection = json.loads(raw_layer)
+                    assert collection['type'] == 'FeatureCollection' and collection['features'], layer_name
+                    if layer_name == 'geo_water':
+                        water = raw_layer
+                        modified = result.headers.get('Last-Modified')
+            assert modified, 'Missing modification-time header'
+            with urllib.request.urlopen(urllib.request.Request(geo_url + 'geo_water',
+                    headers={**auth_headers, 'Range': 'bytes=0-31'}), timeout=10) as result:
+                assert result.code == 206 and result.read() == water[:32]
+                assert result.headers.get('Content-Range') == 'bytes 0-31/' + str(len(water))
+            try:
+                conditional = urllib.request.urlopen(urllib.request.Request(geo_url + 'geo_water',
+                    headers={**auth_headers, 'If-Modified-Since': modified}), timeout=10)
+            except urllib.error.HTTPError as error:
+                conditional = error
+            with conditional:
+                assert conditional.code == 304 and conditional.read() == b''
+            print('GeoJSON v0.1.0 layers, headers, ranges, conditional reads and permissions passed', flush=True)
             document = {'apiVersion': 'portal.moh.go.ug/v1alpha1', 'kind': 'Application',
                 'metadata': {'id': 'fixture-reports', 'name': 'Fixture Reports', 'version': '1.0.0'},
                 'spec': {'environment': 'production', 'owner': {'team': 'Fixtures', 'name': 'Test Owner', 'email': 'owner@fixture.example.org'},

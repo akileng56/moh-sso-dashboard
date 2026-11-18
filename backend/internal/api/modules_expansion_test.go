@@ -14,8 +14,8 @@ import (
 	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	"github.com/moh-sso-dashboard/internal/middleware"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
 type auditReadFixture struct{ auditfeature.Service }
@@ -62,8 +62,8 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		enabled := map[string]bool{}
 		for _, info := range registry.Inventory() {
 			enabled[info.ID] = info.Enabled
-			if info.ID == "geojson" && info.Version != version.Get().Version {
-				t.Fatalf("hosted module %s must report the host version", info.ID)
+			if info.ID == "geojson" && info.Version != geojsonmodule.Version() {
+				t.Fatalf("module %s must report the selected GeoJSON dependency version", info.ID)
 			}
 		}
 		for _, identity := range []string{"anonymous", "no-permission", "audit-reader", "map-reader"} {

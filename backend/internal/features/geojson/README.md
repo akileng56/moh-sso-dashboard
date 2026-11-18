@@ -1,23 +1,33 @@
-# GeoJSON extraction
+# GeoJSON host adapters
 
-The existing `geojson` registry module serves permission-guarded map assets.
-It remains hosted in the dashboard and reports the host version.
-`DISABLED_MODULES=geojson` removes its routes on restart. It owns no workers or
-database migrations.
+The dashboard selects
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.1.0`
+without local replacements. The immutable module tag is
+`backend/modules/geojson/v0.1.0`. Compiled inventory reports the selected
+dependency version. `DISABLED_MODULES=geojson` removes the routes on restart;
+the module owns no workers or migrations.
 
-## Phase 1: asset and authorization boundaries
+## Responsibilities
 
-`AssetReader.Open(context.Context, filename)` returns an `Asset` containing a
-seekable, closeable stream and its modification time. These contracts use only
-the standard library. The caller closes every non-nil returned stream, including
-one returned alongside an error.
+`package.go` aliases the published asset/reader, layer and service types,
+exposes the error sentinels, and delegates construction and layer resolution.
+The retained host asset contracts and portable service implementation have
+been removed. Portable source and external-consumer tests live in the
+[standalone module](../../../modules/geojson/README.md).
 
-`NewDirectoryReader` adapts host-owned files, checks request cancellation and
-accepts only single-component filenames for regular files. Bootstrap explicitly
-injects it through `NewHandlerWithReader`. `NewHandler(basePath)` remains a
-compatible convenience constructor.
+`assets_directory.go` adapts host-controlled files to the reader contract.
+Bootstrap injects it through `NewHandlerWithReader`; `NewHandler(basePath)`
+remains compatible. The adapter accepts only regular files with canonical
+single-component filenames and checks request cancellation.
 
-The portable service retains the exact public-name allowlist:
+`handler.go` and `routes.go` retain HTTP serving and authorization. Authentication
+and one of `surveillance:read`, `data_quality:read` or `report_browser:read`
+are required before storage access. Unknown public layer names return the
+existing `NOT_FOUND` response; load failures return `GEOJSON_LOAD_FAILED`
+without exposing paths. A storage failure cannot turn a known layer into a 404.
+
+The package owns the fixed mapping below; assets and Docker packaging remain
+host-owned:
 
 | Public name | Host asset |
 | --- | --- |
@@ -25,74 +35,36 @@ The portable service retains the exact public-name allowlist:
 | geo_districts | uganda_districts.geojson |
 | geo_subcounties | uganda_subcounties.geojson |
 
-Unrecognized names return the existing `NOT_FOUND` response without touching
-storage. Missing assets and reader failures return `GEOJSON_LOAD_FAILED`
-without exposing internal paths. Streams close after successful reads,
-conditional requests, ranges and error responses.
+## Stream and HTTP contracts
 
-Authentication and the existing any-permission gate remain in the host route
-registrar: `surveillance:read`, `data_quality:read` or `report_browser:read`.
-These checks execute before the reader is invoked. The package extraction must
-not replace authoritative host permission resolution.
+A successful service call transfers stream ownership to the HTTP adapter,
+which closes it after serving. The package closes any stream returned on a
+failed or canceled read. Original and close-error causes remain available
+through `errors.Is/As`, while public load-error text stays stable.
 
-The response remains raw `application/geo+json`, with
+Responses remain raw `application/geo+json` with
 `Cache-Control: public, max-age=86400` and `X-Content-Type-Options: nosniff`.
-`http.ServeContent` retains modification-time validation and byte-range behavior.
-Map assets and their Docker packaging remain host-owned.
+`http.ServeContent` preserves conditional requests and byte ranges.
 
-## Phase 2: portable resolution and error handling
+## Verification
 
-`ResolveLayer` owns the immutable, case-sensitive public-name mapping above.
-`Service.Open` resolves names before storage access, forwards the request context
-to the reader and returns a `Layer` with its canonical filename, modification
-time and stream. Successful calls transfer stream ownership to the caller.
-Failed or canceled reads close any returned stream and return an empty layer,
-including when a reader returns both content and an error.
-
-Unknown names match `ErrUnknownLayer`. Reader failures, absent readers, empty
-content and canceled reads match `ErrLoadFailed`. Load errors expose a stable
-message while preserving original and close-error causes for `errors.Is/As`.
-Thus even an absent file for a recognized layer remains a load failure.
-
-The HTTP handler now delegates to the service and maps only resolution failures
-to the existing 404 response. Storage failures retain the existing 500 response,
-even when a reader's underlying error also matches `ErrUnknownLayer`.
-HTTP envelopes, headers, streaming and permissions stay in the host.
-`assets.go`, `service.go` and the portable service tests build and run without
-Gin, host files, database drivers or external dependencies.
-
-## Phase 3: standalone package verification
-
-The release candidate lives in `backend/modules/geojson` at
-`github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`.
-It contains only the reader/asset contract, layer resolution, read/error
-orchestration and selected-version reporting. It requires no third-party
-dependencies, so no `go.sum` is necessary.
-
-The module has its own portable and external-package tests. The isolated
-verifier copies only the module to a temporary directory, starts with an empty
-module cache and disables workspaces and module downloads. It verifies the
-dependency graph, builds, vets and runs uncached race tests, then builds and
-runs a separate consuming module through a temporary local replacement.
-Dependency metadata must remain unchanged throughout verification.
-The PR workflow runs this verifier alongside the existing module checks.
-
-The dashboard deliberately retains its phase-2 implementation and reports the
-host version until an immutable release has been published, downloaded and
-pinned. Directory access, assets, HTTP policy and Docker packaging stay here.
-
-## Verification and next phases
-
-Tests cover real bundled layers, permission denial before asset access,
-allowlist rejection, safe storage errors, stream closure, range/conditional
-responses, context cancellation and directory-adapter boundaries. Registry
-tests retain enabled/disabled route coverage.
+Host tests exercise the pinned dependency through real bundled files, all three
+permission alternatives, denial before storage access, safe failures, stream
+closure, cancellation, ranges and conditional reads. Registry tests cover
+enabled/disabled routes and dependency-version reporting.
 
 ```sh
 go test -race ./internal/features/geojson ./internal/api ./internal/bootstrap
 make contracts-check
 ```
 
-The next phase publishes an immutable version, verifies a clean download and
-checksums, pins it in the dashboard and replaces the retained portable host
-implementation with thin package adapters.
+From the repository root, the standalone verifier builds/vets/race-tests only the
+module and a separate consumer with downloads disabled:
+
+```sh
+python3 infra/scripts/test-geojson-package.py
+```
+
+The authenticated distribution fixture additionally checks the selected version,
+all three packaged layers, headers, ranges, modification-time validation,
+real Keycloak permissions and registry disablement.

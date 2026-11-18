@@ -9,7 +9,7 @@ inspect the modules actually compiled into the running backend.
 | --- | --- | --- | --- |
 | metrics | Dashboard metrics APIs | Selected Go dependency version | Metrics routes are omitted |
 | audit | Audit read, metrics and export APIs | Selected Go dependency version | Audit read routes are omitted; core event recording continues |
-| geojson | Permission-guarded static map assets | Backend build version | GeoJSON routes are omitted; map consumers need availability review |
+| geojson | Permission-guarded static map assets | Selected Go dependency version | GeoJSON routes are omitted; map consumers need availability review |
 | report-scheduler | Report schedules, execution and delivery | Selected Go dependency version | All scheduler routes, including public downloads, are omitted; worker startup is skipped |
 
 The default empty `DISABLED_MODULES` enables all compiled definitions. Set a
@@ -66,3 +66,13 @@ cache, HTTP authorization and export limits remain host adapters. Core event
 recording and all audit migrations retain host ownership. Publishing a library
 tag does not deploy the running dashboard; rebuild and promote the verified
 backend image to consume an updated pin.
+
+
+GeoJSON selects `v0.1.0` from
+`github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`, published
+under `backend/modules/geojson/v0.1.0`. The compiled inventory reports that
+selected dependency version. Host storage and HTTP adapters retain authorization,
+safe errors, headers, byte ranges and conditional reads. The package does not
+contain map files: ship the three existing assets in the backend image and
+verify actual map responses before rollout. Publishing the library does not
+deploy the running dashboard.

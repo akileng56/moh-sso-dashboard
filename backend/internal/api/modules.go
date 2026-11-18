@@ -14,9 +14,9 @@ import (
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
 	auditmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metricsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
@@ -58,7 +58,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			auditfeature.RegisterAdminRoutes(routes.Admin, handlers.Audit, limiter)
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "geojson", Version: version.Get().Version, Enabled: enabled["geojson"]},
+		Info: module.Info{ID: "geojson", Version: geojsonmodule.Version(), Enabled: enabled["geojson"]},
 		Initialize: func(context.Context) (module.Stop, error) {
 			if handlers.GeoJSON == nil {
 				return nil, errors.New("geojson handler is required")

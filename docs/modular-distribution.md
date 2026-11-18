@@ -476,3 +476,48 @@ build metadata containing `(devel)`. Portable source/tests match the retained
 host implementation byte for byte. Existing module checks, the full backend
 suite, vet, all 366 OpenAPI routes, catalogue validation and its seven tests,
 and workflow actionlint checks also passed.
+
+
+## GeoJSON extraction: released dependency integration
+
+GeoJSON `v0.1.0` is published under the immutable nested module tag
+`backend/modules/geojson/v0.1.0`, pointing to release commit
+`f6d681c5db790653f91658be3e44772075e6db1f`. A clean-cache official Go proxy
+download passed signed checksum verification, release-commit validation and
+complete source parity before selecting the host dependency.
+
+The dashboard selects the released dependency and checksums in `backend/go.mod`
+and `backend/go.sum`, without a local replacement. The retained host asset
+contracts and portable service implementation have been removed. The feature's
+`package.go` provides aliases, error sentinels and thin constructors/resolution
+functions. Existing host tests now exercise the selected dependency.
+
+Storage, map files, Docker packaging, HTTP streaming/headers and authorization
+remain host adapters. All three existing layer names, safe 404/500 envelopes,
+range/conditional responses and permission alternatives retain their contracts.
+The compiled inventory reports the selected library version; distribution bundle
+metadata records the exact pin. Disabling the module omits its routes without
+affecting core event recording or unrelated modules.
+
+The full backend suite, targeted GeoJSON/API/bootstrap race checks, vet, module
+checks, all 366 OpenAPI contracts, standalone external-consumer verification,
+catalogue validation and its seven tests, and all 32 bundle tests passed with
+the released dependency selected.
+
+The standard production Dockerfile built the integration candidate successfully
+as `moh-sso-geojson-phase4:backend` (Linux ARM64), image ID
+`sha256:f93fdc92e0b8328e508862912e6fe7b04a16c79f885ea634b417c509d0c65f4d`.
+This review image was built from the working integration tree with `DIRTY=true`.
+
+The full disposable real-Keycloak fixture passed against that image. It checked
+the actual selected GeoJSON version, all three packaged nonempty map layers,
+GeoJSON/cache/nosniff headers, byte ranges and conditional 304 responses,
+authentication, roleless-user denial and existing realm-user map access.
+Default realm-user grants intentionally permit map reads; the fixture uses a
+separate roleless principal to test denial without changing host policy.
+
+The same fixture passed Audit cache/export checks, application lifecycle review,
+backup/restore, clean shutdown/restart recovery, module disablement, continued
+core audit recording and scheduler stop/resume. Disposable fixture containers
+and volumes were removed on completion. The library release and source push
+do not publish this image to a registry or deploy a running installation.

@@ -97,6 +97,7 @@ require (
 
 require (
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.1.0
+	github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.1.0
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.1.0
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler v0.1.0
 )

@@ -116,13 +116,13 @@
     },
     {
       "id": "geojson",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Permission-guarded map asset serving",
       "moduleId": "geojson",
       "dependencies": ["geojson-assets", "rbac"],
       "workers": [],
       "migrations": "none",
-      "next": "Standalone release candidate prepared in backend/modules/geojson; next publish and verify an immutable release, pin it and replace retained host code with adapters. Assets, HTTP authorization and Docker packaging remain host-owned."
+      "next": "Maintain host storage/HTTP adapters, map assets and Docker packaging; release GeoJSON changes independently and update the verified Go pin."
     },
     {
       "id": "health_context",
