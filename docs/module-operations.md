@@ -1,5 +1,8 @@
 # Operating compiled modules
 
+Use [the platform core boundaries](platform-core.md) for mandatory capability
+ownership and current bootstrap limitations.
+
 Use [the coverage guide](module-coverage.md) to distinguish packaged modules,
 registry-hosted features, planned extraction work and mandatory host capabilities.
 Use `GET /api/v1/admin/modules` with an authenticated administrator session to

@@ -1,23 +1,17 @@
-// Package module defines the public contract for compiled dashboard modules.
-// Construct a registry at startup, initialize it once, then register its routes.
+// Package module adapts compiled platform modules to the host's Gin routes.
+// Portable lifecycle and inventory contracts live in core.
 package module
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"regexp"
-	"sync"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moh-sso-dashboard/core"
 )
 
-type Info struct {
-	ID      string `json:"id"`
-	Version string `json:"version"`
-	Enabled bool   `json:"enabled"`
-}
+// Info retains the host API schema name while core owns its field contract.
+type Info core.ModuleInfo
+type Stop = core.Stop
 
 // Routes contains host groups. Public has no authentication; its routes must
 // validate their own access tokens and apply appropriate rate limits.
@@ -27,8 +21,6 @@ type Routes struct {
 	Protected *gin.RouterGroup
 	Admin     *gin.RouterGroup
 }
-
-type Stop func(context.Context) error
 
 // Definition receives domain dependencies through constructor closures, keeping
 // this public API independent of the host's internal implementation types.
@@ -41,82 +33,33 @@ type Definition struct {
 	Register   func(Routes)
 }
 
+// Registry combines the portable runtime with host-owned route registration.
 type Registry struct {
+	runtime     *core.Runtime
 	definitions []Definition
-	mu          sync.Mutex
-	initialized bool
 }
 
-var validID = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
-
-// New validates explicit composition order before any module has side effects.
-// Required modules must precede their consumers and be enabled when used.
 func New(definitions ...Definition) (*Registry, error) {
-	seen := make(map[string]bool, len(definitions))
-	for _, definition := range definitions {
-		if !validID.MatchString(definition.ID) || definition.Version == "" {
-			return nil, fmt.Errorf("module ID and version required: %q", definition.ID)
-		}
-		if _, exists := seen[definition.ID]; exists {
-			return nil, fmt.Errorf("duplicate module %q", definition.ID)
-		}
-		for _, required := range definition.Requires {
-			enabled, exists := seen[required]
-			if !exists || (definition.Enabled && !enabled) {
-				return nil, fmt.Errorf("module %q requires preceding enabled module %q", definition.ID, required)
-			}
-		}
-		seen[definition.ID] = definition.Enabled
+	lifecycle := make([]core.ModuleDefinition, len(definitions))
+	for i, definition := range definitions {
+		lifecycle[i] = core.ModuleDefinition{ModuleInfo: core.ModuleInfo(definition.Info), Requires: definition.Requires, Initialize: definition.Initialize}
 	}
-	return &Registry{definitions: append([]Definition(nil), definitions...)}, nil
+	runtime, err := core.NewRuntime(lifecycle...)
+	if err != nil {
+		return nil, err
+	}
+	return &Registry{runtime: runtime, definitions: append([]Definition(nil), definitions...)}, nil
 }
 
 func (r *Registry) Inventory() []Info {
-	items := make([]Info, 0, len(r.definitions))
-	for _, definition := range r.definitions {
-		items = append(items, definition.Info)
+	items := r.runtime.Inventory()
+	out := make([]Info, len(items))
+	for i, item := range items {
+		out[i] = Info(item)
 	}
-	return items
+	return out
 }
-
-// Initialize runs once. Failure cancels module contexts and rolls back acquired
-// resources in reverse order. A failed registry must be discarded.
-func (r *Registry) Initialize(ctx context.Context) (Stop, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if r.initialized {
-		return nil, errors.New("module registry already initialized")
-	}
-	r.initialized = true
-	moduleCtx, cancel := context.WithCancel(ctx)
-	var cleanups []Stop
-	var once sync.Once
-	var stopErr error
-	stop := func(ctx context.Context) error {
-		once.Do(func() {
-			cancel()
-			for i := len(cleanups) - 1; i >= 0; i-- {
-				stopErr = errors.Join(stopErr, cleanups[i](ctx))
-			}
-		})
-		return stopErr
-	}
-	for _, definition := range r.definitions {
-		if !definition.Enabled || definition.Initialize == nil {
-			continue
-		}
-		cleanup, err := definition.Initialize(moduleCtx)
-		if cleanup != nil {
-			cleanups = append(cleanups, cleanup)
-		}
-		if err != nil {
-			rollbackCtx, rollbackCancel := context.WithTimeout(context.Background(), 15*time.Second)
-			defer rollbackCancel()
-			return nil, errors.Join(fmt.Errorf("initialize module %q: %w", definition.ID, err), stop(rollbackCtx))
-		}
-	}
-	return stop, nil
-}
+func (r *Registry) Initialize(ctx context.Context) (Stop, error) { return r.runtime.Initialize(ctx) }
 
 func (r *Registry) RegisterRoutes(routes Routes) {
 	for _, definition := range r.definitions {

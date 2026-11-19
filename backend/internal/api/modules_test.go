@@ -77,3 +77,12 @@ func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 		}
 	}
 }
+
+// Required platform capabilities are not optional business module IDs.
+func TestRequiredPlatformCapabilitiesCannotBeDisabledAsModules(t *testing.T) {
+	for _, id := range []string{"auth", "authsession", "sessions", "rbac", "system_rbac", "health_context", "platform"} {
+		if _, err := NewModuleRegistry(HandlerSet{}, id, nil, nil); err == nil {
+			t.Fatalf("required capability %s accepted as a disabled optional module", id)
+		}
+	}
+}

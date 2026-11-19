@@ -862,3 +862,43 @@ nine warehouse reads, authentication/system/context guards, disablement and
 re-enablement with data parity, backup/restore, core audit recording and
 scheduler stop/resume. Warehouse SQL, migrations and worker ownership are
 unchanged. The release tag is upstream; publication does not deploy the backend.
+
+### Platform Core phase 1 — contracts and dependency boundaries
+
+Created `feat/platform-core` from the completed Administrative Units integration.
+`backend/core` now owns the framework-independent compiled-module inventory,
+validation and lifecycle contracts/runtime using only the standard library.
+The existing `backend/module` package adapts Gin routing and delegates lifecycle
+management to core, preserving current constructors, inventory JSON, callbacks,
+disablement, dependency order, rollback and shutdown behavior.
+
+`docs/platform-core.md` defines mandatory identity/session, authorization,
+application-governance, contextual-policy, audit-recording, operations and
+frontend-shell responsibilities, separating shared contracts from optional apps
+and provider adapters. This is an incremental host-integrated foundation, not
+a newly published package or completed minimal-boot distribution.
+
+Core/adapter architecture checks prevent framework/provider/feature dependencies
+from entering the portable core and prevent feature imports into the module
+HTTP adapter. A new CI verifier copies the complete core tree outside the host
+and builds/vets/race-tests it with an empty cache and downloads/workspaces
+disabled. Regressions cover dependency validation, disabled modules, failed/
+partial initialization, reverse rollback, cancellation, concurrent idempotent
+cleanup, joined causes and detached inventory. Router checks ensure mandatory
+core feature IDs cannot enter DISABLED_MODULES.
+
+Identity and access contracts/adapters are next. Bootstrap remains coupled to
+its existing databases/providers and legacy workers until an explicit later
+core-only profile is implemented and verified. No authentication policy,
+provider lifecycle, route, schema, dependency pin or release changed.
+
+Phase 1 verification passed complete-core isolated dependency/build/vet/
+uncached race checks; core/module/API/bootstrap race tests; architecture checks;
+the full backend suite and vet; all packaged-module checks and 366 unchanged API
+contracts; catalogue validation/seven tests and workflow actionlint. The host
+inventory view preserves its module.Info schema name and JSON shape. The
+standard production image built successfully, and its real Keycloak/PostgreSQL
+fixture passed inventory/permissions, application governance, warehouse reads,
+attachments, backup/restore, clean shutdown/restart, module disablement/
+re-enablement, continued audit recording and scheduler worker stop/resume.
+No release was published, deployment performed or minimal-core boot claimed.

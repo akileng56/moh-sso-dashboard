@@ -140,6 +140,9 @@ jobs:
         working-directory: backend
         run: go vet ./...
 
+      - name: Platform core dependency boundary and lifecycle
+        run: python3 infra/scripts/test-platform-core.py
+
       - name: Independent Go modules
         working-directory: backend
         run: make modules-check
