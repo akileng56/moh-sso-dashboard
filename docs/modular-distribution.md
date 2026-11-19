@@ -1237,3 +1237,48 @@ arrays, cancellation and pool lifetime; all packaged Go modules; the full
 backend suite and vet; unchanged 366-endpoint API contract; 12 catalogue
 regressions; workflow actionlint and whitespace checks. The candidate remains
 local and unpublished.
+
+### Self-contained Metrics — v0.2.0 release and host integration
+
+Published `backend/modules/metrics/v0.2.0` upstream from release commit
+`ce93be80` and selected v0.2.0 in the dashboard with both reviewed checksums
+and no replacement. The fresh-cache release verifier checks the public module
+and dependency versions, verifies sums, builds an independent HTTP consumer
+and compares the complete published artifact with the local module.
+
+Removed the Metrics-specific host HTTP/DTO adapters, repository implementation,
+service alias and their bootstrap wiring. All 32 Metrics-only SQL definitions
+were removed from the host query sources and SQLC output was regenerated.
+The published package is now the sole owner of those reads and all 19
+endpoints. Platform primary schema/migrations and audit recording are retained.
+
+The host constructs Metrics only when enabled, using the caller-owned primary
+pool and shared verified admin/permission/request-ID capabilities. Both
+administrator identity and `metrics:read` are required before SQL; raw request
+headers cannot create an administrator. The generic registrar preserves the
+19 GET routes and path parameters. Module OpenAPI operations and schemas
+feed the unchanged 366-endpoint API inventory. Catalogue ownership and
+architecture checks now reject retained repository/service/adapter trees.
+
+The existing overview partial-result behavior remains part of the Metrics
+contract. No running deployment is changed. Only the release tag is pushed;
+the host integration stays on `feat/metrics-v020-integration` until explicitly
+pushed.
+
+The isolated fixture verifier now waits for final PostgreSQL TCP readiness
+rather than the temporary initialization server. Real-authentication fixtures
+cover every Metrics route, a seeded audit subject, complete disablement and
+re-enablement. Scheduler lifecycle comparisons use the current worker after
+the additional intentional Metrics-disablement restart.
+
+Integration verification passed: fresh public v0.2.0 artifact/checksums,
+replacement-free dependency graph and external HTTP consumer; independent
+build/vet/uncached race and PostgreSQL checks for all 32 reads/19 routes;
+SQLC compile and regeneration freshness; all packaged Go modules; full host
+backend tests and vet; API/bootstrap/registrar/architecture race checks;
+366 current API operations; 12 catalogue regressions; workflow actionlint;
+production Docker build; real Keycloak full and core profiles. The full
+fixture verified all Metrics routes, unauthenticated/non-admin denials,
+disablement/re-enablement, audit/worker preservation, backups, restarts and
+full -> core -> full data preservation. The working integration is committed
+locally; no running deployment is changed.

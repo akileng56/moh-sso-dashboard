@@ -10,7 +10,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"
@@ -48,7 +47,7 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, disabled := range []string{"", "audit", "geojson", "audit,geojson"} {
-		handlers := HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: auditfeature.NewHandler(auditReadFixture{}, nil), GeoJSON: testGeoJSONModule(t, assets)}
+		handlers := HandlerSet{Metrics: testMetricsModule(t), Audit: auditfeature.NewHandler(auditReadFixture{}, nil), GeoJSON: testGeoJSONModule(t, assets)}
 		registry, err := NewModuleRegistry(handlers, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)

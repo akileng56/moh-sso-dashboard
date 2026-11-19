@@ -35,7 +35,6 @@ type services struct {
 	SMS                     service.SMSService
 	Notifications           service.NotificationsService
 	Auth                    service.AuthService
-	Metrics                 *service.MetricsService
 	Audit                   *service.AuditService
 	StorageLocations        storagelocationfeature.Service
 	Sessions                sessionfeature.Service
@@ -145,7 +144,6 @@ func buildServices(deps serviceDependencies) services {
 	)
 
 	authService := service.NewAuthService(deps.Repositories.Auth, deps.CacheClient)
-	metricsService := service.NewMetricsService(deps.Repositories.Metrics)
 	auditService := service.NewAuditService(
 		deps.Store,
 		deps.Cache,
@@ -294,7 +292,6 @@ func buildServices(deps serviceDependencies) services {
 		SMS:                     smsService,
 		Notifications:           notificationsService,
 		Auth:                    authService,
-		Metrics:                 metricsService,
 		Audit:                   auditService,
 		StorageLocations:        storageLocationService,
 		Sessions:                sessionService,

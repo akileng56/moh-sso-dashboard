@@ -9,23 +9,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
-
-const countClients = `-- name: CountClients :one
-SELECT COUNT(*) 
-FROM client
-`
-
-func (q *Queries) CountClients(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countClients)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
 
 const countDisabledClients = `-- name: CountDisabledClients :one
 SELECT COUNT(*)
@@ -35,19 +22,6 @@ WHERE enabled = false
 
 func (q *Queries) CountDisabledClients(ctx context.Context) (int64, error) {
 	row := q.db.QueryRowContext(ctx, countDisabledClients)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const countEnabledClients = `-- name: CountEnabledClients :one
-SELECT COUNT(*)
-FROM client
-WHERE enabled = true
-`
-
-func (q *Queries) CountEnabledClients(ctx context.Context) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countEnabledClients)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -344,145 +318,6 @@ func (q *Queries) ListEnabledClients(ctx context.Context) ([]Client, error) {
 			&i.PublicClient,
 			pq.Array(&i.RedirectUris),
 			pq.Array(&i.WebOrigins),
-			&i.Enabled,
-			&i.Attributes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const newClientsInRange = `-- name: NewClientsInRange :many
-SELECT
-    id,
-    client_id,
-    name,
-    description,
-    base_url,
-    icon,
-    public_client,
-    enabled,
-    attributes,
-    created_at,
-    updated_at
-FROM client
-WHERE created_at BETWEEN $1 AND $2
-ORDER BY created_at DESC
-`
-
-type NewClientsInRangeParams struct {
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-}
-
-type NewClientsInRangeRow struct {
-	ID           uuid.UUID       `json:"id"`
-	ClientID     string          `json:"client_id"`
-	Name         string          `json:"name"`
-	Description  sql.NullString  `json:"description"`
-	BaseUrl      sql.NullString  `json:"base_url"`
-	Icon         sql.NullString  `json:"icon"`
-	PublicClient bool            `json:"public_client"`
-	Enabled      bool            `json:"enabled"`
-	Attributes   json.RawMessage `json:"attributes"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-}
-
-func (q *Queries) NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]NewClientsInRangeRow, error) {
-	rows, err := q.db.QueryContext(ctx, newClientsInRange, arg.StartTime, arg.EndTime)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []NewClientsInRangeRow{}
-	for rows.Next() {
-		var i NewClientsInRangeRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ClientID,
-			&i.Name,
-			&i.Description,
-			&i.BaseUrl,
-			&i.Icon,
-			&i.PublicClient,
-			&i.Enabled,
-			&i.Attributes,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const recentlyCreatedClients = `-- name: RecentlyCreatedClients :many
-SELECT
-    id,
-    client_id,
-    name,
-    description,
-    base_url,
-    icon,
-    public_client,
-    enabled,
-    attributes,
-    created_at,
-    updated_at
-FROM client
-ORDER BY created_at DESC
-LIMIT $1
-`
-
-type RecentlyCreatedClientsRow struct {
-	ID           uuid.UUID       `json:"id"`
-	ClientID     string          `json:"client_id"`
-	Name         string          `json:"name"`
-	Description  sql.NullString  `json:"description"`
-	BaseUrl      sql.NullString  `json:"base_url"`
-	Icon         sql.NullString  `json:"icon"`
-	PublicClient bool            `json:"public_client"`
-	Enabled      bool            `json:"enabled"`
-	Attributes   json.RawMessage `json:"attributes"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
-}
-
-func (q *Queries) RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]RecentlyCreatedClientsRow, error) {
-	rows, err := q.db.QueryContext(ctx, recentlyCreatedClients, rowLimit)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []RecentlyCreatedClientsRow{}
-	for rows.Next() {
-		var i RecentlyCreatedClientsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.ClientID,
-			&i.Name,
-			&i.Description,
-			&i.BaseUrl,
-			&i.Icon,
-			&i.PublicClient,
 			&i.Enabled,
 			&i.Attributes,
 			&i.CreatedAt,

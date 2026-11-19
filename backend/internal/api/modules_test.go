@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,12 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/module"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
 
 func TestModuleConfiguration(t *testing.T) {
@@ -33,7 +34,7 @@ func TestModuleConfiguration(t *testing.T) {
 func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, disabled := range []string{"", " metrics "} {
-		registry, err := NewModuleRegistry(HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: &auditfeature.Handler{}, GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
+		registry, err := NewModuleRegistry(HandlerSet{Metrics: testMetricsModule(t), Audit: &auditfeature.Handler{}, GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,4 +96,15 @@ func testGeoJSONModule(t *testing.T, directory string) *geojsonfeature.Module {
 		t.Fatal(err)
 	}
 	return item
+}
+
+func testMetricsModule(t *testing.T) *metricsfeature.Module {
+	t.Helper()
+	m, err := metricsfeature.NewModule(metricsfeature.Dependencies{
+		Database: new(sql.DB), RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

@@ -5,12 +5,12 @@ import (
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
 	userfeature "github.com/moh-sso-dashboard/internal/features/users"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 )
 
 func RegisterAdminRoutes(protected *gin.RouterGroup, deps Dependencies) {
@@ -19,7 +19,7 @@ func RegisterAdminRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	registerAdminUserRoutes(admin, deps)
 	registerAdminClientRoleRoutes(admin, deps)
 	if deps.Modules == nil {
-		registerAdminMetricRoutes(admin, deps)
+		registerAdminMetricRoutes(protected, deps)
 		registerAdminAuditRoutes(admin, deps)
 	}
 	registerAdminNotificationRoutes(admin, deps)
@@ -40,8 +40,10 @@ func registerAdminClientRoleRoutes(admin *gin.RouterGroup, deps Dependencies) {
 	clientfeature.RegisterAdminRoutes(admin, deps.Clients)
 }
 
-func registerAdminMetricRoutes(admin *gin.RouterGroup, deps Dependencies) {
-	metricsfeature.RegisterAdminRoutes(admin, deps.Metrics)
+func registerAdminMetricRoutes(protected *gin.RouterGroup, deps Dependencies) {
+	if deps.Metrics != nil {
+		modulehttp.Register(protected, deps.Metrics)
+	}
 }
 
 func registerAdminAuditRoutes(admin *gin.RouterGroup, deps Dependencies) {

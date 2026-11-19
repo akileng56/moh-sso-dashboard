@@ -150,6 +150,9 @@ jobs:
       - name: Standalone Metrics package, HTTP consumer and PostgreSQL reads
         run: python3 infra/scripts/test-metrics-package.py --postgres
 
+      - name: Published self-contained Metrics release
+        run: python3 infra/scripts/test-metrics-release.py
+
       - name: Standalone Audit read package
         run: python3 infra/scripts/test-audit-package.py
 

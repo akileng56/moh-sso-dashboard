@@ -13,10 +13,6 @@ import (
 
 type Querier interface {
 	ActiveUsersPerClientThisWeek(ctx context.Context) ([]ActiveUsersPerClientThisWeekRow, error)
-	ActiveUsersPerClientToday(ctx context.Context) ([]ActiveUsersPerClientTodayRow, error)
-	ActiveUsersThisWeek(ctx context.Context) (int64, error)
-	ActiveUsersToday(ctx context.Context) (int64, error)
-	ApproximateActiveSessions(ctx context.Context) (int64, error)
 	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (Announcement, error)
 	ArchiveDocumentTemplate(ctx context.Context, id uuid.UUID) error
 	ArchiveDocumentTemplateColumn(ctx context.Context, id uuid.UUID) error
@@ -30,34 +26,22 @@ type Querier interface {
 	ClaimEmailOutboxBatch(ctx context.Context, limit int32) ([]EmailOutbox, error)
 	ClaimNextPendingProcess(ctx context.Context) (Process, error)
 	ClaimPendingNotificationDeliveries(ctx context.Context, arg ClaimPendingNotificationDeliveriesParams) ([]NotificationDelivery, error)
-	ClientUsageForUserInRange(ctx context.Context, arg ClientUsageForUserInRangeParams) ([]ClientUsageForUserInRangeRow, error)
 	CompleteProcess(ctx context.Context, id uuid.UUID) error
 	CompleteSurveillanceImportBatch(ctx context.Context, arg CompleteSurveillanceImportBatchParams) error
 	CountActivePublishedAnnouncements(ctx context.Context) (int64, error)
-	CountActiveUsers(ctx context.Context) (int64, error)
-	CountActiveUsersInRange(ctx context.Context, arg CountActiveUsersInRangeParams) (int64, error)
 	CountAnnouncementAttachments(ctx context.Context, announcementID uuid.UUID) (int64, error)
 	CountAnnouncementsAdmin(ctx context.Context) (int64, error)
 	CountAnnouncementsByStatus(ctx context.Context, status AnnouncementStatus) (int64, error)
 	CountAnnouncementsCreatedByUser(ctx context.Context, createdBy uuid.UUID) (int64, error)
-	CountClients(ctx context.Context) (int64, error)
 	CountDisabledClients(ctx context.Context) (int64, error)
-	CountDisabledUsers(ctx context.Context) (int64, error)
 	CountEmailOutboxByStatus(ctx context.Context, status string) (int64, error)
-	CountEnabledClients(ctx context.Context) (int64, error)
-	CountFailedLogins(ctx context.Context) (int64, error)
-	CountFailedLoginsInRange(ctx context.Context, arg CountFailedLoginsInRangeParams) (int64, error)
 	CountNewClientsThisWeek(ctx context.Context) (int64, error)
 	CountNewClientsToday(ctx context.Context) (int64, error)
-	CountNewUsersThisWeek(ctx context.Context) (int64, error)
-	CountNewUsersToday(ctx context.Context) (int64, error)
 	CountNotificationDeliveries(ctx context.Context, arg CountNotificationDeliveriesParams) (int64, error)
 	CountNotifications(ctx context.Context, targetRole string) (int64, error)
-	CountPasswordResetsInRange(ctx context.Context, arg CountPasswordResetsInRangeParams) (int64, error)
 	CountPendingNotificationDeliveriesByChannel(ctx context.Context, channel string) (int64, error)
 	CountSearchAnnouncementsAdmin(ctx context.Context, searchText sql.NullString) (int64, error)
 	CountUnreadNotifications(ctx context.Context, targetRole string) (int64, error)
-	CountUsers(ctx context.Context) (int64, error)
 	CreateAlert(ctx context.Context, arg CreateAlertParams) (Alert, error)
 	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (Announcement, error)
 	CreateAnnouncementAttachment(ctx context.Context, arg CreateAnnouncementAttachmentParams) (AnnouncementAttachment, error)
@@ -201,8 +185,6 @@ type Querier interface {
 	InsertAnnouncementRole(ctx context.Context, arg InsertAnnouncementRoleParams) error
 	InsertAnnouncementUser(ctx context.Context, arg InsertAnnouncementUserParams) error
 	InsertImportJobItem(ctx context.Context, arg InsertImportJobItemParams) error
-	LastLoginForAllUsers(ctx context.Context) ([]LastLoginForAllUsersRow, error)
-	LastLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	ListActiveDiseases(ctx context.Context) ([]Disease, error)
 	ListActiveDocumentTemplates(ctx context.Context) ([]DocumentTemplate, error)
 	ListActiveIndicators(ctx context.Context) ([]Indicator, error)
@@ -329,11 +311,6 @@ type Querier interface {
 	ListWeeklyStatusesDetailed(ctx context.Context, arg ListWeeklyStatusesDetailedParams) ([]ListWeeklyStatusesDetailedRow, error)
 	ListWeeklyStatusesDetailedInHealthContext(ctx context.Context, arg ListWeeklyStatusesDetailedInHealthContextParams) ([]ListWeeklyStatusesDetailedInHealthContextRow, error)
 	ListWeeklyStatusesInHealthContext(ctx context.Context, arg ListWeeklyStatusesInHealthContextParams) ([]WeeklyStatus, error)
-	LoginCountForClientInRange(ctx context.Context, arg LoginCountForClientInRangeParams) (int64, error)
-	LoginCountPerUserInRange(ctx context.Context, arg LoginCountPerUserInRangeParams) ([]LoginCountPerUserInRangeRow, error)
-	LoginSuccessFailureInRange(ctx context.Context, arg LoginSuccessFailureInRangeParams) (LoginSuccessFailureInRangeRow, error)
-	LoginTrend(ctx context.Context) ([]LoginTrendRow, error)
-	LoginTrendByDay(ctx context.Context, arg LoginTrendByDayParams) ([]LoginTrendByDayRow, error)
 	MarkAllNotificationsRead(ctx context.Context, targetRole string) error
 	MarkAnnouncementEmailNotificationSent(ctx context.Context, id uuid.UUID) (Announcement, error)
 	MarkAnnouncementSMSNotificationQueued(ctx context.Context, id uuid.UUID) (Announcement, error)
@@ -351,14 +328,7 @@ type Querier interface {
 	MarkNotificationRead(ctx context.Context, id uuid.UUID) error
 	MarkSurveillanceImportRawRowFailed(ctx context.Context, arg MarkSurveillanceImportRawRowFailedParams) error
 	MarkSurveillanceImportRawRowProcessed(ctx context.Context, id uuid.UUID) error
-	MostAccessedClients(ctx context.Context, arg MostAccessedClientsParams) ([]MostAccessedClientsRow, error)
-	MostActiveClients(ctx context.Context) ([]MostActiveClientsRow, error)
-	NeverLoggedInUsers(ctx context.Context) ([]User, error)
-	NewClientsInRange(ctx context.Context, arg NewClientsInRangeParams) ([]NewClientsInRangeRow, error)
-	NewUsersInRange(ctx context.Context, arg NewUsersInRangeParams) ([]User, error)
-	NewUsersTrend(ctx context.Context, arg NewUsersTrendParams) ([]NewUsersTrendRow, error)
 	PublishAnnouncementNow(ctx context.Context, arg PublishAnnouncementNowParams) (Announcement, error)
-	RecentlyCreatedClients(ctx context.Context, rowLimit int32) ([]RecentlyCreatedClientsRow, error)
 	RemoveIHPPermissionFromRealmRole(ctx context.Context, arg RemoveIHPPermissionFromRealmRoleParams) error
 	RemoveIHPPermissionFromSystemRole(ctx context.Context, arg RemoveIHPPermissionFromSystemRoleParams) error
 	RemoveIHPSystemAccessRole(ctx context.Context, arg RemoveIHPSystemAccessRoleParams) error
@@ -385,10 +355,8 @@ type Querier interface {
 	SetIndicatorActiveState(ctx context.Context, arg SetIndicatorActiveStateParams) (Indicator, error)
 	SoftDeleteAnnouncement(ctx context.Context, arg SoftDeleteAnnouncementParams) error
 	SoftDeleteAnnouncementAttachment(ctx context.Context, arg SoftDeleteAnnouncementAttachmentParams) (AnnouncementAttachment, error)
-	SuspiciousLoginsInRange(ctx context.Context, arg SuspiciousLoginsInRangeParams) ([]SuspiciousLoginsInRangeRow, error)
 	TopFailureIPs(ctx context.Context, arg TopFailureIPsParams) ([]TopFailureIPsRow, error)
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
-	TotalLoginsInRange(ctx context.Context, arg TotalLoginsInRangeParams) (int64, error)
 	UnarchiveAnnouncementToDraft(ctx context.Context, arg UnarchiveAnnouncementToDraftParams) (Announcement, error)
 	UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusParams) (Alert, error)
 	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (Announcement, error)

@@ -67,8 +67,8 @@ func TestPublishedModuleSchemasMergeAndRejectCollisions(t *testing.T) {
 	if children["items"].(map[string]any)["$ref"] != "#/components/schemas/admin_units.TreeNode" {
 		t.Fatal("recursive hierarchy schema lost")
 	}
-	if len(operations) != 10 {
-		t.Fatal("expected nine unit routes and one GeoJSON route", len(operations))
+	if len(operations) != 29 {
+		t.Fatal("expected 19 Metrics, nine unit and one GeoJSON routes", len(operations))
 	}
 	if _, err := moduleOperations(object{"admin_units.TreeNode": "collision"}); err == nil {
 		t.Fatal("module schema conflict silently accepted")

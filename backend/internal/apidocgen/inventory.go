@@ -17,6 +17,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	adminunits "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojson "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metrics "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
 
 // Routes uses inert handlers: route registration never needs live DB/Redis/SSO.
@@ -63,6 +64,7 @@ func publicRoute(path string) bool {
 }
 
 func documentationHandlers() router.HandlerSet {
+	gin.SetMode(gin.TestMode)
 	var handlers router.HandlerSet
 	v := reflect.ValueOf(&handlers).Elem()
 	for i := 0; i < v.NumField(); i++ {
@@ -85,6 +87,13 @@ func documentationHandlers() router.HandlerSet {
 		ContextAliases: func(context.Context, string, bool) (map[string][]string, error) {
 			return nil, adminunits.ErrUnauthorized
 		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	handlers.Metrics, err = metrics.NewModule(metrics.Dependencies{
+		Database: new(sql.DB), RequireAdmin: func(*http.Request) error { return metrics.ErrUnauthorized },
+		AuthorizeAny: func(*http.Request, ...string) error { return metrics.ErrUnauthorized },
 	})
 	if err != nil {
 		panic(err)

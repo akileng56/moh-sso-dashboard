@@ -11,7 +11,6 @@ import (
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/api/routes"
@@ -40,6 +39,7 @@ import (
 	"github.com/moh-sso-dashboard/module"
 	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
 
 type RouterDependencies struct {
@@ -59,7 +59,7 @@ type HandlerSet struct {
 	Auth                    *authfeature.Handler
 	Clients                 *clientfeature.Handler
 	Users                   *userfeature.Handler
-	Metrics                 *metricsfeature.Handler
+	Metrics                 *metricsfeature.Module
 	Audit                   *auditfeature.Handler
 	Notifications           *notificationsfeature.Handler
 	Documents               *documentsfeature.Handler

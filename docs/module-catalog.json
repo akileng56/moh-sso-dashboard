@@ -201,8 +201,8 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Use the published v0.1.0 package as the independent-module reference; change its pin only after release verification.",
-      "integration": "adapter"
+      "next": "Maintain published HTTP, DTOs and PostgreSQL reads in the module; select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "notifications",

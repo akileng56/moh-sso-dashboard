@@ -44,6 +44,18 @@ func Actor(r *http.Request) (authz.Context, bool) {
 	current, ok := r.Context().Value(accessKey{}).(access)
 	return current.actor, ok && current.valid && current.actor.UserID != ""
 }
+
+// RequireAdmin grants access only from verified platform identity.
+func RequireAdmin(r *http.Request) error {
+	actor, valid := Actor(r)
+	if !valid {
+		return denied(401)
+	}
+	if !actor.IsAdmin {
+		return denied(403)
+	}
+	return nil
+}
 func RequireSystem(r *http.Request, system string) error {
 	actor, valid := Actor(r)
 	if !valid {

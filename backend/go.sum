@@ -167,6 +167,8 @@ github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.2.0 h1:Zdlo+Wq
 github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.2.0/go.mod h1:e5Yf6s1NuHjVGaybpHI1OQ2PPF5I9zmOejEqugrYYO0=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.1.0 h1:JR4+NccR1VxlXl4x/z6di38m2FOq5kNwvWshdW0nW28=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.1.0/go.mod h1:QRq5A1hzHzJW2h0ruJsuZyGhwz2POBcARy28ViBHbVE=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.2.0 h1:3ub1lk5Rk0zKHK6AzgN2C8ZaEE7oKBK9BBSMwS0Yn7g=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.2.0/go.mod h1:89xcIfGAGfgcpnqgpcpR63uTMIPAT/WY0xM3NEVt5d8=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler v0.1.0 h1:34Mhomtdc3SHyVHKP4aGztJNNfDYO2LlZpzUjJTG5No=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler v0.1.0/go.mod h1:0z7VLLvsUwxNHy28rq9IzNGP4guABOKQ4uyqLgJMDA0=
 github.com/morikuni/aec v1.0.0 h1:nP9CBfwrvYnBRgY6qfDQkygYDmYwOilePFkwzv4dU8A=

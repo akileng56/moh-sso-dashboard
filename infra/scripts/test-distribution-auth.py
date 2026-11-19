@@ -267,6 +267,7 @@ def main():
                               '/api/v1/visualizer/admin-units?level=1',
                               '/api/v1/visualizer/adminunits/orgunits',
                               '/api/v1/admin/audit-logs', '/api/v1/admin/metrics',
+                              '/api/v1/admin/metrics/overview',
                               '/api/v1/email/templates', '/api/v1/platform/notifications',
                               '/api/v1/geojson/layers', '/api/v1/announcements',
                               '/api/v1/report-scheduler/reports'):
@@ -293,7 +294,7 @@ def main():
                       'governance, health context, optional route removal, continued audit recording, '
                       'no optional workers/delivery queue, clean shutdown and restart', flush=True)
                 return
-            assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'metrics' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
@@ -496,6 +497,49 @@ def main():
             request(api + '/api/v1/report-scheduler', token=admin, status=403)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'))
             request(api + '/api/v1/report-scheduler/public/deliveries/invalid/download', status=404)
+            metric_suffixes = [
+                'overview', 'system/count-users', 'system/count-disabled-users',
+                'system/active-today', 'system/active-this-week', 'system/login-trend',
+                'system/login-trend-range', 'security/failed-logins', 'security/failed-logins-range',
+                'security/suspicious-logins', 'clients/count', 'clients/most-accessed',
+                'clients/login-count', 'clients/active-today', 'users/new-range', 'users/new-trend',
+                'users/never-logged-in', 'users/last-login/', 'users/client-usage/']
+            metric_subject = run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                '-d', 'sso_dashboard', '-qAt', '-c', """
+                WITH fixture_user AS (
+                    INSERT INTO users(id, username, email)
+                    VALUES(gen_random_uuid(), 'metrics-fixture', 'metrics-fixture@example.org')
+                    RETURNING id
+                )
+                INSERT INTO audit_logs(user_id, action, metadata)
+                SELECT id, 'login', '{"success":true,"client_id":"dashboard-web"}'::jsonb
+                FROM fixture_user RETURNING user_id""")
+            assert metric_subject, 'Expected isolated Metrics audit subject'
+            metric_paths = ['/api/v1/admin/metrics/' + suffix +
+                (metric_subject if suffix.endswith('/') else '') +
+                '?start=2020-01-01T00:00:00Z&end=2100-01-01T00:00:00Z&client_id=dashboard-web'
+                for suffix in metric_suffixes]
+            for metric_path in metric_paths:
+                request(api + metric_path, status=401)
+                request(api + metric_path, token=viewer, status=403)
+                request(api + metric_path, token=admin)
+            backend['environment']['DISABLED_MODULES'] = 'metrics'
+            path.write_text(json.dumps(model))
+            run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
+            api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
+            wait_ready(api + '/health/ready')
+            admin = token('admin')
+            for metric_path in metric_paths:
+                request(api + metric_path, token=admin, status=404)
+            modules = request(api + inventory, token=admin)['data']
+            assert any(item['id']=='metrics' and not item['enabled'] for item in modules), modules
+            request(api + '/api/v1/admin/rbac/systems', token=admin)
+            print('Metrics v0.2.0: 19 SQL-backed routes, real authentication/admin checks and complete disablement passed', flush=True)
+            # Metrics disablement intentionally restarted the still-enabled scheduler.
+            # Compare later scheduler disablement with that current worker.
+            enabled_runtime = scheduler_runtime()
+            assert enabled_runtime, 'Enabled scheduler must retain persistence readiness'
+
             backend['environment']['DISABLED_MODULES'] = 'audit,geojson,report-scheduler,announcements,admin-units'
             path.write_text(json.dumps(model))
             run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
@@ -505,6 +549,9 @@ def main():
             modules = request(api + inventory, token=admin)['data']
             states = {item['id']: item['enabled'] for item in modules}
             assert states == {'metrics': True, 'audit': False, 'geojson': False, 'report-scheduler': False, 'announcements': False, 'admin-units': False}, states
+            for metric_path in metric_paths:
+                request(api + metric_path, token=admin)
+            print('Metrics re-enablement preserves SQL-backed reads', flush=True)
             request(api + '/api/v1/admin/audit-logs/actions', token=admin, status=404)
             request(api + '/api/v1/geojson/geo_water', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=admin, status=404)

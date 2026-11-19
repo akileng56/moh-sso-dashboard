@@ -3008,30 +3008,40 @@ components:
         client_id:
           nullable: true
           type: string
+      required:
+        - active_users
       type: object
     metrics.ActiveUsersThisWeekResponse:
       properties:
         active_users_this_week:
           format: int64
           type: integer
+      required:
+        - active_users_this_week
       type: object
     metrics.ActiveUsersTodayResponse:
       properties:
         active_users_today:
           format: int64
           type: integer
+      required:
+        - active_users_today
       type: object
     metrics.DisabledUsersResponse:
       properties:
         disabled_users:
           format: int64
           type: integer
+      required:
+        - disabled_users
       type: object
     metrics.FailedLoginsResponse:
       properties:
         failed_logins:
           format: int64
           type: integer
+      required:
+        - failed_logins
       type: object
     metrics.LastLoginResponse:
       properties:
@@ -3039,12 +3049,15 @@ components:
           format: date-time
           nullable: true
           type: string
+      required: []
       type: object
     metrics.LoginCountResponse:
       properties:
         login_count:
           format: int64
           type: integer
+      required:
+        - login_count
       type: object
     metrics.LoginTrendByDayPoint:
       properties:
@@ -3057,6 +3070,10 @@ components:
         success_count:
           format: int64
           type: integer
+      required:
+        - day
+        - success_count
+        - failure_count
       type: object
     metrics.LoginTrendPoint:
       properties:
@@ -3066,6 +3083,9 @@ components:
         total:
           format: int64
           type: integer
+      required:
+        - day
+        - total
       type: object
     metrics.MostAccessedClient:
       properties:
@@ -3075,6 +3095,8 @@ components:
         login_count:
           format: int64
           type: integer
+      required:
+        - login_count
       type: object
     metrics.NewUsersTrendPoint:
       properties:
@@ -3084,12 +3106,16 @@ components:
         new_users:
           format: int64
           type: integer
+      required:
+        - day
+        - new_users
       type: object
     metrics.OverviewClientStats:
       properties:
         active_today:
           items:
             $ref: '#/components/schemas/metrics.ActiveUsersPerClient'
+          nullable: true
           type: array
         enabled_clients:
           format: int64
@@ -3097,10 +3123,16 @@ components:
         recent_clients:
           items:
             $ref: '#/components/schemas/metrics.RecentClient'
+          nullable: true
           type: array
         total_clients:
           format: int64
           type: integer
+      required:
+        - total_clients
+        - enabled_clients
+        - active_today
+        - recent_clients
       type: object
     metrics.OverviewResponse:
       properties:
@@ -3119,6 +3151,13 @@ components:
           $ref: '#/components/schemas/metrics.OverviewTrends'
         users:
           $ref: '#/components/schemas/metrics.OverviewUsersStats'
+      required:
+        - system
+        - clients
+        - security
+        - trends
+        - users
+        - _meta
       type: object
     metrics.OverviewSecurityStats:
       properties:
@@ -3128,6 +3167,9 @@ components:
         failed_logins:
           format: int64
           type: integer
+      required:
+        - failed_logins
+        - active_sessions
       type: object
     metrics.OverviewSystemStats:
       properties:
@@ -3143,28 +3185,43 @@ components:
         total_users:
           format: int64
           type: integer
+      required:
+        - total_users
+        - disabled_users
+        - active_users_today
+        - active_users_this_week
       type: object
     metrics.OverviewTrends:
       properties:
         login_trend_30_days:
           items:
             $ref: '#/components/schemas/metrics.LoginTrendByDayPoint'
+          nullable: true
           type: array
         new_users_trend_30_days:
           items:
             $ref: '#/components/schemas/metrics.NewUsersTrendPoint'
+          nullable: true
           type: array
+      required:
+        - login_trend_30_days
+        - new_users_trend_30_days
       type: object
     metrics.OverviewUsersStats:
       properties:
         never_logged_in:
           items:
             $ref: '#/components/schemas/metrics.UserSummary'
+          nullable: true
           type: array
         recent_users:
           items:
             $ref: '#/components/schemas/metrics.UserSummary'
+          nullable: true
           type: array
+      required:
+        - recent_users
+        - never_logged_in
       type: object
     metrics.RecentClient:
       properties:
@@ -3193,6 +3250,14 @@ components:
         updated_at:
           format: date-time
           type: string
+      required:
+        - id
+        - client_id
+        - name
+        - public_client
+        - enabled
+        - created_at
+        - updated_at
       type: object
     metrics.SuspiciousLogin:
       properties:
@@ -3214,18 +3279,24 @@ components:
         user_id:
           nullable: true
           type: string
+      required:
+        - id
       type: object
     metrics.TotalClientsResponse:
       properties:
         total_clients:
           format: int64
           type: integer
+      required:
+        - total_clients
       type: object
     metrics.TotalUsersResponse:
       properties:
         total_users:
           format: int64
           type: integer
+      required:
+        - total_users
       type: object
     metrics.UserClientUsagePoint:
       properties:
@@ -3235,6 +3306,8 @@ components:
         login_count:
           format: int64
           type: integer
+      required:
+        - login_count
       type: object
     metrics.UserSummary:
       properties:
@@ -3262,6 +3335,7 @@ components:
         roles:
           items:
             type: string
+          nullable: true
           type: array
         updated_at:
           format: date-time
@@ -3269,6 +3343,10 @@ components:
           type: string
         username:
           type: string
+      required:
+        - id
+        - username
+        - email
       type: object
     model.Attachment:
       properties:
@@ -10187,7 +10265,8 @@ paths:
         - health_contexts:sync
   /api/v1/admin/metrics/clients/active-today:
     get:
-      operationId: get_api_v1_admin_metrics_clients_active-today
+      operationId: metrics__clients_active-today
+      parameters: []
       responses:
         "200":
           content:
@@ -10204,51 +10283,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Active Users Per Client Today
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).ActiveUsersPerClientToday
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/clients/count:
     get:
-      operationId: get_api_v1_admin_metrics_clients_count
+      operationId: metrics__clients_count
+      parameters: []
       responses:
         "200":
           content:
@@ -10263,65 +10400,124 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Count Clients
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).CountClients
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/clients/login-count:
     get:
-      operationId: get_api_v1_admin_metrics_clients_login-count
+      operationId: metrics__clients_login-count
       parameters:
         - in: query
-          name: client_id
-          required: false
+          name: start
+          required: true
           schema:
+            format: date-time
             type: string
         - in: query
           name: end
-          required: false
+          required: true
           schema:
+            format: date-time
             type: string
         - in: query
-          name: start
-          required: false
+          name: client_id
+          required: true
           schema:
             type: string
       responses:
@@ -10338,73 +10534,127 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Login Count For Client
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).LoginCountForClient
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/clients/most-accessed:
     get:
-      operationId: get_api_v1_admin_metrics_clients_most-accessed
+      operationId: metrics__clients_most-accessed
       parameters:
         - in: query
-          name: end
-          required: false
+          name: start
+          required: true
           schema:
+            format: date-time
+            type: string
+        - in: query
+          name: end
+          required: true
+          schema:
+            format: date-time
             type: string
         - in: query
           name: limit
           required: false
           schema:
-            type: string
-        - in: query
-          name: start
-          required: false
-          schema:
-            type: string
+            format: int32
+            type: integer
       responses:
         "200":
           content:
@@ -10421,57 +10671,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Most Accessed Clients
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).MostAccessedClients
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/overview:
     get:
-      operationId: get_api_v1_admin_metrics_overview
+      operationId: metrics__overview
+      parameters: []
       responses:
         "200":
           content:
@@ -10486,195 +10788,372 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Overview
-      tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).Overview
-  /api/v1/admin/metrics/security/failed-logins:
-    get:
-      operationId: get_api_v1_admin_metrics_security_failed-logins
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    $ref: '#/components/schemas/metrics.FailedLoginsResponse'
-                  meta:
-                    properties:
-                      requestId:
-                        type: string
-                    type: object
-                  success:
-                    enum:
-                      - true
-                    type: boolean
-                required:
-                  - success
-                  - data
-                type: object
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Count Failed Logins
-      tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).CountFailedLogins
-  /api/v1/admin/metrics/security/failed-logins-range:
-    get:
-      operationId: get_api_v1_admin_metrics_security_failed-logins-range
-      parameters:
-        - in: query
-          name: end
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: start
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    $ref: '#/components/schemas/metrics.FailedLoginsResponse'
-                  meta:
-                    properties:
-                      requestId:
-                        type: string
-                    type: object
-                  success:
-                    enum:
-                      - true
-                    type: boolean
-                required:
-                  - success
-                  - data
-                type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Count Failed Logins In Range
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).CountFailedLoginsInRange
-  /api/v1/admin/metrics/security/suspicious-logins:
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
+  /api/v1/admin/metrics/security/failed-logins:
     get:
-      operationId: get_api_v1_admin_metrics_security_suspicious-logins
+      operationId: metrics__security_failed-logins
+      parameters: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/metrics.FailedLoginsResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "401":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "403":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "500":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+      tags:
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
+  /api/v1/admin/metrics/security/failed-logins-range:
+    get:
+      operationId: metrics__security_failed-logins-range
       parameters:
         - in: query
-          name: end
-          required: false
+          name: start
+          required: true
           schema:
+            format: date-time
+            type: string
+        - in: query
+          name: end
+          required: true
+          schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    $ref: '#/components/schemas/metrics.FailedLoginsResponse'
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "401":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "403":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "500":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+      tags:
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
+  /api/v1/admin/metrics/security/suspicious-logins:
+    get:
+      operationId: metrics__security_suspicious-logins
+      parameters:
+        - in: query
+          name: start
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: end
+          required: true
+          schema:
+            format: date-time
             type: string
         - in: query
           name: home
           required: false
           schema:
-            type: string
-        - in: query
-          name: start
-          required: false
-          schema:
+            default: UG
             type: string
       responses:
         "200":
@@ -10692,57 +11171,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Suspicious Logins
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).SuspiciousLogins
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/active-this-week:
     get:
-      operationId: get_api_v1_admin_metrics_system_active-this-week
+      operationId: metrics__system_active-this-week
+      parameters: []
       responses:
         "200":
           content:
@@ -10757,51 +11288,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Active Users This Week
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).ActiveUsersThisWeek
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/active-today:
     get:
-      operationId: get_api_v1_admin_metrics_system_active-today
+      operationId: metrics__system_active-today
+      parameters: []
       responses:
         "200":
           content:
@@ -10816,51 +11405,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Active Users Today
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).ActiveUsersToday
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/count-disabled-users:
     get:
-      operationId: get_api_v1_admin_metrics_system_count-disabled-users
+      operationId: metrics__system_count-disabled-users
+      parameters: []
       responses:
         "200":
           content:
@@ -10875,51 +11522,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Count Disabled Users
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).CountDisabledUsers
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/count-users:
     get:
-      operationId: get_api_v1_admin_metrics_system_count-users
+      operationId: metrics__system_count-users
+      parameters: []
       responses:
         "200":
           content:
@@ -10934,51 +11639,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Count Users
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).CountUsers
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/login-trend:
     get:
-      operationId: get_api_v1_admin_metrics_system_login-trend
+      operationId: metrics__system_login-trend
+      parameters: []
       responses:
         "200":
           content:
@@ -10995,61 +11758,120 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Login Trend
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).LoginTrend
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/system/login-trend-range:
     get:
-      operationId: get_api_v1_admin_metrics_system_login-trend-range
+      operationId: metrics__system_login-trend-range
       parameters:
         - in: query
-          name: end
-          required: false
+          name: start
+          required: true
           schema:
+            format: date-time
             type: string
         - in: query
-          name: start
-          required: false
+          name: end
+          required: true
           schema:
+            format: date-time
             type: string
       responses:
         "200":
@@ -11067,72 +11889,126 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Login Trend By Day
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).LoginTrendByDay
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/users/client-usage/{userID}:
     get:
-      operationId: get_api_v1_admin_metrics_users_client-usage_userID
+      operationId: metrics__users_client-usage_userID
       parameters:
+        - in: query
+          name: start
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: end
+          required: true
+          schema:
+            format: date-time
+            type: string
         - in: path
           name: userID
           required: true
           schema:
-            type: string
-        - in: query
-          name: end
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: start
-          required: false
-          schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -11150,68 +12026,114 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        "502":
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Gateway
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: User Client Usage
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).UserClientUsage
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/users/last-login/{userID}:
     get:
-      operationId: get_api_v1_admin_metrics_users_last-login_userID
+      operationId: metrics__users_last-login_userID
       parameters:
         - in: path
           name: userID
           required: true
           schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -11227,57 +12149,109 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Last Login For User
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).LastLoginForUser
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/metrics/users/never-logged-in:
     get:
-      operationId: get_api_v1_admin_metrics_users_never-logged-in
+      operationId: metrics__users_never-logged-in
+      parameters: []
       responses:
         "200":
           content:
@@ -11294,139 +12268,251 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
-        "401":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
-        "403":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
-        "500":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Never Logged In Users
-      tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).NeverLoggedInUsers
-  /api/v1/admin/metrics/users/new-range:
-    get:
-      operationId: get_api_v1_admin_metrics_users_new-range
-      parameters:
-        - in: query
-          name: end
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: start
-          required: false
-          schema:
-            type: string
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                properties:
-                  data:
-                    items:
-                      $ref: '#/components/schemas/metrics.UserSummary'
-                    type: array
-                  meta:
-                    properties:
-                      requestId:
-                        type: string
-                    type: object
-                  success:
-                    enum:
-                      - true
-                    type: boolean
-                required:
-                  - success
-                  - data
-                type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: New Users In Range
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).NewUsersInRange
-  /api/v1/admin/metrics/users/new-trend:
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
+  /api/v1/admin/metrics/users/new-range:
     get:
-      operationId: get_api_v1_admin_metrics_users_new-trend
+      operationId: metrics__users_new-range
       parameters:
         - in: query
-          name: end
-          required: false
+          name: start
+          required: true
           schema:
+            format: date-time
             type: string
         - in: query
-          name: start
-          required: false
+          name: end
+          required: true
           schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                properties:
+                  data:
+                    items:
+                      $ref: '#/components/schemas/metrics.UserSummary'
+                    type: array
+                  meta:
+                    properties:
+                      requestId:
+                        type: string
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Metrics result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "401":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "403":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "500":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+      tags:
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
+  /api/v1/admin/metrics/users/new-trend:
+    get:
+      operationId: metrics__users_new-trend
+      parameters:
+        - in: query
+          name: start
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: end
+          required: true
+          schema:
+            format: date-time
             type: string
       responses:
         "200":
@@ -11444,54 +12530,105 @@ paths:
                         type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Metrics result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
-        "429":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: New Users Trend
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Validation, access or service failure
       tags:
-        - admin-metrics
-      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Handler).NewUsersTrend
+        - metrics
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics.(*Module).ServeHTTP
+      x-route-permissions:
+        - metrics:read
   /api/v1/admin/modules:
     get:
       operationId: get_api_v1_admin_modules
@@ -35475,7 +36612,6 @@ tags:
   - name: admin-clients
   - name: admin-handler
   - name: admin-health-context
-  - name: admin-metrics
   - name: admin-notifications
   - name: admin-platform
   - name: admin-rbac
@@ -35490,6 +36626,7 @@ tags:
   - name: email
   - name: geojson
   - name: health-context
+  - name: metrics
   - name: notifications
   - name: platform
   - name: rbac

@@ -19,7 +19,6 @@ import (
 	logger "github.com/moh-sso-dashboard/internal/log"
 	authRepo "github.com/moh-sso-dashboard/internal/repository/auth"
 	emailRepo "github.com/moh-sso-dashboard/internal/repository/email"
-	metricsRepo "github.com/moh-sso-dashboard/internal/repository/metrics"
 	notificationDeliveryRepo "github.com/moh-sso-dashboard/internal/repository/notification_delivery"
 	notificationPreferencesRepo "github.com/moh-sso-dashboard/internal/repository/notification_preferences"
 	notificationsRepo "github.com/moh-sso-dashboard/internal/repository/notifications"
@@ -30,7 +29,6 @@ type repositories struct {
 	Auth                    authRepo.AuthRepository
 	Clients                 clientRepo.ClientRepository
 	Users                   userRepo.UserRepository
-	Metrics                 metricsRepo.MetricsRepository
 	Notifications           notificationsRepo.NotificationsRepository
 	NotificationDelivery    notificationDeliveryRepo.NotificationDeliveryRepository
 	NotificationPreferences notificationPreferencesRepo.NotificationPreferencesRepository
@@ -77,7 +75,6 @@ func buildRepositories(
 		Auth:                    authRepo.NewAuthRepository(webKC, adminKC, cfg),
 		Clients:                 clientRepo.NewClientRepository(adminKC, cfg, store, *appLogger),
 		Users:                   userRepo.NewUserRepository(adminKC, cfg, store, *appLogger),
-		Metrics:                 metricsRepo.NewMetricsRepository(cfg, store, *appLogger),
 		Notifications:           notificationsRepo.NewNotificationsRepository(store, *appLogger),
 		NotificationDelivery:    notificationDeliveryRepo.NewNotificationDeliveryRepository(store, *appLogger),
 		NotificationPreferences: notificationPreferencesRepo.NewNotificationPreferencesRepository(store),

@@ -6,7 +6,6 @@ import (
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
@@ -36,6 +35,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/storage"
 	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -73,7 +73,17 @@ func buildHandlers(deps handlerDependencies) handlers {
 	)
 	clientHandler := clientfeature.NewHandler(deps.Services.Clients, deps.Services.Audit, deps.Cache)
 	userHandler := userfeature.NewHandler(deps.Services.Users, deps.Services.Audit, deps.Cache)
-	metricsHandler := metricsfeature.NewHandler(deps.Services.Metrics)
+	var metricsHandler *metricsfeature.Module
+	if deps.Config.ModuleEnabled("metrics") {
+		var err error
+		metricsHandler, err = metricsfeature.NewModule(metricsfeature.Dependencies{
+			Database: deps.Databases.Primary, RequireAdmin: modulehttp.RequireAdmin,
+			AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
 	// Preserve the optional-cache behavior when converting a concrete pointer to
 	// the feature's interface: a typed nil pointer must not become a non-nil port.
 	var auditCache auditfeature.Cache

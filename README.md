@@ -335,7 +335,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 | Documents | `features/documents` | Document metadata, upload, view, download, process history, and reprocess. |
 | Email | `features/email` | Email send, queue, retry, listing, and delete. |
 | GeoJSON | `features/geojson` | GeoJSON assets for maps. |
-| Metrics | `features/metrics` | Admin metrics for users, clients, logins, and security. |
+| Metrics | `modules/metrics` (published v0.2.0) | Self-contained admin HTTP/API contracts and PostgreSQL reads for users, clients, logins and security. |
 | Notifications | `features/notifications` | Notifications, unread counts, read state, delivery history, retry, cleanup, and deletion. |
 | RBAC | `features/rbac` | System-aware RBAC, Keycloak sync, drift, permissions, roles, and user access. |
 | Sessions | `features/sessions` | Current user sessions and logout. |

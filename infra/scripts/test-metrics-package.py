@@ -80,7 +80,7 @@ def main():
                     '-e', 'POSTGRES_PASSWORD=' + password, '-p', '127.0.0.1::5432',
                     os.environ.get('METRICS_POSTGRES_IMAGE', 'postgres:15-alpine'))
                 for _ in range(60):
-                    ready = subprocess.run(['docker', 'exec', container, 'pg_isready', '-U', 'postgres'], capture_output=True)
+                    ready = subprocess.run(['docker', 'exec', container, 'pg_isready', '-h', '127.0.0.1', '-U', 'postgres'], capture_output=True)
                     if ready.returncode == 0:
                         break
                     time.sleep(0.5)

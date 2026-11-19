@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -51,7 +50,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			metricsfeature.RegisterAdminRoutes(routes.Admin, handlers.Metrics)
+			modulehttp.Register(routes.Protected, handlers.Metrics)
 		},
 	}, module.Definition{
 		Info: module.Info{ID: "audit", Version: auditmodule.Version(), Enabled: enabled["audit"]},

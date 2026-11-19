@@ -117,3 +117,43 @@ func TestMultiplePatternsPreserveMethodSurfaceAndSystemBoundary(t *testing.T) {
 		t.Fatal("unverified system granted")
 	}
 }
+
+func TestVerifiedAdminAndPermissionAreBothRequired(t *testing.T) {
+	for _, identity := range []string{"anonymous", "empty-subject", "user", "admin-no-permission", "allowed"} {
+		engine := gin.New()
+		group := engine.Group("/api/v1", func(c *gin.Context) {
+			if identity == "anonymous" {
+				return
+			}
+			actor := authz.Context{UserID: "verified"}
+			if identity == "empty-subject" {
+				actor.UserID = ""
+			}
+			actor.IsAdmin = identity != "user"
+			if identity == "user" || identity == "allowed" {
+				actor.Permissions = []authz.Permission{"metrics:read"}
+			}
+			c.Set(authz.ContextKey, actor)
+		})
+		NewRegistrar(group).Handle("GET /admin-check", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			err := RequireAdmin(r)
+			if err == nil {
+				err = AuthorizeAny(r, "metrics:read")
+			}
+			if err != nil {
+				w.WriteHeader(err.(interface{ StatusCode() int }).StatusCode())
+				return
+			}
+			w.WriteHeader(204)
+		}))
+		req := httptest.NewRequest("GET", "/api/v1/admin-check", nil)
+		req.Header.Set("X-Is-Admin", "true")
+		req.Header.Set("X-User-ID", "spoofed")
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+		want := map[string]int{"anonymous": 401, "empty-subject": 401, "user": 403, "admin-no-permission": 403, "allowed": 204}[identity]
+		if w.Code != want {
+			t.Fatalf("%s: %d want %d", identity, w.Code, want)
+		}
+	}
+}

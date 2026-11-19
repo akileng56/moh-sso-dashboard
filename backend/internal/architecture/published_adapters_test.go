@@ -42,6 +42,14 @@ func TestPublishedModulesOwnImplementationOutsideHostFeatures(t *testing.T) {
 		}
 		adapter := filepath.Join(root, "internal", "adapters", "modules", entry.ID)
 		if entry.Integration == "self-contained" {
+			for _, retained := range []string{
+				filepath.Join(root, "internal", "repository", entry.ID),
+				filepath.Join(root, "internal", "service", entry.ID+"_service.go"),
+			} {
+				if _, err := os.Stat(retained); !os.IsNotExist(err) {
+					t.Errorf("self-contained module retains host implementation: %s", retained)
+				}
+			}
 			assets := filepath.Join(root, "assets", entry.ModuleID)
 			if _, err := os.Stat(assets); !os.IsNotExist(err) {
 				t.Errorf("self-contained module retains loose host assets: %s", assets)
