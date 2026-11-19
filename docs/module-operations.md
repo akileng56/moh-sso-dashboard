@@ -78,14 +78,17 @@ tag does not deploy the running dashboard; rebuild and promote the verified
 backend image to consume an updated pin.
 
 
-GeoJSON selects `v0.1.0` from
+GeoJSON selects `v0.2.0` from
 `github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`, published
-under `backend/modules/geojson/v0.1.0`. The compiled inventory reports that
-selected dependency version. Host storage and HTTP adapters retain authorization,
-safe errors, headers, byte ranges and conditional reads. The package does not
-contain map files: ship the three existing assets in the backend image and
-verify actual map responses before rollout. Publishing the library does not
-deploy the running dashboard.
+under `backend/modules/geojson/v0.2.0`. It owns HTTP handling, permission
+requirements, filesystem overrides and embedded map snapshots. The host
+supplies shared security/trace capabilities and the reusable HTTP registrar;
+there is no GeoJSON-specific host adapter or loose image asset directory.
+Embedded responses use stable content ETags for conditional reads. Range,
+content-type, cache and nosniff behavior remains module-owned. Publishing the
+package does not deploy a running installation; select its reviewed Go
+pin/checksums and rebuild. Verify releases with
+`python3 infra/scripts/test-geojson-release.py`.
 
 Announcements selects `v0.1.0` from
 `github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements`, published

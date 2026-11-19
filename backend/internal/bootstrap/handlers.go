@@ -7,7 +7,6 @@ import (
 	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	router "github.com/moh-sso-dashboard/internal/api"
@@ -34,7 +33,9 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	db "github.com/moh-sso-dashboard/internal/migrate"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/internal/storage"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -111,7 +112,14 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Databases.DWH,
 		deps.Services.HealthContexts,
 	)
-	geoJSONHandler := geojsonfeature.NewHandlerWithReader(geojsonfeature.NewDirectoryReader("./assets/geojson"))
+	var geoJSONHandler *geojsonfeature.Module
+	if deps.Config.ModuleEnabled("geojson") {
+		var err error
+		geoJSONHandler, err = geojsonfeature.NewModule(geojsonfeature.Dependencies{AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID})
+		if err != nil {
+			panic(err)
+		}
+	}
 	emailHandler := emailfeature.NewHandler(deps.Services.EmailFeature)
 	rbacHandler := rbacfeature.NewHandler(deps.Services.RBAC)
 	healthContextHandler := healthcontextfeature.NewHandler(

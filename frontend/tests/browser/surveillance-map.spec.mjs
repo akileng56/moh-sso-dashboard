@@ -56,13 +56,13 @@ function polygon(district, subcounty, x) {
 }
 const hoimaCityBoundary = JSON.parse(
   readFileSync(
-    new URL("../../../backend/assets/geojson/uganda_districts.geojson", import.meta.url),
+    new URL("../../../backend/modules/geojson/maps/uganda_districts.geojson", import.meta.url),
     "utf8",
   ),
 ).features.find((feature) => feature.properties.District === "HOIMA CITY");
 const citySubcounties = JSON.parse(
   readFileSync(
-    new URL("../../../backend/assets/geojson/uganda_subcounties.geojson", import.meta.url),
+    new URL("../../../backend/modules/geojson/maps/uganda_subcounties.geojson", import.meta.url),
     "utf8",
   ),
 ).features.filter((feature) => feature.properties.District === "HOIMA CITY");
@@ -333,7 +333,7 @@ test("bundled sub-county boundaries cover every existing district name", () => {
   const readLayer = (name) =>
     JSON.parse(
       readFileSync(
-        new URL(`../../../backend/assets/geojson/${name}.geojson`, import.meta.url),
+        new URL(`../../../backend/modules/geojson/maps/${name}.geojson`, import.meta.url),
         "utf8",
       ),
     ).features;

@@ -107,7 +107,7 @@ def main():
         for name, expected in snapshots.items():
             content = (standalone / 'maps' / name).read_bytes()
             assert hashlib.sha256(content).hexdigest() == expected, 'Embedded map checksum drift: ' + name
-            assert content == (ROOT / 'backend/assets/geojson' / name).read_bytes(), 'Phase-one snapshot differs from the current host asset: ' + name
+            assert not (ROOT / 'backend/assets/geojson' / name).exists(), 'Self-contained module retains a duplicate host asset: ' + name
 
         before = metadata(standalone)
         run(standalone, 'mod', 'verify')

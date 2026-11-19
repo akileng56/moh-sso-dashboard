@@ -2,7 +2,10 @@
 package apidocgen
 
 import (
+	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
 	"reflect"
 	"regexp"
 	"strings"
@@ -10,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	geojson "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
 // Routes uses inert handlers: route registration never needs live DB/Redis/SSO.
@@ -19,14 +23,8 @@ func Routes() gin.RoutesInfo {
 	old := gin.DefaultWriter
 	gin.DefaultWriter = io.Discard
 	defer func() { gin.DefaultWriter = old }()
-	var handlers router.HandlerSet
-	v := reflect.ValueOf(&handlers).Elem()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		if field.Kind() == reflect.Pointer {
-			field.Set(reflect.New(field.Type().Elem()))
-		}
-	}
+	handlers := documentationHandlers()
+
 	modules, err := router.NewModuleRegistry(handlers, "", nil, nil)
 	if err != nil {
 		panic(err)
@@ -59,4 +57,57 @@ func publicRoute(path string) bool {
 		return true
 	}
 	return false
+}
+
+func documentationHandlers() router.HandlerSet {
+	var handlers router.HandlerSet
+	v := reflect.ValueOf(&handlers).Elem()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Kind() == reflect.Pointer {
+			field.Set(reflect.New(field.Type().Elem()))
+		}
+	}
+	var err error
+	handlers.GeoJSON, err = geojson.NewModule(geojson.Dependencies{AuthorizeAny: func(*http.Request, ...string) error { return geojson.ErrUnauthorized }})
+	if err != nil {
+		panic(err)
+	}
+	return handlers
+}
+func moduleOperations() (map[string]object, error) {
+	contracts := map[string]object{}
+	handlers := documentationHandlers()
+	v := reflect.ValueOf(handlers)
+	for i := 0; i < v.NumField(); i++ {
+		described, ok := v.Field(i).Interface().(interface{ OpenAPI() []byte })
+		if !ok {
+			continue
+		}
+		var document struct{ Paths map[string]map[string]object }
+		if err := json.Unmarshal(described.OpenAPI(), &document); err != nil {
+			return nil, err
+		}
+		for path, methods := range document.Paths {
+			for method, operation := range methods {
+				key := strings.ToUpper(method) + " " + "/api/v1" + path
+				if _, exists := contracts[key]; exists {
+					return nil, fmt.Errorf("duplicate module operation %s", key)
+				}
+				if tags, ok := operation["tags"].([]any); ok {
+					names := []string{}
+					for _, tag := range tags {
+						name, ok := tag.(string)
+						if !ok {
+							return nil, fmt.Errorf("invalid module tag")
+						}
+						names = append(names, name)
+					}
+					operation["tags"] = names
+				}
+				contracts[key] = operation
+			}
+		}
+	}
+	return contracts, nil
 }

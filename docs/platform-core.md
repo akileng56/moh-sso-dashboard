@@ -259,3 +259,14 @@ make -C backend modules-check contracts-check
 python3 infra/scripts/test-distribution-auth.py --backend-image <candidate> --profile core
 python3 infra/scripts/test-distribution-auth.py --backend-image <candidate> --profile full
 ```
+
+
+## Self-contained HTTP modules
+
+GeoJSON v0.2.0 consumes shared HTTP/security/trace registration directly.
+The generic `internal/modulehttp` registrar bridges verified Gin access to the
+module's standard HTTP request context and mounts its declared route. It owns no
+application behavior. The GeoJSON-specific adapter and loose assets have been
+removed; embedded maps and their HTTP/API contracts belong to the published
+package. Both full and core-only profiles retain the same module enablement
+rules. Other published modules continue their explicit transitional adapters.

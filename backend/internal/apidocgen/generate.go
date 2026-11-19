@@ -55,17 +55,27 @@ func Generate(dir string) ([]byte, error) {
 	schema := &schemas{definitions: definitions}
 	oldPaths, _ := overrides["paths"].(map[string]any)
 	tags := map[string]bool{}
+	moduleContracts, err := moduleOperations()
+	if err != nil {
+		return nil, err
+	}
 	routes := Routes()
 	sort.Slice(routes, func(i, j int) bool { return routes[i].Path+routes[i].Method < routes[j].Path+routes[j].Method })
 	for _, route := range routes {
 		key := strings.TrimSuffix(route.Handler, "-fm")
 		f := source.functions[key]
-		if f == nil {
+		declared := moduleContracts[route.Method+" "+OpenAPIPath(route.Path)]
+		if f == nil && declared == nil {
 			return nil, fmt.Errorf("no handler source for %s %s (%s)", route.Method, route.Path, key)
 		}
 		path := OpenAPIPath(route.Path)
 		method := strings.ToLower(route.Method)
-		op := buildOperation(source, schema, f, route)
+		var op object
+		if declared != nil {
+			op = declared
+		} else {
+			op = buildOperation(source, schema, f, route)
+		}
 		for oldPath, item := range oldPaths {
 			if canonicalPath(oldPath) != canonicalPath(path) {
 				continue

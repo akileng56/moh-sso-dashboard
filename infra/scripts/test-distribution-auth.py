@@ -295,7 +295,7 @@ def main():
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'geojson' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'geojson' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'admin-units' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             # The fixture's warehouse uses its isolated backend database. Supply
@@ -408,20 +408,20 @@ def main():
                     assert collection['type'] == 'FeatureCollection' and collection['features'], layer_name
                     if layer_name == 'geo_water':
                         water = raw_layer
-                        modified = result.headers.get('Last-Modified')
-            assert modified, 'Missing modification-time header'
+                        etag = result.headers.get('ETag')
+            assert etag, 'Missing embedded-map identity header'
             with urllib.request.urlopen(urllib.request.Request(geo_url + 'geo_water',
                     headers={**auth_headers, 'Range': 'bytes=0-31'}), timeout=10) as result:
                 assert result.code == 206 and result.read() == water[:32]
                 assert result.headers.get('Content-Range') == 'bytes 0-31/' + str(len(water))
             try:
                 conditional = urllib.request.urlopen(urllib.request.Request(geo_url + 'geo_water',
-                    headers={**auth_headers, 'If-Modified-Since': modified}), timeout=10)
+                    headers={**auth_headers, 'If-None-Match': etag}), timeout=10)
             except urllib.error.HTTPError as error:
                 conditional = error
             with conditional:
                 assert conditional.code == 304 and conditional.read() == b''
-            print('GeoJSON v0.1.0 layers, headers, ranges, conditional reads and permissions passed', flush=True)
+            print('GeoJSON v0.2.0 embedded layers, headers, ranges, conditional reads and permissions passed', flush=True)
             document = {'apiVersion': 'portal.moh.go.ug/v1alpha1', 'kind': 'Application',
                 'metadata': {'id': 'fixture-reports', 'name': 'Fixture Reports', 'version': '1.0.0'},
                 'spec': {'environment': 'production', 'owner': {'team': 'Fixtures', 'name': 'Test Owner', 'email': 'owner@fixture.example.org'},

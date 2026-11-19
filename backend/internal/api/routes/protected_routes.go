@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/authz"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
@@ -17,6 +16,7 @@ import (
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	userfeature "github.com/moh-sso-dashboard/internal/features/users"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 )
 
 func RegisterProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
@@ -59,7 +59,9 @@ func registerEmailRoutes(protected *gin.RouterGroup, deps Dependencies) {
 }
 
 func registerGeoJSONRoutes(protected *gin.RouterGroup, deps Dependencies) {
-	geojsonfeature.RegisterProtectedRoutes(protected, deps.GeoJSON)
+	if deps.GeoJSON != nil {
+		modulehttp.Register(protected, deps.GeoJSON)
+	}
 }
 
 func registerClientRoutes(protected *gin.RouterGroup, deps Dependencies) {

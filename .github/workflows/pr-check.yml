@@ -153,6 +153,9 @@ jobs:
       - name: Standalone GeoJSON package
         run: python3 infra/scripts/test-geojson-package.py
 
+      - name: Published self-contained GeoJSON release
+        run: python3 infra/scripts/test-geojson-release.py
+
       - name: Standalone Administrative Units package and external consumer
         run: python3 infra/scripts/test-admin-units-package.py
 

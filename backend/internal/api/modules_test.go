@@ -9,11 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/module"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
 func TestModuleConfiguration(t *testing.T) {
@@ -32,7 +33,7 @@ func TestModuleConfiguration(t *testing.T) {
 func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, disabled := range []string{"", " metrics "} {
-		registry, err := NewModuleRegistry(HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: &auditfeature.Handler{}, GeoJSON: &geojsonfeature.Handler{}}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
+		registry, err := NewModuleRegistry(HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: &auditfeature.Handler{}, GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,4 +86,13 @@ func TestRequiredPlatformCapabilitiesCannotBeDisabledAsModules(t *testing.T) {
 			t.Fatalf("required capability %s accepted as a disabled optional module", id)
 		}
 	}
+}
+
+func testGeoJSONModule(t *testing.T, directory string) *geojsonfeature.Module {
+	t.Helper()
+	item, err := geojsonfeature.NewModule(geojsonfeature.Dependencies{Directory: directory, AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return item
 }

@@ -21,7 +21,7 @@ func TestPublishedModulesOwnImplementationOutsideHostFeatures(t *testing.T) {
 		t.Fatal(err)
 	}
 	var catalog struct {
-		Backend []struct{ ID, Stage, ModuleID string }
+		Backend []struct{ ID, Stage, ModuleID, Integration string }
 	}
 	if err := json.Unmarshal(raw, &catalog); err != nil {
 		t.Fatal(err)
@@ -41,6 +41,17 @@ func TestPublishedModulesOwnImplementationOutsideHostFeatures(t *testing.T) {
 			t.Errorf("published implementation missing: %s: %v", implementation, err)
 		}
 		adapter := filepath.Join(root, "internal", "adapters", "modules", entry.ID)
+		if entry.Integration == "self-contained" {
+			assets := filepath.Join(root, "assets", entry.ModuleID)
+			if _, err := os.Stat(assets); !os.IsNotExist(err) {
+				t.Errorf("self-contained module retains loose host assets: %s", assets)
+			}
+
+			if _, err := os.Stat(adapter); !os.IsNotExist(err) {
+				t.Errorf("self-contained module retains adapter: %s", adapter)
+			}
+			continue
+		}
 		selected := false
 		err := filepath.WalkDir(adapter, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {

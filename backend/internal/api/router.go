@@ -12,7 +12,6 @@ import (
 	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
@@ -40,6 +39,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	service "github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/module"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
 type RouterDependencies struct {
@@ -73,7 +73,7 @@ type HandlerSet struct {
 	AdminUnits              *adminunitsfeature.Handler
 	Visualiser              *visualiserfeature.Handler
 	Surveillance            *surveillancefeature.Handler
-	GeoJSON                 *geojsonfeature.Handler
+	GeoJSON                 *geojsonfeature.Module
 	Email                   *emailfeature.Handler
 	RBAC                    *rbacfeature.Handler
 	HealthContexts          *healthcontextfeature.Handler

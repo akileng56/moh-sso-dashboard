@@ -28,6 +28,10 @@ class Coverage(unittest.TestCase):
         for adapter in (ROOT / 'backend/internal/adapters/modules').iterdir():
             if adapter.is_dir():
                 (self.root / 'backend/internal/adapters/modules' / adapter.name).mkdir(parents=True)
+        for module in (ROOT / 'backend/modules').glob('*/go.mod'):
+            target = self.root / module.relative_to(ROOT)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(module.read_bytes())
         for group in ('apps', 'packages'):
             for package in (ROOT / 'frontend' / group).glob('*/package.json'):
                 target = self.root / package.relative_to(ROOT)
@@ -71,6 +75,16 @@ class Coverage(unittest.TestCase):
     def test_unpublished_feature_cannot_masquerade_as_published_adapter(self):
         (self.root / 'backend/internal/features/auth').rename(self.root / 'backend/internal/adapters/modules/auth')
         with self.assertRaisesRegex(ValueError, 'Unpublished feature must retain'):
+            catalog.load_catalog(self.root)
+
+    def test_self_contained_module_cannot_retain_adapter(self):
+        (self.root / 'backend/internal/adapters/modules/geojson').mkdir()
+        with self.assertRaisesRegex(ValueError, 'Self-contained module retains'):
+            catalog.load_catalog(self.root)
+
+    def test_self_contained_module_requires_source(self):
+        (self.root / 'backend/modules/geojson/go.mod').unlink()
+        with self.assertRaisesRegex(ValueError, 'Self-contained module source'):
             catalog.load_catalog(self.root)
 
     def test_unknown_frontend_relationship_is_rejected(self):

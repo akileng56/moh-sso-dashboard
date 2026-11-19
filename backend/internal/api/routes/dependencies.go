@@ -4,7 +4,6 @@ import (
 	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	authfeature "github.com/moh-sso-dashboard/internal/features/auth"
@@ -23,6 +22,7 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/module"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
 type Dependencies struct {
@@ -46,7 +46,7 @@ type Dependencies struct {
 	AdminUnits              *adminunitsfeature.Handler
 	Visualiser              *visualiserfeature.Handler
 	Surveillance            *surveillancefeature.Handler
-	GeoJSON                 *geojsonfeature.Handler
+	GeoJSON                 *geojsonfeature.Module
 	Email                   *emailfeature.Handler
 	RBAC                    *rbacfeature.Handler
 	HealthContexts          *healthcontextfeature.Handler

@@ -10,13 +10,13 @@ import (
 	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	hostroutes "github.com/moh-sso-dashboard/internal/api/routes"
 	"github.com/moh-sso-dashboard/internal/config"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/module"
 	adminunitsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
@@ -75,7 +75,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			geojsonfeature.RegisterProtectedRoutes(routes.Protected, handlers.GeoJSON)
+			modulehttp.Register(routes.Protected, handlers.GeoJSON)
 		},
 	}, module.Definition{
 		Info: module.Info{ID: "report-scheduler", Version: schedulermodule.Version(), Enabled: enabled["report-scheduler"]},

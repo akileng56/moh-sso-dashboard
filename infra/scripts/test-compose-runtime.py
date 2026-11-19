@@ -76,10 +76,8 @@ def main():
                 assert 'never-publish' not in text
 
             backend = tmp / 'backend'
-            for path in ('infra/docker/backend', 'fixture/internal/db/migrations', 'fixture/internal/db/surveillance_migrations', 'fixture/config', 'fixture/assets/geojson'):
+            for path in ('infra/docker/backend', 'fixture/internal/db/migrations', 'fixture/internal/db/surveillance_migrations', 'fixture/config'):
                 (backend / path).mkdir(parents=True)
-            for filename in ('uganda_districts.geojson', 'uganda_subcounties.geojson', 'uga_water.geojson'):
-                (backend / 'fixture/assets/geojson' / filename).write_text('{"type":"FeatureCollection","features":[]}')
             entrypoint = ROOT / 'infra/docker/backend/entrypoint.sh'
             (backend / 'infra/docker/backend/entrypoint.sh').write_bytes(entrypoint.read_bytes())
             executable = backend / 'fixture/sso-server'
@@ -89,10 +87,7 @@ if [ "${1:-}" = --version ]; then printf 'runtime-version-argument-ok'; exit 0; 
 test "$DB_PASSWORD" = 'fixture-password'
 test "$OBSERVATORY_DB_PASSWORD" = 'fixture-password'
 test "$(id -u)" != 0
-for filename in uganda_districts.geojson uganda_subcounties.geojson uga_water.geojson; do
-  test -r "/app/assets/geojson/$filename"
-  test -s "/app/assets/geojson/$filename"
-done
+test ! -d /app/assets/geojson
 touch /data/uploads/runtime-permission-check
 printf 'secret-loading-and-nonroot-upload-ok'
 ''')

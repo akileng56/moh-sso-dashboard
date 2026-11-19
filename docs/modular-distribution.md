@@ -1083,3 +1083,45 @@ reads, byte ranges and ETag 304s. Checksums match the current host snapshots.
 Host backend tests/vet, packaged-module checks, all 366 existing API contracts
 and ten catalogue regressions passed. The existing production pin and adapter
 remain unchanged pending publication/integration.
+
+### Self-contained modules phase 2 — GeoJSON v0.2.0 release and integration
+
+Published `backend/modules/geojson/v0.2.0` from release commit `2c78cc74`,
+verified its public download/checksums in a fresh cache and a separately compiled
+HTTP consumer, and selected v0.2.0 in the dashboard without a replacement.
+The module includes its HTTP/API contract and all three versioned map snapshots.
+
+Removed the GeoJSON-specific host adapter and duplicate host maps/Docker COPY.
+The host now composes the published module with a generic platform HTTP/security/
+trace registrar. Verified identity is bridged from existing authentication,
+permission checks remain exact and fail closed, mount paths/request IDs are
+preserved, and the Gin route surface remains GET-only. No new credential parser
+or fallback is introduced. The module owns safe errors, ranges and ETag 304s.
+
+API generation consumes module-owned OpenAPI metadata for the actual registered
+route; its GeoJSON operation now documents raw 200/206 content, 304, range and
+authorization-service failures. Other endpoint contracts remain unchanged.
+Catalogue schema 2 records adapter versus self-contained ownership, rejecting
+retained feature/adapter trees for self-contained modules. Boundary refreshes
+now target module-owned maps and regenerate their hashes/ETags; selecting new
+map bytes requires a new module release. Browser fixtures use those same maps.
+
+The other five published modules retain their current adapters until each
+self-contained release is implemented and integrated. No running deployment
+is changed by this release or local integration commit.
+
+Phase 2 verification passed the fresh-cache v0.2.0 download and both host
+checksums, exact replacement-free dependency graph, complete release artifact
+parity and independently compiled embedded-map HTTP consumer. The updated
+isolated module suite still uses the standard library only with downloads and
+workspaces disabled. Shared registrar/API/bootstrap/architecture race tests,
+the full backend suite and vet, all packaged-module checks, 366 API endpoints,
+12 catalogue regressions and workflow actionlint passed.
+
+The production image built without loose map files. Real Keycloak/PostgreSQL/
+Redis fixtures passed full and core profiles, embedded layers/permissions/ranges/
+ETag 304s, reviewed lifecycle, backup/restore, shutdown/restart, disablement,
+audit/worker recovery and full -> core -> full data preservation. The Docker
+runtime-stage fixture passed, and all 15 surveillance-map browser tests passed
+against the module-owned snapshots. The release tag is pushed; the dashboard
+integration remains a local feature-branch commit until explicitly pushed.

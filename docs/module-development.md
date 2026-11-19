@@ -146,8 +146,9 @@ under `backend/internal/features`. Its versioned implementation belongs in
 `backend/modules/<module-id>`; the dashboard consumes its reviewed version and
 checksums without a local replacement.
 
-Dashboard HTTP authorization/routes, SQLC mappings and shared provider adapters
-belong under `backend/internal/adapters/modules/<feature-id>`. These adapters
+For modules still using `integration: adapter`, dashboard HTTP authorization/
+routes, SQLC mappings and shared provider adapters belong under
+`backend/internal/adapters/modules/<feature-id>`. These transitional adapters
 delegate domain behavior to the selected package. Core event recording,
 primary migrations, shared identity/health-context and provider lifecycle stay
 with the host when they are shared capabilities.
@@ -157,3 +158,30 @@ tests reject retained feature trees/imports, require each adapter to use its
 published package, and continue enforcing approved cross-feature dependencies
 for adapters. Keep module-owned algorithms and lifecycle policy in the package,
 not in a second host feature implementation.
+
+
+## Self-contained module integration
+
+A `published` module with `integration: self-contained` owns its handlers,
+models, persistence implementation, assets and module-specific workers/schema
+where applicable. Its host integration is registration/dependency composition,
+without an `internal/features` or `internal/adapters/modules` implementation.
+Catalogue schema 2 records this distinction explicitly and checks ownership.
+
+Use standard-library HTTP handlers and shared platform callbacks rather than
+requiring application-specific wrappers. `internal/modulehttp` translates the
+structural HTTP registration contract into Gin once for all modules, preserving
+the existing authentication context, request ID, route mount and declared
+method surface. A module must require authorization; the shared callback reads
+only verified context and fails closed. Headers do not become identity claims.
+
+Modules can provide `OpenAPI() []byte` as a structural contract. API generation
+merges their declared operations only for actual registered routes, alongside
+existing typed Gin operations. GeoJSON v0.2.0 is the first integrated example.
+Keep the published operation metadata and actual permission checks aligned.
+
+Review and commit the package, publish an immutable directory-prefixed tag,
+verify the downloaded artifact/checksums from a fresh cache and an independent
+consumer, then pin it and remove the host-specific adapter and asset copies.
+Shared platform infrastructure and migration history remain host-owned unless
+an explicit module migration transition has been reviewed.

@@ -69,3 +69,32 @@ func TestHTTPModuleAdapterDoesNotImportHostFeaturesOrPublishedApplications(t *te
 		}
 	}
 }
+
+// The shared registrar may consume trusted platform identity/trace packages;
+// it must never grow a module-specific implementation or import.
+func TestSharedHTTPRegistrarDoesNotDependOnApplications(t *testing.T) {
+	paths, err := filepath.Glob(filepath.Join(repoRoot(t), "internal", "modulehttp", "*.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range paths {
+		if strings.HasSuffix(path, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), path, nil, parser.ImportsOnly)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, spec := range file.Imports {
+			name, err := strconv.Unquote(spec.Path.Value)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if strings.HasPrefix(name, "github.com/mohuganda/moh-sso-dashboard/backend/modules/") ||
+				strings.HasPrefix(name, "github.com/moh-sso-dashboard/internal/adapters/modules/") ||
+				strings.HasPrefix(name, "github.com/moh-sso-dashboard/internal/features/") {
+				t.Errorf("shared registrar imports application implementation %q", name)
+			}
+		}
+	}
+}
