@@ -1051,3 +1051,35 @@ The production image built successfully, and the real Keycloak fixture passed
 module permissions, reviewed lifecycle, warehouse/attachment access, backup/
 restore, disablement, audit/worker recovery and full -> core -> full data
 preservation. Published module Go sources, versions and checksums are unchanged.
+
+### Self-contained modules phase 1 — GeoJSON candidate
+
+Started the move from package-backed host adapters to complete module-owned
+capabilities. GeoJSON is the first candidate because it owns no database schema
+or workers. Its unreleased API now owns HTTP registration, required permission
+metadata, authorization/error handling, streaming/ranges/conditional reads,
+filesystem overrides and three embedded map snapshots with provenance/hashes.
+The existing low-level public service API remains available.
+
+Registration uses a standard-library structural HTTP interface and generic
+platform authorization/trace callbacks. Missing authorization is rejected;
+unknown provider failures fail closed. Callers cannot bypass access checks with
+conditional/range requests. Embedded assets require no dashboard directory.
+
+This is the package-build phase. The dashboard remains pinned to v0.1.0 and
+continues using its current adapter/assets. Next: publish the candidate as a new
+version, verify its downloaded artifact/checksums, pin it, integrate through
+shared platform HTTP/security registration and remove the GeoJSON-specific host
+adapter and duplicate assets. No immutable tag, host pin or deployment changes
+in this phase. Subsequent modules will take ownership of their HTTP and
+persistence implementation while consuming mandatory shared platform contracts;
+audit recording and shared migration history remain protected.
+
+Phase 1 verification passed the isolated whole-package build/vet/uncached race
+suite with an empty dependency cache and downloads/workspaces disabled. A
+separate compiled consumer ran from an empty directory and served embedded
+maps through the registration API, checked access denial before conditional
+reads, byte ranges and ETag 304s. Checksums match the current host snapshots.
+Host backend tests/vet, packaged-module checks, all 366 existing API contracts
+and ten catalogue regressions passed. The existing production pin and adapter
+remain unchanged pending publication/integration.

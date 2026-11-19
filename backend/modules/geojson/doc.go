@@ -1,8 +1,10 @@
-// Package geojson resolves the dashboard's fixed map-layer names and reads
-// seekable assets through a caller-supplied AssetReader.
+// Package geojson owns allowlisted map-layer resolution, embedded map snapshots,
+// optional filesystem storage, and a standard-library HTTP module.
 //
-// Hosts authenticate and authorize calls, supply asset storage, close successful
-// streams and own HTTP serving, headers, error envelopes and asset packaging.
-// This package contains no map files, storage adapter, HTTP framework, database
-// integration, background worker or migration.
+// NewModule and Register require a trusted platform authorization callback.
+// They handle streaming, errors, ranges and conditional reads themselves.
+// The lower-level Service API remains available for non-HTTP consumers.
+//
+// The self-contained API is an unreleased candidate. The dashboard remains
+// pinned to v0.1.0 until the release-and-integration phase.
 package geojson

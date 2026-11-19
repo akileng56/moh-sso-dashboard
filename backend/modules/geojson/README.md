@@ -3,78 +3,106 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`.
 Requires Go 1.25.4 and has no third-party dependencies.
 
-Version `v0.1.0` is the first standalone GeoJSON release. Its immutable
-nested-module release tag is `backend/modules/geojson/v0.1.0`. Hosts select the
-verified dependency version and supply storage, asset packaging and HTTP policy.
+The dashboard currently pins published `v0.1.0`. The self-contained API below
+is an **unreleased candidate**, developed in phase 1. No existing tag or host
+pin has been changed. Release, checksum verification, generic host registration
+and removal of the retained GeoJSON adapter/asset copies are the next phase.
 
-## Public API
+## Self-contained entry point
 
-| API | Responsibility |
+The package owns its model/service, map snapshots, storage readers, HTTP
+handling, permission requirements, safe errors and registration. GeoJSON owns
+no database migrations, background workers or external provider connections.
+
+```go
+mux := http.NewServeMux()
+_, err := geojson.Register(mux, geojson.Dependencies{
+    BasePath:     "/api/v1/geojson",
+    AuthorizeAny: platform.AuthorizeAny,
+    RequestID:    platform.RequestID,
+})
+```
+
+`platform` represents the consuming platform's shared security/trace service.
+The functions are shared platform capabilities, not GeoJSON-specific adapters.
+`Registrar` is a structural `Handle(string, http.Handler)` interface satisfied
+by `http.ServeMux`. A framework host can provide one registrar for all modules.
+
+`NewModule` returns the same capability as a standard `http.Handler` for hosts
+that mount handlers directly. Its `Pattern()` describes the registered GET
+pattern. Go's standard multiplexer also supports HEAD for this GET pattern.
+BasePath defaults to `/geojson`; configured prefixes must be clean absolute
+paths containing letters, numbers, slash, dot, underscore or hyphen.
+
+| Dependency | Meaning |
 | --- | --- |
-| `ResolveLayer` | Immutable public-name to canonical-filename mapping |
-| `AssetReader`, `Asset` | Caller-supplied seekable asset stream and modification time |
-| `Service`, `NewService`, `Service.Open` | Resolution, context propagation, read orchestration and failure cleanup |
-| `Layer` | Resolved filename and successful stream transferred to the caller |
-| `ErrUnknownLayer` | Rejected public layer name, before any storage access |
-| `ErrLoadFailed` | Read/configuration/cancellation failure with stable public text |
-| `ModulePath`, `Version` | Selected consumer dependency version; local/unversioned builds report `dev` |
+| `AuthorizeAny` | Required: authenticate the caller and grant at least one supplied permission |
+| `RequestID` | Optional: provide the trusted trace ID for JSON error metadata |
+| `Assets` | Optional: a caller-selected seekable asset reader |
+| `Directory` | Optional: a trusted operator-configured filesystem override |
+| Neither asset override | Serve the module's embedded, versioned map files |
 
-The allowlist is fixed and case-sensitive:
+Assets and Directory are mutually exclusive. Construction rejects a missing
+authorizer before registering any route. No default anonymous or permissive
+authorization is provided.
 
-| Public name | Canonical filename |
+The authorizer must check any of these exact permission keys:
+`surveillance:read`, `data_quality:read`, `report_browser:read`.
+Each call receives a fresh permission slice. The platform must verify identity
+before granting permission; the module does not trust request headers as claims.
+Authorization runs before storage access, ranges and conditional response
+handling. Errors implementing `StatusCode() int` map 401/403 to the existing safe
+unauthorized/forbidden envelopes. Other failures return 503 without exposing
+provider diagnostics. Independent callers can use ErrUnauthorized/ErrForbidden.
+
+## Map ownership and HTTP behavior
+
+| Public name | Embedded filename |
 | --- | --- |
 | geo_water | uga_water.geojson |
 | geo_districts | uganda_districts.geojson |
 | geo_subcounties | uganda_subcounties.geojson |
 
-## Ownership and errors
+The fixed, case-sensitive allowlist never accepts caller-supplied filenames.
+The three snapshots are embedded at compile time. They are usable from an empty
+working directory without dashboard files, runtime downloads or storage adapters.
+See `maps/README.md` for provenance and `maps/sha256.json` for checksums.
+During phase 1, the verifier also checks parity with the current host snapshots.
 
-Authenticate and authorize access before calling `Service.Open`; the library
-does not implement host permission policy. Implement `AssetReader` to open the
-canonical filename in host-controlled storage, using the supplied context.
-Readers return a seekable, closeable stream and its modification time.
+Successful reads return raw GeoJSON with the existing content type,
+`public, max-age=86400` and `nosniff` headers. The module handles ranges and
+conditional reads with `http.ServeContent` and closes streams on every outcome.
+Embedded files have no filesystem timestamp; stable content ETags support 304
+responses. Filesystem/custom-reader overrides retain their modification times.
+Unknown names return the existing 404 envelope; known-layer load failures remain
+500, with no private path/cause disclosure. Request IDs come only from the
+trusted trace callback.
 
-After a successful service call, the caller closes `Layer.Content` after use.
-On a failed or canceled read, the service closes any returned stream and returns
-an empty layer. Underlying read, cancellation and close-error causes remain
-available through `errors.Is/As`, while the load error's text remains stable.
-The reader port transfers ownership of every non-nil returned stream, including
-one returned alongside an error.
+## Lower-level compatibility API
 
-Only unknown public names map to `ErrUnknownLayer` during resolution. A missing
-file for a known name is a load failure. HTTP adapters should prioritize
-`ErrLoadFailed` if an underlying reader error happens to match both sentinels.
-The dashboard retains its existing 404/500 envelopes and `http.ServeContent`
-handling for raw GeoJSON, cache/nosniff headers, conditional requests and ranges.
+`ResolveLayer`, `AssetReader`, `Asset`, `Layer`, `NewService` and
+`Service.Open` remain available. Those lower-level calls do not authorize:
+their caller must do so before opening an asset. Successful streams transfer to
+the caller; failed/cancelled reads close any returned stream. Load failures keep
+their stable public message and retain causes through `errors.Is/As`.
 
-## Host integration
+`BundledAssets` and `NewDirectoryReader` provide package-owned implementations
+of AssetReader. Directory is trusted deployment configuration. The selected
+directory and any symlinks it contains are operator-controlled.
 
-The package contains no map files, filesystem adapter, HTTP framework, permission
-resolver, database driver, migrations or background workers. Hosts provide
-storage and ship the map assets; packaging this library does not package or
-deploy those assets.
-
-Dashboard consumers select a reviewed Go dependency version and report the
-selected module version through their compiled inventory. Local workspace or
-directory replacements report `dev`; they must not be used as a production pin.
-The host retains only its storage/HTTP adapters after release integration.
+`ModulePath` and `Version()` report the consuming build's selected dependency.
+Local/unversioned builds report `dev`; production must use a reviewed release.
 
 ## Verification
 
-From the repository root:
-
 ```sh
 python3 infra/scripts/test-geojson-package.py
-make -C backend modules-check
+make -C backend modules-check contracts-check
 ```
 
-The verifier copies only this module outside the dashboard, uses an empty module
-cache with workspaces and network module downloads disabled, checks dependency
-boundaries and runs read-only build/vet/race checks. It also compiles and runs a
-separate consumer module using a temporary local replacement. This replacement
-exists only in the disposable verification fixture; the host dependency files
-are unchanged.
-
-A `go.sum` is not needed because this module uses only the standard library.
-Release preparation must verify a clean published download and checksums before
-the host selects the immutable dependency version.
+The verifier copies the complete module outside the host, uses an empty module
+cache with downloads/workspaces disabled, and builds/vets/race-tests it. It
+checks embedded snapshot identities and compiles a separate public consumer.
+That binary runs from an empty directory and verifies package-owned HTTP
+registration/assets, access denial, byte ranges and ETag conditional responses.
+The host continues using the existing v0.1.0 adapter until release integration.
