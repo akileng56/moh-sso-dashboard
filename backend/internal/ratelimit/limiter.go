@@ -11,6 +11,9 @@ type Limiter struct {
 	redis *redis.Client
 }
 
+// Available reports whether the rate-store capability is configured.
+func (l *Limiter) Available() bool { return l != nil && l.redis != nil }
+
 func New(redis *redis.Client) *Limiter {
 	return &Limiter{redis: redis}
 }

@@ -156,6 +156,9 @@ jobs:
       - name: Standalone Audit read package
         run: python3 infra/scripts/test-audit-package.py
 
+      - name: Published self-contained Audit release
+        run: python3 infra/scripts/test-audit-release.py
+
       - name: Self-contained Audit HTTP and PostgreSQL package
         run: python3 infra/scripts/test-audit-http-package.py --postgres
 

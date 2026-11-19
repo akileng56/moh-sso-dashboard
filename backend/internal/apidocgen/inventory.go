@@ -11,11 +11,13 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	adminunits "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	audit "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	geojson "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metrics "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
@@ -94,6 +96,16 @@ func documentationHandlers() router.HandlerSet {
 	handlers.Metrics, err = metrics.NewModule(metrics.Dependencies{
 		Database: new(sql.DB), RequireAdmin: func(*http.Request) error { return metrics.ErrUnauthorized },
 		AuthorizeAny: func(*http.Request, ...string) error { return metrics.ErrUnauthorized },
+	})
+	if err != nil {
+		panic(err)
+	}
+	handlers.Audit, err = audit.NewModule(audit.Dependencies{
+		Database: new(sql.DB), RequireAdmin: func(*http.Request) error { return audit.ErrUnauthorized },
+		AuthorizeAny: func(*http.Request, ...string) error { return audit.ErrUnauthorized },
+		LimitExport: func(*http.Request, string, int, time.Duration) (http.Header, error) {
+			return nil, audit.ErrUnauthorized
+		},
 	})
 	if err != nil {
 		panic(err)

@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
@@ -32,8 +31,10 @@ import (
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	db "github.com/moh-sso-dashboard/internal/migrate"
 	"github.com/moh-sso-dashboard/internal/modulehttp"
+	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/internal/storage"
 	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	"github.com/redis/go-redis/v9"
@@ -90,7 +91,19 @@ func buildHandlers(deps handlerDependencies) handlers {
 	if deps.Cache != nil {
 		auditCache = deps.Cache
 	}
-	auditHandler := auditfeature.NewHandler(auditfeature.NewService(auditfeature.NewRepository(deps.Store)), auditCache)
+	var auditHandler *auditfeature.Module
+	if deps.Config.ModuleEnabled("audit") {
+		var err error
+		auditHandler, err = auditfeature.NewModule(auditfeature.Dependencies{
+			Database: deps.Databases.Primary, Cache: auditCache,
+			RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
+			LimitExport: modulehttp.PerUserLimit(ratelimit.New(deps.Redis)),
+			RequestID:   modulehttp.RequestID, StreamError: modulehttp.StreamError,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
 	notificationsHandler := notificationsfeature.NewHandler(deps.Services.Notifications, deps.Services.Audit)
 
 	documentHandler := documentsfeature.NewHandler(

@@ -1317,3 +1317,48 @@ CSV/JSON manifest integrity, large-stream headers, export-rate header precedence
 and write-error reporting; all packaged Go modules; full host backend tests and
 vet; unchanged 366-operation API contract; 12 catalogue regressions; workflow
 actionlint and whitespace checks. No version tag or branch has been pushed.
+
+### Self-contained Audit — v0.2.0 release and host integration
+
+Published `backend/modules/audit/v0.2.0` upstream at `fe1e6f6e` and pinned the
+dashboard to v0.2.0 with reviewed checksums and no replacement. Fresh-cache
+verification checks the public module, exact dependency graph and artifact
+inventory, then builds/runs its separate HTTP consumer. PostgreSQL driver
+ownership stays with that consumer/platform, not the Audit read module.
+
+Removed the host Audit read adapter and seven unused read-query definitions;
+regenerated SQLC retains core event-writing queries. The existing writer's
+implementation is unchanged and its file is now named
+`internal/service/audit_recorder.go` to distinguish its required core role.
+Shared primary migrations, notifications and audit cache invalidation remain
+platform responsibilities.
+
+Only enabled Audit readers are constructed. The published module receives the
+primary pool, optional typed Redis cache, verified administrator identity,
+`audit:read` checks, request IDs, stream-error reporting and a generic per-user
+rate capability. Redis keys keep `rl:audit-export:user:<verified-subject>`.
+The export policy remains 10 requests per minute; rate headers override outer
+general-policy headers. Unlike the older fail-open Gin rate middleware, this
+required capability returns 503 when enforcement is missing/unavailable.
+Other existing rate policies retain their behavior.
+
+The seven module-owned OpenAPI operations and nullable/export schemas feed the
+366-endpoint API inventory. Catalogue ownership is self-contained and its
+adapter-regression test now selects a remaining adapter entry dynamically.
+The selected package also fixes failed-login day-bucket scanning and returns
+Unix milliseconds for the public numeric field.
+
+Only the release tag is pushed. Dashboard integration remains local on
+`feat/audit-v020-integration` until explicitly pushed; no running deployment
+is changed by this work.
+
+Integration verification passed: fresh public v0.2.0 artifact/checksums,
+replacement-free graph and independent HTTP consumer; standalone PostgreSQL,
+pagination/NULL/export integrity and race suites; SQLC compile/regeneration
+freshness; all packaged Go modules; full host tests/vet; API/bootstrap/shared
+rate-limit/registrar/architecture race checks; 366 current API operations;
+12 catalogue regressions; workflow actionlint; production Docker build; real
+Keycloak full and core fixtures. Real Redis verified typed cache behavior and
+the ten-per-user export limit; all seven read routes disappear when disabled
+while core event recording continues. Restart, backup/restore, worker
+stop/resume and full -> core -> full data preservation checks passed.

@@ -20,7 +20,6 @@ type Querier interface {
 	AssignIHPPermissionToRealmRole(ctx context.Context, arg AssignIHPPermissionToRealmRoleParams) error
 	AssignIHPPermissionToSystemRole(ctx context.Context, arg AssignIHPPermissionToSystemRoleParams) error
 	AssignIHPSystemAccessRole(ctx context.Context, arg AssignIHPSystemAccessRoleParams) error
-	AuditMetricsOverview(ctx context.Context, arg AuditMetricsOverviewParams) (AuditMetricsOverviewRow, error)
 	CancelNotificationDelivery(ctx context.Context, id uuid.UUID) error
 	CancelProcess(ctx context.Context, id uuid.UUID) error
 	ClaimEmailOutboxBatch(ctx context.Context, limit int32) ([]EmailOutbox, error)
@@ -116,10 +115,8 @@ type Querier interface {
 	ExistsDocumentTemplateColumnName(ctx context.Context, arg ExistsDocumentTemplateColumnNameParams) (bool, error)
 	ExistsDocumentTemplateSheetCode(ctx context.Context, arg ExistsDocumentTemplateSheetCodeParams) (bool, error)
 	ExistsDocumentTemplateSheetName(ctx context.Context, arg ExistsDocumentTemplateSheetNameParams) (bool, error)
-	ExportAuditLogs(ctx context.Context, arg ExportAuditLogsParams) ([]ExportAuditLogsRow, error)
 	FailProcess(ctx context.Context, arg FailProcessParams) error
 	FailSurveillanceImportBatch(ctx context.Context, arg FailSurveillanceImportBatchParams) error
-	FailedLoginsByDay(ctx context.Context, arg FailedLoginsByDayParams) ([]FailedLoginsByDayRow, error)
 	FailedLoginsByUserInRange(ctx context.Context, arg FailedLoginsByUserInRangeParams) ([]FailedLoginsByUserInRangeRow, error)
 	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	GetAlertByID(ctx context.Context, id uuid.UUID) (Alert, error)
@@ -127,7 +124,6 @@ type Querier interface {
 	GetAnnouncementByID(ctx context.Context, id uuid.UUID) (Announcement, error)
 	GetAnnouncementByIDForUpdate(ctx context.Context, id uuid.UUID) (Announcement, error)
 	GetAnnouncementStats(ctx context.Context) (GetAnnouncementStatsRow, error)
-	GetAuditLog(ctx context.Context, id uuid.UUID) (GetAuditLogRow, error)
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
 	GetDiseaseByID(ctx context.Context, id uuid.UUID) (Disease, error)
@@ -214,8 +210,6 @@ type Querier interface {
 	ListAnnouncementsForClient(ctx context.Context, arg ListAnnouncementsForClientParams) ([]Announcement, error)
 	ListAnnouncementsForRole(ctx context.Context, arg ListAnnouncementsForRoleParams) ([]Announcement, error)
 	ListAnnouncementsForUser(ctx context.Context, arg ListAnnouncementsForUserParams) ([]Announcement, error)
-	ListAuditActions(ctx context.Context) ([]string, error)
-	ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
 	ListDiseaseWeeklyTrendAggregated(ctx context.Context, arg ListDiseaseWeeklyTrendAggregatedParams) ([]ListDiseaseWeeklyTrendAggregatedRow, error)
@@ -355,7 +349,6 @@ type Querier interface {
 	SetIndicatorActiveState(ctx context.Context, arg SetIndicatorActiveStateParams) (Indicator, error)
 	SoftDeleteAnnouncement(ctx context.Context, arg SoftDeleteAnnouncementParams) error
 	SoftDeleteAnnouncementAttachment(ctx context.Context, arg SoftDeleteAnnouncementAttachmentParams) (AnnouncementAttachment, error)
-	TopFailureIPs(ctx context.Context, arg TopFailureIPsParams) ([]TopFailureIPsRow, error)
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
 	UnarchiveAnnouncementToDraft(ctx context.Context, arg UnarchiveAnnouncementToDraftParams) (Announcement, error)
 	UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusParams) (Alert, error)

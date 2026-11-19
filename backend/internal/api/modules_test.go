@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/modulehttp"
@@ -34,7 +33,7 @@ func TestModuleConfiguration(t *testing.T) {
 func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, disabled := range []string{"", " metrics "} {
-		registry, err := NewModuleRegistry(HandlerSet{Metrics: testMetricsModule(t), Audit: &auditfeature.Handler{}, GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
+		registry, err := NewModuleRegistry(HandlerSet{Metrics: testMetricsModule(t), Audit: testAuditModule(t, auditReadFixture{}), GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

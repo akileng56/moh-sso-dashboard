@@ -68,7 +68,11 @@ class Coverage(unittest.TestCase):
             catalog.load_catalog(self.root)
 
     def test_published_module_requires_its_adapter(self):
-        (self.root / 'backend/internal/adapters/modules/audit').rmdir()
+        data = json.loads((self.root / 'docs/module-catalog.json').read_text())
+        entry = next((item for item in data['backend'] if item['integration'] == 'adapter'), None)
+        if entry is None:
+            self.skipTest('No adapter-integrated modules remain')
+        (self.root / 'backend/internal/adapters/modules' / entry['id']).rmdir()
         with self.assertRaisesRegex(ValueError, 'Backend catalogue drift'):
             catalog.load_catalog(self.root)
 

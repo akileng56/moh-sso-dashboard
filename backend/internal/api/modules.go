@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -61,7 +60,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			auditfeature.RegisterAdminRoutes(routes.Admin, handlers.Audit, limiter)
+			modulehttp.Register(routes.Protected, handlers.Audit)
 		},
 	}, module.Definition{
 		Info: module.Info{ID: "geojson", Version: geojsonmodule.Version(), Enabled: enabled["geojson"]},

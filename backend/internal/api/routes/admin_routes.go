@@ -4,7 +4,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
@@ -20,7 +19,7 @@ func RegisterAdminRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	registerAdminClientRoleRoutes(admin, deps)
 	if deps.Modules == nil {
 		registerAdminMetricRoutes(protected, deps)
-		registerAdminAuditRoutes(admin, deps)
+		registerAdminAuditRoutes(protected, deps)
 	}
 	registerAdminNotificationRoutes(admin, deps)
 	registerAdminAnnouncementRoutes(admin, deps)
@@ -46,12 +45,10 @@ func registerAdminMetricRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	}
 }
 
-func registerAdminAuditRoutes(admin *gin.RouterGroup, deps Dependencies) {
-	auditfeature.RegisterAdminRoutes(
-		admin,
-		deps.Audit,
-		deps.Limiter,
-	)
+func registerAdminAuditRoutes(protected *gin.RouterGroup, deps Dependencies) {
+	if deps.Audit != nil {
+		modulehttp.Register(protected, deps.Audit)
+	}
 }
 
 func registerAdminNotificationRoutes(admin *gin.RouterGroup, deps Dependencies) {

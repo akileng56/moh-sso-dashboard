@@ -296,7 +296,7 @@ def main():
                 return
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'audit' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'admin-units' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
@@ -390,6 +390,15 @@ def main():
             csv_rows = list(csv.reader(io.StringIO(request(audit_export + '&format=csv', token=admin))))
             assert csv_rows and csv_rows[0] == ['created_at', 'user_id', 'username', 'action', 'ip', 'client_id', 'success', 'metadata_json']
             request(audit_export + '&format=json', token=viewer, status=403)
+            request(api + '/api/v1/admin/audit-logs/metrics/overview?' + audit_range, token=admin)
+            request(api + '/api/v1/admin/audit-logs/metrics/failed-logins-by-day?' + audit_range, token=admin)
+            request(api + '/api/v1/admin/audit-logs/metrics/top-failure-ips?' + audit_range, token=admin)
+            request(api + '/api/v1/admin/audit-logs/' + exported['items'][0]['id'], token=admin)
+            for _ in range(7):
+                request(audit_export + '&format=json', token=admin)
+            request(audit_export + '&format=json', token=admin, status=429)
+            print('Audit v0.2.0 read routes, typed cache, CSV/JSON exports and ten-per-user export limit passed', flush=True)
+
 
             geo_url = api + '/api/v1/geojson/'
             request(geo_url + 'geo_water', status=401)
@@ -553,6 +562,10 @@ def main():
                 request(api + metric_path, token=admin)
             print('Metrics re-enablement preserves SQL-backed reads', flush=True)
             request(api + '/api/v1/admin/audit-logs/actions', token=admin, status=404)
+            for audit_suffix in ('', '/metrics/overview', '/metrics/failed-logins-by-day',
+                                 '/metrics/top-failure-ips', '/export', '/' + exported['items'][0]['id']):
+                request(api + '/api/v1/admin/audit-logs' + audit_suffix + '?' + audit_range, token=admin, status=404)
+
             request(api + '/api/v1/geojson/geo_water', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=admin, status=404)
             request(api + '/api/v1/report-scheduler', token=token('scheduler'), status=404)

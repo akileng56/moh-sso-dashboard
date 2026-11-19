@@ -161,6 +161,8 @@ github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0 h1:t
 github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0/go.mod h1:Z8YwPcJE8rzTift16mh5bOXLJbkqsrAWgcK70VBxAO8=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.1.0 h1:Ici5U7QTf/3/Dj/vFu0mZI1aI+XzlLuT2KqvI41IlL8=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.1.0/go.mod h1:ZQxJx5bpvJ8njxUa2nJxSA0F4KPOeJVvCTd/jm6ewRw=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.2.0 h1:OvhX+O43adsBrjBHn8dDCRZP+Au/Xwyw5x7NIp5lNrs=
+github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.2.0/go.mod h1:ZQxJx5bpvJ8njxUa2nJxSA0F4KPOeJVvCTd/jm6ewRw=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.1.0 h1:t//wUzEZMYiCJb4PgRnHuJlq3NEkm5MCOb/jMQq5S4E=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.1.0/go.mod h1:e5Yf6s1NuHjVGaybpHI1OQ2PPF5I9zmOejEqugrYYO0=
 github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.2.0 h1:Zdlo+WqbS86aosrOnxsgiUs93aRQE6pZOTdqbdvfK64=

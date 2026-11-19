@@ -639,7 +639,10 @@ components:
         actions:
           items:
             type: string
+          nullable: true
           type: array
+      required:
+        - actions
       type: object
     audit.AuditCursor:
       properties:
@@ -651,6 +654,7 @@ components:
           format: uuid
           nullable: true
           type: string
+      required: []
       type: object
     audit.AuditExportManifest:
       properties:
@@ -667,15 +671,25 @@ components:
         record_count:
           format: int64
           type: integer
+      required:
+        - generated_at
+        - range
+        - record_count
+        - hash_algo
+        - payload_sha256
       type: object
     audit.AuditExportResponse:
       properties:
         items:
           items:
             $ref: '#/components/schemas/audit.AuditLogResponse'
+          nullable: true
           type: array
         manifest:
           $ref: '#/components/schemas/audit.AuditExportManifest'
+      required:
+        - manifest
+        - items
       type: object
     audit.AuditFailedLoginsByDayPoint:
       properties:
@@ -683,15 +697,22 @@ components:
           format: int64
           type: integer
         day:
+          description: Database day-bucket start, Unix milliseconds
           format: int64
           type: integer
+      required:
+        - day
+        - count
       type: object
     audit.AuditFailedLoginsByDayResponse:
       properties:
         series:
           items:
             $ref: '#/components/schemas/audit.AuditFailedLoginsByDayPoint'
+          nullable: true
           type: array
+      required:
+        - series
       type: object
     audit.AuditLogListResponse:
       properties:
@@ -700,9 +721,14 @@ components:
         items:
           items:
             $ref: '#/components/schemas/audit.AuditLogResponse'
+          nullable: true
           type: array
         next_cursor:
           $ref: '#/components/schemas/audit.AuditCursor'
+      required:
+        - items
+        - next_cursor
+        - has_more
       type: object
     audit.AuditLogResponse:
       properties:
@@ -726,6 +752,12 @@ components:
           type: string
         username:
           type: string
+      required:
+        - id
+        - createdAt
+        - username
+        - action
+        - metadata
       type: object
     audit.AuditMetricsOverviewResponse:
       properties:
@@ -741,6 +773,11 @@ components:
         total_failures:
           format: int64
           type: integer
+      required:
+        - total_events
+        - total_failures
+        - failed_logins
+        - successful_logins
       type: object
     audit.AuditTopFailureIPPoint:
       properties:
@@ -749,13 +786,19 @@ components:
           type: integer
         ip:
           type: string
+      required:
+        - ip
+        - count
       type: object
     audit.AuditTopFailureIPsResponse:
       properties:
         items:
           items:
             $ref: '#/components/schemas/audit.AuditTopFailureIPPoint'
+          nullable: true
           type: array
+      required:
+        - items
       type: object
     auth.AuthMeResponse:
       properties:
@@ -8359,8 +8402,20 @@ paths:
         - announcements:read
   /api/v1/admin/audit-logs:
     get:
-      operationId: get_api_v1_admin_audit-logs
+      operationId: audit
       parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            format: date-time
+            type: string
         - in: query
           name: action
           required: false
@@ -8372,22 +8427,7 @@ paths:
           schema:
             type: string
         - in: query
-          name: cursor_created_at
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: cursor_id
-          required: false
-          schema:
-            type: string
-        - in: query
           name: ip
-          required: false
-          schema:
-            type: string
-        - in: query
-          name: limit
           required: false
           schema:
             type: string
@@ -8400,7 +8440,28 @@ paths:
           name: user_id
           required: false
           schema:
+            format: uuid
             type: string
+        - in: query
+          name: cursor_created_at
+          required: false
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: cursor_id
+          required: false
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 50
+            maximum: 200
+            minimum: 1
+            type: integer
       responses:
         "200":
           content:
@@ -8410,67 +8471,152 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditLogListResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: List Audit Logs
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ListAuditLogs
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/{id}:
     get:
-      operationId: get_api_v1_admin_audit-logs_id
+      operationId: audit_id
       parameters:
         - in: path
           name: id
           required: true
           schema:
+            format: uuid
             type: string
       responses:
         "200":
@@ -8481,62 +8627,147 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditLogResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "404":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Not Found
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Audit Log
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).GetAuditLog
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/actions:
     get:
-      operationId: get_api_v1_admin_audit-logs_actions
+      operationId: audit_actions
+      parameters: []
       responses:
         "200":
           content:
@@ -8546,57 +8777,159 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditActionsResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: List Audit Actions
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ListAuditActions
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/export:
     get:
-      operationId: get_api_v1_admin_audit-logs_export
+      operationId: audit_export
       parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            format: date-time
+            type: string
         - in: query
           name: action
           required: false
@@ -8606,12 +8939,6 @@ paths:
           name: client_id
           required: false
           schema:
-            type: string
-        - in: query
-          name: format
-          required: false
-          schema:
-            default: csv
             type: string
         - in: query
           name: ip
@@ -8627,6 +8954,14 @@ paths:
           name: user_id
           required: false
           schema:
+            format: uuid
+            type: string
+        - in: query
+          name: format
+          required: false
+          schema:
+            default: csv
+            description: json returns an envelope; other values retain CSV fallback
             type: string
       responses:
         "200":
@@ -8637,62 +8972,176 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditExportResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+            text/csv:
+              schema:
+                format: binary
+                type: string
+          description: Audit result
+          headers:
+            Content-Disposition:
+              schema:
+                type: string
+            X-Audit-Export-Manifest:
+              description: JSON manifest for CSV, including record count and JSON-item SHA-256
+              schema:
+                type: string
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Export Audit Logs
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ExportAuditLogs
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-rate-limit-policy:
+        key: verified-user
+        limit: 10
+        name: audit-export
+        windowSeconds: 60
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/metrics/failed-logins-by-day:
     get:
-      operationId: get_api_v1_admin_audit-logs_metrics_failed-logins-by-day
+      operationId: audit_metrics_failed-logins-by-day
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            format: date-time
+            type: string
       responses:
         "200":
           content:
@@ -8702,62 +9151,159 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditFailedLoginsByDayResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Failed Logins By Day
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).FailedLoginsByDay
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/metrics/overview:
     get:
-      operationId: get_api_v1_admin_audit-logs_metrics_overview
+      operationId: audit_metrics_overview
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            format: date-time
+            type: string
       responses:
         "200":
           content:
@@ -8767,68 +9313,167 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditMetricsOverviewResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Audit Metrics Overview
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).AuditMetricsOverview
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/audit-logs/metrics/top-failure-ips:
     get:
-      operationId: get_api_v1_admin_audit-logs_metrics_top-failure-ips
+      operationId: audit_metrics_top-failure-ips
       parameters:
+        - in: query
+          name: from
+          required: true
+          schema:
+            format: date-time
+            type: string
+        - in: query
+          name: to
+          required: true
+          schema:
+            format: date-time
+            type: string
         - in: query
           name: limit
           required: false
           schema:
-            type: string
+            default: 10
+            maximum: 50
+            minimum: 1
+            type: integer
       responses:
         "200":
           content:
@@ -8838,59 +9483,143 @@ paths:
                   data:
                     $ref: '#/components/schemas/audit.AuditTopFailureIPsResponse'
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Audit result
         "400":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Bad Request
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "404":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Top Failure IPs
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Safe validation, access or service error
       tags:
-        - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).TopFailureIPs
+        - audit
+      x-admin-required: true
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/audit.(*Module).ServeHTTP
+      x-route-permissions:
+        - audit:read
   /api/v1/admin/clients/{id}/roles:
     post:
       description: 'Explicit route permission: clients:roles:write. Additional group/system access checks may apply.'
@@ -36608,7 +37337,6 @@ servers:
     url: ..
 tags:
   - name: admin-announcements
-  - name: admin-audit
   - name: admin-clients
   - name: admin-handler
   - name: admin-health-context
@@ -36618,6 +37346,7 @@ tags:
   - name: admin-units
   - name: admin-users
   - name: announcements
+  - name: audit
   - name: auth
   - name: clients
   - name: data-quality

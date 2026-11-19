@@ -327,7 +327,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 | --- | --- | --- |
 | Admin units | `modules/admin-units` (published v0.2.0) | Self-contained warehouse queries, context filtering and nine visualizer HTTP endpoints. |
 | Announcements | `features/announcements` | Announcement lifecycle, targeting, email triggers, and persistent attachments. |
-| Audit | `features/audit` | Audit log search, export, and audit metrics. |
+| Audit | `modules/audit` (published v0.2.0) | Self-contained read queries, cached search and export APIs; core event recording stays in `internal/service/audit_recorder.go`. |
 | Auth | `features/auth` | Keycloak login, callback, session refresh, logout, and current user profile. |
 | Clients | `features/clients` | Keycloak clients as portal systems and client roles. |
 | Data quality | `features/data_quality` | Data quality issue and transaction APIs. |

@@ -46,8 +46,8 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Maintain host SQLC/cache/HTTP adapters and core event recording/migrations; release Audit read changes independently and update the reviewed Go pin.",
-      "integration": "adapter"
+      "next": "Maintain published read HTTP/SQL/cache/export behavior; keep core event recording and migrations in the platform and select reviewed Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "auth",

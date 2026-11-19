@@ -10,7 +10,6 @@ import (
 	"github.com/moh-sso-dashboard/docs"
 
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/api/routes"
@@ -38,6 +37,7 @@ import (
 	service "github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/module"
 	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
@@ -60,7 +60,7 @@ type HandlerSet struct {
 	Clients                 *clientfeature.Handler
 	Users                   *userfeature.Handler
 	Metrics                 *metricsfeature.Module
-	Audit                   *auditfeature.Handler
+	Audit                   *auditfeature.Module
 	Notifications           *notificationsfeature.Handler
 	Documents               *documentsfeature.Handler
 	DocumentTemplates       *documenttemplatesfeature.Handler
