@@ -8,8 +8,10 @@ func RegisterAdminRoutes(admin *gin.RouterGroup, handler *Handler, authorize gin
 	if authorize == nil {
 		panic("metrics authorization middleware is required")
 	}
-	metrics := admin.Group("/metrics")
-	metrics.Use(authorize)
+	metrics := admin.Group("/metrics", authorize)
+	registerRoutes(metrics, handler)
+}
+func registerRoutes(metrics *gin.RouterGroup, handler *Handler) {
 	{
 		metrics.GET("/overview", handler.Overview)
 		metrics.GET("/system/count-users", handler.CountUsers)

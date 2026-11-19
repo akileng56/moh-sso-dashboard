@@ -2,8 +2,10 @@
 
 This module provides the dashboard metrics service, HTTP handlers, response
 types and repository port. It has its own `go.mod` and can be consumed from a
-different Go repository. SQL access, authentication, permission resolution,
-audit logging and application lifecycle are supplied by the host.
+different Go repository. The published v0.1.0 API uses host-supplied SQL access. The working tree also
+contains an unreleased self-contained HTTP/PostgreSQL candidate. Authentication,
+permission resolution, audit logging and application lifecycle remain shared
+platform capabilities.
 
 ## Use
 
@@ -30,8 +32,11 @@ Local filesystem and workspace replacements report `dev`.
 Metrics reads the host's users, client, sessions and audit data through its
 repository port. The module owns no database tables or migrations. In the
 SSO-DASHBOARD distribution, core migrations run before module initialization.
-The existing SQL adapter translates generated query records into module-owned
-records without changing database schema or migration history.
+The existing v0.1.0 host adapter translates query records into module-owned
+records. The unreleased candidate owns those 32 read queries in
+`internal/postgres` and provides `NewRepository(*sql.DB) (Repository, error)`.
+The caller owns the database pool and its lifetime. No production schema,
+migration history or worker behavior changes.
 
 ## Develop and verify
 
@@ -62,3 +67,54 @@ consumer can download it before updating the distribution dependency.
 
 The repository can host several independently versioned Go modules. Each module
 must keep public APIs independent of other repositories' `internal` packages.
+
+## Self-contained candidate
+
+The dashboard is still pinned to v0.1.0. This package-build phase adds:
+
+- `NewModule(Dependencies)`: a complete HTTP module with all 19 GET endpoints.
+- `Register(Registrar, Dependencies)` and `Patterns()`: standard HTTP integration,
+  compatible with ServeMux and the platform's generic registrar.
+- `OpenAPI()`: package-owned operations, query/path parameters and DTO schemas.
+- `NewRepository(*sql.DB)`: package-owned PostgreSQL reads using public model values.
+
+Supply exactly one of `Database` or `Repository` and both `RequireAdmin` and
+`AuthorizeAny` callbacks. They must read verified platform identity and run
+before any parameter validation or query. Permission remains `metrics:read`.
+Errors exposing `StatusCode() int` preserve 401/403; unclassified guard failures
+return a safe 503. Raw provider/database messages are never returned.
+The module does not parse credentials or establish identity from caller headers.
+`RequestID` supplies the shared trace identifier. Default mount is
+`/admin/metrics` (the outer platform registrar adds `/api/v1`); `BasePath`
+supports alternate mounts.
+
+The module retains its existing Gin and UUID dependencies. PostgreSQL array
+scanning adds the reviewed `github.com/lib/pq v1.10.9` dependency. The new
+standard HTTP entry point hides Gin from host integration. Existing
+`RegisterAdminRoutes` / `NewHandler` APIs remain compatible with v0.1.0 hosts.
+
+Date parsing, default client limit, nullable DTOs and empty collections retain
+existing behavior. The overview endpoint retains its existing best-effort
+aggregation: failed secondary reads can yield partial/zero results with 200.
+Individual metric endpoints still return safe 500 errors on query failures.
+Improving that overview error contract is separate work.
+
+From the repository root:
+
+```sh
+python3 infra/scripts/test-metrics-package.py --postgres
+```
+
+Verification copies only this module into an external directory, disables Go
+workspaces and downloads, verifies installed third-party checksums, checks the
+dependency boundary, and runs build/vet/uncached race tests. A separate consumer
+binary runs in an empty working directory. The optional PostgreSQL fixture
+creates/removes its own container and a SELECT-only account; it exercises all
+32 repository reads and 19 routes, NULLs, arrays, parameter binding, canceled
+contexts and caller-owned pool lifetime. It never connects to an existing
+operator database. The fixture schema is test data, not a production migration.
+
+The next phase must publish v0.2.0, verify its public artifact/checksums, pin it,
+remove the Metrics HTTP/repository/service adapters, wire the shared admin
+capability, merge module-owned schemas, and verify disablement/full/core startup.
+Do not remove platform-owned identity, audit recording or core migrations.

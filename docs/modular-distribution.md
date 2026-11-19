@@ -1200,3 +1200,40 @@ actionlint; production Docker build; real Keycloak full and core profiles.
 The full fixture verified all nine Admin Units routes, authorization/context
 checks, disablement/re-enablement, clean restart, backups, core audit/worker
 preservation and full -> core -> full data preservation.
+
+### Self-contained Metrics — package candidate
+
+On `feat/self-contained-metrics`, Metrics now supplies a complete standard HTTP
+entry point for all 19 existing endpoints, its OpenAPI operation/model schemas,
+and all 32 PostgreSQL repository reads. SQL was extracted from the existing
+host query store into package-owned `internal/postgres` reads, retaining bound
+parameters and public model/null/array semantics. Query changes are now
+maintained with the standalone package. Shared primary schema/migrations and
+pool lifetime remain platform infrastructure.
+
+Both verified administrator access and `metrics:read` are mandatory capabilities
+before validation or SQL. The module exposes detached route patterns to the
+generic registrar and receives shared request IDs through a primitive callback.
+The existing Gin handler API remains compatible. Gin/UUID dependencies remain;
+PostgreSQL array scanning adds the reviewed lib/pq v1.10.9 dependency. No host
+or sibling module imports are required.
+
+The independent verifier builds/vets/race-tests outside the host with workspaces
+and downloads disabled using installed checksum-verified third-party modules.
+A separately compiled consumer runs from an empty directory, then checks all
+32 reads and 19 routes against an isolated, read-only PostgreSQL fixture.
+The overview's existing best-effort/partial-result behavior is preserved.
+
+This phase does not publish or push a release or change the dashboard's
+v0.1.0 pin, host adapters or module availability. Next: publish v0.2.0, verify
+the artifact and checksums, pin it and remove the Metrics-specific
+HTTP/repository/service wrappers using shared admin/permission capabilities;
+then verify disabled, full and core startup behavior.
+
+Phase verification passed: independent Metrics build/vet/uncached race tests
+and HTTP consumer with downloads disabled; PostgreSQL SELECT-only fixture for
+all 32 repository methods and 19 HTTP routes; bound filters, UUID/NULL/roles
+arrays, cancellation and pool lifetime; all packaged Go modules; the full
+backend suite and vet; unchanged 366-endpoint API contract; 12 catalogue
+regressions; workflow actionlint and whitespace checks. The candidate remains
+local and unpublished.

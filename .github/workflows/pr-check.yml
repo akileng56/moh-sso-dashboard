@@ -147,6 +147,9 @@ jobs:
         working-directory: backend
         run: make modules-check
 
+      - name: Standalone Metrics package, HTTP consumer and PostgreSQL reads
+        run: python3 infra/scripts/test-metrics-package.py --postgres
+
       - name: Standalone Audit read package
         run: python3 infra/scripts/test-audit-package.py
 
