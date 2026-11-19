@@ -239,3 +239,33 @@ func TestPackageDirectoryOverrideAndPathBoundary(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestModuleOwnsDetachedAPIContract(t *testing.T) {
+	module, err := geojson.NewModule(geojson.Dependencies{AuthorizeAny: allowed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Paths map[string]map[string]struct {
+			Responses   map[string]any
+			Permissions []string `json:"x-route-any-permissions"`
+		}
+	}
+	if err := json.Unmarshal(module.OpenAPI(), &doc); err != nil {
+		t.Fatal(err)
+	}
+	operation := doc.Paths["/geojson/{name}"]["get"]
+	if !reflect.DeepEqual(operation.Permissions, geojson.RequiredPermissions()) {
+		t.Fatal("documentation and policy differ")
+	}
+	for _, status := range []string{"200", "206", "304", "401", "403", "404", "416", "429", "500", "503"} {
+		if operation.Responses[status] == nil {
+			t.Fatal("response undocumented", status)
+		}
+	}
+	first := module.OpenAPI()
+	first[0] = '!'
+	if !json.Valid(module.OpenAPI()) {
+		t.Fatal("mutable contract escaped")
+	}
+}

@@ -3,10 +3,10 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson`.
 Requires Go 1.25.4 and has no third-party dependencies.
 
-The dashboard currently pins published `v0.1.0`. The self-contained API below
-is an **unreleased candidate**, developed in phase 1. No existing tag or host
-pin has been changed. Release, checksum verification, generic host registration
-and removal of the retained GeoJSON adapter/asset copies are the next phase.
+Version `v0.2.0` provides the self-contained API below. Its release tag is
+`backend/modules/geojson/v0.2.0`. Hosts select its reviewed version/checksums,
+supply shared security/trace callbacks, and register the module directly.
+`OpenAPI()` supplies its operation contract for generic host documentation.
 
 ## Self-contained entry point
 
@@ -67,7 +67,7 @@ The fixed, case-sensitive allowlist never accepts caller-supplied filenames.
 The three snapshots are embedded at compile time. They are usable from an empty
 working directory without dashboard files, runtime downloads or storage adapters.
 See `maps/README.md` for provenance and `maps/sha256.json` for checksums.
-During phase 1, the verifier also checks parity with the current host snapshots.
+The verifier checks every embedded snapshot against its published checksum.
 
 Successful reads return raw GeoJSON with the existing content type,
 `public, max-age=86400` and `nosniff` headers. The module handles ranges and
@@ -105,4 +105,4 @@ cache with downloads/workspaces disabled, and builds/vets/race-tests it. It
 checks embedded snapshot identities and compiles a separate public consumer.
 That binary runs from an empty directory and verifies package-owned HTTP
 registration/assets, access denial, byte ranges and ETag conditional responses.
-The host continues using the existing v0.1.0 adapter until release integration.
+Release verification checks the downloaded artifact separately from the local source tree.

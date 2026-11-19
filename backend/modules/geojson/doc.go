@@ -5,6 +5,6 @@
 // They handle streaming, errors, ranges and conditional reads themselves.
 // The lower-level Service API remains available for non-HTTP consumers.
 //
-// The self-contained API is an unreleased candidate. The dashboard remains
-// pinned to v0.1.0 until the release-and-integration phase.
+// Version v0.2.0 adds the self-contained HTTP registration and embedded assets.
+// Hosts supply only shared security/trace capabilities.
 package geojson
