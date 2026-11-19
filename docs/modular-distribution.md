@@ -1125,3 +1125,34 @@ audit/worker recovery and full -> core -> full data preservation. The Docker
 runtime-stage fixture passed, and all 15 surveillance-map browser tests passed
 against the module-owned snapshots. The release tag is pushed; the dashboard
 integration remains a local feature-branch commit until explicitly pushed.
+
+### Self-contained Administrative Units — package candidate
+
+On `feat/self-contained-admin-units`, the standalone package now owns the nine
+existing HTTP endpoints, safe JSON responses and OpenAPI model schemas,
+PostgreSQL warehouse queries, visibility mapping and hierarchy construction.
+Platform integration uses primitive security/context capabilities, leaving
+identity and contextual-policy decisions in the shared core. Caller-owned pools
+and externally managed DWH schema remain infrastructure responsibilities.
+Malformed POST bodies now fail before querying; bodies are bounded to 1 MiB
+by default.
+
+This is a package-build phase. The dashboard remains pinned to v0.1.0 with its
+existing adapter. No tag, pin, release-checker version, catalogue ownership or
+production deployment changes in this phase. Next: publish v0.2.0, verify
+checksums, pin it, extend generic HTTP registration to multiple patterns and
+merge OpenAPI component schemas, then delete the Admin Units host adapter and
+verify disablement plus real Keycloak/full/core behavior.
+
+Verification includes an empty-cache, downloads-disabled package build/vet/race
+suite and two external consumers, plus a disposable read-only PostgreSQL
+warehouse for all SQL queries and nine HTTP routes. The PostgreSQL driver is
+owned by that separate consumer, preserving the module's standard-library-only
+dependency graph.
+
+Phase verification passed: standalone build/vet/race and both external
+consumers with downloads disabled; real PostgreSQL read-only queries and all
+nine HTTP routes; all independent Go modules; the full host backend test suite
+and vet; the unchanged 366-endpoint API contract; 12 catalogue regressions;
+workflow actionlint and whitespace checks. The candidate remains local and
+unpublished; the production pin and module-disablement behavior are unchanged.

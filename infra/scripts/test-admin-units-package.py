@@ -64,6 +64,19 @@ def main():
         print(output, flush=True)
         assert metadata(consumer) == consumer_before, 'Consumer dependency metadata changed'
         assert metadata(standalone) == before, 'Consumer modified module metadata'
+        shutil.copyfile(MODULE / 'testdata/http-consumer/main.go', consumer / 'main.go')
+        check_graph(consumer, {CONSUMER_PATH, MODULE_PATH})
+        binary = root / 'http-consumer'
+        run(consumer, 'build', '-race', '-mod=readonly', '-o', str(binary), '.')
+        run(consumer, 'vet', '-mod=readonly', './...')
+        empty = root / 'empty'
+        empty.mkdir()
+        result = subprocess.run([str(binary)], cwd=empty, env=env, text=True,
+                                capture_output=True, check=True)
+        assert result.stdout.strip() == 'PASS: standalone Administrative Units HTTP consumer, scoped lookup and package-owned routes', result.stdout
+        print(result.stdout.strip(), flush=True)
+        assert metadata(consumer) == consumer_before, 'HTTP consumer modified dependency metadata'
+
         print('PASS: isolated Administrative Units build, dependency boundary, vet, race tests and separate consumer; downloads disabled', flush=True)
 
 

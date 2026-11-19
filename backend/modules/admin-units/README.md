@@ -5,7 +5,9 @@ Requires Go 1.25.4. The package uses only the standard library.
 
 Version `v0.1.0` is published under `backend/modules/admin-units/v0.1.0`.
 The dashboard selects this immutable dependency with reviewed checksums and
-host-owned SQL/health-context/HTTP adapters. Local replacements report `dev`.
+host-owned adapters. The working tree additionally contains an unreleased
+self-contained HTTP/PostgreSQL candidate; the dashboard still selects v0.1.0.
+Local replacements report `dev`.
 
 ## Public API
 
@@ -44,14 +46,53 @@ The host remains responsible for scoping that result. HTTP adapters that
 already fetch/filter full rows can convert them to `OrgUnit` and call
 `BuildHierarchyTree` without duplicating the algorithm.
 
-## Host ownership
+## Self-contained candidate
 
-The package has no Gin/Keycloak/SQLC/PostgreSQL/cache dependencies, database
-adapter, migrations, infrastructure resources or background worker.
-Warehouse connections/queries, health-context selection authorization, HTTP
-handlers/DTOs, system/read permissions, registry wiring and lifecycle remain
-in the dashboard. Importing this library does not read a warehouse, migrate a
-schema, register routes or alter runtime module availability.
+The unreleased candidate owns all nine existing HTTP routes under
+`/visualizer/adminunits`, their DTOs, safe response envelopes, OpenAPI schemas,
+PostgreSQL lookup SQL and visibility filtering before hierarchy construction.
+`NewModule(Dependencies)` prepares the module; `Register(Registrar, Dependencies)`
+mounts its `Patterns()` in a standard-library ServeMux or generic host registrar.
+`OpenAPI()` returns the module-owned operation and component schema document.
+
+Supply exactly one of `Database *sql.DB` or `Repository`. `NewRepository(*sql.DB)`
+reads the existing externally managed `dwh.dim_org_hierarchy` table, excluding
+sentinel/non-current rows and binding optional filters as SQL parameters. The
+caller opens the pool, registers its PostgreSQL driver and closes the pool.
+No schema migrations, cache, filesystem assets or workers are required.
+The package still depends only on the standard library.
+
+The platform supplies verified `RequireSystem`, `AuthorizeAny` and
+`SelectContext` capabilities. They run in that order before body decoding or
+warehouse access. System access remains `data-statistics` with any of
+`report_browser:read`, `documents:read`, `data_quality:read` or `surveillance:read`.
+`SelectContext` must enforce selection requirements, membership and expiry.
+Only an explicit empty ID with no error permits legacy unscoped access.
+The package never interprets caller headers as verified identity or context.
+
+Shared `ContextNodeCode` and `ContextAliases` callbacks return strings and a
+namespace-to-ID-list map. The module owns conversion, namespace filtering,
+national scope rules and hierarchy matching; the host needs no module-specific
+health-context model adapter. Guard errors may expose `StatusCode() int` and
+optional `ErrorCode() string` / `PublicMessage() string` methods for trusted
+public error metadata. Raw provider/database error messages are never returned.
+Unclassified guard failures fail closed with 503.
+
+POST filters preserve omitted/null/empty values. Malformed bodies now stop with
+400 before any query (the old Gin adapter could continue querying after BindJSON
+had committed 400). Multiple JSON values are rejected. The default body limit
+is 1 MiB, configurable with `MaxBodyBytes`, with oversized bodies returning 413.
+Existing nullable response fields and hierarchy leaf semantics are preserved;
+empty top-level collections serialize as arrays.
+
+## Integration status
+
+This phase does not publish a tag or change the dashboard pin or adapter.
+The next phase must publish v0.2.0, verify its download/checksums, pin it, then
+remove the host HTTP/SQL/context adapter. Generic platform route registration
+must support multiple patterns and API generation must merge package-owned
+component schemas as well as operations. Module-disablement and real
+Keycloak/full/core checks belong to that integration phase.
 
 ## Verification
 
@@ -59,6 +100,7 @@ From the repository root:
 
 ```sh
 python3 infra/scripts/test-admin-units-package.py
+python3 infra/scripts/test-admin-units-postgres.py
 make -C backend modules-check
 ```
 
@@ -70,8 +112,17 @@ with race instrumentation. The consumer uses public APIs for all nine lookup
 contracts, nullable filters, hierarchy construction, visibility, errors and
 module version reporting.
 
-CI runs the package verification. The host integration uses aliases and
-delegates; no retained host core remains. To verify the published download
+The HTTP consumer is compiled separately and run from an empty directory with
+downloads disabled. The PostgreSQL verifier creates and removes its own Docker
+container, seeds only a disposable warehouse and uses a SELECT-only account.
+It checks all nine routes, every repository query, NULLs, optional filters,
+parameter binding, cancellation and caller-owned pool lifetime. Its external
+consumer alone imports the reviewed PostgreSQL driver; the module has no driver
+dependency. CI runs both verifiers.
+
+The v0.1.0 release checker remains for the published version. Its source-parity
+check will intentionally differ from this unreleased candidate until the next
+release phase updates the version and expected artifact. To verify the published download
 using a fresh cache and no replacement, run
 `python3 infra/scripts/test-admin-units-release.py`. This explicit release
 check requires network access and validates checksums, selected dependency

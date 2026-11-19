@@ -1,5 +1,5 @@
-// Package admin_units provides organizational-unit lookup contracts, hierarchy
-// construction and alias-based visibility filtering using only the standard
-// library. Hosts own authentication, context authorization, SQL adapters and
-// infrastructure lifecycles.
+// Package admin_units provides self-contained warehouse lookups, HTTP routes,
+// hierarchy construction and alias-based visibility using the standard library.
+// Platforms supply authenticated security/context capabilities and a warehouse
+// connection; the package owns queries and responses, never pool lifecycles.
 package admin_units
