@@ -13,7 +13,7 @@ the module owns no workers or migrations.
 exposes the error sentinels, and delegates construction and layer resolution.
 The retained host asset contracts and portable service implementation have
 been removed. Portable source and external-consumer tests live in the
-[standalone module](../../../modules/geojson/README.md).
+[standalone module](../../../../modules/geojson/README.md).
 
 `assets_directory.go` adapts host-controlled files to the reader contract.
 Bootstrap injects it through `NewHandlerWithReader`; `NewHandler(basePath)`
@@ -54,7 +54,7 @@ closure, cancellation, ranges and conditional reads. Registry tests cover
 enabled/disabled routes and dependency-version reporting.
 
 ```sh
-go test -race ./internal/features/geojson ./internal/api ./internal/bootstrap
+go test -race ./internal/adapters/modules/geojson ./internal/api ./internal/bootstrap
 make contracts-check
 ```
 

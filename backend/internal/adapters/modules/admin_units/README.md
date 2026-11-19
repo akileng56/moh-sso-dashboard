@@ -31,7 +31,7 @@ services and warehouse data. The module owns no worker or migration.
 ```sh
 python3 infra/scripts/test-admin-units-package.py
 python3 infra/scripts/test-admin-units-release.py
-go -C backend test -race ./internal/features/admin_units ./internal/features/health_context ./internal/bootstrap ./internal/api
+go -C backend test -race ./internal/adapters/modules/admin_units ./internal/features/health_context ./internal/bootstrap ./internal/api
 make -C backend modules-check contracts-check
 ```
 

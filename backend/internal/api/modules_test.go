@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
+	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
+	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
+	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"

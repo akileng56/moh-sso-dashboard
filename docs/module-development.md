@@ -30,7 +30,7 @@ with public token-download and protected routes. Host HTTP authorization,
 platform adapters and core schema migrations remain explicit host responsibilities.
 
 The former host implementation has been replaced by aliases and thin constructors
-in `internal/features/report_scheduler/package.go`. Portable implementation tests
+in `internal/adapters/modules/report_scheduler/package.go`. Portable implementation tests
 live in the module; host HTTP, queue conversion and registry integration tests
 exercise the selected published dependency. Verify changes with
 `make -C backend modules-check` and
@@ -138,3 +138,22 @@ Commit each reviewed migration independently on a feature branch. Include the
 catalogue and regenerated coverage guide with each stage change. CI rejects
 untracked backend features, missing frontend packages, invalid relationships,
 stale generated coverage and disagreement with the compiled module inventory.
+
+## Published implementation ownership
+
+After publication, a backend module must not retain an implementation directory
+under `backend/internal/features`. Its versioned implementation belongs in
+`backend/modules/<module-id>`; the dashboard consumes its reviewed version and
+checksums without a local replacement.
+
+Dashboard HTTP authorization/routes, SQLC mappings and shared provider adapters
+belong under `backend/internal/adapters/modules/<feature-id>`. These adapters
+delegate domain behavior to the selected package. Core event recording,
+primary migrations, shared identity/health-context and provider lifecycle stay
+with the host when they are shared capabilities.
+
+The catalogue checks this layout for every published module. Architecture
+tests reject retained feature trees/imports, require each adapter to use its
+published package, and continue enforcing approved cross-feature dependencies
+for adapters. Keep module-owned algorithms and lifecycle policy in the package,
+not in a second host feature implementation.

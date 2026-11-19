@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	adminunits "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
-	adminunits "github.com/moh-sso-dashboard/internal/features/admin_units"
 	health "github.com/moh-sso-dashboard/internal/features/health_context"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"

@@ -48,42 +48,45 @@ var allowedFeatureImports = map[string]map[string]string{
 }
 
 func TestFeaturePackagesDoNotImportOtherFeaturesWithoutApproval(t *testing.T) {
-	featuresDir := filepath.Join(repoRoot(t), "internal", "features")
-
-	err := filepath.WalkDir(featuresDir, func(path string, entry os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
-			return nil
-		}
-
-		sourceFeature, ok := featureName(featuresDir, path)
-		if !ok {
-			return nil
-		}
-
-		fileSet := token.NewFileSet()
-		file, parseErr := parser.ParseFile(fileSet, path, nil, parser.ImportsOnly)
-		if parseErr != nil {
-			return parseErr
-		}
-
-		for _, importSpec := range file.Imports {
-			targetFeature, ok := importedFeature(importSpec)
-			if !ok || targetFeature == sourceFeature {
-				continue
+	for _, featuresDir := range []string{
+		filepath.Join(repoRoot(t), "internal", "features"),
+		filepath.Join(repoRoot(t), "internal", "adapters", "modules"),
+	} {
+		err := filepath.WalkDir(featuresDir, func(path string, entry os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
 			}
-			if reason := allowedReason(sourceFeature, targetFeature); reason == "" {
-				relPath, _ := filepath.Rel(repoRoot(t), path)
-				t.Errorf("%s imports feature %q from feature %q without an explicit boundary exception", relPath, targetFeature, sourceFeature)
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".go") || strings.HasSuffix(entry.Name(), "_test.go") {
+				return nil
 			}
-		}
 
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
+			sourceFeature, ok := featureName(featuresDir, path)
+			if !ok {
+				return nil
+			}
+
+			fileSet := token.NewFileSet()
+			file, parseErr := parser.ParseFile(fileSet, path, nil, parser.ImportsOnly)
+			if parseErr != nil {
+				return parseErr
+			}
+
+			for _, importSpec := range file.Imports {
+				targetFeature, ok := importedFeature(importSpec)
+				if !ok || targetFeature == sourceFeature {
+					continue
+				}
+				if reason := allowedReason(sourceFeature, targetFeature); reason == "" {
+					relPath, _ := filepath.Rel(repoRoot(t), path)
+					t.Errorf("%s imports feature %q from feature %q without an explicit boundary exception", relPath, targetFeature, sourceFeature)
+				}
+			}
+
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
@@ -110,10 +113,17 @@ func featureName(featuresDir, path string) (string, bool) {
 
 func importedFeature(importSpec *ast.ImportSpec) (string, bool) {
 	importPath := strings.Trim(importSpec.Path.Value, `"`)
-	if !strings.HasPrefix(importPath, modulePath) {
+	prefix := ""
+	for _, candidate := range []string{modulePath, "github.com/moh-sso-dashboard/internal/adapters/modules/"} {
+		if strings.HasPrefix(importPath, candidate) {
+			prefix = candidate
+			break
+		}
+	}
+	if prefix == "" {
 		return "", false
 	}
-	remainder := strings.TrimPrefix(importPath, modulePath)
+	remainder := strings.TrimPrefix(importPath, prefix)
 	parts := strings.Split(remainder, "/")
 	if parts[0] == "" {
 		return "", false

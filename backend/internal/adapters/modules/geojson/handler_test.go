@@ -101,7 +101,7 @@ func assertAPIErrorCode(t *testing.T, payload []byte, expected string) {
 // temporary fixture files. The release image verifier checks their packaging.
 func TestGetGeoJSONServesBundledMapLayers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	basePath := filepath.Join("..", "..", "..", "assets", "geojson")
+	basePath := filepath.Join("..", "..", "..", "..", "assets", "geojson")
 	router := gin.New()
 	router.GET("/geojson/:name", NewHandler(basePath).GetGeoJSON)
 	for _, name := range []string{"geo_districts", "geo_subcounties", "geo_water"} {

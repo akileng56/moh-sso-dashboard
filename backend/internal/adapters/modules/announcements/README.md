@@ -34,7 +34,7 @@ audit recording and migrations retain their host lifecycle.
 ```sh
 python3 infra/scripts/test-announcements-package.py
 python3 infra/scripts/test-announcements-release.py
-go -C backend test -race ./internal/features/announcements ./internal/bootstrap ./internal/api
+go -C backend test -race ./internal/adapters/modules/announcements ./internal/bootstrap ./internal/api
 make -C backend modules-check contracts-check
 ```
 

@@ -6890,7 +6890,7 @@ paths:
       summary: List announcements for administrators
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListAnnouncementsAdmin
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListAnnouncementsAdmin
       x-route-permissions:
         - announcements:read
     post:
@@ -6963,7 +6963,7 @@ paths:
       summary: Create announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).CreateAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).CreateAnnouncement
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}:
@@ -7037,7 +7037,7 @@ paths:
       summary: Soft delete announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).DeleteAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).DeleteAnnouncement
       x-route-permissions:
         - announcements:write
     get:
@@ -7110,7 +7110,7 @@ paths:
       summary: Get announcement detail
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).GetAnnouncementByID
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).GetAnnouncementByID
       x-route-permissions:
         - announcements:read
     put:
@@ -7189,7 +7189,7 @@ paths:
       summary: Update announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).UpdateAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).UpdateAnnouncement
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/archive:
@@ -7263,7 +7263,7 @@ paths:
       summary: Archive announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ArchiveAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ArchiveAnnouncement
       x-route-permissions:
         - announcements:publish
   /api/v1/admin/announcements/{id}/attachments:
@@ -7339,7 +7339,7 @@ paths:
       summary: List announcement attachments
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListAnnouncementAttachments
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListAnnouncementAttachments
       x-route-permissions:
         - announcements:read
     post:
@@ -7429,7 +7429,7 @@ paths:
       summary: Upload announcement attachment
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).UploadAnnouncementAttachment
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).UploadAnnouncementAttachment
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/attachments/{attachmentId}:
@@ -7502,7 +7502,7 @@ paths:
       summary: Delete announcement attachment
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).DeleteAnnouncementAttachment
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).DeleteAnnouncementAttachment
       x-route-permissions:
         - announcements:write
     patch:
@@ -7580,7 +7580,7 @@ paths:
       summary: Update announcement attachment metadata
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).UpdateAnnouncementAttachment
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).UpdateAnnouncementAttachment
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/attachments/{attachmentId}/download:
@@ -7638,7 +7638,7 @@ paths:
       summary: Download announcement attachment as administrator
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).DownloadAnnouncementAttachment
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).DownloadAnnouncementAttachment
       x-route-permissions:
         - announcements:read
   /api/v1/admin/announcements/{id}/draft:
@@ -7712,7 +7712,7 @@ paths:
       summary: Move announcement to draft
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).MoveAnnouncementToDraft
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).MoveAnnouncementToDraft
       x-route-permissions:
         - announcements:publish
   /api/v1/admin/announcements/{id}/pin:
@@ -7792,7 +7792,7 @@ paths:
       summary: Pin or unpin announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).SetAnnouncementPinned
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).SetAnnouncementPinned
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/priority:
@@ -7872,7 +7872,7 @@ paths:
       summary: Update announcement priority
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).SetAnnouncementPriority
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).SetAnnouncementPriority
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/publish:
@@ -7952,7 +7952,7 @@ paths:
       summary: Publish announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).PublishAnnouncementNow
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).PublishAnnouncementNow
       x-route-permissions:
         - announcements:publish
   /api/v1/admin/announcements/{id}/restore:
@@ -8026,7 +8026,7 @@ paths:
       summary: Restore deleted announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).RestoreAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).RestoreAnnouncement
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/{id}/schedule:
@@ -8106,7 +8106,7 @@ paths:
       summary: Schedule announcement
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ScheduleAnnouncement
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ScheduleAnnouncement
       x-route-permissions:
         - announcements:publish
   /api/v1/admin/announcements/audience-preview:
@@ -8174,7 +8174,7 @@ paths:
       summary: Preview Announcement Audience
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).PreviewAnnouncementAudience
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).PreviewAnnouncementAudience
       x-route-permissions:
         - announcements:write
   /api/v1/admin/announcements/stats:
@@ -8236,7 +8236,7 @@ paths:
       summary: Announcement statistics
       tags:
         - admin-announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).GetAnnouncementStats
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).GetAnnouncementStats
       x-route-permissions:
         - announcements:read
   /api/v1/admin/audit-logs:
@@ -8344,7 +8344,7 @@ paths:
       summary: List Audit Logs
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).ListAuditLogs
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ListAuditLogs
   /api/v1/admin/audit-logs/{id}:
     get:
       operationId: get_api_v1_admin_audit-logs_id
@@ -8415,7 +8415,7 @@ paths:
       summary: Get Audit Log
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).GetAuditLog
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).GetAuditLog
   /api/v1/admin/audit-logs/actions:
     get:
       operationId: get_api_v1_admin_audit-logs_actions
@@ -8474,7 +8474,7 @@ paths:
       summary: List Audit Actions
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).ListAuditActions
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ListAuditActions
   /api/v1/admin/audit-logs/export:
     get:
       operationId: get_api_v1_admin_audit-logs_export
@@ -8571,7 +8571,7 @@ paths:
       summary: Export Audit Logs
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).ExportAuditLogs
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).ExportAuditLogs
   /api/v1/admin/audit-logs/metrics/failed-logins-by-day:
     get:
       operationId: get_api_v1_admin_audit-logs_metrics_failed-logins-by-day
@@ -8636,7 +8636,7 @@ paths:
       summary: Failed Logins By Day
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).FailedLoginsByDay
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).FailedLoginsByDay
   /api/v1/admin/audit-logs/metrics/overview:
     get:
       operationId: get_api_v1_admin_audit-logs_metrics_overview
@@ -8701,7 +8701,7 @@ paths:
       summary: Audit Metrics Overview
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).AuditMetricsOverview
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).AuditMetricsOverview
   /api/v1/admin/audit-logs/metrics/top-failure-ips:
     get:
       operationId: get_api_v1_admin_audit-logs_metrics_top-failure-ips
@@ -8772,7 +8772,7 @@ paths:
       summary: Top Failure IPs
       tags:
         - admin-audit
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/audit.(*Handler).TopFailureIPs
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/audit.(*Handler).TopFailureIPs
   /api/v1/admin/clients/{id}/roles:
     post:
       description: 'Explicit route permission: clients:roles:write. Additional group/system access checks may apply.'
@@ -19489,7 +19489,7 @@ paths:
       summary: Download announcement attachment
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).DownloadAnnouncementAttachment
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).DownloadAnnouncementAttachment
       x-route-permissions:
         - announcements:read
   /api/v1/announcements/active:
@@ -19552,7 +19552,7 @@ paths:
       summary: List active published announcements
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListActivePublishedAnnouncements
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListActivePublishedAnnouncements
   /api/v1/announcements/client/{client_id}:
     get:
       operationId: get_api_v1_announcements_client_client_id
@@ -19635,7 +19635,7 @@ paths:
       summary: List announcements for a client/system
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListAnnouncementsForClient
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListAnnouncementsForClient
   /api/v1/announcements/me:
     get:
       operationId: get_api_v1_announcements_me
@@ -19723,7 +19723,7 @@ paths:
       summary: List announcements for current user
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListMyAnnouncements
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListMyAnnouncements
   /api/v1/announcements/public:
     get:
       operationId: get_api_v1_announcements_public
@@ -19792,7 +19792,7 @@ paths:
       summary: List public announcements
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListPublicAnnouncements
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListPublicAnnouncements
   /api/v1/announcements/role/{role_name}:
     get:
       operationId: get_api_v1_announcements_role_role_name
@@ -19875,7 +19875,7 @@ paths:
       summary: List announcements for a role
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListAnnouncementsForRole
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListAnnouncementsForRole
   /api/v1/announcements/user:
     get:
       operationId: get_api_v1_announcements_user
@@ -19947,7 +19947,7 @@ paths:
       summary: List user-targeted announcements
       tags:
         - announcements
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/announcements.(*Handler).ListAnnouncementsForUser
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/announcements.(*Handler).ListAnnouncementsForUser
   /api/v1/applications/{clientId}/manifest:
     get:
       operationId: get_api_v1_applications_clientId_manifest
@@ -27295,7 +27295,7 @@ paths:
       summary: Get Geo JSON
       tags:
         - geojson
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/geojson.(*Handler).GetGeoJSON
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/geojson.(*Handler).GetGeoJSON
   /api/v1/issues:
     get:
       description: 'Explicit route permission: issue_tracker:read. Additional group/system access checks may apply.'
@@ -29009,7 +29009,7 @@ paths:
       summary: Get Module
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetModule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetModule
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/artifacts/{artifactId}/download:
@@ -29069,7 +29069,7 @@ paths:
       summary: Download Artifact
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).DownloadArtifact
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).DownloadArtifact
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/executions:
@@ -29160,7 +29160,7 @@ paths:
       summary: List Executions
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).ListExecutions
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).ListExecutions
       x-route-permissions:
         - report_scheduler:history
   /api/v1/report-scheduler/executions/{executionId}:
@@ -29234,7 +29234,7 @@ paths:
       summary: Get Execution
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetExecution
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetExecution
       x-route-permissions:
         - report_scheduler:history
   /api/v1/report-scheduler/executions/{executionId}/retry:
@@ -29308,7 +29308,7 @@ paths:
       summary: Retry Execution
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).RetryExecution
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).RetryExecution
       x-route-permissions:
         - report_scheduler:execute
   /api/v1/report-scheduler/metrics:
@@ -29370,7 +29370,7 @@ paths:
       summary: Overview
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).Overview
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).Overview
       x-route-permissions:
         - metrics:read
         - report_scheduler:history
@@ -29434,7 +29434,7 @@ paths:
       summary: Overview
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).Overview
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).Overview
       x-route-permissions:
         - metrics:read
         - report_scheduler:history
@@ -29512,7 +29512,7 @@ paths:
       summary: List Portal Reports
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).ListPortalReports
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).ListPortalReports
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/public/deliveries/{token}/download:
@@ -29571,7 +29571,7 @@ paths:
       summary: Download Delivery Link
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).DownloadDeliveryLink
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).DownloadDeliveryLink
   /api/v1/report-scheduler/recipients/options:
     get:
       operationId: get_api_v1_report-scheduler_recipients_options
@@ -29660,7 +29660,7 @@ paths:
       summary: Recipient Options
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).RecipientOptions
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).RecipientOptions
   /api/v1/report-scheduler/recipients/preview:
     post:
       operationId: post_api_v1_report-scheduler_recipients_preview
@@ -29732,7 +29732,7 @@ paths:
       summary: Preview Recipients
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).PreviewRecipients
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).PreviewRecipients
   /api/v1/report-scheduler/report:
     get:
       description: 'Explicit route permission: report_scheduler:read. Additional group/system access checks may apply.'
@@ -29798,7 +29798,7 @@ paths:
       summary: Get Report
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetReport
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetReport
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/report-parameters:
@@ -29868,7 +29868,7 @@ paths:
       summary: Get Report Parameters
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetReportParameters
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetReportParameters
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/reports:
@@ -29926,7 +29926,7 @@ paths:
       summary: List Reports
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).ListReports
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).ListReports
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/reports/{reportId}:
@@ -29999,7 +29999,7 @@ paths:
       summary: Get Report
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetReport
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetReport
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/reports/{reportId}/parameters:
@@ -30074,7 +30074,7 @@ paths:
       summary: Get Report Parameters
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetReportParameters
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetReportParameters
       x-route-permissions:
         - report_scheduler:read
   /api/v1/report-scheduler/schedules:
@@ -30165,7 +30165,7 @@ paths:
       summary: List Schedules
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).ListSchedules
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).ListSchedules
       x-route-permissions:
         - report_scheduler:read
     post:
@@ -30232,7 +30232,7 @@ paths:
       summary: Create Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).CreateSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).CreateSchedule
       x-route-permissions:
         - report_scheduler:create
   /api/v1/report-scheduler/schedules/{scheduleId}:
@@ -30309,7 +30309,7 @@ paths:
       summary: Delete Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).DeleteSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).DeleteSchedule
       x-route-permissions:
         - report_scheduler:delete
     get:
@@ -30382,7 +30382,7 @@ paths:
       summary: Get Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).GetSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).GetSchedule
       x-route-permissions:
         - report_scheduler:read
     put:
@@ -30461,7 +30461,7 @@ paths:
       summary: Update Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).UpdateSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).UpdateSchedule
       x-route-permissions:
         - report_scheduler:update
   /api/v1/report-scheduler/schedules/{scheduleId}/duplicate:
@@ -30535,7 +30535,7 @@ paths:
       summary: Duplicate Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).DuplicateSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).DuplicateSchedule
       x-route-permissions:
         - report_scheduler:create
   /api/v1/report-scheduler/schedules/{scheduleId}/pause:
@@ -30609,7 +30609,7 @@ paths:
       summary: Pause Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).PauseSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).PauseSchedule
       x-route-permissions:
         - report_scheduler:update
   /api/v1/report-scheduler/schedules/{scheduleId}/resume:
@@ -30683,7 +30683,7 @@ paths:
       summary: Resume Schedule
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).ResumeSchedule
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).ResumeSchedule
       x-route-permissions:
         - report_scheduler:update
   /api/v1/report-scheduler/schedules/{scheduleId}/run:
@@ -30757,7 +30757,7 @@ paths:
       summary: Run Now
       tags:
         - report-scheduler
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/report_scheduler.(*Handler).RunNow
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler.(*Handler).RunNow
       x-route-permissions:
         - report_scheduler:execute
   /api/v1/sessions:
@@ -33544,7 +33544,7 @@ paths:
       summary: Get Districts
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetDistricts
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetDistricts
   /api/v1/visualizer/adminunits/districts:
     post:
       operationId: post_api_v1_visualizer_adminunits_districts
@@ -33611,7 +33611,7 @@ paths:
       summary: Get Districts By Region
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetDistrictsByRegion
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetDistrictsByRegion
   /api/v1/visualizer/adminunits/facilities:
     get:
       operationId: get_api_v1_visualizer_adminunits_facilities
@@ -33672,7 +33672,7 @@ paths:
       summary: Get Facilities
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetFacilities
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetFacilities
   /api/v1/visualizer/adminunits/hierarchy:
     get:
       operationId: get_api_v1_visualizer_adminunits_hierarchy
@@ -33733,7 +33733,7 @@ paths:
       summary: Get Hierarchy
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetHierarchy
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetHierarchy
   /api/v1/visualizer/adminunits/localgovt:
     post:
       operationId: post_api_v1_visualizer_adminunits_localgovt
@@ -33800,7 +33800,7 @@ paths:
       summary: Get Local Govt
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetLocalGovt
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetLocalGovt
   /api/v1/visualizer/adminunits/national:
     get:
       operationId: get_api_v1_visualizer_adminunits_national
@@ -33861,7 +33861,7 @@ paths:
       summary: Get National
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetNational
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetNational
   /api/v1/visualizer/adminunits/orgunits:
     get:
       operationId: get_api_v1_visualizer_adminunits_orgunits
@@ -33922,7 +33922,7 @@ paths:
       summary: Get Org Units
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetOrgUnits
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetOrgUnits
   /api/v1/visualizer/adminunits/region:
     get:
       operationId: get_api_v1_visualizer_adminunits_region
@@ -33983,7 +33983,7 @@ paths:
       summary: Get Regions
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetRegions
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetRegions
   /api/v1/visualizer/adminunits/subcounties:
     post:
       operationId: post_api_v1_visualizer_adminunits_subcounties
@@ -34050,7 +34050,7 @@ paths:
       summary: Get Sub Counties
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/features/admin_units.(*Handler).GetSubCounties
+      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetSubCounties
   /api/v1/visualizer/dataelements:
     get:
       operationId: get_api_v1_visualizer_dataelements

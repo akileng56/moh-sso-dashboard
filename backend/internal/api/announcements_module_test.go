@@ -10,9 +10,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	announcement "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
-	announcement "github.com/moh-sso-dashboard/internal/features/announcements"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"
 	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"

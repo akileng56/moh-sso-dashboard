@@ -37,12 +37,12 @@ header before streaming and never appends JSON to a partial CSV response.
 ## Verification
 
 Portable implementation and external-consumer tests live in the
-[standalone package](../../../modules/audit/README.md). Host tests exercise the
+[standalone package](../../../../modules/audit/README.md). Host tests exercise the
 selected dependency through SQLC normalization, cached HTTP responses, JSON/CSV
 exports, large response headers, authorization and registry disablement.
 
 ```sh
-go test -race ./internal/features/audit ./internal/api ./internal/bootstrap
+go test -race ./internal/adapters/modules/audit ./internal/api ./internal/bootstrap
 ```
 
 The authenticated distribution fixture also checks the compiled package version,

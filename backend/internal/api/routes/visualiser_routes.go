@@ -3,8 +3,8 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
+	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	"github.com/moh-sso-dashboard/internal/authz"
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/middleware"
 )

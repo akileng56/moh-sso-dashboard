@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
+	geojsonfeature "github.com/moh-sso-dashboard/internal/adapters/modules/geojson"
+	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	"github.com/moh-sso-dashboard/internal/authz"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"
 	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"

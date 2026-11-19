@@ -3,9 +3,9 @@ package bootstrap
 import (
 	"database/sql"
 
+	announcementRepo "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
-	announcementRepo "github.com/moh-sso-dashboard/internal/features/announcements"
 	clientRepo "github.com/moh-sso-dashboard/internal/features/clients"
 	documentTemplateRepo "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentRepo "github.com/moh-sso-dashboard/internal/features/documents"

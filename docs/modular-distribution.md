@@ -1025,3 +1025,29 @@ passed a full -> core -> full switch on the same primary persistence, retaining
 reviewed manifests, audit, published announcements and attachment contents and
 resuming the scheduler with a fresh worker. The fixture refreshes Docker's
 ephemeral host port after restart.
+
+### Published module ownership cleanup
+
+Moved the six published modules' host adapters from `internal/features` to
+`internal/adapters/modules`. Portable implementations remain owned by their
+versioned `backend/modules` packages, and the host continues consuming the same
+published pins and checksums. No module release is required for the host-only
+relocation. Shared Metrics service/repository compatibility shims still delegate
+to the published package; shared audit event recording stays mandatory.
+
+Updated composition, HTTP imports, development commands and source links.
+The catalogue now distinguishes unpublished/core feature trees from published
+adapter trees. Tests reject duplicate published feature directories, missing
+adapters and moving unpublished features into the published adapter namespace.
+Architecture checks require delegation to the published package, reject old
+feature imports and retain approved host-feature dependency boundaries for the
+moved adapters. Runtime APIs, migrations and module enablement remain unchanged.
+
+Verification passed adapter/API/bootstrap/architecture race tests, the full
+backend suite and vet, packaged-module checks, all 366 API contracts and ten
+catalogue regressions. OpenAPI changes are limited to internal handler source
+locations; public paths, schemas and permission metadata remain unchanged.
+The production image built successfully, and the real Keycloak fixture passed
+module permissions, reviewed lifecycle, warehouse/attachment access, backup/
+restore, disablement, audit/worker recovery and full -> core -> full data
+preservation. Published module Go sources, versions and checksums are unchanged.

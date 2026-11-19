@@ -25,6 +25,9 @@ class Coverage(unittest.TestCase):
         for feature in (ROOT / 'backend/internal/features').iterdir():
             if feature.is_dir():
                 (self.root / 'backend/internal/features' / feature.name).mkdir(parents=True)
+        for adapter in (ROOT / 'backend/internal/adapters/modules').iterdir():
+            if adapter.is_dir():
+                (self.root / 'backend/internal/adapters/modules' / adapter.name).mkdir(parents=True)
         for group in ('apps', 'packages'):
             for package in (ROOT / 'frontend' / group).glob('*/package.json'):
                 target = self.root / package.relative_to(ROOT)
@@ -53,6 +56,21 @@ class Coverage(unittest.TestCase):
     def test_removed_backend_feature_is_not_silently_retained(self):
         self.update(lambda data: data['backend'].pop())
         with self.assertRaisesRegex(ValueError, 'Backend catalogue drift'):
+            catalog.load_catalog(self.root)
+
+    def test_published_module_cannot_return_to_features(self):
+        (self.root / 'backend/internal/features/audit').mkdir()
+        with self.assertRaisesRegex(ValueError, 'Published module implementation retained'):
+            catalog.load_catalog(self.root)
+
+    def test_published_module_requires_its_adapter(self):
+        (self.root / 'backend/internal/adapters/modules/audit').rmdir()
+        with self.assertRaisesRegex(ValueError, 'Backend catalogue drift'):
+            catalog.load_catalog(self.root)
+
+    def test_unpublished_feature_cannot_masquerade_as_published_adapter(self):
+        (self.root / 'backend/internal/features/auth').rename(self.root / 'backend/internal/adapters/modules/auth')
+        with self.assertRaisesRegex(ValueError, 'Unpublished feature must retain'):
             catalog.load_catalog(self.root)
 
     def test_unknown_frontend_relationship_is_rejected(self):

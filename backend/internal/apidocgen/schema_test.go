@@ -39,7 +39,7 @@ func TestSchedulerExtractionPreservesPublicSchemaNames(t *testing.T) {
 		schemas := &schemas{definitions: object{}}
 		return object{"reference": schemas.of(record), "definitions": schemas.definitions}
 	}
-	legacy := schemasFor("github.com/moh-sso-dashboard/internal/features/report_scheduler", "report_scheduler")
+	legacy := schemasFor("github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler", "report_scheduler")
 	extracted := schemasFor(scheduler.ModulePath, "reportscheduler")
 	if !reflect.DeepEqual(legacy, extracted) {
 		t.Fatalf("scheduler schema changed after extraction: old=%v new=%v", legacy, extracted)

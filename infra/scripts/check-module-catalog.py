@@ -38,10 +38,20 @@ def load_catalog(root=ROOT):
         if module_id:
             runtime.add(module_id)
         backend[entry['id']] = entry
-    actual = {path.name for path in (root / 'backend/internal/features').iterdir() if path.is_dir() and not path.name.startswith('.')}
+    features = {path.name for path in (root / 'backend/internal/features').iterdir() if path.is_dir() and not path.name.startswith('.')}
+    adapter_root = root / 'backend/internal/adapters/modules'
+    adapters = {path.name for path in adapter_root.iterdir() if path.is_dir() and not path.name.startswith('.')} if adapter_root.is_dir() else set()
+    actual = features | adapters
     if actual != set(backend):
         raise ValueError('Backend catalogue drift: missing=' + str(sorted(actual - backend.keys())) + ', stale=' + str(sorted(backend.keys() - actual)))
     for entry in backend.values():
+        if entry['stage'] == 'published':
+            if entry['id'] in features:
+                raise ValueError('Published module implementation retained under features: ' + entry['id'])
+            if entry['id'] not in adapters:
+                raise ValueError('Published module host adapter is missing: ' + entry['id'])
+        elif entry['id'] in adapters or entry['id'] not in features:
+            raise ValueError('Unpublished feature must retain host feature ownership: ' + entry['id'])
         unknown = set(entry['dependencies']) - backend.keys() - INFRASTRUCTURE
         if unknown:
             raise ValueError('Unknown dependency for ' + entry['id'] + ': ' + str(sorted(unknown)))
@@ -80,6 +90,7 @@ def render(data, pins):
     lines = ['# Module coverage', '',
         'Generated from `docs/module-catalog.json`; update with `python3 infra/scripts/check-module-catalog.py --write`.', '',
         '`core` stays in the trusted host. `planned` still uses legacy wiring. `registry-hosted` uses the compiled registry but ships with the host version. `published` has independently versioned package artifacts.', '',
+        'Published backend modules own implementation in `backend/modules/<moduleId>`; their host HTTP/provider adapters live in `backend/internal/adapters/modules/<feature>`. Published modules must not retain directories in `backend/internal/features`.', '',
         'Registry integration does not imply independent Go packaging. Planned domains are tracked expansion work; their workers and migrations have not been transferred to the registry.', '',
         '## Backend', '',
         '| Feature | Stage | Runtime ID | Scope | Dependencies | Workers | Migration owner | Next work |',

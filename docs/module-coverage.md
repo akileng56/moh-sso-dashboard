@@ -4,6 +4,8 @@ Generated from `docs/module-catalog.json`; update with `python3 infra/scripts/ch
 
 `core` stays in the trusted host. `planned` still uses legacy wiring. `registry-hosted` uses the compiled registry but ships with the host version. `published` has independently versioned package artifacts.
 
+Published backend modules own implementation in `backend/modules/<moduleId>`; their host HTTP/provider adapters live in `backend/internal/adapters/modules/<feature>`. Published modules must not retain directories in `backend/internal/features`.
+
 Registry integration does not imply independent Go packaging. Planned domains are tracked expansion work; their workers and migrations have not been transferred to the registry.
 
 ## Backend

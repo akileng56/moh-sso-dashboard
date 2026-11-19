@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/moh-sso-dashboard/core"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/config"
 	dataqualityfeature "github.com/moh-sso-dashboard/internal/features/data_quality"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	emailRepo "github.com/moh-sso-dashboard/internal/repository/email"
 	notificationDeliveryRepo "github.com/moh-sso-dashboard/internal/repository/notification_delivery"

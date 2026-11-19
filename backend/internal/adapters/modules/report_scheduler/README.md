@@ -27,8 +27,8 @@ resumes persisted claims/retries without deleting schedules or history.
 
 Scheduler migrations 40 through 47 and later host migrations remain owned and
 applied by the dashboard. See the package's
-[schema contract](../../../modules/report-scheduler/schema-contract.json) and
-[package guide](../../../modules/report-scheduler/README.md).
+[schema contract](../../../../modules/report-scheduler/schema-contract.json) and
+[package guide](../../../../modules/report-scheduler/README.md).
 Portable implementation tests live in that module; host tests cover HTTP
 authorization, queue conversion and registry integration. The isolated package
 fixture and real Keycloak distribution fixture cover schema compatibility,
@@ -38,7 +38,7 @@ concurrent claims, disablement, shutdown and recovery.
 
 Use `make scheduler-env COMPOSE_ENV=external` from the repository root to prepare
 private portal and Health BI settings. See the [configuration and generation
-guide](../../../../docs/scheduler-configuration.md) for required envs, options,
+guide](../../../../../docs/scheduler-configuration.md) for required envs, options,
 credential provisioning and activation.
 
 Health BI and Report Scheduler are modules within the Integrated Health Portal,
@@ -231,7 +231,7 @@ psql "$TEST_DATABASE_URL" -X -f scripts/test-report-scheduler-status-migration.s
 Run from the repository root. It reproduces the old constraint violation and
 verifies the repair, reapplication, rollback compatibility, and invalid-state rejection.
 
-See the [frontend module README](../../../../frontend/apps/report-scheduler/README.md) for development and access setup.
+See the [frontend module README](../../../../../frontend/apps/report-scheduler/README.md) for development and access setup.
 
 ## Generation failures and deleted schedules
 
