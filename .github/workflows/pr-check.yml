@@ -158,6 +158,9 @@ jobs:
 
       - name: Standalone Administrative Units package and external consumer
         run: python3 infra/scripts/test-admin-units-package.py
+      - name: Published self-contained Administrative Units release
+        run: python3 infra/scripts/test-admin-units-release.py
+
       - name: Verify Administrative Units PostgreSQL package
         run: python3 infra/scripts/test-admin-units-postgres.py
 

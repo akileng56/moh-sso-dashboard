@@ -8,7 +8,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE = 'github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units'
-VERSION = 'v0.1.0'
+VERSION = 'v0.2.0'
 CONSUMER = 'example.com/admin-units-release-consumer'
 
 
@@ -19,7 +19,8 @@ def main():
         consumer = root / 'consumer'
         consumer.mkdir()
         env = {**os.environ, 'GOWORK': 'off', 'GOTOOLCHAIN': 'local',
-               'GOMODCACHE': str(root / 'fresh-module-cache')}
+               'GOMODCACHE': str(root / 'fresh-module-cache'), 'GOSUMDB': 'sum.golang.org',
+               'GONOSUMDB': '', 'GOPRIVATE': ''}
         (consumer / 'go.mod').write_text(
             'module ' + CONSUMER + '\n\ngo 1.25.4\n\nrequire ' + MODULE + ' ' + VERSION + '\n')
         checksums = {}
@@ -58,14 +59,29 @@ def main():
         print(output, flush=True)
         assert all((consumer / name).read_bytes() == value for name, value in before.items())
         released = Path(downloaded['Dir'])
-        for path in (ROOT / 'backend/modules/admin-units').rglob('*.go'):
-            relative = path.relative_to(ROOT / 'backend/modules/admin-units')
-            assert path.read_bytes() == (released / relative).read_bytes(), 'Release source drift: ' + str(relative)
-        print('PASS: published v0.1.0 download/checksums, exact dependency graph, fresh-cache consumer and source parity', flush=True)
+        local = ROOT / 'backend/modules/admin-units'
+        for path in local.rglob('*'):
+            if path.is_file():
+                relative = path.relative_to(local)
+                assert path.read_bytes() == (released / relative).read_bytes(), 'Release artifact drift: ' + str(relative)
+        source = (local / 'testdata/http-consumer/main.go').read_text()
+        source = source.replace('if err != nil {', 'if units.Version() != "' + VERSION + '" { panic("unexpected published version") }; if err != nil {', 1)
+        (consumer / 'main.go').write_text(source)
+        run('vet', '-mod=readonly', './...')
+        binary = root / 'http-consumer'
+        run('build', '-race', '-mod=readonly', '-o', str(binary), '.')
+        empty = root / 'empty'
+        empty.mkdir()
+        output = subprocess.run([str(binary)], cwd=empty, env=env, text=True,
+                                capture_output=True, check=True).stdout.strip()
+        assert output == 'PASS: standalone Administrative Units HTTP consumer, scoped lookup and package-owned routes', output
+        print(output, flush=True)
+        assert all((consumer / name).read_bytes() == value for name, value in before.items())
+        print('PASS: published v0.2.0 download/checksums, exact dependency graph, no replacement, fresh-cache HTTP consumer and complete artifact parity', flush=True)
 
 
 if __name__ == '__main__':
     try:
         main()
     except subprocess.CalledProcessError as error:
-        raise RuntimeError(f'Published Administrative Units verification failed: {error.stdout}\n{error.stderr}') from None
+        raise RuntimeError(f'Published Administrative Units verification failed: {error.stdout}\\n{error.stderr}') from None

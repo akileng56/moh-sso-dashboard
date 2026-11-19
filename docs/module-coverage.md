@@ -12,7 +12,7 @@ Registry integration does not imply independent Go packaging. Planned domains ar
 
 | Feature | Stage | Integration | Runtime ID | Scope | Dependencies | Workers | Migration owner | Next work |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| admin_units | published | adapter | admin-units | Administrative geography API | health_context, warehouse | none | core | Maintain warehouse, health-context and HTTP adapters; release core changes independently and select reviewed Go pins. |
+| admin_units | published | self-contained | admin-units | Administrative geography API | health_context, warehouse | none | core | Maintain published HTTP, warehouse queries and context filtering in the module; select reviewed immutable Go versions. |
 | announcements | published | adapter | announcements | Announcements and audience delivery | users, rbac, health_context, email, notifications, blob-storage | none | core | Maintain host SQLC, identity, storage, HTTP and notification adapters; release core changes independently and select reviewed Go pins. |
 | audit | published | adapter | audit | Audit read, metrics and export APIs only | primary-db, redis, rbac, host-audit-recorder | none | core | Maintain host SQLC/cache/HTTP adapters and core event recording/migrations; release Audit read changes independently and update the reviewed Go pin. |
 | auth | core | host | — | OIDC login, callback and token lifecycle | keycloak, authsession, host-audit-recorder | none | core | Keep authentication in the trusted host; extensions consume authenticated groups and injected identity. |

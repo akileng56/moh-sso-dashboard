@@ -1,7 +1,6 @@
 package routes
 
 import (
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
@@ -22,6 +21,7 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
@@ -43,7 +43,7 @@ type Dependencies struct {
 	Sessions                *sessionfeature.Handler
 	DataQuality             *dataqualityfeature.Handler
 	Announcements           *announcementfeature.Handler
-	AdminUnits              *adminunitsfeature.Handler
+	AdminUnits              *adminunitsfeature.Module
 	Visualiser              *visualiserfeature.Handler
 	Surveillance            *surveillancefeature.Handler
 	GeoJSON                 *geojsonfeature.Module

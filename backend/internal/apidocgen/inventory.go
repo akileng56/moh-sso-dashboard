@@ -2,6 +2,8 @@
 package apidocgen
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
+	adminunits "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojson "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
@@ -73,9 +76,22 @@ func documentationHandlers() router.HandlerSet {
 	if err != nil {
 		panic(err)
 	}
+	handlers.AdminUnits, err = adminunits.NewModule(adminunits.Dependencies{
+		Database:        new(sql.DB),
+		RequireSystem:   func(*http.Request, string) error { return adminunits.ErrUnauthorized },
+		AuthorizeAny:    func(*http.Request, ...string) error { return adminunits.ErrUnauthorized },
+		SelectContext:   func(*http.Request) (string, bool, error) { return "", false, adminunits.ErrUnauthorized },
+		ContextNodeCode: func(context.Context, string) (string, error) { return "", adminunits.ErrUnauthorized },
+		ContextAliases: func(context.Context, string, bool) (map[string][]string, error) {
+			return nil, adminunits.ErrUnauthorized
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
 	return handlers
 }
-func moduleOperations() (map[string]object, error) {
+func moduleOperations(definitions object) (map[string]object, error) {
 	contracts := map[string]object{}
 	handlers := documentationHandlers()
 	v := reflect.ValueOf(handlers)
@@ -84,9 +100,18 @@ func moduleOperations() (map[string]object, error) {
 		if !ok {
 			continue
 		}
-		var document struct{ Paths map[string]map[string]object }
+		var document struct {
+			Paths      map[string]map[string]object
+			Components struct{ Schemas map[string]any }
+		}
 		if err := json.Unmarshal(described.OpenAPI(), &document); err != nil {
 			return nil, err
+		}
+		for name, schema := range document.Components.Schemas {
+			if previous, exists := definitions[name]; exists && !reflect.DeepEqual(previous, schema) {
+				return nil, fmt.Errorf("conflicting module schema %s", name)
+			}
+			definitions[name] = schema
 		}
 		for path, methods := range document.Paths {
 			for method, operation := range methods {

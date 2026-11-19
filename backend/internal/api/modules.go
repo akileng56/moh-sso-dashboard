@@ -7,13 +7,11 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
-	hostroutes "github.com/moh-sso-dashboard/internal/api/routes"
 	"github.com/moh-sso-dashboard/internal/config"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/modulehttp"
@@ -121,16 +119,10 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			if handlers.AdminUnits == nil {
 				return nil, errors.New("administrative units handler is required")
 			}
-			if handlers.HealthContexts == nil {
-				return nil, errors.New("health-context handler is required for administrative units")
-			}
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			if routes.Protected != nil {
-				scoped := hostroutes.ContextScopedGroup(routes.Protected, handlers.HealthContexts)
-				adminunitsfeature.RegisterVisualiserRoutes(hostroutes.VisualiserGroup(scoped), handlers.AdminUnits)
-			}
+			modulehttp.Register(routes.Protected, handlers.AdminUnits)
 		},
 	})
 }

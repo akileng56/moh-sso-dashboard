@@ -72,6 +72,22 @@ components:
         sub_county_uid:
           nullable: true
           type: string
+      required:
+        - dim_org_hierarchy_key
+        - org_unit_id
+        - org_unit_name
+        - level
+        - country_uid
+        - region_uid
+        - region
+        - district_uid
+        - district
+        - sub_county_uid
+        - sub_county
+        - division_uid
+        - division
+        - facility_uid
+        - facility_name
       type: object
     admin_units.OrgUnitFull:
       properties:
@@ -124,6 +140,24 @@ components:
         sub_county_uid:
           nullable: true
           type: string
+      required:
+        - dim_org_hierarchy_key
+        - org_unit_id
+        - org_unit_name
+        - level
+        - country_uid
+        - region_uid
+        - region
+        - district_uid
+        - district
+        - sub_county_uid
+        - sub_county
+        - facility_uid
+        - facility_name
+        - division_uid
+        - division
+        - row_version
+        - is_current
       type: object
     admin_units.OrgUnitSimple:
       properties:
@@ -136,18 +170,17 @@ components:
         org_unit_name:
           nullable: true
           type: string
-      type: object
-    admin_units.Request:
-      properties:
-        region:
-          nullable: true
-          type: string
+      required:
+        - dim_org_hierarchy_key
+        - org_unit_id
+        - org_unit_name
       type: object
     admin_units.TreeNode:
       properties:
         children:
           items:
             $ref: '#/components/schemas/admin_units.TreeNode'
+          nullable: true
           type: array
         division:
           nullable: true
@@ -165,6 +198,13 @@ components:
         uid:
           nullable: true
           type: string
+      required:
+        - id
+        - uid
+        - name
+        - level
+        - type
+        - children
       type: object
     announcements.AnnouncementAttachmentResponse:
       properties:
@@ -33598,7 +33638,14 @@ paths:
         - users:read
   /api/v1/visualizer/adminunits/district:
     get:
-      operationId: get_api_v1_visualizer_adminunits_district
+      operationId: admin_units_district
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -33610,61 +33657,166 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Districts
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetDistricts
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/districts:
     post:
-      operationId: post_api_v1_visualizer_adminunits_districts
+      operationId: admin_units_districts
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/admin_units.Request'
+              properties:
+                region:
+                  nullable: true
+                  type: string
+              type: object
         required: true
       responses:
         "200":
@@ -33677,56 +33829,157 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Districts By Region
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetDistrictsByRegion
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/facilities:
     get:
-      operationId: get_api_v1_visualizer_adminunits_facilities
+      operationId: admin_units_facilities
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -33738,56 +33991,157 @@ paths:
                       $ref: '#/components/schemas/admin_units.Facility'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Facilities
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetFacilities
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/hierarchy:
     get:
-      operationId: get_api_v1_visualizer_adminunits_hierarchy
+      operationId: admin_units_hierarchy
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -33799,61 +34153,166 @@ paths:
                       $ref: '#/components/schemas/admin_units.TreeNode'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Hierarchy
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetHierarchy
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/localgovt:
     post:
-      operationId: post_api_v1_visualizer_adminunits_localgovt
+      operationId: admin_units_localgovt
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/admin_units.Request'
+              properties:
+                district:
+                  nullable: true
+                  type: string
+              type: object
         required: true
       responses:
         "200":
@@ -33866,56 +34325,157 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Local Govt
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetLocalGovt
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/national:
     get:
-      operationId: get_api_v1_visualizer_adminunits_national
+      operationId: admin_units_national
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -33927,56 +34487,157 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get National
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetNational
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/orgunits:
     get:
-      operationId: get_api_v1_visualizer_adminunits_orgunits
+      operationId: admin_units_orgunits
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -33988,56 +34649,157 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitFull'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Org Units
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetOrgUnits
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/region:
     get:
-      operationId: get_api_v1_visualizer_adminunits_region
+      operationId: admin_units_region
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
@@ -34049,61 +34811,166 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Regions
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetRegions
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/adminunits/subcounties:
     post:
-      operationId: post_api_v1_visualizer_adminunits_subcounties
+      operationId: admin_units_subcounties
+      parameters:
+        - description: Platform-verified selection; omission is accepted only when the platform explicitly allows legacy unscoped access.
+          in: header
+          name: X-Health-Context-ID
+          required: false
+          schema:
+            type: string
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/admin_units.Request'
+              properties:
+                sub_county:
+                  nullable: true
+                  type: string
+              type: object
         required: true
       responses:
         "200":
@@ -34116,53 +34983,147 @@ paths:
                       $ref: '#/components/schemas/admin_units.OrgUnitSimple'
                     type: array
                   meta:
-                    properties:
-                      requestId:
-                        type: string
                     type: object
                   success:
-                    enum:
-                      - true
                     type: boolean
-                required:
-                  - success
-                  - data
                 type: object
-          description: OK
+          description: Organizational units visible in the selected health context
+        "400":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "401":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Unauthorized
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "403":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Forbidden
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "413":
+          content:
+            application/json:
+              schema:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "429":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Too Many Requests
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
         "500":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Internal Server Error
-        default:
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
+        "503":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Error response; error.code identifies the failure.
-      summary: Get Sub Counties
+                properties:
+                  error:
+                    properties:
+                      code:
+                        type: string
+                      message:
+                        type: string
+                    type: object
+                  meta:
+                    type: object
+                  success:
+                    type: boolean
+                type: object
+          description: Request rejected or service unavailable
       tags:
         - admin-units
-      x-go-handler: github.com/moh-sso-dashboard/internal/adapters/modules/admin_units.(*Handler).GetSubCounties
+      x-go-handler: github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units.(*Module).ServeHTTP
+      x-health-context-required: true
+      x-required-system: data-statistics
+      x-route-any-permissions:
+        - report_browser:read
+        - documents:read
+        - data_quality:read
+        - surveillance:read
   /api/v1/visualizer/dataelements:
     get:
       operationId: get_api_v1_visualizer_dataelements

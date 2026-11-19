@@ -12,8 +12,8 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Maintain warehouse, health-context and HTTP adapters; release core changes independently and select reviewed Go pins.",
-      "integration": "adapter"
+      "next": "Maintain published HTTP, warehouse queries and context filtering in the module; select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "announcements",

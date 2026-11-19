@@ -10,26 +10,23 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	adminunits "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
 	health "github.com/moh-sso-dashboard/internal/features/health_context"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/module"
-	adminunitsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	adminunits "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 )
 
 const otherAdminUnitModules = "metrics,audit,geojson,report-scheduler,announcements"
 
 func TestAdminUnitsInitializationRequiresEnabledDependencies(t *testing.T) {
-	for _, missing := range []string{"handler", "health-context", "disabled"} {
-		handlers := HandlerSet{AdminUnits: &adminunits.Handler{}, HealthContexts: &health.Handler{}}
+	for _, missing := range []string{"handler", "disabled"} {
+		handlers := HandlerSet{AdminUnits: testAdminUnitsModule(t, &adminUnitService{}, &health.Service{}), HealthContexts: &health.Handler{}}
 		ids := otherAdminUnitModules
 		if missing == "handler" {
 			handlers.AdminUnits = nil
-		}
-		if missing == "health-context" {
-			handlers.HealthContexts = nil
 		}
 		if missing == "disabled" {
 			handlers = HandlerSet{}
@@ -58,7 +55,7 @@ func TestAdminUnitsProductionRouterPreservesRoutesAndDisablement(t *testing.T) {
 	var baseline map[string]bool
 	var unrelated map[string]bool
 	for _, mode := range []string{"legacy", "enabled", "disabled"} {
-		handlers := HandlerSet{AdminUnits: &adminunits.Handler{}, HealthContexts: &health.Handler{}}
+		handlers := HandlerSet{AdminUnits: testAdminUnitsModule(t, &adminUnitService{}, &health.Service{}), HealthContexts: &health.Handler{}}
 		var registry *module.Registry
 		if mode != "legacy" {
 			ids := otherAdminUnitModules
@@ -80,7 +77,7 @@ func TestAdminUnitsProductionRouterPreservesRoutesAndDisablement(t *testing.T) {
 			for _, item := range registry.Inventory() {
 				if item.ID == "admin-units" {
 					found = true
-					if item.Version != adminunitsmodule.Version() || item.Enabled != (mode == "enabled") {
+					if item.Version != adminunits.Version() || item.Enabled != (mode == "enabled") {
 						t.Fatalf("inventory: %+v", item)
 					}
 				}
@@ -140,7 +137,7 @@ func TestAdminUnitsProductionRouterPreservesRoutesAndDisablement(t *testing.T) {
 }
 
 type adminUnitService struct {
-	adminunits.Service
+	adminunits.Repository
 	calls int
 }
 
@@ -225,7 +222,7 @@ func TestAdminUnitsModulePreservesAuthSystemContextAndReadPermissions(t *testing
 					repo.err = errors.New("health service unavailable")
 				}
 				contexts := health.NewService(repo)
-				handlers := HandlerSet{AdminUnits: adminunits.NewHandlerWithPorts(service, adminunits.NewHealthContextVisibilityReader(contexts)), HealthContexts: health.NewHandler(contexts, nil)}
+				handlers := HandlerSet{AdminUnits: testAdminUnitsModule(t, service, contexts), HealthContexts: health.NewHandler(contexts, nil)}
 				ids := otherAdminUnitModules
 				if disabled {
 					ids += ",admin-units"
@@ -323,4 +320,16 @@ func TestAdminUnitsModulePreservesAuthSystemContextAndReadPermissions(t *testing
 			})
 		}
 	}
+}
+
+func testAdminUnitsModule(t *testing.T, repository adminunits.Repository, contexts *health.Service) *adminunits.Module {
+	t.Helper()
+	m, err := adminunits.NewModule(adminunits.Dependencies{
+		Repository: repository, RequireSystem: modulehttp.RequireSystem, AuthorizeAny: modulehttp.AuthorizeAny,
+		SelectContext: contexts.SelectContextHTTP, ContextNodeCode: contexts.NodeCode, ContextAliases: contexts.AliasIDs, RequestID: modulehttp.RequestID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

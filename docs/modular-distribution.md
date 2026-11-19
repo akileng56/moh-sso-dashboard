@@ -1156,3 +1156,47 @@ nine HTTP routes; all independent Go modules; the full host backend test suite
 and vet; the unchanged 366-endpoint API contract; 12 catalogue regressions;
 workflow actionlint and whitespace checks. The candidate remains local and
 unpublished; the production pin and module-disablement behavior are unchanged.
+
+### Self-contained Administrative Units — v0.2.0 release and host integration
+
+Published `backend/modules/admin-units/v0.2.0` upstream at release commit
+`ddbc5a31` and selected v0.2.0 in the dashboard with both reviewed Go checksums
+and no replacement. A fresh public download passed complete artifact parity,
+exact dependency graph and separate portable/HTTP consumers; the HTTP binary
+runs outside the source tree from an empty directory.
+
+Removed `internal/adapters/modules/admin_units`, including warehouse SQL,
+Gin handlers, DTO aliases and context conversions. The host now composes the
+published module directly with its DWH pool and generic platform capabilities.
+The shared HTTP registrar mounts all declared method/path patterns while
+preserving verified identity, request IDs and the existing nine-route surface.
+Administrative Units disablement omits construction and all its routes.
+
+Shared health-context capabilities return primitive node codes and alias lists.
+Gin middleware and published-module requests use one selection policy for
+assigned users, legacy unassigned requests, active nodes and contextual scope.
+Identity comes exclusively from the verified registrar context. No module
+models enter the shared capability implementation. System and functional
+permissions remain enforced before warehouse access.
+
+API generation now merges module-owned component schemas and rejects schema
+collisions. The generated 366-endpoint API includes Administrative Units
+nullable DTOs, recursive hierarchy models, request filters and safe error
+responses directly from the published package. Catalogue ownership is now
+self-contained; architecture checks forbid retaining a host adapter.
+
+The standalone package remains standard-library-only. Its PostgreSQL driver,
+warehouse schema, connection pools and shared identity/context services remain
+platform infrastructure. No running deployment is changed. Only the release
+tag is pushed; dashboard integration remains on
+`feat/admin-units-v020-integration` until explicitly pushed.
+
+Integration verification passed: fresh-cache public release/checksums and
+complete artifact parity; isolated standalone build/vet/race and external
+consumers; read-only PostgreSQL warehouse checks; all independent Go modules;
+full backend tests and vet; shared registrar/API/bootstrap/context/architecture
+race checks; 366 current API endpoints; 12 catalogue regressions; workflow
+actionlint; production Docker build; real Keycloak full and core profiles.
+The full fixture verified all nine Admin Units routes, authorization/context
+checks, disablement/re-enablement, clean restart, backups, core audit/worker
+preservation and full -> core -> full data preservation.

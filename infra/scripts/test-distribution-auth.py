@@ -265,6 +265,7 @@ def main():
                 assert operations['workers'] == [], operations
                 for route in ('/api/v1/users', '/api/v1/clients', '/api/v1/documents',
                               '/api/v1/visualizer/admin-units?level=1',
+                              '/api/v1/visualizer/adminunits/orgunits',
                               '/api/v1/admin/audit-logs', '/api/v1/admin/metrics',
                               '/api/v1/email/templates', '/api/v1/platform/notifications',
                               '/api/v1/geojson/layers', '/api/v1/announcements',
@@ -297,7 +298,7 @@ def main():
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'admin-units' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'admin-units' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             # The fixture's warehouse uses its isolated backend database. Supply
             # only the dimension contract used by Administrative Units.
             warehouse_sql = '''CREATE SCHEMA IF NOT EXISTS dwh;

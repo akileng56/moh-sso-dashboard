@@ -325,7 +325,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 
 | Feature | Backend folder | Notes |
 | --- | --- | --- |
-| Admin units | `features/admin_units` | Visualizer administrative unit lookup endpoints. |
+| Admin units | `modules/admin-units` (published v0.2.0) | Self-contained warehouse queries, context filtering and nine visualizer HTTP endpoints. |
 | Announcements | `features/announcements` | Announcement lifecycle, targeting, email triggers, and persistent attachments. |
 | Audit | `features/audit` | Audit log search, export, and audit metrics. |
 | Auth | `features/auth` | Keycloak login, callback, session refresh, logout, and current user profile. |

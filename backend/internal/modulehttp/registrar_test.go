@@ -70,3 +70,50 @@ func TestRegistrarRejectsUnsupportedPattern(t *testing.T) {
 		}()
 	}
 }
+
+type multipleRoutes struct{ *http.ServeMux }
+
+func (m multipleRoutes) Patterns() []string { return []string{"GET /one", "POST /two"} }
+func TestMultiplePatternsPreserveMethodSurfaceAndSystemBoundary(t *testing.T) {
+	for _, system := range []bool{false, true} {
+		engine := gin.New()
+		group := engine.Group("/api/v1", func(c *gin.Context) {
+			actor := authz.Context{UserID: "verified"}
+			if system {
+				actor.AccessibleSystems = []string{"system"}
+			}
+			c.Set(authz.ContextKey, actor)
+		})
+		inner := http.NewServeMux()
+		handler := func(w http.ResponseWriter, r *http.Request) {
+			if err := RequireSystem(r, "system"); err != nil {
+				w.WriteHeader(err.(interface{ StatusCode() int }).StatusCode())
+				return
+			}
+			w.WriteHeader(204)
+		}
+		inner.HandleFunc("GET /one", handler)
+		inner.HandleFunc("POST /two", handler)
+		Register(group, multipleRoutes{inner})
+		for _, route := range []struct{ method, path string }{{"GET", "/one"}, {"POST", "/two"}, {"HEAD", "/one"}, {"GET", "/two"}} {
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, httptest.NewRequest(route.method, "/api/v1"+route.path, nil))
+			want := 204
+			if !system {
+				want = 403
+			}
+			if route.method == "HEAD" || route.method == "GET" && route.path == "/two" {
+				want = 404
+			}
+			if w.Code != want {
+				t.Fatalf("%s %s: got %d want %d", route.method, route.path, w.Code, want)
+			}
+		}
+	}
+	if _, valid := Actor(httptest.NewRequest("GET", "/", nil)); valid {
+		t.Fatal("unverified request has actor")
+	}
+	if err := RequireSystem(httptest.NewRequest("GET", "/", nil), "system"); err == nil {
+		t.Fatal("unverified system granted")
+	}
+}

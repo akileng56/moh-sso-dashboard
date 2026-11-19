@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
@@ -35,6 +34,7 @@ import (
 	db "github.com/moh-sso-dashboard/internal/migrate"
 	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/internal/storage"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	"github.com/redis/go-redis/v9"
 )
@@ -103,10 +103,21 @@ func buildHandlers(deps handlerDependencies) handlers {
 		deps.Services.Announcements,
 		deps.Services.Audit,
 	)
-	adminunitsHandler := adminunitsfeature.NewHandlerWithPorts(
-		adminunitsfeature.NewService(adminunitsfeature.NewRepository(deps.Databases.DWH)),
-		adminunitsfeature.NewHealthContextVisibilityReader(deps.Services.HealthContexts),
-	)
+	var adminunitsHandler *adminunitsfeature.Module
+	if deps.Config.ModuleEnabled("admin-units") {
+		var err error
+		adminunitsHandler, err = adminunitsfeature.NewModule(adminunitsfeature.Dependencies{
+			Database:      deps.Databases.DWH,
+			RequireSystem: modulehttp.RequireSystem, AuthorizeAny: modulehttp.AuthorizeAny,
+			SelectContext:   deps.Services.HealthContexts.SelectContextHTTP,
+			ContextNodeCode: deps.Services.HealthContexts.NodeCode,
+			ContextAliases:  deps.Services.HealthContexts.AliasIDs,
+			RequestID:       modulehttp.RequestID,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
 	visualiserHandler := visualiserfeature.NewHandler(
 		deps.Config,
 		deps.Databases.DWH,

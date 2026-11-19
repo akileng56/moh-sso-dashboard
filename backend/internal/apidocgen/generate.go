@@ -55,7 +55,7 @@ func Generate(dir string) ([]byte, error) {
 	schema := &schemas{definitions: definitions}
 	oldPaths, _ := overrides["paths"].(map[string]any)
 	tags := map[string]bool{}
-	moduleContracts, err := moduleOperations()
+	moduleContracts, err := moduleOperations(definitions)
 	if err != nil {
 		return nil, err
 	}

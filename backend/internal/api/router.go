@@ -9,7 +9,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/docs"
 
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/adapters/modules/audit"
 	metricsfeature "github.com/moh-sso-dashboard/internal/adapters/modules/metrics"
@@ -39,6 +38,7 @@ import (
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	service "github.com/moh-sso-dashboard/internal/service"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
 	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
@@ -70,7 +70,7 @@ type HandlerSet struct {
 	Sessions                *sessionfeature.Handler
 	DataQuality             *dataqualityfeature.Handler
 	Announcements           *announcementfeature.Handler
-	AdminUnits              *adminunitsfeature.Handler
+	AdminUnits              *adminunitsfeature.Module
 	Visualiser              *visualiserfeature.Handler
 	Surveillance            *surveillancefeature.Handler
 	GeoJSON                 *geojsonfeature.Module

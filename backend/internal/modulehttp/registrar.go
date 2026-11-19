@@ -38,12 +38,26 @@ func AuthorizeAny(r *http.Request, permissions ...string) error {
 	}
 	return denied(403)
 }
+
+// Actor returns only the identity verified by the platform middleware.
+func Actor(r *http.Request) (authz.Context, bool) {
+	current, ok := r.Context().Value(accessKey{}).(access)
+	return current.actor, ok && current.valid && current.actor.UserID != ""
+}
+func RequireSystem(r *http.Request, system string) error {
+	actor, valid := Actor(r)
+	if !valid {
+		return denied(401)
+	}
+	if !actor.HasSystem(system) {
+		return denied(403)
+	}
+	return nil
+}
+
 func RequestID(r *http.Request) string { return observability.RequestIDFromContext(r.Context()) }
 
-type HTTPModule interface {
-	http.Handler
-	Pattern() string
-}
+type HTTPModule interface{ http.Handler }
 type Registrar struct{ group *gin.RouterGroup }
 
 func NewRegistrar(group *gin.RouterGroup) *Registrar { return &Registrar{group: group} }
@@ -51,7 +65,17 @@ func Register(group *gin.RouterGroup, module HTTPModule) {
 	if group == nil {
 		return
 	}
-	NewRegistrar(group).Handle(module.Pattern(), module)
+	registrar := NewRegistrar(group)
+	switch described := module.(type) {
+	case interface{ Patterns() []string }:
+		for _, pattern := range described.Patterns() {
+			registrar.Handle(pattern, module)
+		}
+	case interface{ Pattern() string }:
+		registrar.Handle(described.Pattern(), module)
+	default:
+		panic("module does not declare HTTP patterns")
+	}
 }
 
 var parameter = regexp.MustCompile(`\{([A-Za-z_][A-Za-z0-9_]*)\}`)
