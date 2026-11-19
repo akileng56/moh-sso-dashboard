@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/core"
 )
 
 type ContextType string
@@ -29,8 +30,8 @@ const (
 type ScopeMode string
 
 const (
-	ScopeNodeOnly           ScopeMode = "NODE_ONLY"
-	ScopeNodeAndDescendants ScopeMode = "NODE_AND_DESCENDANTS"
+	ScopeNodeOnly           ScopeMode = core.ContextNodeOnly
+	ScopeNodeAndDescendants ScopeMode = core.ContextNodeAndDescendants
 )
 
 type Node struct {

@@ -943,3 +943,38 @@ real Keycloak/PostgreSQL/Redis fixture passed the new session/credential checks
 and the existing permissions, governance, warehouse, attachment, backup/restore,
 shutdown/restart, disablement, audit and scheduler recovery checks. No token/
 cookie format, schema, published dependency pin, release or deployment changed.
+
+### Platform Core phase 3 — application governance and contextual policy
+
+Added portable application registry/metadata, lifecycle and review-authority
+contracts. RBAC adapts its authoritative registry to the core descriptor while
+retaining its named API DTOs. Existing metadata checks and sequential/terminal
+lifecycle rules now live in core. Request normalization, permission catalogue
+mapping, reviewed manifests, provisioning, launch/navigation behavior,
+enabled-role checks and transactional audit/state persistence stay host-owned.
+
+Added generic contextual-authorization, effective-assignment and hierarchy
+contracts. The health-context adapters preserve exact permission/system checks,
+their evaluation order, direct/descendant scope selection, original assignment
+order, default-National explanations and complete group/node provenance.
+Provider errors discard partial grants. Existing alias resolution and selection
+middleware retain their HTTP behavior. No warehouse/Observatory integration or
+bootstrap/provider/worker wiring changes in this phase.
+
+Core-only startup remains a later phase. No release, dependency pin or deployment
+is introduced here.
+
+Phase 3 verification passed isolated whole-core build/vet/uncached race checks
+with the standard library only, targeted core/architecture/authz/RBAC/context/
+API/bootstrap race tests, the full backend suite and vet, packaged-module
+checks, all 366 unchanged API contracts and catalogue validation/seven tests.
+Regressions cover the full lifecycle matrix, required review capabilities,
+metadata error order, inactive registry metadata, detached role collections,
+exact contextual matching, direct/descendant boundaries, assignment ordering,
+provider-error propagation and complete host group/node explanations.
+
+The production Docker image built successfully. Its real Keycloak/PostgreSQL/
+Redis fixture passed authentication/session checks, reviewed manifest import,
+lifecycle activation and idempotence, warehouse/announcement/GeoJSON access,
+backup/restore, clean shutdown/restart, module disablement/re-enablement,
+continued core audit recording and scheduler worker stop/resume.

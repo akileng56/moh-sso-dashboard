@@ -5,7 +5,7 @@ Separately packaged capabilities can still be mandatory. The module inventory
 and `DISABLED_MODULES` describe optional compiled applications, not a switch for
 authentication, authorization or governance.
 
-## Current implementation: phases 1–2
+## Current implementation: phases 1–3
 
 `backend/core` owns framework-independent module inventory, composition
 validation, initialization, cancellation, rollback and cleanup. It uses only
@@ -31,9 +31,9 @@ joined errors. Cleanup is idempotent, including concurrent calls. Callbacks
 must honor cancellation/deadlines; the runtime does not forcibly terminate
 callbacks that ignore them.
 
-The host still owns routing, authentication, authorization, health-context
-selection and infrastructure. No security decisions have moved into a new
-policy implementation in this phase. The core runtime runs trusted compiled
+The host still owns routing, credential verification, policy/provider selection,
+health-context selection middleware and infrastructure. Phases 2–3 share existing
+access predicates and decision rules through portable contracts. The core runtime runs trusted compiled
 code; it is not a sandbox or runtime code downloader.
 
 Phase 2 adds portable `Identity`, `SessionStore[T]`, `AuthorizationResolver`,
@@ -63,15 +63,55 @@ fallback, session TTL algorithm or persistence implementation moved into core.
 Authorization contracts do not authenticate a caller: the host must verify
 credentials and apply its authentication/context guards first.
 
+Phase 3 adds `Application` and a read-only `ApplicationRegistry` contract.
+The RBAC adapter preserves registry identity, launch/navigation metadata,
+ownership/support information, lifecycle/integration/version, visibility and
+configured access roles. This is an administrative registry view, including
+inactive registrations; it is not the caller's authorized launcher inventory.
+The host's named HTTP DTOs and schema identities stay unchanged.
+
+Core now owns lifecycle status/transition predicates and review-authority
+decisions, plus the existing metadata validation rules. The host derives
+configuration/review capabilities from its permission catalogue. Approval and
+activation require both capabilities; retirement is terminal, and suspension
+requires reconfiguration/review before activation. The host still normalizes
+requests, validates launch/navigation behavior and enabled access roles, and
+serializes lifecycle/configuration changes with audit events in one transaction.
+Reviewed manifest import, review tokens and provisioning remain host-owned.
+
+`ContextAuthorization[ID]`, `ContextAccessResolver[ID,E]` and
+`ContextDecision[E]` describe combined functional/system/context decisions.
+The host supplies its ID and explanation types through generics, keeping UUID
+and response-model dependencies outside core. Permission and contextual system
+matches remain exact and case-sensitive; absent requirements are optional.
+Permission checks precede system checks, which precede scope lookup. Resolver
+errors discard partial decisions and preserve their cause. A denied scope
+retains its explanation and returns the existing shared forbidden sentinel.
+
+`ContextAssignment[ID]`, `ContextHierarchy[ID]` and
+`ResolveContextScope` separate scope decisions from geographic persistence.
+Only explicit descendant scope can query ancestry; same-node access requires
+no hierarchy query. Assignment ordering, first-match selection, default-National
+reason text and group provenance remain unchanged. Adapters reconstruct the
+full existing explanation, including requested/assignment nodes and group IDs
+and paths. The provider supplies already-effective assignments: expiry, group
+membership, defaults and disabled-assignment filtering remain host duties.
+The service rejects inactive requested nodes before loading assignments.
+
+Alias resolution and selected-context middleware retain their current
+ordering, HTTP errors and legacy handling of requests without a selection.
+Observatory replication, warehouse access, provider construction and worker
+startup have not changed. This phase does not create a core-only boot profile.
+
 ## Mandatory capability ownership
 
 | Capability | Existing host owner | Target portable boundary |
 | --- | --- | --- |
 | Identity and sessions | `auth`, `authsession`, `sessions`, Keycloak/session adapters | Phase 2 verified-claim and generic session-store contracts; token/cookie verification stays in host adapters |
 | Authorization | `authz`, `rbac`, `system_rbac` | Phase 2 resolver/access contracts and predicates; policy catalogues and DB/static implementations stay host-owned |
-| Application governance | Application registry/manifests in `rbac`, `platform` APIs | Application identity, reviewed lifecycle, launch/access metadata and required capabilities |
+| Application governance | Application registry/manifests in `rbac`, `platform` APIs | Phase 3 registry descriptor, lifecycle/review predicates and metadata checks; manifest import/provisioning remain host-owned |
 | Module runtime | `core` with `module` HTTP adapter | Implemented in phase 1 |
-| Context authorization | `health_context` | Selected context, assignments and scope evaluation; geography sources remain adapters |
+| Context authorization | `health_context` | Phase 3 combined-access and assignment/hierarchy contracts; selection middleware and geography sources remain adapters |
 | Audit recording | Shared audit service and primary persistence | Record required security/operational events independently of the optional Audit reader |
 | Operations and bootstrap | `platform`, `bootstrap`, configuration/logging/readiness | Required capability health, version/request context, resource startup/shutdown |
 | Frontend shell/contracts | Shell plus shared auth/API/config/state/types/UI/microfrontend packages | Authenticated context, application loading, navigation and extension contracts |
@@ -131,11 +171,9 @@ must be reviewed explicitly during that transition.
 
 ## Next phases
 
-1. Separate application-governance and contextual-policy boundaries from
-   provisioning, warehouse and Observatory integration.
-2. Add an explicit core-only boot profile and per-feature adapter/worker wiring;
+1. Add an explicit core-only boot profile and per-feature adapter/worker wiring;
    verify startup/readiness/shutdown with optional providers absent.
-3. Align frontend shell/extension contracts and verify an optional application
+2. Align frontend shell/extension contracts and verify an optional application
    against the core, then decide independent release/version boundaries.
 
 Document, template and storage-location extraction remains deferred.
@@ -144,6 +182,6 @@ Document, template and storage-location extraction remains deferred.
 
 ```sh
 python3 infra/scripts/test-platform-core.py
-go -C backend test -race ./core ./module ./internal/api ./internal/bootstrap
+go -C backend test -race ./core ./module ./internal/architecture ./internal/authz ./internal/features/rbac ./internal/features/health_context ./internal/api ./internal/bootstrap
 make -C backend modules-check contracts-check
 ```

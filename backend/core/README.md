@@ -20,3 +20,15 @@ shared without relocating application policy catalogues. Host authentication,
 cookie/token parsing, Redis payload types, provider selection and static
 defaults remain outside this package. `ResolveAuthorization` discards partial
 grants on provider error; it never authenticates credentials or invents grants.
+
+Phase 3 adds a governed application descriptor/read-only registry port,
+lifecycle transition and review-authority predicates, and metadata validation.
+Host adapters retain reviewed manifests, provisioning, launch-behavior checks,
+HTTP DTOs, transactional audit and access-role persistence.
+
+Generic contextual-authorization, scope-assignment and hierarchy contracts
+preserve exact functional/system checks, ordered direct/descendant selection
+and failure propagation. Host ID/explanation types remain type parameters;
+core imports no UUID, geographic provider or database packages. Effective
+assignment loading, alias resolution and selected-context middleware remain
+host responsibilities. Core-only startup is deferred.
