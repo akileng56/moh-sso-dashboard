@@ -3,11 +3,9 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units`.
 Requires Go 1.25.4. The package uses only the standard library.
 
-Version `v0.1.0` is published under `backend/modules/admin-units/v0.1.0`.
-The dashboard selects this immutable dependency with reviewed checksums and
-host-owned adapters. The working tree additionally contains an unreleased
-self-contained HTTP/PostgreSQL candidate; the dashboard still selects v0.1.0.
-Local replacements report `dev`.
+Version `v0.2.0` introduces the self-contained HTTP/PostgreSQL implementation.
+Release tag: `backend/modules/admin-units/v0.2.0`. Consumers select immutable
+versions with reviewed checksums. Local replacements report `dev`.
 
 ## Public API
 
@@ -46,9 +44,9 @@ The host remains responsible for scoping that result. HTTP adapters that
 already fetch/filter full rows can convert them to `OrgUnit` and call
 `BuildHierarchyTree` without duplicating the algorithm.
 
-## Self-contained candidate
+## Self-contained module
 
-The unreleased candidate owns all nine existing HTTP routes under
+The module owns all nine existing HTTP routes under
 `/visualizer/adminunits`, their DTOs, safe response envelopes, OpenAPI schemas,
 PostgreSQL lookup SQL and visibility filtering before hierarchy construction.
 `NewModule(Dependencies)` prepares the module; `Register(Registrar, Dependencies)`
@@ -85,14 +83,13 @@ is 1 MiB, configurable with `MaxBodyBytes`, with oversized bodies returning 413.
 Existing nullable response fields and hierarchy leaf semantics are preserved;
 empty top-level collections serialize as arrays.
 
-## Integration status
+## Platform integration
 
-This phase does not publish a tag or change the dashboard pin or adapter.
-The next phase must publish v0.2.0, verify its download/checksums, pin it, then
-remove the host HTTP/SQL/context adapter. Generic platform route registration
-must support multiple patterns and API generation must merge package-owned
-component schemas as well as operations. Module-disablement and real
-Keycloak/full/core checks belong to that integration phase.
+Provide shared platform capabilities and register all `Patterns()` under the
+protected API group. Import the published module directly; no module-specific
+host HTTP, SQL or context-model adapter is needed. Include the document's
+`components.schemas` when composing its OpenAPI operations into a host API.
+Disabling the module must omit its routes and dependency construction.
 
 ## Verification
 
@@ -120,9 +117,7 @@ parameter binding, cancellation and caller-owned pool lifetime. Its external
 consumer alone imports the reviewed PostgreSQL driver; the module has no driver
 dependency. CI runs both verifiers.
 
-The v0.1.0 release checker remains for the published version. Its source-parity
-check will intentionally differ from this unreleased candidate until the next
-release phase updates the version and expected artifact. To verify the published download
+To verify the published download
 using a fresh cache and no replacement, run
 `python3 infra/scripts/test-admin-units-release.py`. This explicit release
 check requires network access and validates checksums, selected dependency
