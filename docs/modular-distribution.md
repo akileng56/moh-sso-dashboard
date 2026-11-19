@@ -902,3 +902,44 @@ fixture passed inventory/permissions, application governance, warehouse reads,
 attachments, backup/restore, clean shutdown/restart, module disablement/
 re-enablement, continued audit recording and scheduler worker stop/resume.
 No release was published, deployment performed or minimal-core boot claimed.
+
+### Platform Core phase 2 — identity/session and authorization contracts
+
+Added standard-library-only verified-claim identity, generic session-store,
+authorization-resolver/access and system metadata contracts to core. No token
+payload or storage provider was introduced there. The existing Redis store
+satisfies the generic contract while its credential bundle stays host-owned;
+the auth handler now uses that contract and shares the same missing-session
+sentinel. Cookie names, Redis keys, ID generation, TTL/rotation, fallback
+precedence and persistence methods remain unchanged.
+
+The host authz adapter preserves named public response types and converts
+resolver decisions without losing metadata or nil/empty collections.
+Authentication middleware constructs core identity only after existing
+credential verification. Host constructors normalize claims and retain the
+existing DB/static selection, role defaults and admin/user flags. Core resolver
+errors discard partial grants without inventing fallback access. Existing
+authoritative-resolver and disabled-application safeguards remain in place.
+Shared predicates preserve exact permission, normalized role and system
+matching behavior.
+
+Portable tests exercise verified claims/context forwarding, explicit decisions,
+partial-grant rejection and predicate semantics. Adapter tests cover complete
+system metadata, nil/empty shapes, host normalization and preserved causes.
+Existing session-store and refresh regressions run through the generic
+contract. The real Keycloak/Redis fixture additionally checks opaque-session
+authentication, bearer precedence, legacy cookies, persisted refresh, logout
+deletion/cookie clearing and expiry before the existing module lifecycle checks.
+
+Core-only boot is still a later phase. Application-governance and contextual
+policy contracts/adapters are next; no current provider is made optional here.
+
+Phase 2 verification passed isolated whole-core build/vet/uncached race checks
+with standard-library-only dependencies, targeted identity/session/authz/
+middleware race tests, the full backend suite and vet, all packaged-module
+checks, all 366 unchanged API contracts, catalogue validation/seven tests and
+workflow actionlint. The standard production image built successfully. Its
+real Keycloak/PostgreSQL/Redis fixture passed the new session/credential checks
+and the existing permissions, governance, warehouse, attachment, backup/restore,
+shutdown/restart, disablement, audit and scheduler recovery checks. No token/
+cookie format, schema, published dependency pin, release or deployment changed.

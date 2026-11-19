@@ -3,6 +3,8 @@ package authz
 import (
 	"context"
 	"errors"
+
+	"github.com/moh-sso-dashboard/core"
 )
 
 type PermissionResolver interface {
@@ -93,10 +95,10 @@ func ResolveAccess(
 		resolver = NewStaticResolver()
 	}
 
-	access, err := resolver.Resolve(ctx, realmRoles, clientRoles)
+	access, err := core.ResolveAuthorization(ctx, NewCoreAuthorizationResolver(resolver), core.Identity{RealmRoles: realmRoles, ClientRoles: clientRoles})
 	if err != nil {
 		return ResolvedAccess{}
 	}
 
-	return access
+	return fromCoreAccess(access)
 }

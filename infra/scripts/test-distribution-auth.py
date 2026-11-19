@@ -173,15 +173,59 @@ def main():
             wait_ready(api + '/health/ready')
             print('Fresh backend migrations and readiness passed', flush=True)
 
-            def token(name):
+            def token_bundle(name):
                 return request(kc + '/protocol/openid-connect/token', method='POST', form=True,
                     data={'grant_type': 'password', 'client_id': 'dashboard-web', 'client_secret': SECRET,
-                          'username': name, 'password': SECRET, 'scope': 'openid profile email'})['access_token']
+                          'username': name, 'password': SECRET, 'scope': 'openid profile email'})
+
+            def token(name):
+                return token_bundle(name)['access_token']
 
             admin, viewer, outsider = (token(name) for name in ('admin', 'viewer', 'outsider'))
             inventory = '/api/v1/admin/modules'
             request(api + inventory, status=401)
             request(api + inventory, token=outsider, status=403)
+            # Verify host credential/session adapters against real Keycloak and
+            # Redis, without returning credentials through the core contracts.
+            bundle = token_bundle('admin')
+            session_id = uuid.uuid4().hex + uuid.uuid4().hex
+            session_key = 'authsession:' + session_id
+            cookie = {'Cookie': 'sso_session=' + session_id}
+            stored = {key: bundle.get(key, '') for key in ('access_token', 'refresh_token', 'id_token')}
+            assert run(*compose, 'exec', '-T', 'redis', 'redis-cli', '-x', 'SETEX',
+                       session_key, '60', input=json.dumps(stored)) == 'OK'
+            request(api + inventory, extra_headers=cookie)
+            request(api + inventory, token='fixture-invalid-token', extra_headers=cookie, status=401)
+            request(api + inventory, extra_headers={'Cookie': 'access_token=' + bundle['access_token']})
+            request(api + '/api/v1/auth/refresh', method='POST', extra_headers=cookie)
+            refreshed = json.loads(run(*compose, 'exec', '-T', 'redis', 'redis-cli', 'GET', session_key))
+            assert refreshed['access_token'] and refreshed['refresh_token'], 'Refreshed session was not persisted'
+            assert int(run(*compose, 'exec', '-T', 'redis', 'redis-cli', 'TTL', session_key)) > 0
+            request(api + inventory, extra_headers=cookie)
+
+            class NoRedirect(urllib.request.HTTPRedirectHandler):
+                def redirect_request(self, req, fp, code, msg, headers, newurl):
+                    return None
+
+            try:
+                logout = urllib.request.build_opener(NoRedirect).open(
+                    urllib.request.Request(api + '/api/v1/auth/logout', headers=cookie), timeout=10)
+            except urllib.error.HTTPError as error:
+                logout = error
+            with logout:
+                assert logout.code == 307, 'Logout redirect contract changed'
+                cleared = logout.headers.get_all('Set-Cookie') or []
+                assert any(value.startswith('sso_session=') and 'Max-Age=0' in value for value in cleared), 'Logout did not clear the opaque cookie'
+            assert run(*compose, 'exec', '-T', 'redis', 'redis-cli', 'EXISTS', session_key) == '0'
+            request(api + inventory, extra_headers=cookie, status=401)
+            # Redis expiration must behave like a missing opaque session.
+            assert run(*compose, 'exec', '-T', 'redis', 'redis-cli', '-x', 'SETEX',
+                       session_key, '60', input=json.dumps(stored)) == 'OK'
+            run(*compose, 'exec', '-T', 'redis', 'redis-cli', 'EXPIRE', session_key, '0')
+            request(api + inventory, extra_headers=cookie, status=401)
+            admin = token('admin')
+            request(api + inventory, token=admin, extra_headers=cookie)
+            print('Opaque session, bearer precedence, legacy cookie, refresh persistence, logout and expiry checks passed', flush=True)
             modules = request(api + inventory, token=admin)['data']
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules

@@ -5,7 +5,7 @@ Separately packaged capabilities can still be mandatory. The module inventory
 and `DISABLED_MODULES` describe optional compiled applications, not a switch for
 authentication, authorization or governance.
 
-## Current implementation: phase 1
+## Current implementation: phases 1–2
 
 `backend/core` owns framework-independent module inventory, composition
 validation, initialization, cancellation, rollback and cleanup. It uses only
@@ -36,12 +36,39 @@ selection and infrastructure. No security decisions have moved into a new
 policy implementation in this phase. The core runtime runs trusted compiled
 code; it is not a sandbox or runtime code downloader.
 
+Phase 2 adds portable `Identity`, `SessionStore[T]`, `AuthorizationResolver`,
+`Access` and `SystemAccess` contracts. Identity carries verified subject/role
+claims rather than credentials. The generic session payload type belongs to the
+trusted host: `authsession.Data` still defines and serializes the token bundle
+only in the Redis adapter. The host store implements the core interface and the
+auth handler consumes it; the not-found sentinel is shared without changing its
+existing error text.
+
+The authentication middleware still selects/verifies credentials in the host,
+then supplies `core.Identity` to `authz.NewContextForIdentity`. Existing
+constructors remain compatible. Host role normalization, defaults and admin/user
+flags remain unchanged. The existing DB/static resolver is adapted through
+`core.ResolveAuthorization`; provider errors discard partial permission/system
+grants and do not trigger a new fallback. Explicit host static-policy selection
+remains available where it already existed.
+
+Permission comparisons remain exact, role matching remains case-insensitive
+with whitespace normalization, and system matching retains its previous rules.
+The existing host `authz.Context`, `SystemAccess` and `ResolvedAccess` types
+retain their schema ownership. Adapters preserve all system metadata and
+nil/empty collections.
+
+No OIDC verifier, HTTP/cookie parser, Redis client, token payload, credential
+fallback, session TTL algorithm or persistence implementation moved into core.
+Authorization contracts do not authenticate a caller: the host must verify
+credentials and apply its authentication/context guards first.
+
 ## Mandatory capability ownership
 
 | Capability | Existing host owner | Target portable boundary |
 | --- | --- | --- |
-| Identity and sessions | `auth`, `authsession`, `sessions`, Keycloak/session adapters | Authenticated identity, session lifecycle and revocation contracts; tokens/cookies stay with trusted host adapters |
-| Authorization | `authz`, `rbac`, `system_rbac` | Shared permission/system policy and evaluation contracts |
+| Identity and sessions | `auth`, `authsession`, `sessions`, Keycloak/session adapters | Phase 2 verified-claim and generic session-store contracts; token/cookie verification stays in host adapters |
+| Authorization | `authz`, `rbac`, `system_rbac` | Phase 2 resolver/access contracts and predicates; policy catalogues and DB/static implementations stay host-owned |
 | Application governance | Application registry/manifests in `rbac`, `platform` APIs | Application identity, reviewed lifecycle, launch/access metadata and required capabilities |
 | Module runtime | `core` with `module` HTTP adapter | Implemented in phase 1 |
 | Context authorization | `health_context` | Selected context, assignments and scope evaluation; geography sources remain adapters |
@@ -104,13 +131,11 @@ must be reviewed explicitly during that transition.
 
 ## Next phases
 
-1. Separate identity/session and access-evaluation contracts behind existing
-   trusted adapters, preserving security policy and token handling.
-2. Separate application-governance and contextual-policy boundaries from
+1. Separate application-governance and contextual-policy boundaries from
    provisioning, warehouse and Observatory integration.
-3. Add an explicit core-only boot profile and per-feature adapter/worker wiring;
+2. Add an explicit core-only boot profile and per-feature adapter/worker wiring;
    verify startup/readiness/shutdown with optional providers absent.
-4. Align frontend shell/extension contracts and verify an optional application
+3. Align frontend shell/extension contracts and verify an optional application
    against the core, then decide independent release/version boundaries.
 
 Document, template and storage-location extraction remains deferred.
