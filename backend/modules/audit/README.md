@@ -72,10 +72,10 @@ clean download, pin it in host dependency metadata, supply adapters and report
 dependency without local workspace replacements. Event recording and migrations
 remain host-owned.
 
-## Self-contained candidate
+## Self-contained v0.2.0
 
-The working tree includes an unreleased v0.2.0 candidate. The dashboard remains
-pinned to v0.1.0 with its current adapter during this package-build phase.
+Version v0.2.0 provides the self-contained HTTP and PostgreSQL implementation.
+Release tag: `backend/modules/audit/v0.2.0`.
 
 `NewModule(Dependencies)` / `Register(Registrar, Dependencies)` provide the seven
 existing GET endpoints under `/admin/audit-logs` (a host registrar adds `/api/v1`).
@@ -115,9 +115,8 @@ Unsupported export format values preserve the existing CSV fallback.
 
 The real PostgreSQL suite uncovered the retained failed-login-series scan bug:
 the query returns a timestamp while its old internal row declared an integer.
-The candidate scans it as a timestamp and returns the public numeric day bucket
-as Unix milliseconds. The integration phase must carry this correction into the
-dashboard; the current v0.1.0 pin is unchanged.
+Version v0.2.0 scans it as a timestamp and returns the public numeric day bucket
+as Unix milliseconds. Consumers receive this correction when selecting v0.2.0.
 
 Verify from the repository root:
 
@@ -134,7 +133,6 @@ keyset pagination, NULL JSON/UUID values, bound filters, canceled contexts, pool
 lifetime and CSV/JSON manifest integrity. The PostgreSQL driver belongs only to
 that external consumer.
 
-Next phase: publish v0.2.0, verify public download/checksums, pin it, remove the
-host HTTP/read-query/mapping adapter, and connect the shared verified admin,
-permission, rate-limit, request-ID and stream-error capabilities. Verify read
-module disablement while core event recording continues in full/core profiles.
+Hosts import the published module directly and connect shared verified admin,
+permission, rate-limit, request-ID and stream-error capabilities. Disabling the
+read module must omit its routes while core event recording continues.
