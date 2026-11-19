@@ -2,15 +2,14 @@
 
 This module provides the dashboard metrics service, HTTP handlers, response
 types and repository port. It has its own `go.mod` and can be consumed from a
-different Go repository. The published v0.1.0 API uses host-supplied SQL access. The working tree also
-contains an unreleased self-contained HTTP/PostgreSQL candidate. Authentication,
+different Go repository. Version v0.2.0 owns the HTTP entry point and PostgreSQL reads. Authentication,
 permission resolution, audit logging and application lifecycle remain shared
 platform capabilities.
 
 ## Use
 
 ```sh
-go get github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics@v0.1.0
+go get github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics@v0.2.0
 ```
 
 Implement `metrics.Repository` using the public records in `metrics/model`.
@@ -32,8 +31,7 @@ Local filesystem and workspace replacements report `dev`.
 Metrics reads the host's users, client, sessions and audit data through its
 repository port. The module owns no database tables or migrations. In the
 SSO-DASHBOARD distribution, core migrations run before module initialization.
-The existing v0.1.0 host adapter translates query records into module-owned
-records. The unreleased candidate owns those 32 read queries in
+The module owns its 32 read queries in
 `internal/postgres` and provides `NewRepository(*sql.DB) (Repository, error)`.
 The caller owns the database pool and its lifetime. No production schema,
 migration history or worker behavior changes.
@@ -68,9 +66,9 @@ consumer can download it before updating the distribution dependency.
 The repository can host several independently versioned Go modules. Each module
 must keep public APIs independent of other repositories' `internal` packages.
 
-## Self-contained candidate
+## Self-contained module
 
-The dashboard is still pinned to v0.1.0. This package-build phase adds:
+Version v0.2.0 provides:
 
 - `NewModule(Dependencies)`: a complete HTTP module with all 19 GET endpoints.
 - `Register(Registrar, Dependencies)` and `Patterns()`: standard HTTP integration,
@@ -114,7 +112,7 @@ creates/removes its own container and a SELECT-only account; it exercises all
 contexts and caller-owned pool lifetime. It never connects to an existing
 operator database. The fixture schema is test data, not a production migration.
 
-The next phase must publish v0.2.0, verify its public artifact/checksums, pin it,
-remove the Metrics HTTP/repository/service adapters, wire the shared admin
-capability, merge module-owned schemas, and verify disablement/full/core startup.
-Do not remove platform-owned identity, audit recording or core migrations.
+Hosts should import the published module directly, wire shared admin/permission
+capabilities, register its patterns and merge its OpenAPI schemas. Disabling it
+must omit its construction and routes. Identity, audit recording and primary
+schema migrations remain platform responsibilities.
