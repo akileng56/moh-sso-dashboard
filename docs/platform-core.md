@@ -5,7 +5,7 @@ Separately packaged capabilities can still be mandatory. The module inventory
 and `DISABLED_MODULES` describe optional compiled applications, not a switch for
 authentication, authorization or governance.
 
-## Current implementation: phases 1–3
+## Current implementation: phases 1–4
 
 `backend/core` owns framework-independent module inventory, composition
 validation, initialization, cancellation, rollback and cleanup. It uses only
@@ -101,7 +101,7 @@ The service rejects inactive requested nodes before loading assignments.
 Alias resolution and selected-context middleware retain their current
 ordering, HTTP errors and legacy handling of requests without a selection.
 Observatory replication, warehouse access, provider construction and worker
-startup have not changed. This phase does not create a core-only boot profile.
+startup have not changed. Phase 4 introduces the explicit boot profile described below.
 
 ## Mandatory capability ownership
 
@@ -153,27 +153,99 @@ in the HTTP module adapter. CI also copies the entire core tree into an isolated
 temporary module and checks build/vet/uncached race tests with an empty module
 cache, workspaces/downloads disabled and no third-party dependencies.
 
-## Remaining bootstrap work
+## Startup profiles
 
-The current distribution is not yet a minimal-core boot profile. Bootstrap still
-opens Remote, DWH and DQA databases, starts the Observatory integration, creates
-storage/delivery adapters and starts legacy workers. The platform operations
-readiness endpoint also currently includes email/notification worker health.
-Phase 1 preserves that behavior; changing disablement does not detach all of
-these dependencies.
+Phase 4 adds `PLATFORM_PROFILE=full|core`. The default is `full`, preserving
+the existing full distribution. Unknown profiles and unknown/mandatory IDs in
+`DISABLED_MODULES` fail configuration validation before opening connections.
+Core selects all six packaged applications as disabled and omits legacy optional
+feature routes and constructors. Inventory still reports their pinned versions
+with `enabled: false`.
 
-The target minimum host uses its configured identity provider, primary
-persistence and session store without requiring warehouse, DQA, Observatory,
-SMTP/SMS or document storage integrations. Feature readiness must be reported
-separately from mandatory-core readiness. Optional workers must be cancelled and
-joined before their resources close. Existing schema/migration compatibility
-must be reviewed explicitly during that transition.
+| Resource/capability | Full profile | Core profile |
+| --- | --- | --- |
+| Primary Postgres, Redis sessions/rate limiting, configured Keycloak | Required | Required |
+| Auth, sessions, authoritative RBAC/governance and health-context policy | Enabled | Enabled |
+| Audit event recorder | Enabled independently of Audit reader | Enabled |
+| Durable internal auth/audit/startup notification records | Enabled | Enabled, without channel queues or Redis publication |
+| Remote, DWH, DQA and Observatory pools/replication | Existing legacy-feature dependencies | Not constructed or validated |
+| Storage factory and file-storage provider | Constructed for existing document features | Not constructed |
+| SMTP/template/queue and SMS providers | Existing delivery wiring | Not constructed or validated |
+| Document, DQA and delivery workers | Started for existing full-profile features/settings | Not constructed or started |
+| Packaged scheduler worker | Started when its module is enabled | Not constructed |
+| Optional HTTP/admin/public/machine notification routes | Existing surface and module switches | Omitted |
+| Frontend | Existing full-distribution shell | Separately hosted; core Compose is backend-only |
+
+Core retains the existing user repository/service for governance directory
+lookups, but does not register user/client administration routes or run bulk
+startup user synchronization. It preserves configured RBAC seed/discovery
+settings and existing credential verification; deployed authentication bypass
+restrictions still apply. Provider secret files are read only for capabilities
+used by the selected profile. Mandatory secret validation remains intact.
+
+The full profile still needs its legacy Remote/DWH/DQA/Observatory and document
+dependencies, even when all six packaged modules are disabled: legacy document,
+DQA, visualizer and surveillance features have not gained independent switches.
+`DISABLED_MODULES` controls the six packaged applications only. Selecting
+`core` removes those legacy features as a group; it does not implicitly enable
+an arbitrary subset. Further legacy feature switches can build on this boundary.
+
+Both profiles run the same existing primary-database migrations. No schema,
+data, module pin or migration history is deleted when profiles change. A
+core-to-full switch uses the retained schema/data after the full profile's
+provider configuration is supplied. Core is a runtime composition profile in
+the same production image, not an independently released image or database
+schema. Profile compatibility assumes the same configured primary database and
+session store. The standalone core Compose entry point owns its own
+`core_postgres`/`core_redis` volumes; it does not copy or automatically reuse
+a full installation's volumes. Existing installations must retain their
+primary/session endpoints when switching the backend profile.
+
+### Readiness and shutdown
+
+`/health/ready` checks mandatory primary persistence, Redis and Keycloak.
+Optional Remote database or Observatory outages remain visible as degradation
+in `/health`; disabled Remote persistence is reported as `disabled`. They do
+not fail mandatory-core readiness. The machine platform readiness endpoint
+also checks core dependencies and only the delivery workers enabled in the
+selected profile/settings. Its existing worker array is empty in core.
+Operations expose health for enabled delivery workers; absent enabled
+heartbeats still fail feature readiness. Disabled machine delivery endpoints
+are not registered in core.
+
+Legacy workers are prepared before any are launched. Startup constructor
+failure cannot leave partially running workers. Shutdown cancels and joins the
+worker group, then stops packaged module workers, before closing Redis/database
+pools. Stop callbacks support idempotence and retry after a caller deadline.
+If a worker fails to join within the shutdown budget, shutdown logs the failure
+and does not explicitly close pools underneath that worker; process termination
+reclaims them. The HTTP server stops accepting/drains requests before the final
+join callbacks run.
+
+### Running the minimal backend
+
+Copy `infra/env/core.env.example` to `infra/env/core.env`, configure your real
+Keycloak and separately hosted frontend URLs, and create the five files under
+`infra/secrets` referenced by `infra/compose/docker-compose.core.yml`:
+`db_password.txt`, `keycloak_admin_secret.txt`, `keycloak_web_secret.txt`,
+`redis_password.txt` and `token_symmetric_key.txt`. Use a 32-character token
+key. Environment variables ending in `_SECRET_FILE` in the Compose model allow
+operator-selected paths. Operator env/secret files are ignored by Git.
+
+```sh
+docker compose --env-file infra/env/core.env -f infra/compose/docker-compose.core.yml config --quiet
+docker compose --env-file infra/env/core.env -f infra/compose/docker-compose.core.yml up -d --build
+```
+
+This entry point starts only primary Postgres, Redis and the backend. The
+backend listens on loopback port 9000 by default (`CORE_BACKEND_PORT` overrides
+the host port). Put the existing operator-managed TLS reverse proxy in front
+of it. No warehouse/Observatory/SMTP/SMS/storage service or volume is required.
+The current full-distribution Compose entry point remains unchanged.
 
 ## Next phases
 
-1. Add an explicit core-only boot profile and per-feature adapter/worker wiring;
-   verify startup/readiness/shutdown with optional providers absent.
-2. Align frontend shell/extension contracts and verify an optional application
+1. Align frontend shell/extension contracts and verify an optional application
    against the core, then decide independent release/version boundaries.
 
 Document, template and storage-location extraction remains deferred.
@@ -184,4 +256,6 @@ Document, template and storage-location extraction remains deferred.
 python3 infra/scripts/test-platform-core.py
 go -C backend test -race ./core ./module ./internal/architecture ./internal/authz ./internal/features/rbac ./internal/features/health_context ./internal/api ./internal/bootstrap
 make -C backend modules-check contracts-check
+python3 infra/scripts/test-distribution-auth.py --backend-image <candidate> --profile core
+python3 infra/scripts/test-distribution-auth.py --backend-image <candidate> --profile full
 ```

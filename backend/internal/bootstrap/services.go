@@ -73,6 +73,10 @@ type serviceDependencies struct {
 }
 
 func buildServices(deps serviceDependencies) services {
+	if deps.Config.CoreOnly() {
+		return buildCoreServices(deps)
+	}
+
 	templateManager, err := service.NewTemplateManager(deps.Logger)
 	if err != nil {
 		deps.Logger.Fatal("Failed to initialize email template manager: ", err)

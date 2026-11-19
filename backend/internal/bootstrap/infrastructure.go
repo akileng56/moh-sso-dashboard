@@ -26,6 +26,19 @@ type databases struct {
 }
 
 func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
+	if cfg.CoreOnly() {
+		primary, err := db.InitDB(ctx, db.DBConfig{Driver: cfg.DBDriver, DSN: cfg.DbSource(), MaxOpenConns: 25, MaxIdleConns: 10, ConnMaxLifetime: 30 * time.Minute, WaitTimeout: 30 * time.Second})
+		if err != nil {
+			return databases{}, err
+		}
+		dbs := databases{Primary: primary}
+		if err := db.MigrateDB(primary, "file://internal/db/migrations"); err != nil {
+			dbs.Close()
+			return databases{}, err
+		}
+		return dbs, nil
+	}
+
 	observatoryDSN, err := cfg.ObservatoryDBSource()
 	if err != nil {
 		return databases{}, err

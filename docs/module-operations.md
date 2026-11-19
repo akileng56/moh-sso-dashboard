@@ -111,3 +111,13 @@ under `backend/modules/admin-units/v0.1.0`. Its inventory reports the selected
 dependency. Warehouse queries/connections, health-context authorization and HTTP
 guards remain host adapters. Version changes require reviewing Go pins/checksums
 and rebuilding the backend image; publishing a library does not deploy it.
+
+## Minimal platform profile
+
+`PLATFORM_PROFILE=core` disables all packaged applications and omits legacy
+optional routes, providers and workers, while retaining identity/session,
+authorization/governance, health-context policy and audit recording.
+The default `full` profile preserves the existing distribution.
+See [startup profiles](platform-core.md#startup-profiles) for the resource
+matrix, readiness rules, shared migration compatibility and the backend-only
+`infra/compose/docker-compose.core.yml` entry point.

@@ -978,3 +978,50 @@ Redis fixture passed authentication/session checks, reviewed manifest import,
 lifecycle activation and idempotence, warehouse/announcement/GeoJSON access,
 backup/restore, clean shutdown/restart, module disablement/re-enablement,
 continued core audit recording and scheduler worker stop/resume.
+
+### Platform Core phase 4 — core-only startup and optional-provider wiring
+
+Added explicit `PLATFORM_PROFILE=full|core` selection with the full distribution
+as default. Core composes mandatory identity/session, authorization/governance,
+health-context and audit capabilities against primary Postgres, Redis and the
+configured Keycloak. It omits optional database pools/replication, file storage,
+SMTP/SMS/template providers, channel queues, legacy workers, packaged workers
+and optional public/protected/admin/machine-delivery routes. Internal
+auth/audit/startup notification records persist without channel delivery.
+Unknown profiles and module IDs fail before provider startup.
+
+The existing primary migrations and data are shared across profiles.
+All six packaged modules remain visible but disabled in core. The full profile
+keeps legacy feature/provider requirements; its module setting is not an
+independent switch for legacy documents, DQA, visualizer or surveillance.
+A dedicated backend-only Compose entry point and core environment example
+require no optional services, storage mounts or provider secrets.
+
+Core readiness now excludes optional-provider degradation, which stays visible
+in aggregate health. Platform readiness checks mandatory dependencies and only
+enabled delivery workers, avoiding false failures for disabled workers.
+Legacy workers are prepared atomically, cancelled and joined before normal
+resource cleanup. Shutdown tests cover completion, timeout/retry, idempotence
+and preserved failures. Pools are not explicitly closed underneath workers
+that fail to join before their shutdown deadline.
+
+The real-Keycloak fixture gains a core profile and CI coverage for absent/
+unconfigured optional providers, opaque sessions, governance/context access,
+optional route removal, persistent core audit, absent worker/channel queues
+and clean restart. No release, dependency pin, push or deployment is included.
+
+Phase 4 verification passed the full backend suite and vet, profile/bootstrap/
+API/health/platform race regressions, the isolated portable-core build/vet/race
+check, all packaged-module checks, all 366 unchanged API contracts, catalogue
+validation/seven tests, workflow actionlint and core Compose model resolution.
+The production Docker build succeeded after a registry TLS retry.
+
+The dedicated core Compose fixture passed real Keycloak sessions, governance/
+health-context access, absent optional providers/routes/workers/queues,
+continued audit recording and clean shutdown/restart. The full production
+fixture passed the existing permissions, reviewed import/lifecycle, warehouse,
+attachment, backup/restore, disablement and worker-recovery checks. It also
+passed a full -> core -> full switch on the same primary persistence, retaining
+reviewed manifests, audit, published announcements and attachment contents and
+resuming the scheduler with a fresh worker. The fixture refreshes Docker's
+ephemeral host port after restart.

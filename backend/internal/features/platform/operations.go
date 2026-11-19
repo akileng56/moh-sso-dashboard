@@ -31,15 +31,22 @@ type ApplicationOperations struct {
 }
 
 func (h *Handler) GetReadiness(c *gin.Context) {
-	health, err := h.Repository.WorkerHealth(c.Request.Context(), h.staleAfter())
+	if h.CoreReady != nil {
+		if err := h.CoreReady(c.Request.Context()); err != nil {
+			fail(c, ErrUnavailable)
+			return
+		}
+	}
+	health, err := h.enabledWorkerHealth(c.Request.Context())
 	if err != nil {
 		fail(c, ErrUnavailable)
 		return
 	}
-	result := Readiness{Ready: len(health) == 2, Workers: health}
+	result := Readiness{Ready: true, Workers: health}
 	for _, worker := range health {
 		result.Ready = result.Ready && worker.Healthy
 	}
+
 	if !result.Ready {
 		response.OK(c, http.StatusServiceUnavailable, result)
 		return
@@ -52,12 +59,37 @@ func (h *Handler) GetOperations(c *gin.Context) {
 		fail(c, err)
 		return
 	}
-	result.Workers, err = h.Repository.WorkerHealth(c.Request.Context(), h.staleAfter())
+	result.Workers, err = h.enabledWorkerHealth(c.Request.Context())
 	if err != nil {
 		fail(c, ErrUnavailable)
 		return
 	}
 	response.OK(c, http.StatusOK, result)
+}
+func (h *Handler) enabledWorkerHealth(ctx context.Context) ([]WorkerHealth, error) {
+	required := h.RequiredWorkers
+	if required == nil {
+		required = []string{"notification-email", "email-outbox"}
+	}
+	result := make([]WorkerHealth, 0, len(required))
+	if len(required) == 0 {
+		return result, nil
+	}
+	health, err := h.Repository.WorkerHealth(ctx, h.staleAfter())
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range required {
+		item := WorkerHealth{Name: name}
+		for _, candidate := range health {
+			if candidate.Name == name {
+				item = candidate
+				break
+			}
+		}
+		result = append(result, item)
+	}
+	return result, nil
 }
 func (h *Handler) staleAfter() time.Duration {
 	if h.WorkerStaleAfter < 2*time.Minute {

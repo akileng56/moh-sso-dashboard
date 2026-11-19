@@ -108,6 +108,7 @@ def realm_fixture():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--backend-image', required=True)
+    parser.add_argument('--profile', choices=('full', 'core'), default='full')
     args = parser.parse_args()
     project = 'moh-auth-fixture-' + uuid.uuid4().hex[:10]
     with tempfile.TemporaryDirectory(prefix=project) as tmp:
@@ -125,11 +126,20 @@ def main():
                                               'KEYCLOAK_ADMIN_SECRET_FILE', 'KEYCLOAK_WEB_SECRET_FILE')}}
         for key in ('COMPOSE_FILE', 'COMPOSE_PROFILES', 'COMPOSE_PROJECT_NAME'):
             env.pop(key, None)
+        compose_source = 'infra/compose/docker-compose.distribution.yml'
+        if args.profile == 'core':
+            token_key = tmp / 'token-key'
+            token_key.write_text('01234567890123456789012345678901')
+            token_key.chmod(0o600)
+            env.update({'REDIS_PASSWORD_SECRET_FILE': str(secret),
+                        'TOKEN_SYMMETRIC_KEY_SECRET_FILE': str(token_key)})
+            compose_source = 'infra/compose/docker-compose.core.yml'
         model = json.loads(run('docker', 'compose', '--env-file', 'infra/env/prod.env.example',
-                               '-f', 'infra/compose/docker-compose.distribution.yml', 'config', '--format', 'json', env=env))
+                               '-f', compose_source, 'config', '--format', 'json', env=env))
+
         services = model['services']
-        services.pop('nginx')
-        services.pop('frontend')
+        services.pop('nginx', None)
+        services.pop('frontend', None)
         backend = services['backend']
         backend.pop('build', None)
         backend['image'] = args.backend_image
@@ -153,7 +163,22 @@ def main():
             'RBAC_STARTUP_SYNC_LIVE_KEYCLOAK': 'false', 'RBAC_STARTUP_SYNC_REALM_EXPORT': 'false',
             'RBAC_STARTUP_SYNC_PUSH_TO_KEYCLOAK': 'false', 'RBAC_STARTUP_SYNC_USERS': 'true',
             'NOTIFICATION_DELIVERY_WORKER_ENABLED': 'false', 'DISABLED_MODULES': ''})
-        services['keycloak'] = {'image': 'quay.io/keycloak/keycloak:26.0.5', 'networks': ['sso'],
+        if args.profile == 'core':
+            services['redis'].setdefault('environment', {})['REDISCLI_AUTH'] = SECRET
+            services.pop('observatory-db', None)
+            backend.get('depends_on', {}).pop('observatory-db', None)
+            backend['secrets'] = [item for item in backend.get('secrets', [])
+                                  if (item.get('source') if isinstance(item, dict) else item) != 'observatory_db_password']
+            backend.pop('volumes', None)
+            backend['environment'].update({
+                'PLATFORM_PROFILE': 'core', 'STORAGE_PROVIDER': 'unconfigured-provider',
+                'OBSERVATORY_DB_HOST': '', 'OBSERVATORY_DB_PASSWORD_FILE': '/absent/optional-secret',
+                'REMOTE_DB_HOST': 'absent-remote.invalid', 'DWH_HOST': 'absent-warehouse.invalid',
+                'DQA_DB_HOST': 'absent-dqa.invalid', 'SMTP_HOST': '',
+                'SMTP_PASSWORD_FILE': '/absent/optional-secret', 'SMS_ENABLED': 'true',
+                'SMS_PROVIDER': 'unconfigured-provider',
+                'NOTIFICATION_DELIVERY_WORKER_ENABLED': 'true'})
+        services['keycloak'] = {'image': 'quay.io/keycloak/keycloak:26.0.5', 'networks': ['default'] if args.profile == 'core' else ['sso'],
             'environment': {'KC_DB': 'dev-file', 'KC_HOSTNAME': 'http://keycloak:8080',
                             'KC_HTTP_ENABLED': 'true', 'KC_HEALTH_ENABLED': 'true'},
             'command': ['start-dev', '--import-realm'],
@@ -163,7 +188,8 @@ def main():
         path.write_text(json.dumps(model))
         compose = ['docker', 'compose', '-p', project, '-f', str(path)]
         try:
-            run(*compose, 'up', '-d', 'keycloak', 'backend-db', 'observatory-db', 'redis')
+            run(*compose, 'up', '-d', 'keycloak', 'backend-db', 'redis',
+                *(['observatory-db'] if args.profile == 'full' else []))
             kc_port = run(*compose, 'port', 'keycloak', '8080').rsplit(':', 1)[1]
             kc = 'http://127.0.0.1:' + kc_port + '/realms/' + REALM
             wait_ready(kc + '/.well-known/openid-configuration')
@@ -227,6 +253,45 @@ def main():
             request(api + inventory, token=admin, extra_headers=cookie)
             print('Opaque session, bearer precedence, legacy cookie, refresh persistence, logout and expiry checks passed', flush=True)
             modules = request(api + inventory, token=admin)['data']
+            if args.profile == 'core':
+                assert len(modules) == 6 and all(not item['enabled'] for item in modules), modules
+                health = request(api + '/health')['data']
+                assert health['status'] == 'ok' and health['components']['remoteDB'] == 'disabled', health
+                assert not health['components'].get('observatory'), health
+                request(api + '/api/v1/admin/rbac/systems', token=admin)
+                request(api + '/api/v1/admin/rbac/systems', token=outsider, status=403)
+                request(api + '/api/v1/me/health-contexts', token=viewer)
+                operations = request(api + '/api/v1/admin/platform/applications/data-statistics/operations', token=admin)['data']
+                assert operations['workers'] == [], operations
+                for route in ('/api/v1/users', '/api/v1/clients', '/api/v1/documents',
+                              '/api/v1/visualizer/admin-units?level=1',
+                              '/api/v1/admin/audit-logs', '/api/v1/admin/metrics',
+                              '/api/v1/email/templates', '/api/v1/platform/notifications',
+                              '/api/v1/geojson/layers', '/api/v1/announcements',
+                              '/api/v1/report-scheduler/reports'):
+                    request(api + route, token=admin, status=404)
+                audit_count = int(run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                                     '-d', 'sso_dashboard', '-At', '-c', 'SELECT count(*) FROM audit_logs'))
+                assert audit_count > 0, 'Core audit recorder stopped with optional Audit reader'
+                assert run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                           '-d', 'sso_dashboard', '-At', '-c',
+                           'SELECT count(*) FROM ihp_platform_worker_heartbeats') == '0', 'Optional worker started in core profile'
+                assert run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                           '-d', 'sso_dashboard', '-At', '-c',
+                           'SELECT count(*) FROM notification_deliveries') == '0', 'Core queued unavailable delivery work'
+                run(*compose, 'stop', '-t', '30', 'backend')
+                container = run(*compose, 'ps', '-aq', 'backend')
+                assert run('docker', 'inspect', '-f', '{{.State.ExitCode}}', container) == '0', 'Core shutdown was not clean'
+                run(*compose, 'start', 'backend')
+                api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
+                wait_ready(api + '/health/ready')
+                assert request(api + inventory, token=token('admin'))['data'] == modules
+                assert int(run(*compose, 'exec', '-T', 'backend-db', 'psql', '-U', 'postgres',
+                               '-d', 'sso_dashboard', '-At', '-c', 'SELECT count(*) FROM audit_logs')) >= audit_count
+                print('PASS: core-only production startup without optional providers, real Keycloak/session checks, '
+                      'governance, health context, optional route removal, continued audit recording, '
+                      'no optional workers/delivery queue, clean shutdown and restart', flush=True)
+                return
             assert any(item['id'] == 'metrics' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
@@ -495,6 +560,38 @@ def main():
                 assert response['data'] == admin_unit_data[suffix], 'Administrative Units data changed after re-enablement'
             print('Administrative Units disablement removes all nine routes; re-enabling preserves warehouse reads', flush=True)
             print('Module disablement preserves core audit recording; scheduler worker stops and resumes', flush=True)
+            # Preserve the same primary schema, reviewed manifests and application
+            # records while switching the running distribution full -> core -> full.
+            full_environment = dict(backend['environment'])
+            backend['environment'].update({'PLATFORM_PROFILE': 'core',
+                'STORAGE_PROVIDER': 'unconfigured-provider', 'OBSERVATORY_DB_HOST': '',
+                'REMOTE_DB_HOST': 'absent-remote.invalid', 'DWH_HOST': 'absent-warehouse.invalid'})
+            path.write_text(json.dumps(model))
+            run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
+            api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
+            wait_ready(api + '/health/ready')
+            admin = token('admin')
+            assert all(not item['enabled'] for item in request(api + inventory, token=admin)['data'])
+            request(api + '/api/v1/admin/rbac/systems', token=admin)
+            request(api + '/api/v1/announcements/public', status=404)
+            retained_runtime = scheduler_runtime()
+            request(api + '/api/v1/me/health-contexts', token=token('viewer'))
+            assert scheduler_runtime() == retained_runtime, 'Core profile ran the retained scheduler'
+            retained_audit = audit_count()
+            backend['environment'] = full_environment
+            path.write_text(json.dumps(model))
+            run(*compose, 'up', '-d', '--no-deps', '--no-build', '--force-recreate', 'backend')
+            api = 'http://127.0.0.1:' + run(*compose, 'port', 'backend', '9000').rsplit(':', 1)[1]
+            wait_ready(api + '/health/ready')
+            admin = token('admin')
+            assert request(api + inventory, token=admin)['data'] == modules
+            assert audit_count() >= retained_audit, 'Profile switch lost core audit records'
+            assert request(api + announcement_api + '/' + announcement_id, token=admin)['data']['status'] == 'PUBLISHED'
+            for download in announcement_downloads:
+                assert request(api + download, token=admin) == attachment_text
+            assert request(api + '/api/v1/applications/fixture-reports/manifest', token=token('viewer'))['data']['version'] == '1.0.0'
+            assert scheduler_runtime().split('|')[0] != retained_runtime.split('|')[0], 'Full profile failed to resume the scheduler'
+            print('Full -> core -> full profile switch preserves schema, manifests, audit, announcements and attachments', flush=True)
             print('PASS: real Keycloak authentication, module inventory, admin/role authorization, reviewed import, '
                   'lifecycle activation, idempotence, backup/restore, startup preservation, clean shutdown, restart recovery and module disablement')
         finally:

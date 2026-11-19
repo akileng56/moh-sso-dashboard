@@ -59,6 +59,9 @@ type handlerDependencies struct {
 }
 
 func buildHandlers(deps handlerDependencies) handlers {
+	if deps.Config.CoreOnly() {
+		return buildCoreHandlers(deps)
+	}
 	authHandler := authfeature.NewHandler(
 		deps.Services.Auth,
 		deps.Services.Audit,
@@ -162,7 +165,8 @@ func buildHandlers(deps handlerDependencies) handlers {
 		Router: router.HandlerSet{
 			Platform: &platformfeature.Handler{
 				WorkerStaleAfter: 3 * deps.Config.NotificationDelivery.WorkerInterval,
-				Repository:       &platformfeature.PostgresRepository{DB: deps.Databases.Primary},
+				CoreReady:        healthHandler.CheckCore, RequiredWorkers: enabledDeliveryWorkers(deps.Config),
+				Repository: &platformfeature.PostgresRepository{DB: deps.Databases.Primary},
 				Verifier: &platformfeature.Introspector{
 					Endpoint: strings.TrimRight(deps.Config.KeycloakTokenBaseURL(), "/") + "/realms/" + deps.Config.KeycloakRealm + "/protocol/openid-connect/token/introspect",
 					Issuer:   strings.TrimRight(deps.Config.KeycloakExternalURL, "/") + "/realms/" + deps.Config.KeycloakRealm,

@@ -93,3 +93,33 @@ func TestObservatoryOutageDegradesHealthWithoutFailingCoreReadiness(t *testing.T
 		t.Fatal("primary database must remain required")
 	}
 }
+
+func TestOptionalDatabaseDoesNotGateCoreReadiness(t *testing.T) {
+	healthy := func(context.Context) error { return nil }
+	h := NewHealthHandler(healthy, func(context.Context) error { return errors.New("optional offline") }, healthy, nil)
+	r := gin.New()
+	r.GET("/health", h.HandleHealth)
+	r.GET("/health/ready", h.HandleReady)
+	for _, path := range []string{"/health", "/health/ready"} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", path, nil))
+		if w.Code != 200 {
+			t.Fatal(path, w.Code, w.Body.String())
+		}
+		if path == "/health" && !strings.Contains(w.Body.String(), `"degraded"`) {
+			t.Fatal("optional outage not reported", w.Body.String())
+		}
+	}
+	h.RemoteDBCheck = nil
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/health", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"remoteDB":"disabled"`) {
+		t.Fatal(w.Body.String())
+	}
+	h.DBCheck = func(context.Context) error { return errors.New("primary offline") }
+	w = httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/health/ready", nil))
+	if w.Code != 503 {
+		t.Fatal("primary outage reported ready", w.Code)
+	}
+}

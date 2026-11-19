@@ -20,6 +20,7 @@ type Config struct {
 	// ==================================================
 	Environment     string `mapstructure:"ENVIRONMENT"`
 	GinMode         string `mapstructure:"GIN_MODE"`
+	PlatformProfile string `mapstructure:"PLATFORM_PROFILE"`
 	DisabledModules string `mapstructure:"DISABLED_MODULES"`
 
 	DevAuthBypass bool `mapstructure:"DEV_AUTH_BYPASS"`
@@ -290,6 +291,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 func setDefaults() {
+	viper.SetDefault("PLATFORM_PROFILE", ProfileFull)
 	viper.SetDefault("OBSERVATORY_DB_HOST", "")
 	viper.SetDefault("OBSERVATORY_DB_PORT", "5432")
 	viper.SetDefault("OBSERVATORY_DB_NAME", "observatory")
@@ -396,6 +398,7 @@ func setDefaults() {
 
 func envBindings() map[string]string {
 	return map[string]string{
+		"PLATFORM_PROFILE":                      "PLATFORM_PROFILE",
 		"OBSERVATORY_DB_HOST":                   "OBSERVATORY_DB_HOST",
 		"OBSERVATORY_DB_PORT":                   "OBSERVATORY_DB_PORT",
 		"OBSERVATORY_DB_NAME":                   "OBSERVATORY_DB_NAME",
@@ -533,6 +536,11 @@ func envBindings() map[string]string {
 }
 
 func normalizeConfig(c *Config) {
+	c.PlatformProfile = strings.ToLower(strings.TrimSpace(c.PlatformProfile))
+	if c.PlatformProfile == "" {
+		c.PlatformProfile = ProfileFull
+	}
+
 	// ==================================================
 	// Global
 	// ==================================================
@@ -894,6 +902,9 @@ func (c *Config) ObservatoryDBSource() (string, error) {
 // ==================================================
 
 func validateConfig(c *Config) error {
+	if err := validateProfile(c); err != nil {
+		return err
+	}
 	if err := validateEnvironment(c); err != nil {
 		return err
 	}
@@ -911,6 +922,9 @@ func validateConfig(c *Config) error {
 
 	if err := validateDatabaseConfig(c); err != nil {
 		return err
+	}
+	if c.CoreOnly() {
+		return nil
 	}
 	if _, err := c.ObservatoryDBSource(); err != nil {
 		return err

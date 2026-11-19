@@ -135,9 +135,11 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 
 	api := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(api, routeDeps)
-	routes.RegisterPublicAnnouncementRoutes(api, routeDeps)
-	if deps.Modules == nil {
-		routes.RegisterPublicReportSchedulerRoutes(api, routeDeps)
+	if deps.Config == nil || !deps.Config.CoreOnly() {
+		routes.RegisterPublicAnnouncementRoutes(api, routeDeps)
+		if deps.Modules == nil {
+			routes.RegisterPublicReportSchedulerRoutes(api, routeDeps)
+		}
 	}
 
 	protected := api.Group("")
@@ -158,8 +160,16 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 	if deps.Handlers.RBAC != nil {
 		protected.GET("/applications/:clientId/manifest", deps.Handlers.RBAC.GetApplicationManifestRuntime)
 	}
-	routes.RegisterProtectedRoutes(protected, routeDeps)
-	routes.RegisterAdminRoutes(protected, routeDeps)
+	if deps.Config != nil && deps.Config.CoreOnly() {
+		sessionfeature.RegisterProtectedRoutes(protected, deps.Handlers.Sessions)
+		rbacfeature.RegisterProtectedRoutes(protected, deps.Handlers.RBAC)
+		rbacfeature.RegisterAdminRoutes(protected.Group("/admin"), deps.Handlers.RBAC, deps.Limiter)
+		healthcontextfeature.RegisterProtectedRoutes(protected, deps.Handlers.HealthContexts)
+		healthcontextfeature.RegisterAdminRoutes(protected.Group("/admin"), deps.Handlers.HealthContexts)
+	} else {
+		routes.RegisterProtectedRoutes(protected, routeDeps)
+		routes.RegisterAdminRoutes(protected, routeDeps)
+	}
 	if deps.Modules != nil {
 		deps.Modules.RegisterRoutes(module.Routes{Public: api, Protected: protected, Admin: protected.Group("/admin")})
 		registerModuleInventory(protected, deps.Modules)

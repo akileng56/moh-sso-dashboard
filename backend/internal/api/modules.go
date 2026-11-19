@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	hostroutes "github.com/moh-sso-dashboard/internal/api/routes"
+	"github.com/moh-sso-dashboard/internal/config"
 	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
 	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
 	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
@@ -29,7 +30,10 @@ import (
 // NewModuleRegistry is the distribution's explicit composition root. Legacy
 // features enter this inventory only as their registration is migrated.
 func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.Limiter, scheduler *reportschedulerfeature.Worker) (*module.Registry, error) {
-	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true, "report-scheduler": true, "announcements": true, "admin-units": true}
+	enabled := map[string]bool{}
+	for _, id := range config.OptionalModuleIDs() {
+		enabled[id] = true
+	}
 	for _, id := range strings.Split(disabled, ",") {
 		id = strings.TrimSpace(id)
 		if id == "" {

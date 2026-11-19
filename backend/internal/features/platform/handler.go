@@ -1,6 +1,7 @@
 package platform
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"github.com/moh-sso-dashboard/internal/observability"
@@ -14,6 +15,12 @@ import (
 )
 
 type Handler struct {
+	CoreReady func(context.Context) error
+	// Nil retains the historical two-worker contract; an empty list means no
+	// delivery workers are enabled for this profile.
+	RequiredWorkers []string
+	DeliveryEnabled *bool
+
 	WorkerStaleAfter time.Duration
 	Repository       Repository
 	Verifier         TokenVerifier

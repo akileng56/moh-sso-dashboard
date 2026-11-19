@@ -62,6 +62,16 @@ func buildRepositories(
 		primaryDB = sqlStore.DB()
 	}
 
+	if cfg.CoreOnly() {
+		return repositories{
+			Auth:           authRepo.NewAuthRepository(webKC, adminKC, cfg),
+			Users:          userRepo.NewUserRepository(adminKC, cfg, store, *appLogger),
+			Notifications:  notificationsRepo.NewNotificationsRepository(store, *appLogger),
+			Sessions:       sessionRepo.NewSessionRepository(adminKC, cfg, *appLogger),
+			RBAC:           rbacRepo.NewRepository(primaryDB),
+			HealthContexts: healthcontextRepo.NewRepository(primaryDB),
+		}
+	}
 	healthContexts := healthcontextRepo.NewRepository(primaryDB)
 	return repositories{
 		Auth:                    authRepo.NewAuthRepository(webKC, adminKC, cfg),

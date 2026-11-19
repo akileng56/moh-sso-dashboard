@@ -4,11 +4,15 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"sync"
 	"time"
 
+	"github.com/moh-sso-dashboard/core"
 	"github.com/moh-sso-dashboard/internal/config"
 	dataqualityfeature "github.com/moh-sso-dashboard/internal/features/data_quality"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	emailRepo "github.com/moh-sso-dashboard/internal/repository/email"
 	notificationDeliveryRepo "github.com/moh-sso-dashboard/internal/repository/notification_delivery"
@@ -36,7 +40,68 @@ type workerDependencies struct {
 	DWHDB                          *sql.DB
 }
 
-func startBackgroundWorkers(ctx context.Context, deps workerDependencies) {
+func enabledDeliveryWorkers(cfg *config.Config) []string {
+	if cfg.CoreOnly() {
+		return []string{}
+	}
+	names := []string{"email-outbox"}
+	if cfg == nil || cfg.NotificationDelivery.WorkerEnabled {
+		names = append(names, "notification-email")
+	}
+	return names
+}
+func schedulerWorker(cfg *config.Config, services services, log *logger.Logger) *reportschedulerfeature.Worker {
+	if !cfg.ModuleEnabled("report-scheduler") {
+		return nil
+	}
+	return reportschedulerfeature.NewWorker(services.ReportScheduler, cfg.ReportSchedulerWorkerInterval, log.Error)
+}
+
+type workerTask struct {
+	name string
+	run  func(context.Context) error
+}
+
+// startWorkerGroup cancels and joins every started task before infrastructure
+// cleanup. The stop callback is safe to retry after a shutdown deadline.
+func startWorkerGroup(ctx context.Context, tasks []workerTask, logError func(...interface{})) core.Stop {
+	ctx, cancel := context.WithCancel(ctx)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	var failures []error
+	for _, task := range tasks {
+		task := task
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if err := task.run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				mu.Lock()
+				failures = append(failures, fmt.Errorf("%s: %w", task.name, err))
+				mu.Unlock()
+				if logError != nil {
+					logError("Background worker stopped: ", task.name, err)
+				}
+			}
+		}()
+	}
+	done := make(chan struct{})
+	go func() { wg.Wait(); close(done) }()
+	return func(shutdown context.Context) error {
+		cancel()
+		select {
+		case <-done:
+			mu.Lock()
+			defer mu.Unlock()
+			return errors.Join(failures...)
+		case <-shutdown.Done():
+			return shutdown.Err()
+		}
+	}
+}
+func startBackgroundWorkers(ctx context.Context, deps workerDependencies) (core.Stop, error) {
+	if deps.Config.CoreOnly() {
+		return startWorkerGroup(ctx, nil, nil), nil
+	}
 	heartbeat := func(name string) func(context.Context) {
 		return func(ctx context.Context) {
 			if deps.PrimaryDB == nil {
@@ -49,120 +114,44 @@ func startBackgroundWorkers(ctx context.Context, deps workerDependencies) {
 			}
 		}
 	}
-
+	// Prepare every worker before launching any goroutine so constructor failures
+	// cannot leave partially started workers accessing released resources.
+	tasks := []workerTask{}
 	if deps.DQADB != nil && deps.DWHDB != nil {
-		dqaWorker := dataqualityfeature.NewScheduleWorker(
-			dataqualityfeature.NewDQAStore(deps.DQADB),
-			deps.DWHDB,
-			time.Minute,
-			deps.Logger.Error,
-		)
-		go func() {
-			deps.Logger.Info("DQA scheduled run worker started")
-
-			if err := dqaWorker.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-				deps.Logger.Error("DQA scheduled run worker stopped with error: ", err)
-			}
-		}()
+		dqa := dataqualityfeature.NewScheduleWorker(dataqualityfeature.NewDQAStore(deps.DQADB), deps.DWHDB, time.Minute, deps.Logger.Error)
+		tasks = append(tasks, workerTask{"DQA scheduled run", dqa.Start})
 	}
-
-	documentWorker, err := worker.NewDocumentWorker(
-		deps.ProcessRepository,
-		deps.ImportService,
-		3*time.Second,
-		deps.FileStorage,
-		deps.Logger,
-	)
+	document, err := worker.NewDocumentWorker(deps.ProcessRepository, deps.ImportService, 3*time.Second, deps.FileStorage, deps.Logger)
 	if err != nil {
-		deps.Logger.Fatal("Failed to initialize document worker: ", err)
+		return nil, fmt.Errorf("document worker: %w", err)
 	}
-
-	go func() {
-		deps.Logger.Info("Background document worker started")
-
-		if err := documentWorker.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			deps.Logger.Error("Document worker stopped with error: ", err)
-		}
-	}()
-
-	emailWorker, err := worker.NewEmailWorker(
-		deps.EmailRepository,
-		deps.SMTPService,
-		3*time.Second,
-		20,
-		3,
-		deps.Logger,
-	)
+	tasks = append(tasks, workerTask{"document", document.Start})
+	email, err := worker.NewEmailWorker(deps.EmailRepository, deps.SMTPService, 3*time.Second, 20, 3, deps.Logger)
 	if err != nil {
-		deps.Logger.Fatal("Failed to initialize email worker: ", err)
+		return nil, fmt.Errorf("email worker: %w", err)
 	}
-
-	emailWorker.SetHeartbeat(heartbeat("email-outbox"))
-	go func() {
-		deps.Logger.Info("Background email worker started")
-
-		if err := emailWorker.Start(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			deps.Logger.Error("Email worker stopped with error: ", err)
+	email.SetHeartbeat(heartbeat("email-outbox"))
+	tasks = append(tasks, workerTask{"email-outbox", email.Start})
+	if deps.Config == nil || deps.Config.NotificationDelivery.WorkerEnabled {
+		interval := 3 * time.Second
+		batch := int32(20)
+		if deps.Config != nil {
+			interval = deps.Config.NotificationDelivery.WorkerInterval
+			batch = deps.Config.NotificationDelivery.BatchSize
 		}
-	}()
-
-	if deps.Config != nil && !deps.Config.NotificationDelivery.WorkerEnabled {
-		deps.Logger.Info("Notification delivery workers disabled")
-		return
-	}
-
-	notificationWorkerInterval := 3 * time.Second
-	notificationWorkerBatchSize := int32(20)
-	if deps.Config != nil {
-		notificationWorkerInterval = deps.Config.NotificationDelivery.WorkerInterval
-		notificationWorkerBatchSize = deps.Config.NotificationDelivery.BatchSize
-	}
-
-	notificationEmailDeliveryWorker, err := worker.NewNotificationEmailDeliveryWorker(
-		deps.NotificationDeliveryRepository,
-		deps.EmailService,
-		notificationWorkerInterval,
-		notificationWorkerBatchSize,
-		3,
-		deps.Logger,
-	)
-	if err != nil {
-		deps.Logger.Fatal("Failed to initialize notification email delivery worker: ", err)
-	}
-
-	notificationEmailDeliveryWorker.SetHeartbeat(heartbeat("notification-email"))
-	go func() {
-		deps.Logger.Info("Background notification email delivery worker started")
-
-		if err := notificationEmailDeliveryWorker.Start(ctx); err != nil &&
-			!errors.Is(err, context.Canceled) {
-			deps.Logger.Error("Notification email delivery worker stopped with error: ", err)
-		}
-	}()
-
-	if deps.SMSService != nil && deps.SMSService.Enabled() {
-		notificationSMSDeliveryWorker, err := worker.NewNotificationSMSDeliveryWorker(
-			deps.NotificationDeliveryRepository,
-			deps.SMSService,
-			notificationWorkerInterval,
-			notificationWorkerBatchSize,
-			3,
-			deps.Logger,
-			deps.AuditService,
-		)
+		notification, err := worker.NewNotificationEmailDeliveryWorker(deps.NotificationDeliveryRepository, deps.EmailService, interval, batch, 3, deps.Logger)
 		if err != nil {
-			deps.Logger.Fatal("Failed to initialize notification SMS delivery worker: ", err)
+			return nil, fmt.Errorf("notification email worker: %w", err)
 		}
-
-		go func() {
-			deps.Logger.Info("Background notification SMS delivery worker started")
-
-			if err := notificationSMSDeliveryWorker.Start(ctx); err != nil &&
-				!errors.Is(err, context.Canceled) {
-				deps.Logger.Error("Notification SMS delivery worker stopped with error: ", err)
+		notification.SetHeartbeat(heartbeat("notification-email"))
+		tasks = append(tasks, workerTask{"notification-email", notification.Start})
+		if deps.SMSService != nil && deps.SMSService.Enabled() {
+			sms, err := worker.NewNotificationSMSDeliveryWorker(deps.NotificationDeliveryRepository, deps.SMSService, interval, batch, 3, deps.Logger, deps.AuditService)
+			if err != nil {
+				return nil, fmt.Errorf("notification SMS worker: %w", err)
 			}
-		}()
-	} else {
-		deps.Logger.Info("Notification SMS delivery worker disabled")
+			tasks = append(tasks, workerTask{"notification-sms", sms.Start})
+		}
 	}
+	return startWorkerGroup(ctx, tasks, deps.Logger.Error), nil
 }
