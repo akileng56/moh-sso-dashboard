@@ -1282,3 +1282,38 @@ fixture verified all Metrics routes, unauthenticated/non-admin denials,
 disablement/re-enablement, audit/worker preservation, backups, restarts and
 full -> core -> full data preservation. The working integration is committed
 locally; no running deployment is changed.
+
+### Self-contained Audit — package candidate
+
+Created `feat/self-contained-audit` from the completed Metrics integration.
+Audit now owns its seven HTTP endpoints and PostgreSQL read queries,
+pagination/mapping, query validation, cached responses and CSV/JSON exports.
+Shared primitive capabilities provide verified admin/permission checks,
+request IDs, per-user export rate enforcement and optional stream-error
+reporting. The export policy remains 10 requests per minute; the package
+requires enforcement rather than silently omitting throttling.
+
+No Gin, SQLC, Redis or database-driver dependency is added: the module retains
+only UUID outside the standard library. A private nullable-JSON scanner handles
+PostgreSQL metadata without importing the host SQL generator. Core event
+recording, primary schema migrations and pool lifetime remain platform-owned.
+The host is still pinned to v0.1.0; its current adapter remains for the release
+integration phase.
+
+A real PostgreSQL fixture exposed an existing failed-login-series scan mismatch
+(timestamp query result versus integer row field). The candidate fixes the scan
+and returns public numeric day buckets as Unix milliseconds. Tests cover tied
+timestamp pagination, SQL NULL metadata/UUIDs, filters, canceled contexts,
+read-only permissions, all seven routes and CSV/JSON manifest integrity.
+Next: publish v0.2.0, verify/download/pin it, remove the host read implementation
+and verify shared authorization/rate limiting plus full/core disablement without
+stopping core audit recording.
+
+Phase verification passed: portable Audit dependency checks; independent HTTP
+build/vet/uncached race tests and external consumer with downloads disabled;
+SELECT-only PostgreSQL checks for all seven reads/routes, timestamp pagination,
+day-bucket conversion, NULL metadata/UUIDs, bound filters and cancellation;
+CSV/JSON manifest integrity, large-stream headers, export-rate header precedence
+and write-error reporting; all packaged Go modules; full host backend tests and
+vet; unchanged 366-operation API contract; 12 catalogue regressions; workflow
+actionlint and whitespace checks. No version tag or branch has been pushed.

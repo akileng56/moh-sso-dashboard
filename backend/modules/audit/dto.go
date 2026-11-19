@@ -74,6 +74,7 @@ type AuditMetricsOverviewResponse struct {
 	SuccessfulLogins int64 `json:"successful_logins"`
 }
 
+// AuditFailedLoginsByDayPoint uses Unix milliseconds for the database day bucket start.
 type AuditFailedLoginsByDayPoint struct {
 	Day   int64 `json:"day"`
 	Count int64 `json:"count"`

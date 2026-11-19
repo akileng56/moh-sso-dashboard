@@ -156,6 +156,9 @@ jobs:
       - name: Standalone Audit read package
         run: python3 infra/scripts/test-audit-package.py
 
+      - name: Self-contained Audit HTTP and PostgreSQL package
+        run: python3 infra/scripts/test-audit-http-package.py --postgres
+
       - name: Standalone GeoJSON package
         run: python3 infra/scripts/test-geojson-package.py
 

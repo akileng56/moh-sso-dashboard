@@ -31,7 +31,7 @@ before streaming. The manifest hashes the JSON items, not the CSV bytes. The hos
 sets content and manifest headers before calling `WriteCSV`, handles partial
 writer failures and retains export rate limits and permission checks.
 
-## Host ownership
+## Published v0.1.0 host ownership
 
 The package has no database adapter, SQL migration files, event writer, background
 worker or owned storage resource. Implement `Repository` and optionally `Cache`
@@ -71,3 +71,70 @@ clean download, pin it in host dependency metadata, supply adapters and report
 `Version()` in the compiled inventory. Production builds use the selected
 dependency without local workspace replacements. Event recording and migrations
 remain host-owned.
+
+## Self-contained candidate
+
+The working tree includes an unreleased v0.2.0 candidate. The dashboard remains
+pinned to v0.1.0 with its current adapter during this package-build phase.
+
+`NewModule(Dependencies)` / `Register(Registrar, Dependencies)` provide the seven
+existing GET endpoints under `/admin/audit-logs` (a host registrar adds `/api/v1`).
+`Patterns()` returns detached method/path declarations; `OpenAPI()` owns the
+operation, filter, DTO and CSV/JSON export contracts. `BasePath` supports
+alternate mounts. The package uses standard HTTP plus its existing UUID
+dependency, with no Gin, SQLC, Redis or PostgreSQL-driver dependency.
+
+Supply exactly one of `Database *sql.DB` or `Repository`.
+`NewRepository(*sql.DB) (Repository, error)` owns all seven read queries,
+keyset pagination and row conversion in the package. SQL NULL metadata and
+nullable UUIDs retain their API semantics. Caller-owned pools are never closed;
+the package never migrates tables or records events. Core migrations and
+continuous audit recording remain platform responsibilities.
+
+`RequireAdmin` and `AuthorizeAny` must inspect verified platform identity.
+Both administrator access and `audit:read` run before query validation, cache
+lookup or SQL. Raw headers do not establish identity. The new HTTP entry point
+requires the explicit administrator gate as well as its existing read permission.
+
+`LimitExport` is also required. It receives the package-owned `audit-export`
+policy, limit 10 and one-minute window, and must enforce a per-verified-user
+limit. It returns standard HTTP headers and an error; rate headers are applied
+to both allowed and denied exports. Errors implementing `StatusCode() int`
+preserve 401/403/429, while unclassified failures return a safe 503.
+Optional `RetryAfter() time.Duration` sets a rounded-up `Retry-After` header.
+Provider errors are never exposed verbatim. A callback returning nil explicitly
+permits the request; omitting the capability is invalid.
+
+Optional `Cache` keeps existing raw-query cache keys and 20-second best-effort
+caching. Authorization always precedes cache lookup. `RequestID` supplies shared
+trace metadata. Optional `StreamError` reports CSV write/flush failures without
+appending a JSON error to a partial CSV response. Export filenames and manifest
+headers precede body writes, including exports larger than CSV's buffer.
+JSON manifests hash the JSON items; CSV headers carry that same integrity hash.
+Unsupported export format values preserve the existing CSV fallback.
+
+The real PostgreSQL suite uncovered the retained failed-login-series scan bug:
+the query returns a timestamp while its old internal row declared an integer.
+The candidate scans it as a timestamp and returns the public numeric day bucket
+as Unix milliseconds. The integration phase must carry this correction into the
+dashboard; the current v0.1.0 pin is unchanged.
+
+Verify from the repository root:
+
+```sh
+python3 infra/scripts/test-audit-package.py
+python3 infra/scripts/test-audit-http-package.py --postgres
+```
+
+The HTTP verifier copies the package outside the dashboard, disables workspaces
+and downloads, checks dependency boundaries and metadata, and runs build/vet/
+uncached race tests. A separate HTTP binary runs in an empty directory.
+Its SELECT-only PostgreSQL fixture verifies all seven queries/routes, tied-time
+keyset pagination, NULL JSON/UUID values, bound filters, canceled contexts, pool
+lifetime and CSV/JSON manifest integrity. The PostgreSQL driver belongs only to
+that external consumer.
+
+Next phase: publish v0.2.0, verify public download/checksums, pin it, remove the
+host HTTP/read-query/mapping adapter, and connect the shared verified admin,
+permission, rate-limit, request-ID and stream-error capabilities. Verify read
+module disablement while core event recording continues in full/core profiles.
