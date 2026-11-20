@@ -57,7 +57,7 @@ func buildAnnouncementsModule(deps handlerDependencies) *a.Module {
 
 	module, err := a.NewModule(a.Dependencies{
 		Database: deps.Databases.Primary, Settings: settings,
-		Audit: deps.Services.Audit, RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
+		Audit: moduleAudit{recorder: deps.Services.Audit}, RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
 		Limit:     modulehttp.PerUserLimit(ratelimit.New(deps.Redis)),
 		RequestID: modulehttp.RequestID, StreamError: modulehttp.StreamError,
 		Actor: func(r *http.Request) (a.Actor, error) {
