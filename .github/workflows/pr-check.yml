@@ -131,6 +131,14 @@ jobs:
           sqlc generate
           git diff --exit-code -- internal/db/sqlc
 
+      - name: Warm reviewed Go dependency caches
+        working-directory: backend
+        run: |
+          go mod download
+          for manifest in modules/*/go.mod; do
+            (cd "$(dirname "$manifest")" && GOWORK=off go mod download)
+          done
+
       - name: Module coverage catalogue and guide
         run: |
           python3 infra/scripts/check-module-catalog.py
