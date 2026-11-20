@@ -28,22 +28,26 @@ def main():
         env = {**os.environ, 'GOWORK': 'off', 'GOTOOLCHAIN': 'local',
                'GOPROXY': 'off', 'GOMODCACHE': str(root / 'private-module-cache')}
 
-        # Seed only the pinned UUID download artifacts from the existing cache.
-        # Go validates them against the committed go.sum in a private cache.
+        # Only reviewed UUID and PostgreSQL driver artifacts enter the private cache.
         cached = Path(subprocess.run([go, 'env', 'GOMODCACHE'], env={**os.environ, 'GOTOOLCHAIN': 'local'},
                                      text=True, capture_output=True, check=True).stdout.strip())
-        relative = Path('cache/download/github.com/google/uuid/@v')
-        pinned = Path(env['GOMODCACHE']) / relative
-        pinned.mkdir(parents=True)
-        for suffix in ('mod', 'info', 'zip'):
-            shutil.copyfile(cached / relative / ('v1.6.0.' + suffix), pinned / ('v1.6.0.' + suffix))
-
         checksums = (standalone / 'go.sum').read_text().splitlines()
-        reviewed = [line for line in (ROOT / 'backend/go.sum').read_text().splitlines()
-                    if line.startswith('github.com/google/uuid v1.6.0')]
-        assert checksums == reviewed and len(checksums) == 2, 'UUID pin/checksums drifted'
-        zip_hash = next(line.split()[2] for line in checksums if line.split()[1] == 'v1.6.0')
-        (pinned / 'v1.6.0.ziphash').write_text(zip_hash)
+        reviewed = []
+        for dependency, version in [('github.com/google/uuid', 'v1.6.0'),
+                                    ('github.com/lib/pq', 'v1.10.9')]:
+            sums = [line for line in (ROOT / 'backend/go.sum').read_text().splitlines()
+                    if line.startswith(dependency + ' ' + version)]
+            assert len(sums) == 2, 'Reviewed dependency checksums missing'
+            reviewed.extend(sums)
+            relative = Path('cache/download') / dependency / '@v'
+            pinned = Path(env['GOMODCACHE']) / relative
+            pinned.mkdir(parents=True)
+            for suffix in ('mod', 'info', 'zip'):
+                shutil.copyfile(cached / relative / (version + '.' + suffix),
+                                pinned / (version + '.' + suffix))
+            zip_hash = next(line.split()[2] for line in sums if line.split()[1] == version)
+            (pinned / (version + '.ziphash')).write_text(zip_hash)
+        assert sorted(checksums) == sorted(reviewed), 'Dependency pins/checksums drifted'
 
         def run(cwd, *args):
             result = subprocess.run([go, *args], cwd=cwd, env=env, text=True,
@@ -59,7 +63,7 @@ def main():
 
         before = metadata(standalone)
         run(standalone, 'mod', 'verify')
-        check_graph(standalone, {MODULE_PATH, 'github.com/google/uuid'})
+        check_graph(standalone, {MODULE_PATH, 'github.com/google/uuid', 'github.com/lib/pq'})
         run(standalone, 'build', '-mod=readonly', './...')
         run(standalone, 'vet', '-mod=readonly', './...')
         print(run(standalone, 'test', '-race', '-mod=readonly', '-count=1',
@@ -70,11 +74,11 @@ def main():
         consumer.mkdir()
         (consumer / 'go.mod').write_text(
             'module ' + CONSUMER_PATH + '\n\ngo 1.25.4\n\nrequire ' +
-            MODULE_PATH + ' v0.0.0\nrequire github.com/google/uuid v1.6.0\n\nreplace ' + MODULE_PATH + ' => ../module\n')
+            MODULE_PATH + ' v0.0.0\nrequire github.com/google/uuid v1.6.0\nrequire github.com/lib/pq v1.10.9\n\nreplace ' + MODULE_PATH + ' => ../module\n')
         shutil.copyfile(MODULE / 'testdata/consumer/main.go', consumer / 'main.go')
         shutil.copyfile(standalone / 'go.sum', consumer / 'go.sum')
         consumer_before = metadata(consumer)
-        check_graph(consumer, {CONSUMER_PATH, MODULE_PATH, 'github.com/google/uuid'})
+        check_graph(consumer, {CONSUMER_PATH, MODULE_PATH, 'github.com/google/uuid', 'github.com/lib/pq'})
         run(consumer, 'build', '-mod=readonly', './...')
         run(consumer, 'vet', '-mod=readonly', './...')
         output = run(consumer, 'run', '-mod=readonly', '.')

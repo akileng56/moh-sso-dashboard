@@ -1362,3 +1362,45 @@ Keycloak full and core fixtures. Real Redis verified typed cache behavior and
 the ten-per-user export limit; all seven read routes disappear when disabled
 while core event recording continues. Restart, backup/restore, worker
 stop/resume and full -> core -> full data preservation checks passed.
+
+### Self-contained Announcements — phase 1: PostgreSQL persistence
+
+Created `feat/self-contained-announcements` from the completed Audit integration.
+The Announcements candidate now owns all 53 persistence operations via
+`NewRepository(*sql.DB)`, private SQL records/queries, public-model mapping and
+audience replacement transactions. The caller supplies the primary pool and
+existing schema; the package neither opens/closes infrastructure nor runs
+migrations. Shared group/context rows and SMS notification preferences remain
+explicit platform schema prerequisites.
+
+The extracted persistence preserves lifecycle transitions, notification markers,
+append-only audience snapshots, attachment visibility/scoping, targeted feeds,
+nullable values and SQL error identity. All five replacement transactions
+preserve the original audience if a later insert fails. Transaction cleanup
+also defers rollback for an interrupted callback.
+
+Added an independent PostgreSQL consumer exercising all 53 operations, with
+deduplication, clearing, rollback after partial writes, enum/NULL handling,
+attachment deletion/email filters, active/public/targeted feed isolation,
+pagination, statistics, cancellation and caller-owned pool checks. Its disposable
+database uses a test-only snapshot of the existing schema. Client/user rollback
+checks inject failures through test-only triggers because those mappings have
+no production identity foreign key. Group/context rollback uses existing foreign
+keys; role rollback uses the existing length constraint.
+
+The package and PostgreSQL consumers run outside the source tree with workspaces
+and module downloads disabled. Their private caches contain only reviewed UUID
+and lib/pq artifacts. Both consumers preserve dependency metadata; the package
+verifier also checks the exact dependency graph, build, vet and uncached race
+tests. CI now runs the PostgreSQL consumer.
+
+Phase verification passed: independent package and race-enabled PostgreSQL
+consumers; all packaged Go modules; full host backend tests and vet; unchanged
+366-operation API contract; 12 catalogue regressions; workflow actionlint and
+whitespace checks.
+
+The host still selects Announcements v0.1.0; catalogue ownership remains
+`adapter`. No release tag, dependency pin or running deployment changes in this
+phase. Next: package-owned HTTP routes/DTOs and provider-capability wiring, with
+authorization, attachment and delivery behavior checked independently. Publish,
+pin and host-adapter removal follow that verification.
