@@ -1,5 +1,5 @@
 // Package announcements provides portable announcement lifecycle, audience,
-// attachment and delivery orchestration, plus PostgreSQL persistence.
+// attachment and delivery orchestration, PostgreSQL persistence and HTTP routes.
 //
 // Hosts authenticate and authorize callers, supply shared identity, storage and
 // delivery capabilities, and own infrastructure pools and migrations.

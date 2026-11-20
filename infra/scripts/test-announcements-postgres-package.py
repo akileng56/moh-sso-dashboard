@@ -15,7 +15,7 @@ MODULE_PATH = 'github.com/mohuganda/moh-sso-dashboard/backend/modules/announceme
 def run(*args, **kwargs):
     return subprocess.run(args, check=True, capture_output=True, text=True, **kwargs)
 
-def main():
+def main(consumer_source='testdata/postgres-consumer/main.go'):
     name = 'moh-announcements-test-' + secrets.token_hex(6)
     password = secrets.token_hex(24)
     image = os.environ.get('ANNOUNCEMENTS_POSTGRES_IMAGE', 'postgres:15-alpine')
@@ -49,7 +49,7 @@ def main():
                 MODULE_PATH + ' => ../module\n')
             sums = (root / 'module/go.sum').read_text()
             (consumer / 'go.sum').write_text(sums)
-            shutil.copyfile(root / 'module/testdata/postgres-consumer/main.go', consumer / 'main.go')
+            shutil.copyfile(root / 'module' / consumer_source, consumer / 'main.go')
             env = {**os.environ, 'GOWORK': 'off', 'GOTOOLCHAIN': 'local', 'GOPROXY': 'off'}
             cached = Path(run(go, 'env', 'GOMODCACHE').stdout.strip())
             private = root / 'private-module-cache'

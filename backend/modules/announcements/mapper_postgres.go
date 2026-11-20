@@ -1,6 +1,11 @@
 package announcements
 
-import db "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements/internal/postgres"
+import (
+	"database/sql"
+	"time"
+
+	db "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements/internal/postgres"
+)
 
 func toSQLAnnouncement(value Announcement) db.Announcement {
 	return db.Announcement{
@@ -166,8 +171,8 @@ func toSQLCreateAnnouncementParams(value CreateAnnouncementParams) db.CreateAnno
 		Priority:      value.Priority,
 		IsPinned:      value.IsPinned,
 		Status:        db.AnnouncementStatus(value.Status),
-		PublishAt:     value.PublishAt,
-		ExpiresAt:     value.ExpiresAt,
+		PublishAt:     utcSQLTime(value.PublishAt),
+		ExpiresAt:     utcSQLTime(value.ExpiresAt),
 		AudienceType:  db.AnnouncementAudienceType(value.AudienceType),
 		NotifyByEmail: value.NotifyByEmail,
 		NotifyBySms:   value.NotifyBySms,
@@ -359,7 +364,7 @@ func fromSQLListAnnouncementsForUserParams(value db.ListAnnouncementsForUserPara
 func toSQLScheduleAnnouncementParams(value ScheduleAnnouncementParams) db.ScheduleAnnouncementParams {
 	return db.ScheduleAnnouncementParams{
 		ID:        value.ID,
-		PublishAt: value.PublishAt,
+		PublishAt: utcSQLTime(value.PublishAt),
 		UpdatedBy: value.UpdatedBy,
 	}
 }
@@ -438,8 +443,8 @@ func toSQLUpdateAnnouncementParams(value UpdateAnnouncementParams) db.UpdateAnno
 		LinkLabel:     value.LinkLabel,
 		Priority:      value.Priority,
 		IsPinned:      value.IsPinned,
-		PublishAt:     value.PublishAt,
-		ExpiresAt:     value.ExpiresAt,
+		PublishAt:     utcSQLTime(value.PublishAt),
+		ExpiresAt:     utcSQLTime(value.ExpiresAt),
 		AudienceType:  db.AnnouncementAudienceType(value.AudienceType),
 		NotifyByEmail: value.NotifyByEmail,
 		NotifyBySms:   value.NotifyBySms,
@@ -484,4 +489,13 @@ func fromSQLUpdateAnnouncementStatusParams(value db.UpdateAnnouncementStatusPara
 		Status:    AnnouncementStatus(value.Status),
 		UpdatedBy: value.UpdatedBy,
 	}
+}
+
+// The existing schema stores lifecycle times as UTC timestamp without time zone.
+// Normalize bound instants so PostgreSQL does not discard an RFC3339 offset.
+func utcSQLTime(value sql.NullTime) sql.NullTime {
+	if value.Valid {
+		value.Time = value.Time.In(time.UTC)
+	}
+	return value
 }

@@ -72,10 +72,12 @@ func main() {
 		Level: a.AnnouncementLevelCRITICAL, Tag: text("tag"), LinkUrl: text("https://example.org"),
 		LinkLabel: text("Open"), Priority: 4, IsPinned: true, AudienceType: a.AnnouncementAudienceTypeALLUSERS,
 		NotifyByEmail: true, NotifyBySms: true, SmsMessage: text("SMS"), UpdatedBy: by,
+		PublishAt: sql.NullTime{Time: time.Date(2020, 1, 2, 12, 0, 0, 0, time.FixedZone("EAT", 3*3600)), Valid: true},
 	}))
 	check(item.Summary.String == "summary" && item.Level == a.AnnouncementLevelCRITICAL &&
 		item.LinkLabel.String == "Open" && item.NotifyByEmail && item.NotifyBySms &&
 		item.SmsMessage.String == "SMS" && item.UpdatedBy == by && item.Version == 2, "update lost values")
+	check(item.PublishAt.Valid && item.PublishAt.Time.Equal(time.Date(2020, 1, 2, 9, 0, 0, 0, time.UTC)), "timestamp offset lost")
 	item = must(r.SetPinned(ctx, item.ID, false, actor))
 	check(!item.IsPinned, "pin")
 	item = must(r.SetPriority(ctx, item.ID, 8, actor))

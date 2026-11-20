@@ -1404,3 +1404,57 @@ The host still selects Announcements v0.1.0; catalogue ownership remains
 phase. Next: package-owned HTTP routes/DTOs and provider-capability wiring, with
 authorization, attachment and delivery behavior checked independently. Publish,
 pin and host-adapter removal follow that verification.
+
+### Self-contained Announcements — phase 2: HTTP and provider composition
+
+Created `feat/announcements-http-providers` from persistence commit `cc46893c`.
+The candidate now owns all 26 HTTP operations, request/response DTOs, mapping,
+attachment streaming and OpenAPI metadata. `NewModule`/`Register` compose the
+package repository and service with caller-owned `ServicePorts`, verified actor,
+administrator/permission checks, per-user rate enforcement and core audit
+recording. HTTP uses the standard library; dependencies remain UUID and lib/pq,
+with no Gin or dashboard imports.
+
+Required capabilities reject construction when missing and fail closed on
+runtime failure. Write and publish policies retain their names and 60/minute
+and 30/minute limits. Access checks precede body parsing/dependency use; policy
+headers override outer rate headers. Raw headers cannot supply actor identity.
+Identity/groups, context expansion, blob storage, notification delivery and
+attachment normalization remain shared supplied capabilities. Core audit and
+notification forwarding retain best-effort semantics; no delivery worker or
+atomic outbox is introduced.
+
+The extraction exposed existing audience-isolation gaps. Both candidate public
+feeds now select only live ALL_USERS announcements. Signed-in feeds filter
+verified user/role/client/group/context audiences before pagination, and explicit
+role/client selectors cannot grant access beyond verified claims. Protected
+downloads check live announcement visibility before opening a blob; admin
+downloads retain administrator/permission checks. Missing contextual/group
+resolution fails closed. These fixes apply to the candidate; the running host
+still uses its reviewed v0.1.0 pin until release integration.
+
+HTTP bodies have a configurable 16 MiB default bound, multipart files are
+cleaned up, MIME-encoded download filenames reject header injection and stream
+failures are reported without appending JSON. Publish requests accept optional
+bodies for both fixed-length and chunked transports. Offset-bearing lifecycle
+timestamps are normalized to UTC before PostgreSQL binding, fixing offset loss
+in the existing timestamp-without-time-zone columns; existing rows are not
+rewritten.
+
+The isolated race-enabled PostgreSQL HTTP consumer verifies all 26 operations,
+JSON/multipart uploads, stream download/deletion, scoped preview, audit events,
+email/SMS forwarding and eligible/ineligible audience visibility. Unit tests
+cover all protected-route denials before dependencies, exact rate policies and
+headers, required fields/body bounds, stream failures, metadata inventory and
+pagination across private pages. The 53-operation persistence consumer also
+checks timestamp-offset preservation. CI runs both PostgreSQL consumers.
+
+Verification passed: isolated package build/vet/uncached race and dependency
+graph checks with downloads disabled; both independent PostgreSQL consumers;
+all packaged Go modules; full host tests/vet; unchanged 366-operation API
+contract; 12 catalogue regressions; workflow actionlint and whitespace checks.
+No version is published or pushed in this phase. The host remains pinned to
+v0.1.0 with its adapters and catalogue ownership unchanged. Next: publish
+v0.2.0, verify its download/checksums and consumer, pin the dashboard, remove host
+feature implementations/adapters and verify authorization, optional-provider
+wiring and full/core disablement against real Keycloak.
