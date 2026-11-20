@@ -29,14 +29,12 @@ func (d denied) StatusCode() int { return int(d) }
 // AuthorizeAny reads only the verified context supplied by the registrar after
 // the platform authentication middleware. Request headers never create claims.
 func AuthorizeAny(r *http.Request, permissions ...string) error {
-	current, ok := r.Context().Value(accessKey{}).(access)
-	if !ok || !current.valid || current.actor.UserID == "" {
+	actor, valid := RequestAccess(r)
+	if !valid {
 		return denied(401)
 	}
-	for _, permission := range permissions {
-		if current.actor.HasPermission(authz.Permission(permission)) {
-			return nil
-		}
+	if core.HasAnyPermission(actor.Permissions, permissions...) {
+		return nil
 	}
 	return denied(403)
 }
