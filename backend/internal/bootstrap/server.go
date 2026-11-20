@@ -46,6 +46,7 @@ func runHTTPServer(
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(quit)
 
 	<-quit
 
@@ -62,5 +63,5 @@ func runHTTPServer(
 		appLogger.Error("Server shutdown error: ", err)
 	}
 
-	appLogger.Info("MOH SSO Dashboard exited cleanly")
+	appLogger.Info("HTTP server stopped; joining background workers")
 }

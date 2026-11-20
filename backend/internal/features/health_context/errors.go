@@ -1,12 +1,15 @@
 package health_context
 
-import "errors"
+import (
+	"errors"
+	"github.com/moh-sso-dashboard/core"
+)
 
 var (
 	ErrNotFound          = errors.New("health context not found")
 	ErrInvalidInput      = errors.New("invalid health context input")
 	ErrCycle             = errors.New("health context hierarchy cycle")
-	ErrContextForbidden  = errors.New("health context access denied")
+	ErrContextForbidden  = core.ErrContextForbidden
 	ErrInactiveContext   = errors.New("health context is inactive")
 	ErrInvalidAssignment = errors.New("invalid health context assignment")
 	ErrContextInUse      = errors.New("health context is in use")

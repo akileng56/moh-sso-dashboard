@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-BACKEND_FIELDS = {'id', 'stage', 'scope', 'moduleId', 'dependencies', 'workers', 'migrations', 'next'}
+BACKEND_FIELDS = {'id', 'stage', 'scope', 'moduleId', 'dependencies', 'workers', 'migrations', 'next', 'integration'}
 FRONTEND_FIELDS = {'package', 'kind', 'stage', 'backendFeatures'}
 STAGES = {'core', 'planned', 'registry-hosted', 'published'}
 INFRASTRUCTURE = {'primary-db', 'redis', 'keycloak', 'blob-storage', 'warehouse', 'observatory-db',
@@ -18,7 +18,7 @@ def strings(value):
 
 def load_catalog(root=ROOT):
     data = json.loads((root / 'docs/module-catalog.json').read_text())
-    if set(data) != {'schemaVersion', 'backend', 'frontend'} or data['schemaVersion'] != 1:
+    if set(data) != {'schemaVersion', 'backend', 'frontend'} or data['schemaVersion'] != 2:
         raise ValueError('Unsupported module catalogue schema')
     if not isinstance(data['backend'], list) or not isinstance(data['frontend'], list):
         raise ValueError('Module catalogue entries must be lists')
@@ -38,10 +38,30 @@ def load_catalog(root=ROOT):
         if module_id:
             runtime.add(module_id)
         backend[entry['id']] = entry
-    actual = {path.name for path in (root / 'backend/internal/features').iterdir() if path.is_dir() and not path.name.startswith('.')}
+    features = {path.name for path in (root / 'backend/internal/features').iterdir() if path.is_dir() and not path.name.startswith('.')}
+    adapter_root = root / 'backend/internal/adapters/modules'
+    adapters = {path.name for path in adapter_root.iterdir() if path.is_dir() and not path.name.startswith('.')} if adapter_root.is_dir() else set()
+    contained = {item['id'] for item in backend.values() if item['integration'] == 'self-contained'}
+    for item in backend.values():
+        expected = {'adapter', 'self-contained'} if item['stage'] == 'published' else {'host'}
+        if item['integration'] not in expected:
+            raise ValueError('Invalid backend integration ownership: ' + item['id'])
+        if item['integration'] == 'self-contained':
+            if item['id'] in adapters:
+                raise ValueError('Self-contained module retains a host adapter: ' + item['id'])
+            if not (root / 'backend/modules' / item['moduleId'] / 'go.mod').is_file():
+                raise ValueError('Self-contained module source is missing: ' + item['id'])
+    actual = features | adapters | contained
     if actual != set(backend):
         raise ValueError('Backend catalogue drift: missing=' + str(sorted(actual - backend.keys())) + ', stale=' + str(sorted(backend.keys() - actual)))
     for entry in backend.values():
+        if entry['stage'] == 'published':
+            if entry['id'] in features:
+                raise ValueError('Published module implementation retained under features: ' + entry['id'])
+            if entry['integration'] == 'adapter' and entry['id'] not in adapters:
+                raise ValueError('Published module host adapter is missing: ' + entry['id'])
+        elif entry['id'] in adapters or entry['id'] not in features:
+            raise ValueError('Unpublished feature must retain host feature ownership: ' + entry['id'])
         unknown = set(entry['dependencies']) - backend.keys() - INFRASTRUCTURE
         if unknown:
             raise ValueError('Unknown dependency for ' + entry['id'] + ': ' + str(sorted(unknown)))
@@ -80,12 +100,13 @@ def render(data, pins):
     lines = ['# Module coverage', '',
         'Generated from `docs/module-catalog.json`; update with `python3 infra/scripts/check-module-catalog.py --write`.', '',
         '`core` stays in the trusted host. `planned` still uses legacy wiring. `registry-hosted` uses the compiled registry but ships with the host version. `published` has independently versioned package artifacts.', '',
+        'Published backend modules own implementation in `backend/modules/<moduleId>`; remaining host HTTP/provider adapters live in `backend/internal/adapters/modules/<feature>`. Published modules must not retain directories in `backend/internal/features`.', '',
         'Registry integration does not imply independent Go packaging. Planned domains are tracked expansion work; their workers and migrations have not been transferred to the registry.', '',
         '## Backend', '',
-        '| Feature | Stage | Runtime ID | Scope | Dependencies | Workers | Migration owner | Next work |',
-        '| --- | --- | --- | --- | --- | --- | --- | --- |']
+        '| Feature | Stage | Integration | Runtime ID | Scope | Dependencies | Workers | Migration owner | Next work |',
+        '| --- | --- | --- | --- | --- | --- | --- | --- | --- |']
     for item in sorted(data['backend'], key=lambda entry: entry['id']):
-        values = [item['id'], item['stage'], item['moduleId'] or '—', item['scope'],
+        values = [item['id'], item['stage'], item['integration'], item['moduleId'] or '—', item['scope'],
                   ', '.join(item['dependencies']) or '—', ', '.join(item['workers']) or 'none', item['migrations'], item['next']]
         lines.append('| ' + ' | '.join(cell(value) for value in values) + ' |')
     lines += ['', '## Frontend', '',

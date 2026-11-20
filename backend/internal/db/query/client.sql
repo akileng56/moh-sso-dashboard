@@ -121,23 +121,6 @@ FROM client
 ORDER BY name ASC
 LIMIT sqlc.arg(page_limit) OFFSET sqlc.arg(page_offset);
 
--- name: RecentlyCreatedClients :many
-SELECT
-    id,
-    client_id,
-    name,
-    description,
-    base_url,
-    icon,
-    public_client,
-    enabled,
-    attributes,
-    created_at,
-    updated_at
-FROM client
-ORDER BY created_at DESC
-LIMIT sqlc.arg(row_limit);
-
 -- name: UpdateClient :exec
 UPDATE client
 SET
@@ -160,32 +143,6 @@ WHERE id = $1;
 -- name: DeleteClient :exec
 DELETE FROM client
 WHERE id = $1;
-
--- name: CountClients :one
-SELECT COUNT(*) 
-FROM client;
-
--- name: NewClientsInRange :many
-SELECT
-    id,
-    client_id,
-    name,
-    description,
-    base_url,
-    icon,
-    public_client,
-    enabled,
-    attributes,
-    created_at,
-    updated_at
-FROM client
-WHERE created_at BETWEEN sqlc.arg(start_time) AND sqlc.arg(end_time)
-ORDER BY created_at DESC;
-
--- name: CountEnabledClients :one
-SELECT COUNT(*)
-FROM client
-WHERE enabled = true;
 
 -- name: CountDisabledClients :one
 SELECT COUNT(*)

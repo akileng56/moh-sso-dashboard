@@ -1,6 +1,10 @@
 package authz
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/moh-sso-dashboard/core"
+)
 
 const (
 	RoleAdmin                = "admin"
@@ -476,17 +480,4 @@ func NormalizeRoles(roles []string) []string {
 	return normalized
 }
 
-func hasRole(roles []string, role string) bool {
-	role = strings.ToLower(strings.TrimSpace(role))
-	if role == "" {
-		return false
-	}
-
-	for _, current := range roles {
-		if strings.EqualFold(strings.TrimSpace(current), role) {
-			return true
-		}
-	}
-
-	return false
-}
+func hasRole(roles []string, role string) bool { return core.HasRole(roles, role) }

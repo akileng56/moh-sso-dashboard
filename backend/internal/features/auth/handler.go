@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/core"
 
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -39,12 +40,7 @@ const (
 	defaultSessionTTL = 30 * time.Minute
 )
 
-type sessionStore interface {
-	Create(context.Context, authsession.Data, time.Duration) (string, error)
-	Get(context.Context, string) (*authsession.Data, error)
-	Update(context.Context, string, authsession.Data, time.Duration) error
-	Delete(context.Context, string) error
-}
+type sessionStore = core.SessionStore[authsession.Data]
 
 type Handler struct {
 	authService           service.AuthService

@@ -9,7 +9,6 @@ import (
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/geography"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	"github.com/moh-sso-dashboard/internal/middleware"
@@ -46,6 +45,7 @@ func Run() {
 		Bool("dirty", build.Dirty).
 		Str("go_version", build.GoVersion).
 		Str("environment", cfg.Environment).
+		Str("profile", cfg.PlatformProfile).
 		Msg("starting MOH SSO Dashboard")
 
 	appLogger.Info(
@@ -74,13 +74,25 @@ func Run() {
 	if dbs.Primary == nil {
 		appLogger.Fatal("Failed to initialize databases: primary database connection is nil")
 	}
-	defer dbs.Close()
+	// Do not explicitly close pools underneath a worker that failed to join.
+	// Process termination still reclaims them after an unsuccessful shutdown.
+	resourcesJoined := true
+	defer func() {
+		if resourcesJoined {
+			dbs.Close()
+		}
+	}()
 
 	// ==================================================
 	// REDIS
 	// ==================================================
 	cacheRuntime := initCache(ctx, cfg)
 	rdb := cacheRuntime.Redis
+	defer func() {
+		if resourcesJoined {
+			rdb.Close()
+		}
+	}()
 	cacheAdapter := cacheRuntime.Cache
 	rateLimiter := cacheRuntime.RateLimiter
 
@@ -108,12 +120,15 @@ func Run() {
 	// ==================================================
 	// STORAGE
 	// ==================================================
-	fileStorage, err := storage.NewFileStorage(cfg.StorageProvider, cfg)
-	if err != nil {
-		appLogger.Fatal("Storage initialization failed: ", err)
+	var fileStorage storage.Storage
+	var storageFactory *storage.StorageFactory
+	if !cfg.CoreOnly() {
+		fileStorage, err = storage.NewFileStorage(cfg.StorageProvider, cfg)
+		if err != nil {
+			appLogger.Fatal("Storage initialization failed: ", err)
+		}
+		storageFactory = storage.NewStorageFactory(cfg)
 	}
-
-	storageFactory := storage.NewStorageFactory(cfg)
 
 	// ==================================================
 	// STORE
@@ -123,7 +138,10 @@ func Run() {
 	// ==================================================
 	// REPOSITORIES
 	// ==================================================
-	observatoryStore := geography.NewStore(storepkg.NewStore(dbs.Observatory), dbs.Primary, dbs.registry.Sync)
+	var observatoryStore storepkg.Store
+	if dbs.Observatory != nil && dbs.registry != nil {
+		observatoryStore = geography.NewStore(storepkg.NewStore(dbs.Observatory), dbs.Primary, dbs.registry.Sync)
+	}
 	repos := buildRepositories(cfg, store, observatoryStore, adminKC, webKC, appLogger)
 
 	// ==================================================
@@ -171,7 +189,7 @@ func Run() {
 		AuthzResolver:  authzResolver,
 	})
 
-	modules, err := router.NewModuleRegistry(handlers.Router, cfg.DisabledModules, rateLimiter, reportschedulerfeature.NewWorker(services.ReportScheduler, cfg.ReportSchedulerWorkerInterval, appLogger.Error))
+	modules, err := router.NewModuleRegistry(handlers.Router, cfg.EffectiveDisabledModules(), rateLimiter, schedulerWorker(cfg, services, appLogger))
 	if err != nil {
 		panic("invalid module configuration: " + err.Error())
 	}
@@ -184,11 +202,14 @@ func Run() {
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer shutdownCancel()
 		if err := stopModules(shutdownCtx); err != nil {
+			if shutdownCtx.Err() != nil {
+				resourcesJoined = false
+			}
 			appLogger.Error("Module shutdown failed: ", err)
 		}
 	}()
 
-	startBackgroundWorkers(ctx, workerDependencies{
+	stopWorkers, err := startBackgroundWorkers(ctx, workerDependencies{
 		PrimaryDB:                      dbs.Primary,
 		Config:                         cfg,
 		ProcessRepository:              repos.Processes,
@@ -204,6 +225,20 @@ func Run() {
 		DQADB:                          dbs.DQA,
 		DWHDB:                          dbs.DWH,
 	})
+
+	if err != nil {
+		panic("worker initialization failed: " + err.Error())
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer shutdownCancel()
+		if err := stopWorkers(shutdownCtx); err != nil {
+			if shutdownCtx.Err() != nil {
+				resourcesJoined = false
+			}
+			appLogger.Error("Worker shutdown failed: ", err)
+		}
+	}()
 
 	services.Notifications.NotifySystemStartup(ctx, cfg.Environment)
 

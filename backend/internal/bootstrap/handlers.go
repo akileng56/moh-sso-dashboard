@@ -4,15 +4,13 @@ import (
 	"context"
 	"strings"
 
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
-	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
 	authfeature "github.com/moh-sso-dashboard/internal/features/auth"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
@@ -20,13 +18,10 @@ import (
 	documenttemplatesfeature "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentsfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	surveillancefeature "github.com/moh-sso-dashboard/internal/features/surveillance"
@@ -34,7 +29,13 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	db "github.com/moh-sso-dashboard/internal/migrate"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
+	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/internal/storage"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -59,6 +60,9 @@ type handlerDependencies struct {
 }
 
 func buildHandlers(deps handlerDependencies) handlers {
+	if deps.Config.CoreOnly() {
+		return buildCoreHandlers(deps)
+	}
 	authHandler := authfeature.NewHandler(
 		deps.Services.Auth,
 		deps.Services.Audit,
@@ -69,8 +73,36 @@ func buildHandlers(deps handlerDependencies) handlers {
 	)
 	clientHandler := clientfeature.NewHandler(deps.Services.Clients, deps.Services.Audit, deps.Cache)
 	userHandler := userfeature.NewHandler(deps.Services.Users, deps.Services.Audit, deps.Cache)
-	metricsHandler := metricsfeature.NewHandler(deps.Services.Metrics)
-	auditHandler := auditfeature.NewHandler(auditfeature.NewService(auditfeature.NewRepository(deps.Store)), deps.Cache)
+	var metricsHandler *metricsfeature.Module
+	if deps.Config.ModuleEnabled("metrics") {
+		var err error
+		metricsHandler, err = metricsfeature.NewModule(metricsfeature.Dependencies{
+			Database: deps.Databases.Primary, RequireAdmin: modulehttp.RequireAdmin,
+			AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
+	// Preserve the optional-cache behavior when converting a concrete pointer to
+	// the feature's interface: a typed nil pointer must not become a non-nil port.
+	var auditCache auditfeature.Cache
+	if deps.Cache != nil {
+		auditCache = deps.Cache
+	}
+	var auditHandler *auditfeature.Module
+	if deps.Config.ModuleEnabled("audit") {
+		var err error
+		auditHandler, err = auditfeature.NewModule(auditfeature.Dependencies{
+			Database: deps.Databases.Primary, Cache: auditCache,
+			RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
+			LimitExport: modulehttp.PerUserLimit(ratelimit.New(deps.Redis)),
+			RequestID:   modulehttp.RequestID, StreamError: modulehttp.StreamError,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
 	notificationsHandler := notificationsfeature.NewHandler(deps.Services.Notifications, deps.Services.Audit)
 
 	documentHandler := documentsfeature.NewHandler(
@@ -89,21 +121,36 @@ func buildHandlers(deps handlerDependencies) handlers {
 	)
 	sessionHandler := sessionfeature.NewHandler(deps.Services.Sessions)
 	dataQualityHandler := dataqualityfeature.NewHandler(deps.Databases.DWH, deps.Databases.DQA, deps.Databases.Primary, deps.AdminKeycloak, deps.Services.Email, deps.Config)
-	announcementHandler := announcementfeature.NewHandler(
-		deps.Services.Announcements,
-		deps.Services.Audit,
-	)
-	adminunitsHandler := adminunitsfeature.NewHandler(
-		deps.Config,
-		deps.Databases.DWH,
-		deps.Services.HealthContexts,
-	)
+	announcementHandler := buildAnnouncementsModule(deps)
+
+	var adminunitsHandler *adminunitsfeature.Module
+	if deps.Config.ModuleEnabled("admin-units") {
+		var err error
+		adminunitsHandler, err = adminunitsfeature.NewModule(adminunitsfeature.Dependencies{
+			Database:      deps.Databases.DWH,
+			RequireSystem: modulehttp.RequireSystem, AuthorizeAny: modulehttp.AuthorizeAny,
+			SelectContext:   deps.Services.HealthContexts.SelectContextHTTP,
+			ContextNodeCode: deps.Services.HealthContexts.NodeCode,
+			ContextAliases:  deps.Services.HealthContexts.AliasIDs,
+			RequestID:       modulehttp.RequestID,
+		})
+		if err != nil {
+			panic(err)
+		}
+	}
 	visualiserHandler := visualiserfeature.NewHandler(
 		deps.Config,
 		deps.Databases.DWH,
 		deps.Services.HealthContexts,
 	)
-	geoJSONHandler := geojsonfeature.NewHandler("./assets/geojson")
+	var geoJSONHandler *geojsonfeature.Module
+	if deps.Config.ModuleEnabled("geojson") {
+		var err error
+		geoJSONHandler, err = geojsonfeature.NewModule(geojsonfeature.Dependencies{AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID})
+		if err != nil {
+			panic(err)
+		}
+	}
 	emailHandler := emailfeature.NewHandler(deps.Services.EmailFeature)
 	rbacHandler := rbacfeature.NewHandler(deps.Services.RBAC)
 	healthContextHandler := healthcontextfeature.NewHandler(
@@ -157,7 +204,8 @@ func buildHandlers(deps handlerDependencies) handlers {
 		Router: router.HandlerSet{
 			Platform: &platformfeature.Handler{
 				WorkerStaleAfter: 3 * deps.Config.NotificationDelivery.WorkerInterval,
-				Repository:       &platformfeature.PostgresRepository{DB: deps.Databases.Primary},
+				CoreReady:        healthHandler.CheckCore, RequiredWorkers: enabledDeliveryWorkers(deps.Config),
+				Repository: &platformfeature.PostgresRepository{DB: deps.Databases.Primary},
 				Verifier: &platformfeature.Introspector{
 					Endpoint: strings.TrimRight(deps.Config.KeycloakTokenBaseURL(), "/") + "/realms/" + deps.Config.KeycloakRealm + "/protocol/openid-connect/token/introspect",
 					Issuer:   strings.TrimRight(deps.Config.KeycloakExternalURL, "/") + "/realms/" + deps.Config.KeycloakRealm,

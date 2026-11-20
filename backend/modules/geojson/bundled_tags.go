@@ -1,0 +1,9 @@
+package geojson
+
+// Content identities for the versioned embedded snapshots. Tests verify these
+// against the actual bytes; conditional reads never rely on checkout mtimes.
+var bundledETags = map[string]string{
+	"uga_water.geojson":          "\"fb90a5222f6737964a61e734d48ad694ae6d070f1f908fa5ecf51efe8480cc15\"",
+	"uganda_districts.geojson":   "\"4ba144558eb61c40158fba23ce1dd333602a532c016bfe5f92d029adacaddf73\"",
+	"uganda_subcounties.geojson": "\"e35141ba72d506d1cb3ef8fed8c9356bb7b1aec23c43501ca09fc3ddabfaa429\"",
+}

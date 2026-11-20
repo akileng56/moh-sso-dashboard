@@ -1,21 +1,16 @@
 package routes
 
 import (
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
-	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	authfeature "github.com/moh-sso-dashboard/internal/features/auth"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	dataqualityfeature "github.com/moh-sso-dashboard/internal/features/data_quality"
 	documenttemplatesfeature "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentsfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	surveillancefeature "github.com/moh-sso-dashboard/internal/features/surveillance"
@@ -23,6 +18,10 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
 
 type Dependencies struct {
@@ -32,8 +31,8 @@ type Dependencies struct {
 	Auth                    *authfeature.Handler
 	Clients                 *clientfeature.Handler
 	Users                   *userfeature.Handler
-	Metrics                 *metricsfeature.Handler
-	Audit                   *auditfeature.Handler
+	Metrics                 *metricsfeature.Module
+	Audit                   *auditfeature.Module
 	Notifications           *notificationsfeature.Handler
 	Documents               *documentsfeature.Handler
 	DocumentTemplates       *documenttemplatesfeature.Handler
@@ -42,15 +41,15 @@ type Dependencies struct {
 	StorageLocations        *storagelocationfeature.Handler
 	Sessions                *sessionfeature.Handler
 	DataQuality             *dataqualityfeature.Handler
-	Announcements           *announcementfeature.Handler
-	AdminUnits              *adminunitsfeature.Handler
-	Visualiser              *visualiserfeature.Handler
-	Surveillance            *surveillancefeature.Handler
-	GeoJSON                 *geojsonfeature.Handler
-	Email                   *emailfeature.Handler
-	RBAC                    *rbacfeature.Handler
-	HealthContexts          *healthcontextfeature.Handler
-	ReportScheduler         *reportschedulerfeature.Handler
+
+	AdminUnits      *adminunitsfeature.Module
+	Visualiser      *visualiserfeature.Handler
+	Surveillance    *surveillancefeature.Handler
+	GeoJSON         *geojsonfeature.Module
+	Email           *emailfeature.Handler
+	RBAC            *rbacfeature.Handler
+	HealthContexts  *healthcontextfeature.Handler
+	ReportScheduler *reportschedulerfeature.Handler
 
 	AuthenticatedRateLimitPerMin  int
 	AuthLoginRateLimitPerMin      int

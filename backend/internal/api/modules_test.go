@@ -2,18 +2,19 @@ package router
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/gin-gonic/gin"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	"github.com/moh-sso-dashboard/internal/http/response"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/module"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 )
 
 func TestModuleConfiguration(t *testing.T) {
@@ -32,7 +33,7 @@ func TestModuleConfiguration(t *testing.T) {
 func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, disabled := range []string{"", " metrics "} {
-		registry, err := NewModuleRegistry(HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: &auditfeature.Handler{}, GeoJSON: &geojsonfeature.Handler{}}, disabled+",report-scheduler", nil, nil)
+		registry, err := NewModuleRegistry(HandlerSet{Metrics: testMetricsModule(t), Audit: testAuditModule(t, auditReadFixture{}), GeoJSON: testGeoJSONModule(t, "")}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,7 +63,7 @@ func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 				if err := json.Unmarshal(res.Body.Bytes(), &body); err != nil {
 					t.Fatal(err)
 				}
-				if !body.Success || len(body.Data) != 4 || body.Data[0].Enabled != (disabled == "") {
+				if !body.Success || len(body.Data) != 6 || body.Data[0].Enabled != (disabled == "") {
 					t.Fatalf("unexpected inventory: %s", res.Body.String())
 				}
 			}
@@ -76,4 +77,33 @@ func TestMetricsModuleRoutesAndInventory(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Required platform capabilities are not optional business module IDs.
+func TestRequiredPlatformCapabilitiesCannotBeDisabledAsModules(t *testing.T) {
+	for _, id := range []string{"auth", "authsession", "sessions", "rbac", "system_rbac", "health_context", "platform"} {
+		if _, err := NewModuleRegistry(HandlerSet{}, id, nil, nil); err == nil {
+			t.Fatalf("required capability %s accepted as a disabled optional module", id)
+		}
+	}
+}
+
+func testGeoJSONModule(t *testing.T, directory string) *geojsonfeature.Module {
+	t.Helper()
+	item, err := geojsonfeature.NewModule(geojsonfeature.Dependencies{Directory: directory, AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return item
+}
+
+func testMetricsModule(t *testing.T) *metricsfeature.Module {
+	t.Helper()
+	m, err := metricsfeature.NewModule(metricsfeature.Dependencies{
+		Database: new(sql.DB), RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny, RequestID: modulehttp.RequestID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

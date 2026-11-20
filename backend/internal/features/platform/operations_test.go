@@ -2,9 +2,11 @@ package platform
 
 import (
 	"context"
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -45,5 +47,53 @@ func TestReadinessRequiresBothActualWorkersAndOperationsAllowsReadOnlyGovernance
 	}
 	if code := request("/api/v1/admin/platform/applications/pilot/operations"); code != 200 {
 		t.Fatal("read-only operator required write privileges", code)
+	}
+}
+
+type profileHealthRepository struct {
+	operationsTestRepository
+	calls int
+}
+
+func (r *profileHealthRepository) WorkerHealth(ctx context.Context, stale time.Duration) ([]WorkerHealth, error) {
+	r.calls++
+	return r.operationsTestRepository.WorkerHealth(ctx, stale)
+}
+func TestProfileReadinessRequiresOnlyEnabledWorkersAndMandatoryCore(t *testing.T) {
+	repo := &profileHealthRepository{operationsTestRepository: operationsTestRepository{
+		health: []WorkerHealth{{Name: "email-outbox", Healthy: true}, {Name: "notification-email", Healthy: false}},
+	}}
+	h := &Handler{Repository: repo, RequiredWorkers: []string{}, CoreReady: func(context.Context) error { return nil }}
+	r := gin.New()
+	r.GET("/ready", h.GetReadiness)
+	request := func() int {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", "/ready", nil))
+		return w.Code
+	}
+	if code := request(); code != 200 || repo.calls != 0 {
+		t.Fatal("core-only readiness queried disabled workers", code, repo.calls)
+	}
+	h.RequiredWorkers = []string{"email-outbox"}
+	if code := request(); code != 200 {
+		t.Fatal("disabled notification worker gated readiness", code)
+	}
+	h.RequiredWorkers = []string{"missing-worker"}
+	if code := request(); code != 503 {
+		t.Fatal("missing enabled worker reported healthy", code)
+	}
+	h.RequiredWorkers = []string{}
+	h.CoreReady = func(context.Context) error { return errors.New("primary down") }
+	if code := request(); code != 503 {
+		t.Fatal("mandatory failure reported ready", code)
+	}
+	delivery := false
+	h.DeliveryEnabled = &delivery
+	routes := gin.New()
+	RegisterRoutes(routes.Group("/api/v1"), routes.Group("/api/v1"), h, nil)
+	for _, route := range routes.Routes() {
+		if strings.Contains(route.Path, "/platform/notifications") {
+			t.Fatal("disabled delivery route registered", route.Path)
+		}
 	}
 }

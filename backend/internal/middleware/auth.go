@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moh-sso-dashboard/core"
 
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -39,13 +40,8 @@ func ExtractAuthContext(
 			return
 		}
 
-		authContext := authz.NewContextWithResolver(
-			c.Request.Context(),
-			resolver,
-			user.ID,
-			user.RealmRoles,
-			user.ClientRoles,
-		)
+		authContext := authz.NewContextForIdentity(c.Request.Context(), resolver,
+			core.Identity{Subject: user.ID, RealmRoles: user.RealmRoles, ClientRoles: user.ClientRoles})
 
 		c.Set("access_token", accessToken)
 		c.Set(authz.ContextKey, authContext)

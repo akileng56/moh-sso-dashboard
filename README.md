@@ -325,9 +325,9 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 
 | Feature | Backend folder | Notes |
 | --- | --- | --- |
-| Admin units | `features/admin_units` | Visualizer administrative unit lookup endpoints. |
+| Admin units | `modules/admin-units` (published v0.2.0) | Self-contained warehouse queries, context filtering and nine visualizer HTTP endpoints. |
 | Announcements | `features/announcements` | Announcement lifecycle, targeting, email triggers, and persistent attachments. |
-| Audit | `features/audit` | Audit log search, export, and audit metrics. |
+| Audit | `modules/audit` (published v0.2.0) | Self-contained read queries, cached search and export APIs; core event recording stays in `internal/service/audit_recorder.go`. |
 | Auth | `features/auth` | Keycloak login, callback, session refresh, logout, and current user profile. |
 | Clients | `features/clients` | Keycloak clients as portal systems and client roles. |
 | Data quality | `features/data_quality` | Data quality issue and transaction APIs. |
@@ -335,7 +335,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 | Documents | `features/documents` | Document metadata, upload, view, download, process history, and reprocess. |
 | Email | `features/email` | Email send, queue, retry, listing, and delete. |
 | GeoJSON | `features/geojson` | GeoJSON assets for maps. |
-| Metrics | `features/metrics` | Admin metrics for users, clients, logins, and security. |
+| Metrics | `modules/metrics` (published v0.2.0) | Self-contained admin HTTP/API contracts and PostgreSQL reads for users, clients, logins and security. |
 | Notifications | `features/notifications` | Notifications, unread counts, read state, delivery history, retry, cleanup, and deletion. |
 | RBAC | `features/rbac` | System-aware RBAC, Keycloak sync, drift, permissions, roles, and user access. |
 | Sessions | `features/sessions` | Current user sessions and logout. |

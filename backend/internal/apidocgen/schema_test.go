@@ -39,9 +39,38 @@ func TestSchedulerExtractionPreservesPublicSchemaNames(t *testing.T) {
 		schemas := &schemas{definitions: object{}}
 		return object{"reference": schemas.of(record), "definitions": schemas.definitions}
 	}
-	legacy := schemasFor("github.com/moh-sso-dashboard/internal/features/report_scheduler", "report_scheduler")
+	legacy := schemasFor("github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler", "report_scheduler")
 	extracted := schemasFor(scheduler.ModulePath, "reportscheduler")
 	if !reflect.DeepEqual(legacy, extracted) {
 		t.Fatalf("scheduler schema changed after extraction: old=%v new=%v", legacy, extracted)
+	}
+}
+
+func TestPublishedModuleSchemasMergeAndRejectCollisions(t *testing.T) {
+	definitions := object{}
+	operations, err := moduleOperations(definitions)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"OrgUnitFull", "Facility", "OrgUnitSimple", "TreeNode"} {
+		if definitions["admin_units."+name] == nil {
+			t.Fatal("missing module-owned schema", name)
+		}
+	}
+	full := definitions["admin_units.OrgUnitFull"].(map[string]any)
+	properties := full["properties"].(map[string]any)
+	if properties["org_unit_id"].(map[string]any)["nullable"] != true {
+		t.Fatal("lost nullable ID")
+	}
+	tree := definitions["admin_units.TreeNode"].(map[string]any)
+	children := tree["properties"].(map[string]any)["children"].(map[string]any)
+	if children["items"].(map[string]any)["$ref"] != "#/components/schemas/admin_units.TreeNode" {
+		t.Fatal("recursive hierarchy schema lost")
+	}
+	if len(operations) != 62 {
+		t.Fatal("expected 26 Announcements, seven Audit, 19 Metrics, nine unit and one GeoJSON routes", len(operations))
+	}
+	if _, err := moduleOperations(object{"admin_units.TreeNode": "collision"}); err == nil {
+		t.Fatal("module schema conflict silently accepted")
 	}
 }

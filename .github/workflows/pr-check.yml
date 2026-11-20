@@ -131,6 +131,15 @@ jobs:
           sqlc generate
           git diff --exit-code -- internal/db/sqlc
 
+      - name: Warm reviewed Go dependency caches
+        working-directory: backend
+        run: |
+          go mod download
+          go list -mod=readonly -m all > /dev/null
+          for manifest in modules/*/go.mod; do
+            (cd "$(dirname "$manifest")" && GOWORK=off go mod download && GOWORK=off go list -mod=readonly -m all > /dev/null)
+          done
+
       - name: Module coverage catalogue and guide
         run: |
           python3 infra/scripts/check-module-catalog.py
@@ -140,9 +149,53 @@ jobs:
         working-directory: backend
         run: go vet ./...
 
+      - name: Platform core dependency boundary and lifecycle
+        run: python3 infra/scripts/test-platform-core.py
+
       - name: Independent Go modules
         working-directory: backend
         run: make modules-check
+
+      - name: Standalone Metrics package, HTTP consumer and PostgreSQL reads
+        run: python3 infra/scripts/test-metrics-package.py --postgres
+
+      - name: Published self-contained Metrics release
+        run: python3 infra/scripts/test-metrics-release.py
+
+      - name: Standalone Audit read package
+        run: python3 infra/scripts/test-audit-package.py
+
+      - name: Published self-contained Audit release
+        run: python3 infra/scripts/test-audit-release.py
+
+      - name: Self-contained Audit HTTP and PostgreSQL package
+        run: python3 infra/scripts/test-audit-http-package.py --postgres
+
+      - name: Standalone GeoJSON package
+        run: python3 infra/scripts/test-geojson-package.py
+
+      - name: Published self-contained GeoJSON release
+        run: python3 infra/scripts/test-geojson-release.py
+
+      - name: Standalone Administrative Units package and external consumer
+        run: python3 infra/scripts/test-admin-units-package.py
+      - name: Published self-contained Administrative Units release
+        run: python3 infra/scripts/test-admin-units-release.py
+
+      - name: Verify Administrative Units PostgreSQL package
+        run: python3 infra/scripts/test-admin-units-postgres.py
+
+      - name: Standalone Announcements package and external consumer
+        run: python3 infra/scripts/test-announcements-package.py
+
+      - name: Published self-contained Announcements release
+        run: python3 infra/scripts/test-announcements-release.py
+
+      - name: Verify standalone Announcements PostgreSQL persistence
+        run: python3 infra/scripts/test-announcements-postgres-package.py
+
+      - name: Verify standalone Announcements HTTP and provider composition
+        run: python3 infra/scripts/test-announcements-http-package.py
 
       - name: Standalone Report Scheduler schema and claims
         run: python3 infra/scripts/test-report-scheduler-package.py

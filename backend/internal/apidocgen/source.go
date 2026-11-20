@@ -43,7 +43,7 @@ func functionKey(obj *types.Func) string {
 
 func loadSources(dir string) (*sources, error) {
 	pkgs, err := packages.Load(&packages.Config{Dir: dir, Mode: packages.NeedName | packages.NeedFiles | packages.NeedSyntax | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedImports},
-		"./internal/features/...", "./internal/api/handler", "./internal/utils", "./internal/http/...", metricsmodule.ModulePath)
+		"./internal/features/...", "./internal/adapters/modules/...", "./internal/api/handler", "./internal/utils", "./internal/http/...", metricsmodule.ModulePath)
 	if err != nil {
 		return nil, err
 	}

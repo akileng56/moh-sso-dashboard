@@ -1,21 +1,25 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "backend": [
     {
       "id": "admin_units",
-      "stage": "planned",
+      "stage": "published",
       "scope": "Administrative geography API",
-      "moduleId": "",
-      "dependencies": ["health_context", "primary-db"],
+      "moduleId": "admin-units",
+      "dependencies": [
+        "health_context",
+        "warehouse"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Inject health-context visibility and administrative-geography repository ports before registry migration."
+      "next": "Maintain published HTTP, warehouse queries and context filtering in the module; select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "announcements",
-      "stage": "planned",
+      "stage": "published",
       "scope": "Announcements and audience delivery",
-      "moduleId": "",
+      "moduleId": "announcements",
       "dependencies": [
         "users",
         "rbac",
@@ -26,67 +30,99 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Separate audience, attachment and delivery ports; preserve public/protected/admin route groups and publication behavior."
+      "next": "Maintain published HTTP, persistence, audience policy and delivery orchestration in the module; supply shared platform capabilities and select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "audit",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Audit read, metrics and export APIs only",
       "moduleId": "audit",
-      "dependencies": ["primary-db", "redis", "rbac", "host-audit-recorder"],
+      "dependencies": [
+        "primary-db",
+        "redis",
+        "rbac",
+        "host-audit-recorder"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Define public cache/repository ports and response contracts before independent packaging. Core event recording remains in the host."
+      "next": "Maintain published read HTTP/SQL/cache/export behavior; keep core event recording and migrations in the platform and select reviewed Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "auth",
       "stage": "core",
       "scope": "OIDC login, callback and token lifecycle",
       "moduleId": "",
-      "dependencies": ["keycloak", "authsession", "host-audit-recorder"],
+      "dependencies": [
+        "keycloak",
+        "authsession",
+        "host-audit-recorder"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Keep authentication in the trusted host; extensions consume authenticated groups and injected identity."
+      "next": "Keep authentication in the trusted host; extensions consume authenticated groups and injected identity.",
+      "integration": "host"
     },
     {
       "id": "authsession",
       "stage": "core",
       "scope": "Opaque browser-session backing store",
       "moduleId": "",
-      "dependencies": ["redis"],
+      "dependencies": [
+        "redis"
+      ],
       "workers": [],
       "migrations": "none",
-      "next": "Retain with authentication; do not expose stored tokens through module contracts."
+      "next": "Retain with authentication; do not expose stored tokens through module contracts.",
+      "integration": "host"
     },
     {
       "id": "clients",
       "stage": "planned",
       "scope": "Keycloak application/client administration",
       "moduleId": "",
-      "dependencies": ["keycloak", "rbac", "host-audit-recorder"],
+      "dependencies": [
+        "keycloak",
+        "rbac",
+        "host-audit-recorder"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Separate Keycloak provisioning, local registry and audit ports while retaining governance checks."
+      "next": "Separate Keycloak provisioning, local registry and audit ports while retaining governance checks.",
+      "integration": "host"
     },
     {
       "id": "data_quality",
       "stage": "planned",
       "scope": "DQA rules, results and schedules",
       "moduleId": "",
-      "dependencies": ["warehouse", "health_context", "primary-db"],
-      "workers": ["host DQA schedule worker"],
+      "dependencies": [
+        "warehouse",
+        "health_context",
+        "primary-db"
+      ],
+      "workers": [
+        "host DQA schedule worker"
+      ],
       "migrations": "core and warehouse",
-      "next": "Define DQA migration ownership and a joined worker stop/readiness contract before enabling module disablement."
+      "next": "Define DQA migration ownership and a joined worker stop/readiness contract before enabling module disablement.",
+      "integration": "host"
     },
     {
       "id": "document_templates",
       "stage": "planned",
       "scope": "Template, sheet and column APIs",
       "moduleId": "",
-      "dependencies": ["primary-db", "blob-storage", "host-audit-recorder"],
+      "dependencies": [
+        "primary-db",
+        "blob-storage",
+        "host-audit-recorder"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Keep all three handler families together and define template/storage ports and publication permissions."
+      "next": "Keep all three handler families together and define template/storage ports and publication permissions.",
+      "integration": "host"
     },
     {
       "id": "documents",
@@ -100,82 +136,122 @@
         "upload-db",
         "notifications"
       ],
-      "workers": ["host document processing worker"],
+      "workers": [
+        "host document processing worker"
+      ],
       "migrations": "core and upload database",
-      "next": "Move job claims, cancellation, readiness and shutdown with the domain; define storage and processor ports first."
+      "next": "Move job claims, cancellation, readiness and shutdown with the domain; define storage and processor ports first.",
+      "integration": "host"
     },
     {
       "id": "email",
       "stage": "planned",
       "scope": "Email administration and recipient resolution",
       "moduleId": "",
-      "dependencies": ["rbac", "users", "health_context", "smtp", "primary-db"],
-      "workers": ["host email outbox worker"],
+      "dependencies": [
+        "rbac",
+        "users",
+        "health_context",
+        "smtp",
+        "primary-db"
+      ],
+      "workers": [
+        "host email outbox worker"
+      ],
       "migrations": "core",
-      "next": "Separate recipient resolution and SMTP ports; preserve retry/idempotence and migrate outbox worker ownership."
+      "next": "Separate recipient resolution and SMTP ports; preserve retry/idempotence and migrate outbox worker ownership.",
+      "integration": "host"
     },
     {
       "id": "geojson",
-      "stage": "registry-hosted",
+      "stage": "published",
       "scope": "Permission-guarded map asset serving",
       "moduleId": "geojson",
-      "dependencies": ["geojson-assets", "rbac"],
+      "dependencies": [],
       "workers": [],
       "migrations": "none",
-      "next": "Define a public asset-reader and authorization contract before independent packaging; preserve the filename allowlist."
+      "next": "Publish module-owned HTTP/assets changes independently; consume reviewed Go pins through shared platform registration.",
+      "integration": "self-contained"
     },
     {
       "id": "health_context",
       "stage": "core",
       "scope": "Shared contextual scope and geography policy",
       "moduleId": "",
-      "dependencies": ["primary-db", "observatory-db", "rbac"],
-      "workers": ["host Observatory readiness and geography replication"],
+      "dependencies": [
+        "primary-db",
+        "observatory-db",
+        "rbac"
+      ],
+      "workers": [
+        "host Observatory readiness and geography replication"
+      ],
       "migrations": "core and Observatory",
-      "next": "Keep shared access policy in the host; modules receive contextual authorization/repository ports."
+      "next": "Keep shared access policy in the host; modules receive contextual authorization/repository ports.",
+      "integration": "host"
     },
     {
       "id": "metrics",
       "stage": "published",
       "scope": "Dashboard metrics service and guarded APIs",
       "moduleId": "metrics",
-      "dependencies": ["primary-db", "rbac"],
+      "dependencies": [
+        "primary-db",
+        "rbac"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Use the published v0.1.0 package as the independent-module reference; change its pin only after release verification."
+      "next": "Maintain published HTTP, DTOs and PostgreSQL reads in the module; select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "notifications",
       "stage": "planned",
       "scope": "In-app, email and SMS delivery orchestration",
       "moduleId": "",
-      "dependencies": ["primary-db", "email", "sms", "host-audit-recorder"],
+      "dependencies": [
+        "primary-db",
+        "email",
+        "sms",
+        "host-audit-recorder"
+      ],
       "workers": [
         "host notification email delivery",
         "host notification SMS delivery"
       ],
       "migrations": "core",
-      "next": "Define delivery/provider and event ports and transfer all retry workers with bounded cancellation and cleanup."
+      "next": "Define delivery/provider and event ports and transfer all retry workers with bounded cancellation and cleanup.",
+      "integration": "host"
     },
     {
       "id": "platform",
       "stage": "core",
       "scope": "Platform inventory, introspection and operations API",
       "moduleId": "",
-      "dependencies": ["primary-db", "keycloak", "rbac"],
+      "dependencies": [
+        "primary-db",
+        "keycloak",
+        "rbac"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Retain platform trust and module lifecycle controls in the host."
+      "next": "Retain platform trust and module lifecycle controls in the host.",
+      "integration": "host"
     },
     {
       "id": "rbac",
       "stage": "core",
       "scope": "Application registry, governance and permissions",
       "moduleId": "",
-      "dependencies": ["primary-db", "keycloak", "system_rbac"],
+      "dependencies": [
+        "primary-db",
+        "keycloak",
+        "system_rbac"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Keep authoritative permission resolution, manifest review and lifecycle governance in the host."
+      "next": "Keep authoritative permission resolution, manifest review and lifecycle governance in the host.",
+      "integration": "host"
     },
     {
       "id": "report_scheduler",
@@ -197,27 +273,38 @@
         "registry-owned report scheduler worker"
       ],
       "migrations": "core",
-      "next": "Maintain host HTTP/platform adapters and core migrations; release scheduler changes independently and update the reviewed Go dependency pin."
+      "next": "Maintain host HTTP/platform adapters and core migrations; release scheduler changes independently and update the reviewed Go dependency pin.",
+      "integration": "adapter"
     },
     {
       "id": "sessions",
       "stage": "core",
       "scope": "Authenticated session management and revocation",
       "moduleId": "",
-      "dependencies": ["keycloak", "authsession", "rbac"],
+      "dependencies": [
+        "keycloak",
+        "authsession",
+        "rbac"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Retain revocation and session guarantees alongside host authentication."
+      "next": "Retain revocation and session guarantees alongside host authentication.",
+      "integration": "host"
     },
     {
       "id": "storage_locations",
       "stage": "planned",
       "scope": "Storage configuration and location administration",
       "moduleId": "",
-      "dependencies": ["primary-db", "blob-storage", "host-audit-recorder"],
+      "dependencies": [
+        "primary-db",
+        "blob-storage",
+        "host-audit-recorder"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Define storage-factory/secret references without leaking credentials; preserve document consumers."
+      "next": "Define storage-factory/secret references without leaking credentials; preserve document consumers.",
+      "integration": "host"
     },
     {
       "id": "surveillance",
@@ -232,17 +319,22 @@
       ],
       "workers": [],
       "migrations": "core and Observatory",
-      "next": "Review primary/Observatory repository boundaries and schema ownership before packaging routes."
+      "next": "Review primary/Observatory repository boundaries and schema ownership before packaging routes.",
+      "integration": "host"
     },
     {
       "id": "system_rbac",
       "stage": "core",
       "scope": "Seed application and system behavior policy",
       "moduleId": "",
-      "dependencies": ["primary-db", "health_context"],
+      "dependencies": [
+        "primary-db",
+        "health_context"
+      ],
       "workers": [],
       "migrations": "core",
-      "next": "Retain bootstrap policy and manifest configuration precedence in the host."
+      "next": "Retain bootstrap policy and manifest configuration precedence in the host.",
+      "integration": "host"
     },
     {
       "id": "users",
@@ -257,17 +349,22 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Define identity/import and delivery ports while preserving user synchronization and existing role checks."
+      "next": "Define identity/import and delivery ports while preserving user synchronization and existing role checks.",
+      "integration": "host"
     },
     {
       "id": "visualiser",
       "stage": "planned",
       "scope": "Warehouse visualisation and query APIs",
       "moduleId": "",
-      "dependencies": ["warehouse", "health_context"],
+      "dependencies": [
+        "warehouse",
+        "health_context"
+      ],
       "workers": [],
       "migrations": "external warehouse",
-      "next": "Inject query and contextual-scope ports; retain warehouse failure/readiness behavior."
+      "next": "Inject query and contextual-scope ports; retain warehouse failure/readiness behavior.",
+      "integration": "host"
     }
   ],
   "frontend": [
@@ -275,31 +372,42 @@
       "package": "@moh-sso/announcements",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["announcements"]
+      "backendFeatures": [
+        "announcements"
+      ]
     },
     {
       "package": "@moh-sso/audit",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["audit"]
+      "backendFeatures": [
+        "audit"
+      ]
     },
     {
       "package": "@moh-sso/clients",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["clients", "rbac"]
+      "backendFeatures": [
+        "clients",
+        "rbac"
+      ]
     },
     {
       "package": "@moh-sso/data-validation",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["data_quality"]
+      "backendFeatures": [
+        "data_quality"
+      ]
     },
     {
       "package": "@moh-sso/data-visualizer",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["visualiser"]
+      "backendFeatures": [
+        "visualiser"
+      ]
     },
     {
       "package": "@moh-sso/documents",
@@ -315,25 +423,35 @@
       "package": "@moh-sso/e-services",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["clients", "rbac"]
+      "backendFeatures": [
+        "clients",
+        "rbac"
+      ]
     },
     {
       "package": "@moh-sso/email",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["email"]
+      "backendFeatures": [
+        "email"
+      ]
     },
     {
       "package": "@moh-sso/issue-tracker",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["data_quality"]
+      "backendFeatures": [
+        "data_quality"
+      ]
     },
     {
       "package": "@moh-sso/rbac",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["rbac", "health_context"]
+      "backendFeatures": [
+        "rbac",
+        "health_context"
+      ]
     },
     {
       "package": "@moh-sso/report-browser",
@@ -345,19 +463,26 @@
       "package": "@moh-sso/report-scheduler",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["report_scheduler"]
+      "backendFeatures": [
+        "report_scheduler"
+      ]
     },
     {
       "package": "@moh-sso/surveillance",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["surveillance", "geojson"]
+      "backendFeatures": [
+        "surveillance",
+        "geojson"
+      ]
     },
     {
       "package": "@moh-sso/users",
       "kind": "application",
       "stage": "published",
-      "backendFeatures": ["users"]
+      "backendFeatures": [
+        "users"
+      ]
     },
     {
       "package": "@moh-sso/utilities",
@@ -375,7 +500,10 @@
       "package": "@moh-sso/auth",
       "kind": "shared",
       "stage": "published",
-      "backendFeatures": ["auth", "authsession"]
+      "backendFeatures": [
+        "auth",
+        "authsession"
+      ]
     },
     {
       "package": "@moh-sso/config",

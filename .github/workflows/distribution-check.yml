@@ -43,6 +43,8 @@ jobs:
         run: python3 infra/scripts/test-distribution-runtime.py --backend-image moh-distribution-check:backend --frontend-image moh-distribution-check:frontend
       - name: Real Keycloak authentication, manifests and restart recovery
         run: python3 infra/scripts/test-distribution-auth.py --backend-image moh-distribution-check:backend
+      - name: Verify core-only startup without optional providers
+        run: python3 infra/scripts/test-distribution-auth.py --backend-image moh-distribution-check:backend --profile core
       - name: Deployment archive and transaction contracts
         run: python3 infra/scripts/test-cd.py
       - name: Real container deployment and rollback

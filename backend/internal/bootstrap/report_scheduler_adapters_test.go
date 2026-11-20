@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	reportscheduler "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	emailutil "github.com/moh-sso-dashboard/internal/email"
-	reportscheduler "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 )

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/moh-sso-dashboard/core"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -22,7 +23,7 @@ const keyPrefix = "authsession:"
 const CookieName = "sso_session"
 
 // ErrNotFound is returned when a session ID does not exist or has expired.
-var ErrNotFound = errors.New("auth session not found")
+var ErrNotFound = core.ErrSessionNotFound
 
 // Data is the token bundle kept server-side for one browser session.
 type Data struct {
@@ -137,3 +138,6 @@ func newSessionID() (string, error) {
 	}
 	return hex.EncodeToString(buf), nil
 }
+
+// The credential payload stays host-owned; only the lifecycle contract is core.
+var _ core.SessionStore[Data] = (*Store)(nil)

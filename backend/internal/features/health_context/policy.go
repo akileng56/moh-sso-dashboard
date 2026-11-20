@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/core"
 	"github.com/moh-sso-dashboard/internal/authz"
 )
 
@@ -35,36 +36,32 @@ type AliasAuthorizationInput struct {
 }
 
 func (p *Policy) Authorize(ctx context.Context, input AuthorizationInput) (AccessExplanation, error) {
-	hasPermission := input.RequiredPermission == ""
-	for _, permission := range input.Permissions {
-		if permission == input.RequiredPermission {
-			hasPermission = true
-			break
-		}
+	permissions := make([]string, len(input.Permissions))
+	for i, permission := range input.Permissions {
+		permissions[i] = string(permission)
 	}
-	if !hasPermission {
-		return AccessExplanation{Reason: "required functional permission is missing"}, ErrContextForbidden
-	}
-
-	hasSystem := input.RequiredSystem == ""
-	for _, system := range input.Systems {
-		if system == input.RequiredSystem {
-			hasSystem = true
-			break
-		}
-	}
-	if !hasSystem {
-		return AccessExplanation{Reason: "required system access is missing"}, ErrContextForbidden
-	}
-
-	explanation, err := p.service.ExplainAccess(ctx, input.UserID, input.ContextID)
-	if err != nil {
+	decision, err := core.AuthorizeContext[uuid.UUID, AccessExplanation](ctx, coreContextResolver{p.service}, core.ContextAuthorization[uuid.UUID]{
+		Subject: input.UserID, Permissions: permissions, RequiredPermission: string(input.RequiredPermission),
+		Systems: input.Systems, RequiredSystem: input.RequiredSystem, ContextID: input.ContextID,
+	})
+	if err != nil && err != core.ErrContextForbidden {
 		return AccessExplanation{}, err
 	}
-	if !explanation.Allowed {
-		return explanation, ErrContextForbidden
+	explanation := decision.Details
+	explanation.Allowed, explanation.Reason = decision.Allowed, decision.Reason
+	return explanation, err
+}
+
+type coreContextResolver struct{ service *Service }
+
+var _ core.ContextAccessResolver[uuid.UUID, AccessExplanation] = coreContextResolver{}
+
+func (r coreContextResolver) ExplainContextAccess(ctx context.Context, userID string, id uuid.UUID) (core.ContextDecision[AccessExplanation], error) {
+	explanation, err := r.service.ExplainAccess(ctx, userID, id)
+	if err != nil {
+		return core.ContextDecision[AccessExplanation]{}, err
 	}
-	return explanation, nil
+	return core.ContextDecision[AccessExplanation]{Allowed: explanation.Allowed, Reason: explanation.Reason, Details: explanation}, nil
 }
 
 func (p *Policy) AuthorizeAlias(

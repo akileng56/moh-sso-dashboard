@@ -53,13 +53,11 @@ WORKDIR /app
 COPY --from=builder /app/internal/db/migrations ./internal/db/migrations
 COPY --from=builder /app/internal/db/surveillance_migrations ./internal/db/surveillance_migrations
 COPY --from=builder /app/config ./config
-# The GeoJSON handler resolves ./assets/geojson from the runtime WORKDIR.
-COPY --from=builder --chmod=644 /app/assets/geojson/*.geojson ./assets/geojson/
+# Map snapshots are embedded in the pinned GeoJSON module.
 COPY --from=builder /app/sso-server ./sso-server
 
 COPY --chmod=755 infra/docker/backend/entrypoint.sh /usr/local/bin/sso-entrypoint
-RUN chmod 755 /app/assets /app/assets/geojson \
-  && adduser -D appuser && mkdir -p /data/uploads && chown appuser:appuser /data/uploads
+RUN adduser -D appuser && mkdir -p /data/uploads && chown appuser:appuser /data/uploads
 # The entrypoint reads restricted mounted secrets, then execs the server as appuser.
 ENV SSO_RUNTIME_USER=appuser
 

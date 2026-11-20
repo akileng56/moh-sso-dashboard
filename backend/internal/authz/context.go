@@ -3,6 +3,8 @@ package authz
 import (
 	"context"
 	"strings"
+
+	"github.com/moh-sso-dashboard/core"
 )
 
 type Context struct {
@@ -16,70 +18,34 @@ type Context struct {
 	IsUser                  bool                `json:"isUser"`
 }
 
-func NewContext(
-	userID string,
-	realmRoles []string,
-	clientRoles map[string][]string,
-) Context {
-	normalizedRealmRoles := NormalizeRoles(realmRoles)
-	normalizedClientRoles := normalizeClientRoles(clientRoles)
-	access := ResolveAccess(context.Background(), nil, normalizedRealmRoles, normalizedClientRoles)
-
-	ctx := Context{
-		UserID:                  strings.TrimSpace(userID),
-		RealmRoles:              normalizedRealmRoles,
-		ClientRoles:             normalizedClientRoles,
-		Permissions:             dedupePermissions(access.Permissions),
-		AccessibleSystems:       systemIDs(access.Systems),
-		AccessibleSystemDetails: access.Systems,
-		IsAdmin:                 hasRole(normalizedRealmRoles, RoleAdmin),
-		IsUser:                  hasRole(normalizedRealmRoles, RoleUser),
-	}
-
-	return ctx
+func NewContext(userID string, realmRoles []string, clientRoles map[string][]string) Context {
+	return NewContextForIdentity(context.Background(), nil, core.Identity{Subject: userID, RealmRoles: realmRoles, ClientRoles: clientRoles})
 }
 
-func NewContextWithResolver(
-	ctx context.Context,
-	resolver PermissionResolver,
-	userID string,
-	realmRoles []string,
-	clientRoles map[string][]string,
-) Context {
-	normalizedRealmRoles := NormalizeRoles(realmRoles)
-	normalizedClientRoles := normalizeClientRoles(clientRoles)
-	access := ResolveAccess(ctx, resolver, normalizedRealmRoles, normalizedClientRoles)
+func NewContextWithResolver(ctx context.Context, resolver PermissionResolver, userID string, realmRoles []string, clientRoles map[string][]string) Context {
+	return NewContextForIdentity(ctx, resolver, core.Identity{Subject: userID, RealmRoles: realmRoles, ClientRoles: clientRoles})
+}
 
+// NewContextForIdentity adapts verified core claims to the existing host API.
+// Role normalization, defaults, admin flags and resolver selection stay host policy.
+func NewContextForIdentity(ctx context.Context, resolver PermissionResolver, identity core.Identity) Context {
+	normalizedRealmRoles := NormalizeRoles(identity.RealmRoles)
+	normalizedClientRoles := normalizeClientRoles(identity.ClientRoles)
+	access := ResolveAccess(ctx, resolver, normalizedRealmRoles, normalizedClientRoles)
 	return Context{
-		UserID:                  strings.TrimSpace(userID),
-		RealmRoles:              normalizedRealmRoles,
-		ClientRoles:             normalizedClientRoles,
-		Permissions:             dedupePermissions(access.Permissions),
-		AccessibleSystems:       systemIDs(access.Systems),
-		AccessibleSystemDetails: access.Systems,
-		IsAdmin:                 hasRole(normalizedRealmRoles, RoleAdmin),
-		IsUser:                  hasRole(normalizedRealmRoles, RoleUser),
+		UserID:     strings.TrimSpace(identity.Subject),
+		RealmRoles: normalizedRealmRoles, ClientRoles: normalizedClientRoles,
+		Permissions:       dedupePermissions(access.Permissions),
+		AccessibleSystems: systemIDs(access.Systems), AccessibleSystemDetails: access.Systems,
+		IsAdmin: hasRole(normalizedRealmRoles, RoleAdmin), IsUser: hasRole(normalizedRealmRoles, RoleUser),
 	}
 }
 
 func (c Context) HasPermission(permission Permission) bool {
-	for _, current := range c.Permissions {
-		if current == permission {
-			return true
-		}
-	}
-
-	return false
+	return core.HasPermission(c.Permissions, permission)
 }
-
 func (c Context) HasAnyPermission(permissions ...Permission) bool {
-	for _, permission := range permissions {
-		if c.HasPermission(permission) {
-			return true
-		}
-	}
-
-	return false
+	return core.HasAnyPermission(c.Permissions, permissions...)
 }
 
 func (c Context) HasRealmRole(role string) bool {
@@ -95,20 +61,7 @@ func (c Context) HasClientRole(clientID string, role string) bool {
 	return hasRole(c.ClientRoles[clientID], role)
 }
 
-func (c Context) HasSystem(system string) bool {
-	system = strings.TrimSpace(system)
-	if system == "" {
-		return false
-	}
-
-	for _, current := range c.AccessibleSystems {
-		if strings.EqualFold(current, system) {
-			return true
-		}
-	}
-
-	return false
-}
+func (c Context) HasSystem(system string) bool { return core.HasSystem(c.AccessibleSystems, system) }
 
 func (c Context) HasSystemRole(system string, role string) bool {
 	return c.HasClientRole(system, role)

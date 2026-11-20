@@ -1,0 +1,83 @@
+# Backend-only core profile. Uses an external configured identity provider and
+# starts only primary persistence, sessions and the core backend.
+name: moh-sso-core
+services:
+  backend-db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_DB: ${DB_NAME:-sso_dashboard}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets: [db_password]
+    volumes: [core_postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: [sh, -c, 'exec redis-server --appendonly yes --requirepass "$$(cat /run/secrets/redis_password)"']
+    secrets: [redis_password]
+    volumes: [core_redis:/data]
+    healthcheck:
+      test: [CMD-SHELL, 'REDISCLI_AUTH="$$(cat /run/secrets/redis_password)" redis-cli ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+  backend:
+    image: ${DISTRIBUTION_IMAGE_PREFIX:-moh-sso-distribution}-backend:${DISTRIBUTION_TAG:?Set an immutable DISTRIBUTION_TAG}
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend/Dockerfile
+      args:
+        VERSION: ${DISTRIBUTION_TAG}
+        COMMIT: ${DISTRIBUTION_COMMIT:-none}
+        BUILD_TIME: ${DISTRIBUTION_BUILD_TIME:-unknown}
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    security_opt: [no-new-privileges:true]
+    env_file: ${APP_ENV_FILE:-../env/core.env}
+    environment:
+      PLATFORM_PROFILE: core
+      DB_HOST: backend-db
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_NAME: ${DB_NAME:-sso_dashboard}
+      DB_ENABLE_SSL: "false"
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      KEYCLOAK_ADMIN_CLIENT_SECRET_FILE: /run/secrets/keycloak_admin_secret
+      KEYCLOAK_WEB_CLIENT_SECRET_FILE: /run/secrets/keycloak_web_secret
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD_FILE: /run/secrets/redis_password
+      TOKEN_SYMMETRIC_KEY_FILE: /run/secrets/token_symmetric_key
+    secrets: [db_password, keycloak_admin_secret, keycloak_web_secret, redis_password, token_symmetric_key]
+    depends_on:
+      backend-db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    # Place an operator-managed TLS reverse proxy in front of this loopback port.
+    ports: ["127.0.0.1:${CORE_BACKEND_PORT:-9000}:9000"]
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1:9000/health/ready]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+volumes:
+  core_postgres:
+  core_redis:
+secrets:
+  db_password:
+    file: ${DB_PASSWORD_SECRET_FILE:-../secrets/db_password.txt}
+  keycloak_admin_secret:
+    file: ${KEYCLOAK_ADMIN_SECRET_FILE:-../secrets/keycloak_admin_secret.txt}
+  keycloak_web_secret:
+    file: ${KEYCLOAK_WEB_SECRET_FILE:-../secrets/keycloak_web_secret.txt}
+  redis_password:
+    file: ${REDIS_PASSWORD_SECRET_FILE:-../secrets/redis_password.txt}
+  token_symmetric_key:
+    file: ${TOKEN_SYMMETRIC_KEY_SECRET_FILE:-../secrets/token_symmetric_key.txt}

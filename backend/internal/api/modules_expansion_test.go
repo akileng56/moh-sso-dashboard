@@ -2,27 +2,27 @@ package router
 
 import (
 	"context"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/moh-sso-dashboard/internal/authz"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	"github.com/moh-sso-dashboard/internal/middleware"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 )
 
-type auditReadFixture struct{ auditfeature.Service }
+type auditReadFixture struct{ auditfeature.Repository }
 
 func TestHostedModuleInitializationRequiresOnlyEnabledHandlers(t *testing.T) {
 	for _, disabled := range []string{"metrics,geojson", "metrics,audit", "metrics,audit,geojson"} {
-		registry, err := NewModuleRegistry(HandlerSet{}, disabled+",report-scheduler", nil, nil)
+		registry, err := NewModuleRegistry(HandlerSet{}, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -49,8 +49,8 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, disabled := range []string{"", "audit", "geojson", "audit,geojson"} {
-		handlers := HandlerSet{Metrics: &metricsfeature.Handler{}, Audit: auditfeature.NewHandler(auditReadFixture{}, nil), GeoJSON: geojsonfeature.NewHandler(assets)}
-		registry, err := NewModuleRegistry(handlers, disabled+",report-scheduler", nil, nil)
+		handlers := HandlerSet{Metrics: testMetricsModule(t), Audit: testAuditModule(t, auditReadFixture{}), GeoJSON: testGeoJSONModule(t, assets)}
+		registry, err := NewModuleRegistry(handlers, disabled+",report-scheduler,announcements,admin-units", nil, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,8 +62,8 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 		enabled := map[string]bool{}
 		for _, info := range registry.Inventory() {
 			enabled[info.ID] = info.Enabled
-			if info.ID != "metrics" && info.ID != "report-scheduler" && info.Version != version.Get().Version {
-				t.Fatalf("hosted module %s must report the host version", info.ID)
+			if info.ID == "geojson" && info.Version != geojsonmodule.Version() {
+				t.Fatalf("module %s must report the selected GeoJSON dependency version", info.ID)
 			}
 		}
 		for _, identity := range []string{"anonymous", "no-permission", "audit-reader", "map-reader"} {
@@ -74,6 +74,7 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 				}
 				actor := authz.Context{UserID: "fixture"}
 				if identity == "audit-reader" {
+					actor.IsAdmin = true
 					actor.Permissions = []authz.Permission{authz.PermissionAuditRead}
 				}
 				if identity == "map-reader" {
@@ -106,4 +107,17 @@ func TestReadModuleRoutesPreservePermissionsAndDisablement(t *testing.T) {
 			}
 		}
 	}
+}
+
+func testAuditModule(t *testing.T, repository auditfeature.Repository) *auditfeature.Module {
+	t.Helper()
+	m, err := auditfeature.NewModule(auditfeature.Dependencies{
+		Repository: repository, RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
+		LimitExport: func(*http.Request, string, int, time.Duration) (http.Header, error) { return nil, nil },
+		RequestID:   modulehttp.RequestID,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

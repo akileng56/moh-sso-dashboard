@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	scheduler "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/authz"
-	scheduler "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/module"
 )
@@ -48,7 +48,7 @@ func (*schedulerModuleFixture) GetDeliveryByAccessToken(context.Context, string)
 func TestSchedulerModuleControlsRoutesAndWorker(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, disabled := range []bool{false, true} {
-		disabledIDs := "metrics,audit,geojson"
+		disabledIDs := "metrics,audit,geojson,announcements,admin-units"
 		if disabled {
 			disabledIDs += ", report-scheduler "
 		}
@@ -117,7 +117,7 @@ func TestSchedulerRegistryFailsStartupBeforeClaims(t *testing.T) {
 		if missing == "worker" {
 			worker = nil
 		}
-		registry, err := NewModuleRegistry(handlers, "metrics,audit,geojson", nil, worker)
+		registry, err := NewModuleRegistry(handlers, "metrics,audit,geojson,announcements,admin-units", nil, worker)
 		if err != nil {
 			t.Fatal(err)
 		}

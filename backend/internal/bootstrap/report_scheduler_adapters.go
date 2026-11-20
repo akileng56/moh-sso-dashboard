@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	reportscheduler "github.com/moh-sso-dashboard/internal/features/report_scheduler"
+	reportscheduler "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/model"
 	"github.com/moh-sso-dashboard/internal/service"
 )

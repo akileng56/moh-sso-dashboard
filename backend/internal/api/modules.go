@@ -7,15 +7,17 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
+	"github.com/moh-sso-dashboard/internal/config"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
-	"github.com/moh-sso-dashboard/internal/version"
 	"github.com/moh-sso-dashboard/module"
+	adminunitsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
+	auditmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metricsmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
 	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
@@ -23,7 +25,10 @@ import (
 // NewModuleRegistry is the distribution's explicit composition root. Legacy
 // features enter this inventory only as their registration is migrated.
 func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.Limiter, scheduler *reportschedulerfeature.Worker) (*module.Registry, error) {
-	enabled := map[string]bool{"metrics": true, "audit": true, "geojson": true, "report-scheduler": true}
+	enabled := map[string]bool{}
+	for _, id := range config.OptionalModuleIDs() {
+		enabled[id] = true
+	}
 	for _, id := range strings.Split(disabled, ",") {
 		id = strings.TrimSpace(id)
 		if id == "" {
@@ -43,10 +48,10 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			metricsfeature.RegisterAdminRoutes(routes.Admin, handlers.Metrics)
+			modulehttp.Register(routes.Protected, handlers.Metrics)
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "audit", Version: version.Get().Version, Enabled: enabled["audit"]},
+		Info: module.Info{ID: "audit", Version: auditmodule.Version(), Enabled: enabled["audit"]},
 		Initialize: func(context.Context) (module.Stop, error) {
 			if handlers.Audit == nil {
 				return nil, errors.New("audit read handler is required")
@@ -54,10 +59,10 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			auditfeature.RegisterAdminRoutes(routes.Admin, handlers.Audit, limiter)
+			modulehttp.Register(routes.Protected, handlers.Audit)
 		},
 	}, module.Definition{
-		Info: module.Info{ID: "geojson", Version: version.Get().Version, Enabled: enabled["geojson"]},
+		Info: module.Info{ID: "geojson", Version: geojsonmodule.Version(), Enabled: enabled["geojson"]},
 		Initialize: func(context.Context) (module.Stop, error) {
 			if handlers.GeoJSON == nil {
 				return nil, errors.New("geojson handler is required")
@@ -65,7 +70,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			geojsonfeature.RegisterProtectedRoutes(routes.Protected, handlers.GeoJSON)
+			modulehttp.Register(routes.Protected, handlers.GeoJSON)
 		},
 	}, module.Definition{
 		Info: module.Info{ID: "report-scheduler", Version: schedulermodule.Version(), Enabled: enabled["report-scheduler"]},
@@ -85,6 +90,28 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			if routes.Public != nil {
 				reportschedulerfeature.RegisterPublicRoutes(routes.Public, handlers.ReportScheduler, limiter)
 			}
+		},
+	}, module.Definition{
+		Info: module.Info{ID: "announcements", Version: announcementmodule.Version(), Enabled: enabled["announcements"]},
+		Initialize: func(context.Context) (module.Stop, error) {
+			if handlers.Announcements == nil {
+				return nil, errors.New("announcements handler is required")
+			}
+			return nil, nil
+		},
+		Register: func(routes module.Routes) {
+			modulehttp.RegisterSurfaces(routes.Public, routes.Protected, handlers.Announcements)
+		},
+	}, module.Definition{
+		Info: module.Info{ID: "admin-units", Version: adminunitsmodule.Version(), Enabled: enabled["admin-units"]},
+		Initialize: func(context.Context) (module.Stop, error) {
+			if handlers.AdminUnits == nil {
+				return nil, errors.New("administrative units handler is required")
+			}
+			return nil, nil
+		},
+		Register: func(routes module.Routes) {
+			modulehttp.Register(routes.Protected, handlers.AdminUnits)
 		},
 	})
 }

@@ -28,65 +28,19 @@ func NewHandler(service *Service, audit *service.AuditService) *Handler {
 // remain compatible while resource migrations are completed.
 func (h *Handler) RequireAccessibleSelection() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		value := strings.TrimSpace(c.GetHeader("X-Health-Context-ID"))
-		if value == "" {
-			contexts, err := h.service.ListEffectiveContexts(
-				c.Request.Context(),
-				c.GetString("user_id"),
-			)
-			if err != nil {
-				response.Fail(
-					c,
-					http.StatusServiceUnavailable,
-					"HEALTH_CONTEXT_UNAVAILABLE",
-					"health context access could not be verified",
-				)
-				c.Abort()
-				return
-			}
-			if len(contexts) > 0 {
-				log.Warn().
-					Str("request_id", observability.RequestIDFromContext(c.Request.Context())).
-					Str("feature", featureFromRequest(c)).
-					Str("reason", "active_context_required").
-					Msg("health context authorization denied")
-				response.Fail(
-					c,
-					http.StatusBadRequest,
-					"HEALTH_CONTEXT_REQUIRED",
-					"select a health context for this request",
-				)
-				c.Abort()
-				return
-			}
-			c.Next()
-			return
-		}
-		contextID, err := uuid.Parse(value)
+		contextID, explanation, err := h.service.resolveSelection(c.Request.Context(), c.GetString("user_id"), c.GetHeader("X-Health-Context-ID"))
 		if err != nil {
-			response.Fail(c, http.StatusBadRequest, "INVALID_HEALTH_CONTEXT", "invalid health context")
+			failure := err.(selectionFailure)
+			log.Warn().Str("request_id", observability.RequestIDFromContext(c.Request.Context())).Str("feature", featureFromRequest(c)).Str("reason", failure.code).Msg("health context authorization denied")
+			response.Fail(c, failure.status, failure.code, failure.message)
 			c.Abort()
 			return
 		}
-		explanation, err := h.service.ExplainAccess(
-			c.Request.Context(),
-			c.GetString("user_id"),
-			contextID,
-		)
-		if err != nil || !explanation.Allowed {
-			log.Warn().
-				Str("request_id", observability.RequestIDFromContext(c.Request.Context())).
-				Str("feature", featureFromRequest(c)).
-				Str("context_type", string(explanation.RequestedContext.ContextType)).
-				Str("reason", explanation.Reason).
-				Msg("health context authorization denied")
-			response.Fail(c, http.StatusForbidden, "HEALTH_CONTEXT_FORBIDDEN", "health context access denied")
-			c.Abort()
-			return
+		if contextID != uuid.Nil {
+			c.Set("health_context_id", contextID)
+			c.Set("health_context", explanation.RequestedContext)
+			c.Set("health_context_scope_mode", explanation.ScopeMode)
 		}
-		c.Set("health_context_id", contextID)
-		c.Set("health_context", explanation.RequestedContext)
-		c.Set("health_context_scope_mode", explanation.ScopeMode)
 		c.Next()
 	}
 }
