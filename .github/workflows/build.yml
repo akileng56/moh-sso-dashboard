@@ -154,7 +154,7 @@ jobs:
             -e '.service.version == $version and .service.commit == $commit' \
             /usr/share/nginx/html/version-manifest.json
 
-      - name: Verify backend runtime metadata and map assets
+      - name: Verify backend runtime metadata and layout
         if: matrix.service == 'backend' && !startsWith(github.ref, 'refs/tags/frontend/v')
         shell: bash
         run: |

@@ -27,6 +27,8 @@ jobs:
             COMMIT=${{ github.sha }}
           cache-from: type=gha,scope=distribution-backend
           cache-to: type=gha,scope=distribution-backend,mode=max
+      - name: Verify backend image metadata and runtime layout
+        run: sh infra/scripts/verify-backend-image.sh moh-distribution-check:backend 0.0.0-ci "${{ github.sha }}"
       - name: Build frontend from published production pins
         uses: docker/build-push-action@v6
         with:

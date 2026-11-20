@@ -83,7 +83,7 @@ def main():
             executable = backend / 'fixture/sso-server'
             executable.write_text('''#!/bin/sh
 set -eu
-if [ "${1:-}" = --version ]; then printf 'runtime-version-argument-ok'; exit 0; fi
+if [ "${1:-}" = --version ]; then printf 'moh-sso-dashboard-backend 0.0.0-ci (commit runtime-fixture, built fixture, dirty=false)'; exit 0; fi
 test "$DB_PASSWORD" = 'fixture-password'
 test "$OBSERVATORY_DB_PASSWORD" = 'fixture-password'
 test "$(id -u)" != 0
@@ -97,7 +97,12 @@ printf 'secret-loading-and-nonroot-upload-ok'
             image = prefix + ':backend'
             images.append(image)
             docker('build', '-q', '-t', image, str(backend))
-            assert docker('run', '--rm', image, '--version') == 'runtime-version-argument-ok'
+            verifier = ROOT / 'infra/scripts/verify-backend-image.sh'
+            subprocess.run(['sh', str(verifier), image, '0.0.0-ci', 'runtime-fixture'], check=True)
+            # Version verification must still reject the wrong release metadata.
+            rejected = subprocess.run(['sh', str(verifier), image, '9.9.9', 'runtime-fixture'],
+                                      capture_output=True, text=True)
+            assert rejected.returncode != 0 and 'expected version 9.9.9' in rejected.stderr
             secret = tmp / 'password'
             secret.write_text('fixture-password\n')
             secret.chmod(0o600)
