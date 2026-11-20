@@ -3,10 +3,10 @@
 Module path: `github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements`.
 Requires Go 1.25.4, `github.com/google/uuid v1.6.0` and `github.com/lib/pq v1.10.9`.
 
-Version `v0.1.0` is published under `backend/modules/announcements/v0.1.0`.
-The dashboard selects this immutable Go dependency with reviewed checksums.
-The current source adds standalone PostgreSQL persistence, HTTP routes and
-provider composition; it is not yet published or selected by the host.
+Version `v0.2.0` is the self-contained release under
+`backend/modules/announcements/v0.2.0`. It adds standalone PostgreSQL
+persistence, HTTP routes and provider composition. Hosts select this immutable
+Go dependency with reviewed checksums; integrations upgrade independently.
 Local/unversioned consumers report `dev`.
 
 ## Public API
@@ -113,9 +113,8 @@ ownership. All five audience replacement transactions are tested for rollback
 after partial writes; clients/users use explicit test-only failure triggers.
 The module never applies this fixture schema.
 
-The dashboard still selects v0.1.0 and retains its HTTP/persistence adapters.
-The candidate HTTP/provider phase is independently verified. Adapter removal
-follows a new published version, reviewed host pin and integration checks.
+The HTTP/provider phase is independently verified. Host integration selects the
+reviewed release and supplies shared capabilities at its composition root.
 To verify the published dependency with a fresh module cache and no replacement,
 run `python3 infra/scripts/test-announcements-release.py`.
 This release check requires network access and verifies downloaded checksums,
@@ -169,4 +168,13 @@ stream downloads/deletion, verified identity/permissions, private-audience
 isolation, shared audit, email/SMS payload forwarding and actor-scoped health
 preview. Unit tests cover denials before dependencies, exact rate policies,
 body bounds, stream errors, metadata inventory and pagination across private
-pages. The existing host still runs its v0.1.0 routes until release integration.
+pages. Hosts must verify their pin, shared capability wiring and module disablement
+when integrating this release.
+
+Functional providers (`UserDirectoryFuncs`, `GroupDirectoryFuncs`,
+`NotificationPublisherFunc`, `EmailAttachmentNormalizerFunc`) allow the
+composition root to map shared capability values without defining host feature
+adapter types. Missing functions fail explicitly. Direct storage, health-context
+and core audit interfaces need no wrapper when the provider already satisfies
+the contract. Feature policy, DTOs, database operations and delivery orchestration
+remain entirely package-owned.
