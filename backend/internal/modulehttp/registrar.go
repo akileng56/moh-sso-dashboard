@@ -10,15 +10,16 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moh-sso-dashboard/core"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/observability"
 )
 
 type accessKey struct{}
 type access struct {
-	actor         authz.Context
-	valid         bool
-	healthContext map[string]string
+	actor       authz.Context
+	valid       bool
+	healthScope core.HealthScope
 }
 type denied int
 
@@ -68,10 +69,20 @@ func RequireSystem(r *http.Request, system string) error {
 	return nil
 }
 
-// HealthContext returns the district and facility populated by host authentication.
-func HealthContext(r *http.Request) map[string]string {
+// RequestAccess returns access resolved by the host for an authenticated request.
+func RequestAccess(r *http.Request) (core.RequestAccess, bool) {
 	current, _ := r.Context().Value(accessKey{}).(access)
-	return current.healthContext
+	actor, valid := Actor(r)
+	if !valid {
+		return core.RequestAccess{}, false
+	}
+	return core.RequestAccess{
+		Identity:    core.Identity{Subject: actor.UserID, RealmRoles: actor.RealmRoles, ClientRoles: actor.ClientRoles},
+		Permissions: actor.PermissionStrings(),
+		Systems:     actor.AccessibleSystems,
+		HealthScope: current.healthScope,
+		IsAdmin:     actor.IsAdmin,
+	}, true
 }
 
 func RequestID(r *http.Request) string { return observability.RequestIDFromContext(r.Context()) }
@@ -117,7 +128,7 @@ func (r *Registrar) Handle(pattern string, handler http.Handler) {
 		actor, valid := authz.FromGin(c)
 		rawHealth, _ := c.Get("health_context")
 		health, _ := rawHealth.(map[string]string)
-		request := c.Request.WithContext(context.WithValue(c.Request.Context(), accessKey{}, access{actor: actor, valid: valid, healthContext: health}))
+		request := c.Request.WithContext(context.WithValue(c.Request.Context(), accessKey{}, access{actor: actor, valid: valid, healthScope: core.HealthScope{District: strings.TrimSpace(health["district"]), Facility: strings.TrimSpace(health["facility"])}}))
 		mounted.ServeHTTP(c.Writer, request)
 	})
 }
