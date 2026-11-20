@@ -22,6 +22,7 @@ import (
 )
 
 type workerDependencies struct {
+	Statuses                       map[string]*core.WorkerStatus
 	PrimaryDB                      *sql.DB
 	Config                         *config.Config
 	ProcessRepository              processRepo.ProcessRepository
@@ -87,6 +88,7 @@ func startBackgroundWorkers(ctx context.Context, deps workerDependencies) (core.
 	if err != nil {
 		return nil, fmt.Errorf("email worker: %w", err)
 	}
+	email.SetStatus(deps.Statuses["email-outbox"])
 	email.SetHeartbeat(heartbeat("email-outbox"))
 	tasks = append(tasks, core.WorkerTask{Name: "email-outbox", Run: email.Start})
 	if deps.Config == nil || deps.Config.NotificationDelivery.WorkerEnabled {
@@ -100,6 +102,7 @@ func startBackgroundWorkers(ctx context.Context, deps workerDependencies) (core.
 		if err != nil {
 			return nil, fmt.Errorf("notification email worker: %w", err)
 		}
+		notification.SetStatus(deps.Statuses["notification-email"])
 		notification.SetHeartbeat(heartbeat("notification-email"))
 		tasks = append(tasks, core.WorkerTask{Name: "notification-email", Run: notification.Start})
 		if deps.SMSService != nil && deps.SMSService.Enabled() {
