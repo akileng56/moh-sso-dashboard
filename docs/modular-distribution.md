@@ -1458,3 +1458,63 @@ v0.1.0 with its adapters and catalogue ownership unchanged. Next: publish
 v0.2.0, verify its download/checksums and consumer, pin the dashboard, remove host
 feature implementations/adapters and verify authorization, optional-provider
 wiring and full/core disablement against real Keycloak.
+
+### Self-contained Announcements — v0.2.0 release and host integration
+
+Published `backend/modules/announcements/v0.2.0` upstream at `e79ca827`.
+The dashboard selects v0.2.0 with reviewed module/archive checksums and no local
+replacement. A fresh-cache verifier checks the checksum service, exact graph,
+selected version, complete file inventory/parity, portable consumer execution
+and independent HTTP consumer build. Dependencies remain UUID and lib/pq.
+
+Removed the entire host Announcements adapter tree, repository/service
+composition objects, SQL query source and generated SQL query implementation.
+Regenerated SQLC no longer exposes those feature operations. Primary migrations
+and shared identity/context/notification tables remain platform-owned. The
+published package owns all 53 persistence operations, lifecycle/audience
+orchestration, attachments, 26 HTTP operations, DTOs and OpenAPI metadata.
+
+Only enabled Announcements modules are constructed. The composition root maps
+shared provider values through the package's functional capabilities; it retains
+no feature handler, persistence adapter type, audience policy or delivery worker.
+Storage, contextual expansion and core audit satisfy their interfaces directly.
+User/group lookup, notification envelopes and attachment normalization use
+composition callbacks; settings contain only non-secret decision values.
+Verified actor data comes from the shared registrar/context and identity
+directory, never request headers. Core or disabled initialization needs none of
+the optional module's providers.
+
+The generic HTTP registrar now mounts mixed public/protected modules from their
+own OpenAPI security declarations. Only explicitly anonymous operations are
+public; missing/null security stays protected and missing/invalid declarations
+reject registration. The host keeps its authentication/audit middleware and the
+module enforces administrator/permission and per-user write/publish policies.
+These required rate capabilities fail closed; policy headers override general
+outer rate headers. The host duplicates no Announcements route list.
+
+The imported module closes the earlier public-active/me-feed audience leak and
+checks live announcement visibility before protected attachment downloads.
+Administrator download routes still allow management of draft attachments.
+The real fixture explicitly checks both behaviors and private-user audience
+isolation. Lifecycle timestamp instants are normalized to UTC by package
+persistence; existing schema/data are preserved.
+
+Catalogue ownership is now `self-contained`. The 26 package-owned operations
+bring modular contract ownership to 62 operations while the complete API remains
+366 endpoints. CI verifies the published Announcements artifact in addition to
+the isolated package and PostgreSQL/HTTP consumers.
+
+Only the immutable release tag is pushed. The dashboard integration branch is
+`feat/announcements-v020-integration`; pushing that branch or deploying it is
+separate from publishing the Go module.
+
+Integration verification passed: fresh public v0.2.0 download/checksums, exact
+replacement-free graph and complete artifact parity; isolated package and
+PostgreSQL/HTTP consumers; all packaged Go modules; full backend tests/vet;
+API/bootstrap/shared registrar/architecture race checks; 366 current API
+operations; 12 catalogue regressions; workflow actionlint; SQLC regeneration
+and whitespace checks; production Docker build; real Keycloak full and
+core-only fixtures. Publication, private-audience isolation and attachment
+streams passed. Disable/re-enable, backup/restore, restart recovery, worker
+stop/resume and full -> core -> full preserve existing data; core-only startup
+continues audit recording without optional providers or delivery workers.

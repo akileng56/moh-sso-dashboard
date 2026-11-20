@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 
-	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
@@ -122,10 +121,8 @@ func buildHandlers(deps handlerDependencies) handlers {
 	)
 	sessionHandler := sessionfeature.NewHandler(deps.Services.Sessions)
 	dataQualityHandler := dataqualityfeature.NewHandler(deps.Databases.DWH, deps.Databases.DQA, deps.Databases.Primary, deps.AdminKeycloak, deps.Services.Email, deps.Config)
-	announcementHandler := announcementfeature.NewHandler(
-		deps.Services.Announcements,
-		deps.Services.Audit,
-	)
+	announcementHandler := buildAnnouncementsModule(deps)
+
 	var adminunitsHandler *adminunitsfeature.Module
 	if deps.Config.ModuleEnabled("admin-units") {
 		var err error

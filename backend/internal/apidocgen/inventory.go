@@ -17,6 +17,7 @@ import (
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	adminunits "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	announcements "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 	audit "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
 	geojson "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
 	metrics "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
@@ -105,6 +106,19 @@ func documentationHandlers() router.HandlerSet {
 		AuthorizeAny: func(*http.Request, ...string) error { return audit.ErrUnauthorized },
 		LimitExport: func(*http.Request, string, int, time.Duration) (http.Header, error) {
 			return nil, audit.ErrUnauthorized
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	handlers.Announcements, err = announcements.NewModule(announcements.Dependencies{
+		Database: new(sql.DB), Actor: func(*http.Request) (announcements.Actor, error) {
+			return announcements.Actor{}, announcements.ErrUnauthorized
+		},
+		RequireAdmin: func(*http.Request) error { return announcements.ErrUnauthorized },
+		AuthorizeAny: func(*http.Request, ...string) error { return announcements.ErrUnauthorized },
+		Limit: func(*http.Request, string, int, time.Duration) (http.Header, error) {
+			return nil, announcements.ErrUnauthorized
 		},
 	})
 	if err != nil {

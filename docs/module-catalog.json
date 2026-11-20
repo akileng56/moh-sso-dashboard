@@ -30,8 +30,8 @@
       ],
       "workers": [],
       "migrations": "core",
-      "next": "Maintain host SQLC, identity, storage, HTTP and notification adapters; release core changes independently and select reviewed Go pins.",
-      "integration": "adapter"
+      "next": "Maintain published HTTP, persistence, audience policy and delivery orchestration in the module; supply shared platform capabilities and select reviewed immutable Go versions.",
+      "integration": "self-contained"
     },
     {
       "id": "audit",

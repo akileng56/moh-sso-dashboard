@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/api/handler"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -101,15 +100,7 @@ func NewModuleRegistry(handlers HandlerSet, disabled string, limiter *ratelimit.
 			return nil, nil
 		},
 		Register: func(routes module.Routes) {
-			if routes.Public != nil {
-				announcementfeature.RegisterPublicRoutes(routes.Public, handlers.Announcements)
-			}
-			if routes.Protected != nil {
-				announcementfeature.RegisterProtectedRoutes(routes.Protected, handlers.Announcements)
-			}
-			if routes.Admin != nil {
-				announcementfeature.RegisterAdminRoutes(routes.Admin, handlers.Announcements, limiter)
-			}
+			modulehttp.RegisterSurfaces(routes.Public, routes.Protected, handlers.Announcements)
 		},
 	}, module.Definition{
 		Info: module.Info{ID: "admin-units", Version: adminunitsmodule.Version(), Enabled: enabled["admin-units"]},

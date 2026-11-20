@@ -13,7 +13,6 @@ import (
 
 type Querier interface {
 	ActiveUsersPerClientThisWeek(ctx context.Context) ([]ActiveUsersPerClientThisWeekRow, error)
-	ArchiveAnnouncement(ctx context.Context, arg ArchiveAnnouncementParams) (Announcement, error)
 	ArchiveDocumentTemplate(ctx context.Context, id uuid.UUID) error
 	ArchiveDocumentTemplateColumn(ctx context.Context, id uuid.UUID) error
 	ArchiveDocumentTemplateSheet(ctx context.Context, id uuid.UUID) error
@@ -27,11 +26,6 @@ type Querier interface {
 	ClaimPendingNotificationDeliveries(ctx context.Context, arg ClaimPendingNotificationDeliveriesParams) ([]NotificationDelivery, error)
 	CompleteProcess(ctx context.Context, id uuid.UUID) error
 	CompleteSurveillanceImportBatch(ctx context.Context, arg CompleteSurveillanceImportBatchParams) error
-	CountActivePublishedAnnouncements(ctx context.Context) (int64, error)
-	CountAnnouncementAttachments(ctx context.Context, announcementID uuid.UUID) (int64, error)
-	CountAnnouncementsAdmin(ctx context.Context) (int64, error)
-	CountAnnouncementsByStatus(ctx context.Context, status AnnouncementStatus) (int64, error)
-	CountAnnouncementsCreatedByUser(ctx context.Context, createdBy uuid.UUID) (int64, error)
 	CountDisabledClients(ctx context.Context) (int64, error)
 	CountEmailOutboxByStatus(ctx context.Context, status string) (int64, error)
 	CountNewClientsThisWeek(ctx context.Context) (int64, error)
@@ -39,11 +33,8 @@ type Querier interface {
 	CountNotificationDeliveries(ctx context.Context, arg CountNotificationDeliveriesParams) (int64, error)
 	CountNotifications(ctx context.Context, targetRole string) (int64, error)
 	CountPendingNotificationDeliveriesByChannel(ctx context.Context, channel string) (int64, error)
-	CountSearchAnnouncementsAdmin(ctx context.Context, searchText sql.NullString) (int64, error)
 	CountUnreadNotifications(ctx context.Context, targetRole string) (int64, error)
 	CreateAlert(ctx context.Context, arg CreateAlertParams) (Alert, error)
-	CreateAnnouncement(ctx context.Context, arg CreateAnnouncementParams) (Announcement, error)
-	CreateAnnouncementAttachment(ctx context.Context, arg CreateAnnouncementAttachmentParams) (AnnouncementAttachment, error)
 	// =====================================================
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	// =====================================================
@@ -85,9 +76,6 @@ type Querier interface {
 	// =====================================================
 	CreateUser(ctx context.Context, arg CreateUserParams) error
 	CreateWeeklyStatus(ctx context.Context, arg CreateWeeklyStatusParams) (WeeklyStatus, error)
-	DeleteAnnouncementClients(ctx context.Context, announcementID uuid.UUID) error
-	DeleteAnnouncementRoles(ctx context.Context, announcementID uuid.UUID) error
-	DeleteAnnouncementUsers(ctx context.Context, announcementID uuid.UUID) error
 	DeleteClient(ctx context.Context, id uuid.UUID) error
 	DeleteDisease(ctx context.Context, id uuid.UUID) error
 	DeleteDistrict(ctx context.Context, id uuid.UUID) error
@@ -108,7 +96,6 @@ type Querier interface {
 	DeleteSubCounty(ctx context.Context, id uuid.UUID) error
 	DeleteUser(ctx context.Context, id uuid.UUID) error
 	DeleteWeeklyStatus(ctx context.Context, id uuid.UUID) error
-	DraftAnnouncement(ctx context.Context, arg DraftAnnouncementParams) (Announcement, error)
 	ExistsDiseaseIndicator(ctx context.Context, arg ExistsDiseaseIndicatorParams) (bool, error)
 	ExistsDocumentTemplateCode(ctx context.Context, code string) (bool, error)
 	ExistsDocumentTemplateColumnKey(ctx context.Context, arg ExistsDocumentTemplateColumnKeyParams) (bool, error)
@@ -120,10 +107,6 @@ type Querier interface {
 	FailedLoginsByUserInRange(ctx context.Context, arg FailedLoginsByUserInRangeParams) ([]FailedLoginsByUserInRangeRow, error)
 	FirstLoginForUser(ctx context.Context, userID uuid.UUID) (sql.NullTime, error)
 	GetAlertByID(ctx context.Context, id uuid.UUID) (Alert, error)
-	GetAnnouncementAttachmentByID(ctx context.Context, arg GetAnnouncementAttachmentByIDParams) (AnnouncementAttachment, error)
-	GetAnnouncementByID(ctx context.Context, id uuid.UUID) (Announcement, error)
-	GetAnnouncementByIDForUpdate(ctx context.Context, id uuid.UUID) (Announcement, error)
-	GetAnnouncementStats(ctx context.Context) (GetAnnouncementStatsRow, error)
 	GetClientByClientID(ctx context.Context, clientID string) (Client, error)
 	GetClientByID(ctx context.Context, id uuid.UUID) (Client, error)
 	GetDiseaseByID(ctx context.Context, id uuid.UUID) (Disease, error)
@@ -177,39 +160,16 @@ type Querier interface {
 	GetWeeklyStatusByID(ctx context.Context, id uuid.UUID) (WeeklyStatus, error)
 	GetWeeklySubjectTotals(ctx context.Context, epiWeekID uuid.UUID) ([]GetWeeklySubjectTotalsRow, error)
 	InactiveUsersSince(ctx context.Context) ([]User, error)
-	InsertAnnouncementClient(ctx context.Context, arg InsertAnnouncementClientParams) error
-	InsertAnnouncementRole(ctx context.Context, arg InsertAnnouncementRoleParams) error
-	InsertAnnouncementUser(ctx context.Context, arg InsertAnnouncementUserParams) error
 	InsertImportJobItem(ctx context.Context, arg InsertImportJobItemParams) error
 	ListActiveDiseases(ctx context.Context) ([]Disease, error)
 	ListActiveDocumentTemplates(ctx context.Context) ([]DocumentTemplate, error)
 	ListActiveIndicators(ctx context.Context) ([]Indicator, error)
-	ListActivePublishedAnnouncements(ctx context.Context, arg ListActivePublishedAnnouncementsParams) ([]Announcement, error)
 	ListActiveStorageLocations(ctx context.Context) ([]StorageLocation, error)
 	ListAlerts(ctx context.Context, arg ListAlertsParams) ([]ListAlertsRow, error)
 	ListAlertsByDisease(ctx context.Context, diseaseID uuid.UUID) ([]ListAlertsByDiseaseRow, error)
 	ListAlertsByDistrict(ctx context.Context, districtID uuid.NullUUID) ([]ListAlertsByDistrictRow, error)
 	ListAlertsByWeek(ctx context.Context, epiWeekID uuid.NullUUID) ([]ListAlertsByWeekRow, error)
 	ListAlertsInHealthContext(ctx context.Context, arg ListAlertsInHealthContextParams) ([]ListAlertsInHealthContextRow, error)
-	ListAnnouncementAttachmentsByAnnouncementID(ctx context.Context, announcementID uuid.UUID) ([]AnnouncementAttachment, error)
-	ListAnnouncementClients(ctx context.Context, announcementID uuid.UUID) ([]uuid.UUID, error)
-	ListAnnouncementEmailAttachments(ctx context.Context, announcementID uuid.UUID) ([]AnnouncementAttachment, error)
-	ListAnnouncementEmailRecipientsAdmins(ctx context.Context) ([]ListAnnouncementEmailRecipientsAdminsRow, error)
-	// =====================================================
-	// Announcement email recipient resolution
-	// =====================================================
-	ListAnnouncementEmailRecipientsAllUsers(ctx context.Context) ([]ListAnnouncementEmailRecipientsAllUsersRow, error)
-	ListAnnouncementEmailRecipientsByClients(ctx context.Context, announcementID uuid.UUID) ([]ListAnnouncementEmailRecipientsByClientsRow, error)
-	ListAnnouncementEmailRecipientsByRoles(ctx context.Context, announcementID uuid.UUID) ([]ListAnnouncementEmailRecipientsByRolesRow, error)
-	ListAnnouncementEmailRecipientsByUsers(ctx context.Context, announcementID uuid.UUID) ([]ListAnnouncementEmailRecipientsByUsersRow, error)
-	ListAnnouncementRoles(ctx context.Context, announcementID uuid.UUID) ([]string, error)
-	ListAnnouncementUsers(ctx context.Context, announcementID uuid.UUID) ([]uuid.UUID, error)
-	ListAnnouncementsAdmin(ctx context.Context, arg ListAnnouncementsAdminParams) ([]Announcement, error)
-	ListAnnouncementsByStatus(ctx context.Context, arg ListAnnouncementsByStatusParams) ([]Announcement, error)
-	ListAnnouncementsCreatedByUser(ctx context.Context, arg ListAnnouncementsCreatedByUserParams) ([]Announcement, error)
-	ListAnnouncementsForClient(ctx context.Context, arg ListAnnouncementsForClientParams) ([]Announcement, error)
-	ListAnnouncementsForRole(ctx context.Context, arg ListAnnouncementsForRoleParams) ([]Announcement, error)
-	ListAnnouncementsForUser(ctx context.Context, arg ListAnnouncementsForUserParams) ([]Announcement, error)
 	ListClients(ctx context.Context) ([]Client, error)
 	ListClientsPaged(ctx context.Context, arg ListClientsPagedParams) ([]Client, error)
 	ListDiseaseWeeklyTrendAggregated(ctx context.Context, arg ListDiseaseWeeklyTrendAggregatedParams) ([]ListDiseaseWeeklyTrendAggregatedRow, error)
@@ -266,7 +226,6 @@ type Querier interface {
 	ListNotificationPreferencesForSMS(ctx context.Context, arg ListNotificationPreferencesForSMSParams) ([]NotificationPreference, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]Notification, error)
 	ListNotificationsByCursor(ctx context.Context, arg ListNotificationsByCursorParams) ([]Notification, error)
-	ListPendingAnnouncementEmailNotifications(ctx context.Context, limit int32) ([]Announcement, error)
 	ListProcesses(ctx context.Context, arg ListProcessesParams) ([]Process, error)
 	// -- name: InsertProcessEvent :one
 	// INSERT INTO process_events (
@@ -284,7 +243,6 @@ type Querier interface {
 	// WHERE process_id = $1
 	// ORDER BY created_at ASC;
 	ListProcessesByDocument(ctx context.Context, documentID uuid.UUID) ([]Process, error)
-	ListPublicAnnouncements(ctx context.Context, arg ListPublicAnnouncementsParams) ([]Announcement, error)
 	ListRegionWeeklyStatusesByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]WeeklyStatus, error)
 	ListRegionWeeklySubjectsByWeek(ctx context.Context, epiWeekID uuid.UUID) ([]ListRegionWeeklySubjectsByWeekRow, error)
 	ListRegions(ctx context.Context) ([]Region, error)
@@ -306,8 +264,6 @@ type Querier interface {
 	ListWeeklyStatusesDetailedInHealthContext(ctx context.Context, arg ListWeeklyStatusesDetailedInHealthContextParams) ([]ListWeeklyStatusesDetailedInHealthContextRow, error)
 	ListWeeklyStatusesInHealthContext(ctx context.Context, arg ListWeeklyStatusesInHealthContextParams) ([]WeeklyStatus, error)
 	MarkAllNotificationsRead(ctx context.Context, targetRole string) error
-	MarkAnnouncementEmailNotificationSent(ctx context.Context, id uuid.UUID) (Announcement, error)
-	MarkAnnouncementSMSNotificationQueued(ctx context.Context, id uuid.UUID) (Announcement, error)
 	MarkDocumentCompleted(ctx context.Context, id uuid.UUID) (Document, error)
 	MarkDocumentFailed(ctx context.Context, id uuid.UUID) (Document, error)
 	MarkDocumentPending(ctx context.Context, id uuid.UUID) (Document, error)
@@ -322,7 +278,6 @@ type Querier interface {
 	MarkNotificationRead(ctx context.Context, id uuid.UUID) error
 	MarkSurveillanceImportRawRowFailed(ctx context.Context, arg MarkSurveillanceImportRawRowFailedParams) error
 	MarkSurveillanceImportRawRowProcessed(ctx context.Context, id uuid.UUID) error
-	PublishAnnouncementNow(ctx context.Context, arg PublishAnnouncementNowParams) (Announcement, error)
 	RemoveIHPPermissionFromRealmRole(ctx context.Context, arg RemoveIHPPermissionFromRealmRoleParams) error
 	RemoveIHPPermissionFromSystemRole(ctx context.Context, arg RemoveIHPPermissionFromSystemRoleParams) error
 	RemoveIHPSystemAccessRole(ctx context.Context, arg RemoveIHPSystemAccessRoleParams) error
@@ -337,24 +292,13 @@ type Querier interface {
 	ResolveRegionByName(ctx context.Context, lower string) (Region, error)
 	ResolveSubCountyByNameAndDistrict(ctx context.Context, arg ResolveSubCountyByNameAndDistrictParams) (SubCounty, error)
 	ResolveWeekByYearWeek(ctx context.Context, arg ResolveWeekByYearWeekParams) (EpiWeek, error)
-	RestoreAnnouncement(ctx context.Context, arg RestoreAnnouncementParams) (Announcement, error)
 	RoleDistribution(ctx context.Context) ([]RoleDistributionRow, error)
-	ScheduleAnnouncement(ctx context.Context, arg ScheduleAnnouncementParams) (Announcement, error)
-	SearchAnnouncementsAdmin(ctx context.Context, arg SearchAnnouncementsAdminParams) ([]Announcement, error)
 	SearchClients(ctx context.Context, query sql.NullString) ([]Client, error)
 	SearchUsers(ctx context.Context, dollar_1 sql.NullString) ([]User, error)
-	SetAnnouncementPinned(ctx context.Context, arg SetAnnouncementPinnedParams) (Announcement, error)
-	SetAnnouncementPriority(ctx context.Context, arg SetAnnouncementPriorityParams) (Announcement, error)
 	SetDiseaseActiveState(ctx context.Context, arg SetDiseaseActiveStateParams) (Disease, error)
 	SetIndicatorActiveState(ctx context.Context, arg SetIndicatorActiveStateParams) (Indicator, error)
-	SoftDeleteAnnouncement(ctx context.Context, arg SoftDeleteAnnouncementParams) error
-	SoftDeleteAnnouncementAttachment(ctx context.Context, arg SoftDeleteAnnouncementAttachmentParams) (AnnouncementAttachment, error)
 	TopTenantsByLogins(ctx context.Context, arg TopTenantsByLoginsParams) ([]TopTenantsByLoginsRow, error)
-	UnarchiveAnnouncementToDraft(ctx context.Context, arg UnarchiveAnnouncementToDraftParams) (Announcement, error)
 	UpdateAlertStatus(ctx context.Context, arg UpdateAlertStatusParams) (Alert, error)
-	UpdateAnnouncement(ctx context.Context, arg UpdateAnnouncementParams) (Announcement, error)
-	UpdateAnnouncementAttachment(ctx context.Context, arg UpdateAnnouncementAttachmentParams) (AnnouncementAttachment, error)
-	UpdateAnnouncementStatus(ctx context.Context, arg UpdateAnnouncementStatusParams) (Announcement, error)
 	UpdateClient(ctx context.Context, arg UpdateClientParams) error
 	UpdateClientEnabled(ctx context.Context, arg UpdateClientEnabledParams) error
 	UpdateDocument(ctx context.Context, arg UpdateDocumentParams) (Document, error)

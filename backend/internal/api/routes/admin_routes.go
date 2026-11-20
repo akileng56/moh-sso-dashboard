@@ -3,7 +3,6 @@ package routes
 import (
 	"github.com/gin-gonic/gin"
 
-	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
@@ -22,7 +21,7 @@ func RegisterAdminRoutes(protected *gin.RouterGroup, deps Dependencies) {
 		registerAdminAuditRoutes(protected, deps)
 	}
 	registerAdminNotificationRoutes(admin, deps)
-	registerAdminAnnouncementRoutes(admin, deps)
+
 	registerAdminRBACRoutes(admin, deps)
 	registerAdminHealthContextRoutes(admin, deps)
 }
@@ -53,12 +52,6 @@ func registerAdminAuditRoutes(protected *gin.RouterGroup, deps Dependencies) {
 
 func registerAdminNotificationRoutes(admin *gin.RouterGroup, deps Dependencies) {
 	notificationsfeature.RegisterAdminRoutes(admin, deps.Notifications, deps.Limiter)
-}
-
-func registerAdminAnnouncementRoutes(admin *gin.RouterGroup, deps Dependencies) {
-	if deps.Modules == nil {
-		announcementfeature.RegisterAdminRoutes(admin, deps.Announcements, deps.Limiter)
-	}
 }
 
 func registerAdminRBACRoutes(admin *gin.RouterGroup, deps Dependencies) {

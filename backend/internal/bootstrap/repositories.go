@@ -3,7 +3,6 @@ package bootstrap
 import (
 	"database/sql"
 
-	announcementRepo "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
 	clientRepo "github.com/moh-sso-dashboard/internal/features/clients"
@@ -40,7 +39,6 @@ type repositories struct {
 	Processes               processRepo.ProcessRepository
 	StorageLocations        storageLocationRepo.StorageLocationRepository
 	Sessions                sessionRepo.SessionRepository
-	Announcements           announcementRepo.AnnouncementRepository
 	Email                   emailRepo.EmailRepository
 	Surveillance            *surveillanceRepo.Repositories
 	RBAC                    rbacRepo.Repository
@@ -86,7 +84,6 @@ func buildRepositories(
 		Processes:               processRepo.NewProcessRepository(cfg, store, *appLogger),
 		StorageLocations:        storageLocationRepo.NewStorageRepositoryRepository(cfg, store, *appLogger),
 		Sessions:                sessionRepo.NewSessionRepository(adminKC, cfg, *appLogger),
-		Announcements:           announcementRepo.NewAnnouncementRepository(store, *appLogger),
 		Email:                   emailRepo.NewEmailRepository(cfg, store, *appLogger),
 		Surveillance:            surveillanceRepo.NewRepositories(surveillanceStore),
 		RBAC:                    rbacRepo.NewRepository(primaryDB),

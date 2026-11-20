@@ -24,7 +24,7 @@ func TestCoreCompositionOmitsOptionalConstructorsAndRoutes(t *testing.T) {
 	if services.RBAC == nil || services.HealthContexts == nil || services.Auth == nil || services.Audit == nil || services.Sessions == nil || services.Notifications == nil {
 		t.Fatal("missing core capability")
 	}
-	if services.SMTP != nil || services.Email != nil || services.SMS != nil || services.Documents != nil || services.ReportScheduler != nil || services.Announcements != nil {
+	if services.SMTP != nil || services.Email != nil || services.SMS != nil || services.Documents != nil || services.ReportScheduler != nil {
 		t.Fatal("optional service constructed")
 	}
 	handlers := buildHandlers(handlerDependencies{Config: cfg, Services: services})
@@ -99,5 +99,16 @@ func TestWorkerFailureIsPreservedAtShutdown(t *testing.T) {
 	stop := startWorkerGroup(context.Background(), []workerTask{{"fixture", func(context.Context) error { return cause }}}, nil)
 	if err := stop(context.Background()); !errors.Is(err, cause) {
 		t.Fatal("worker error lost", err)
+	}
+}
+
+func TestDisabledAnnouncementsDoNotConstructProviders(t *testing.T) {
+	for _, cfg := range []*config.Config{
+		{PlatformProfile: config.ProfileCore},
+		{PlatformProfile: config.ProfileFull, DisabledModules: "announcements"},
+	} {
+		if module := buildAnnouncementsModule(handlerDependencies{Config: cfg}); module != nil {
+			t.Fatal("disabled module constructed with unavailable provider dependencies")
+		}
 	}
 }

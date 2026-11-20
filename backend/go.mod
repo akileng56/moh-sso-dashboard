@@ -97,7 +97,7 @@ require (
 
 require (
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units v0.2.0
-	github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.1.0
+	github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements v0.2.0
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/audit v0.2.0
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson v0.2.0
 	github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics v0.2.0

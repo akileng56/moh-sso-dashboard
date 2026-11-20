@@ -10,12 +10,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	announcement "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/module"
+	announcement "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
 	announcementmodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
+	"net/http"
+	"time"
 )
 
 const otherAnnouncementModules = "metrics,audit,geojson,report-scheduler,admin-units"
@@ -87,7 +90,7 @@ func TestAnnouncementsProductionRouterDisablement(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var baseline map[string]bool
 	for _, mode := range []string{"legacy", "enabled", "disabled"} {
-		handlers := HandlerSet{Announcements: &announcement.Handler{}}
+		handlers := HandlerSet{Announcements: testAnnouncementModule(t, &announcementRouteRepository{}, &announcementRouteStorage{})}
 		var registry *module.Registry
 		if mode != "legacy" {
 			ids := otherAnnouncementModules
@@ -163,7 +166,7 @@ func TestAnnouncementsRegistryPermissionsAndAttachments(t *testing.T) {
 	for _, disabled := range []bool{false, true} {
 		repo := &announcementRouteRepository{}
 		storage := &announcementRouteStorage{}
-		handler := announcement.NewHandler(announcement.NewServiceWithSettings(repo, announcement.ServicePorts{Storage: storage}, nil), nil)
+		handler := testAnnouncementModule(t, repo, storage)
 		ids := otherAnnouncementModules
 		if disabled {
 			ids += ",announcements"
@@ -184,7 +187,7 @@ func TestAnnouncementsRegistryPermissionsAndAttachments(t *testing.T) {
 				if identity == "anonymous" {
 					return
 				}
-				actor := authz.Context{UserID: uuid.NewString()}
+				actor := authz.Context{UserID: uuid.NewString(), IsAdmin: true}
 				switch identity {
 				case "reader":
 					actor.Permissions = []authz.Permission{authz.PermissionAnnouncementsRead}
@@ -231,7 +234,7 @@ func TestAnnouncementsRegistryPermissionsAndAttachments(t *testing.T) {
 				}
 				if strings.HasSuffix(endpoint.path, "/download") {
 					if want == 200 {
-						if res.Body.String() != "fixture attachment" || res.Header().Get("Content-Disposition") != `attachment; filename="notice.txt"` {
+						if res.Body.String() != "fixture attachment" || res.Header().Get("Content-Disposition") != `attachment; filename=notice.txt` {
 							t.Fatalf("download: %s", res.Body.String())
 						}
 					} else if repo.downloads != beforeRepo || storage.downloads != beforeStorage {
@@ -241,4 +244,31 @@ func TestAnnouncementsRegistryPermissionsAndAttachments(t *testing.T) {
 			}
 		}
 	}
+}
+
+func (*announcementRouteRepository) GetByID(_ context.Context, id uuid.UUID) (announcement.Announcement, error) {
+	return announcement.Announcement{ID: id, Status: announcement.AnnouncementStatusPUBLISHED, AudienceType: announcement.AnnouncementAudienceTypeALLUSERS}, nil
+}
+func testAnnouncementModule(t *testing.T, repo announcement.Repository, storage announcement.AttachmentStorage) *announcement.Module {
+	t.Helper()
+	m, err := announcement.NewModule(announcement.Dependencies{
+		Repository: repo, Ports: announcement.ServicePorts{Storage: storage},
+		Actor: func(r *http.Request) (announcement.Actor, error) {
+			actor, valid := modulehttp.Actor(r)
+			if !valid {
+				return announcement.Actor{}, announcement.ErrUnauthorized
+			}
+			id, err := uuid.Parse(actor.UserID)
+			if err != nil {
+				return announcement.Actor{}, announcement.ErrUnauthorized
+			}
+			return announcement.Actor{UserID: id, RealmRoles: actor.RealmRoles}, nil
+		},
+		RequireAdmin: modulehttp.RequireAdmin, AuthorizeAny: modulehttp.AuthorizeAny,
+		Limit: func(*http.Request, string, int, time.Duration) (http.Header, error) { return nil, nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return m
 }

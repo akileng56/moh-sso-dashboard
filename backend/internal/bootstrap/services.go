@@ -4,7 +4,6 @@ import (
 	"net/url"
 	"strings"
 
-	announcementfeature "github.com/moh-sso-dashboard/internal/adapters/modules/announcements"
 	reportschedulerfeature "github.com/moh-sso-dashboard/internal/adapters/modules/report_scheduler"
 	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -41,7 +40,6 @@ type services struct {
 	Documents               *documentfeature.Service
 	Clients                 *clientfeature.Service
 	Users                   *userfeature.Service
-	Announcements           *announcementfeature.Service
 	Diseases                *surveillancefeature.DiseaseService
 	EpiWeeks                *surveillancefeature.EpiWeekService
 	Locations               *surveillancefeature.LocationService
@@ -183,17 +181,6 @@ func buildServices(deps serviceDependencies) services {
 		deps.Config,
 	)
 
-	announcementService := announcementfeature.NewServiceWithPorts(
-		deps.Repositories.Announcements,
-		announcementfeature.ServicePorts{
-			Users:         announcementfeature.NewUserDirectory(deps.Repositories.Users),
-			Groups:        announcementfeature.NewGroupDirectory(deps.Repositories.RBAC),
-			Notifications: announcementfeature.NewNotificationPublisher(notificationsService),
-			Storage:       deps.FileStorage,
-		},
-		deps.Config,
-	)
-
 	diseaseService := surveillancefeature.NewDiseaseService(
 		deps.Logger,
 		deps.Repositories.Surveillance.Diseases,
@@ -282,7 +269,6 @@ func buildServices(deps serviceDependencies) services {
 	rbacService.SetKeycloakGroupMembershipManager(deps.AdminKeycloak)
 	rbacService.SetFrontendBaseURL(deps.Config.FrontendBaseURL)
 	healthContextService := healthcontextfeature.NewService(deps.Repositories.HealthContexts)
-	announcementService.SetHealthContextService(healthContextService)
 	emailFeatureService.SetHealthContextService(healthContextService)
 
 	return services{
@@ -298,7 +284,6 @@ func buildServices(deps serviceDependencies) services {
 		Documents:               documentService,
 		Clients:                 clientService,
 		Users:                   userService,
-		Announcements:           announcementService,
 		Diseases:                diseaseService,
 		EpiWeeks:                epiWeekService,
 		Locations:               locationService,

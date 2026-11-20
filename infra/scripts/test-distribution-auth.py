@@ -298,7 +298,7 @@ def main():
             assert any(item['id'] == 'report-scheduler' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'audit' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'geojson' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
-            assert any(item['id'] == 'announcements' and item['version'] == 'v0.1.0' and item['enabled'] for item in modules), modules
+            assert any(item['id'] == 'announcements' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             assert any(item['id'] == 'admin-units' and item['version'] == 'v0.2.0' and item['enabled'] for item in modules), modules
             # The fixture's warehouse uses its isolated backend database. Supply
             # only the dimension contract used by Administrative Units.
@@ -352,7 +352,10 @@ def main():
             for download in announcement_downloads:
                 request(api + download, status=401)
                 request(api + download, token=token('map-denied'), status=403)
-                assert request(api + download, token=admin) == attachment_text
+                if download.startswith('/api/v1/announcements/'):
+                    request(api + download, token=admin, status=404)
+                else:
+                    assert request(api + download, token=admin) == attachment_text
             request(api + announcement_api, token=token('map-denied'), status=403)
             request(api + announcement_api, method='POST', data={}, token=outsider, status=403)
             request(api + announcement_api + '/' + announcement_id + '/publish',
@@ -363,7 +366,23 @@ def main():
                 assert any(item['id'] == announcement_id for item in items), items
             request(api + '/api/v1/announcements/me', token=outsider, status=403)
             request(api + '/api/v1/announcements/me', token=admin)
-            print('Announcements routes, permissions, publication and attachment streaming passed', flush=True)
+            for download in announcement_downloads:
+                assert request(api + download, token=admin) == attachment_text
+            private = request(api + announcement_api, method='POST', token=admin, status=201,
+                data={'title': 'Private audience fixture', 'message': 'Must remain scoped', 'level': 'INFO',
+                      'status': 'PUBLISHED', 'audience_type': 'SPECIFIC_USERS',
+                      'user_ids': ['ffffffff-ffff-ffff-ffff-ffffffffffff']})['data']
+            for audience_path in ('/api/v1/announcements/public', '/api/v1/announcements/active', '/api/v1/announcements/me'):
+                items = request(api + audience_path, token=admin)['data']
+                assert not any(item['id'] == private['id'] for item in items), 'Private audience leaked: ' + audience_path
+            private_attachment = request(api + announcement_api + '/' + private['id'] + '/attachments',
+                method='POST', token=admin, status=201,
+                data={'file_name': 'private.csv', 'content_type': 'text/csv',
+                      'data_base64': base64.b64encode(attachment_text.encode()).decode(),
+                      'include_in_email': False})['data']
+            request(api + '/api/v1/announcements/' + private['id'] + '/attachments/' + private_attachment['id'] + '/download',
+                    token=admin, status=404)
+            print('Announcements v0.2.0 routes, permissions, publication, attachment streams and private-audience isolation passed', flush=True)
             request(api + '/api/v1/admin/audit-logs/actions', token=admin)
             request(api + '/api/v1/admin/audit-logs/actions', token=viewer, status=403)
             audit_range = 'from=1970-01-01T00:00:00Z&to=2100-01-01T00:00:00Z'

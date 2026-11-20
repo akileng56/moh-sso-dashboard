@@ -61,7 +61,7 @@ def main():
         assert files == published, 'Release file inventory differs'
         for relative in files:
             assert (local/relative).read_bytes() == (released/relative).read_bytes(), 'Release drift: ' + str(relative)
-        graph = set(run('list', '-mod=readonly', '-m', '-f', '{{.Path}} {{.Version}}', 'all').splitlines())
+        graph = {line.strip() for line in run('list', '-mod=readonly', '-m', '-f', '{{.Path}} {{.Version}}', 'all').splitlines()}
         assert graph == {'example.com/announcements-release-consumer',
                          MODULE + ' ' + VERSION, 'github.com/google/uuid v1.6.0',
                          'github.com/lib/pq v1.10.9'}, graph
