@@ -163,6 +163,22 @@
   margin: 0.5rem 0 0.25rem;
 }
 
+.kpi-value--critical {
+  color: #a2191f;
+}
+
+.kpi-value--open {
+  color: #da1e28;
+}
+
+.kpi-value--resolved {
+  color: #198038;
+}
+
+.kpi-value--rate {
+  color: #0f62fe;
+}
+
 .kpi-subtext {
   font-size: 0.75rem;
   color: #6f6f6f;
@@ -190,6 +206,10 @@
   background-color: #ffffff;
   border: 1px solid #e0e0e0;
   border-radius: 6px;
+}
+
+.dashboard-filter-field {
+  min-width: 13.5rem;
 }
 
 .filter-active-indicator {
@@ -350,19 +370,29 @@
   min-width: 6rem;
 }
 
-.share-bar-bg {
+.share-progress {
   flex: 1;
   height: 6px;
+  appearance: none;
+  border: none;
+  border-radius: 3px;
   background-color: #e0e0e0;
-  border-radius: 3px;
   overflow: hidden;
-}
 
-.share-bar-fill {
-  height: 100%;
-  background-color: #0f62fe;
-  border-radius: 3px;
-  transition: width 0.3s ease;
+  &::-webkit-progress-bar {
+    background-color: #e0e0e0;
+    border-radius: 3px;
+  }
+
+  &::-webkit-progress-value {
+    background-color: #0f62fe;
+    border-radius: 3px;
+  }
+
+  &::-moz-progress-bar {
+    background-color: #0f62fe;
+    border-radius: 3px;
+  }
 }
 
 .share-percent-text {
@@ -371,6 +401,50 @@
   font-weight: 500;
   min-width: 2.5rem;
   text-align: right;
+}
+
+.grand-total-percent {
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.expanded-panel-subtitle {
+  font-size: 0.8125rem;
+  color: #525252;
+  margin: 0.25rem 0 0;
+}
+
+.expanded-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stat-text--critical {
+  color: #a2191f;
+  font-weight: 600;
+}
+
+.stat-text--open {
+  color: #da1e28;
+  font-weight: 600;
+}
+
+.stat-text--resolved {
+  color: #198038;
+  font-weight: 600;
+}
+
+.table-action-header {
+  width: 4rem;
+  text-align: center;
+}
+
+.facility-empty-note {
+  margin: 0.5rem 0;
+  color: #6f6f6f;
+  font-size: 0.8125rem;
 }
 
 /* Grand total row */
@@ -1298,6 +1372,58 @@
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+.aging-bucket-dot--0-7 {
+  background-color: #0f62fe;
+}
+
+.aging-bucket-dot--8-14 {
+  background-color: #007d79;
+}
+
+.aging-bucket-dot--15-30 {
+  background-color: #d2a106;
+}
+
+.aging-bucket-dot--31-60 {
+  background-color: #eb6200;
+}
+
+.aging-bucket-dot--61-90 {
+  background-color: #da1e28;
+}
+
+.aging-bucket-dot--90plus {
+  background-color: #a2191f;
+}
+
+.aging-bucket-chip.active .aging-bucket-dot {
+  background-color: #ffffff;
+}
+
+.aging-triage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.aging-avg-text {
+  font-size: 0.8125rem;
+  color: #525252;
+}
+
+.aging-code-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.aging-resolve-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .aging-triage-row {

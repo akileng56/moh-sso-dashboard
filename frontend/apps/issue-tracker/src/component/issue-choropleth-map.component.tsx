@@ -281,12 +281,9 @@ export function IssueChoroplethMap({
         return normalizeRegionKey(d.region) === normalizeRegionKey(selectedFilter);
       });
 
-    const totalPolygonCount =
-      geoJson?.type === "FeatureCollection" ? geoJson.features.length : 146;
 
     return {
       affectedDistrictsCount: allDistricts.length,
-      totalPolygonCount,
       topDistricts: filteredDistricts.slice(0, 12),
       maxDistrictTotal: allDistricts[0]?.total ?? 0,
     };
@@ -413,9 +410,7 @@ export function IssueChoroplethMap({
               : `Issues by District -  ${selectedFilter}`}
           </h4>
           <p className="issue-choropleth-subtitle">
-            <strong>{mapSummaryStats.affectedDistrictsCount}</strong> of{" "}
-            <strong>{mapSummaryStats.totalPolygonCount}</strong> districts have reported data
-            quality issues. Click any district on the map or ranking list to inspect or filter.
+            Click any district on the map or ranking list to inspect or filter.
           </p>
         </div>
 
@@ -587,12 +582,12 @@ export function IssueChoroplethMap({
                         <span className="text-open">{d.open} open</span>
                         <span>•</span>
                         <span className="text-resolved">{d.resolved} resolved</span>
-                        {d.critical > 0 && (
-                          <>
-                            <span>•</span>
-                            <span className="text-critical">{d.critical} critical</span>
-                          </>
-                        )}
+                        {/*{d.critical > 0 && (*/}
+                        {/*  <>*/}
+                        {/*    <span>•</span>*/}
+                        {/*    <span className="text-critical">{d.critical} critical</span>*/}
+                        {/*  </>*/}
+                        {/*)}*/}
                       </div>
                     </button>
                     <button

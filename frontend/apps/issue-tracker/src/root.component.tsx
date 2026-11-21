@@ -1,10 +1,18 @@
-import { resolveRuntimeBasename, type MicrofrontendRuntimeProps } from "@moh-sso/microfrontend";
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from "react-router-dom";
+import {
+  resolveRuntimeBasename,
+  type MicrofrontendRuntimeProps,
+} from "@moh-sso/microfrontend";
+import {
+  BrowserRouter,
+  Route,
+  Routes,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import IssueTracker from "./pages/issue-tracker.component";
 import IssueDashboard from "./pages/issue-dashboard.component";
 
-import { PageShell } from "@moh-sso/ui";
 import "./issue-tracker-shell.scss";
 
 const DEFAULT_ISSUE_TRACKER_BASE = "/apps/dwh/issue-tracker";
