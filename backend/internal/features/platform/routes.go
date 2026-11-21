@@ -19,8 +19,10 @@ func RegisterRoutes(api, protected *gin.RouterGroup, h *Handler, limiter *rateli
 	machine.Use(h.AuthenticateMachine())
 	machine.GET("/identity", requireScope(IdentityRead), h.GetIdentity)
 	machine.GET("/readiness", requireScope(IdentityRead), h.GetReadiness)
-	machine.POST("/notifications", requireScope(NotificationsWrite), h.SubmitNotification)
-	machine.GET("/notifications/:id", requireScope(NotificationsRead), h.GetNotification)
+	if h.DeliveryEnabled == nil || *h.DeliveryEnabled {
+		machine.POST("/notifications", requireScope(NotificationsWrite), h.SubmitNotification)
+		machine.GET("/notifications/:id", requireScope(NotificationsRead), h.GetNotification)
+	}
 	admin := protected.Group("/admin/platform")
 	admin.GET("/applications/:clientId/operations", middleware.RequirePermission(authz.PermissionRBACRead), h.GetOperations)
 	admin.Use(middleware.RequireAllPermissions(authz.PermissionRBACWrite, authz.PermissionRBACRolesWrite))

@@ -1,11 +1,13 @@
 package surveillance
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/internal/geography"
 
 	db "github.com/moh-sso-dashboard/internal/db/sqlc"
 	healthcontext "github.com/moh-sso-dashboard/internal/features/health_context"
@@ -13,6 +15,7 @@ import (
 )
 
 type Handler struct {
+	available                    func() bool
 	epiWeekService               *EpiWeekService
 	diseaseService               *DiseaseService
 	locationService              *LocationService
@@ -42,6 +45,22 @@ func NewHandler(
 		alertService:                 alertService,
 		importService:                importService,
 		healthContextService:         healthContextService,
+	}
+}
+
+// SetAvailabilityCheck gates only Observatory-backed routes during initialization
+// and outages. It does not disable any authentication or authorization checks.
+func (h *Handler) SetAvailabilityCheck(available func() bool) { h.available = available }
+
+func (h *Handler) RequireAvailable() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if h.available != nil && !h.available() {
+			c.Header("Retry-After", "15")
+			response.Fail(c, http.StatusServiceUnavailable, "OBSERVATORY_UNAVAILABLE", "Surveillance is temporarily unavailable. Please try again shortly.")
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
 }
 
@@ -421,6 +440,10 @@ func (h *Handler) DeleteSubcounty(c *gin.Context) {
 	}
 
 	if err := h.locationService.DeleteSubcounty(ctx, id); err != nil {
+		if errors.Is(err, geography.ErrDeletionRestricted) {
+			response.Fail(c, http.StatusConflict, "GEOGRAPHY_DELETE_RESTRICTED", "Shared geography cannot be deleted. Disable its health context instead.")
+			return
+		}
 		response.Fail(c, http.StatusInternalServerError, "failed to delete subcounty", "request failed")
 		return
 	}

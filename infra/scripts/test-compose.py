@@ -43,7 +43,7 @@ class ComposeTests(unittest.TestCase):
             manifest = cd_bundle.package(metadata, root / 'bundle', commit, '1', '1')
             release = root / 'releases' / manifest['release_id']
             cd_bundle.extract(root / 'bundle/deployment.tar.gz', root / 'bundle/deployment.tar.gz.sha256', release)
-            for mode in ('prod', 'remote', 'gateway'):
+            for mode in ('prod', 'remote', 'gateway', 'distribution'):
                 configuration = root / 'deploy.json'
                 trust = ROOT / 'infra/nginx/trusted-proxies.conf'
                 configuration.write_text(json.dumps({
@@ -58,8 +58,11 @@ class ComposeTests(unittest.TestCase):
                 for component, image in images.items():
                     self.assertEqual(model['services'][component]['image'],
                                      f"{image['repository']}:{image['version']}@{image['digest']}")
-                self.assertEqual(model['name'], 'moh-sso-dashboard')
-                if mode == 'gateway':
+                self.assertEqual(model['name'], 'moh-sso-distribution' if mode == 'distribution' else 'moh-sso-dashboard')
+                if mode == 'distribution':
+                    for component in images:
+                        self.assertNotIn('build', model['services'][component])
+                if mode in ('gateway', 'distribution'):
                     mounts = model['services']['nginx']['volumes']
                     self.assertEqual(next(v['source'] for v in mounts if v['target'] == '/etc/nginx/trusted-proxies.conf'), str(trust))
                 cd_bundle.extract(root / 'bundle/deployment.tar.gz', root / 'bundle/deployment.tar.gz.sha256', release)
@@ -79,7 +82,7 @@ class ComposeTests(unittest.TestCase):
             remote_env.write_text('APP_BIND_ADDRESS=10.0.0.20\n')
             env = {**os.environ, 'PATH': str(tmp) + os.pathsep + os.environ['PATH'],
                    'ENV_FILE': str(private_env), 'REMOTE_ENV_FILE': str(remote_env)}
-            for mode in ('prod', 'dev', 'gateway', 'remote', 'external'):
+            for mode in ('prod', 'dev', 'gateway', 'remote', 'external', 'distribution'):
                 result = subprocess.run(['sh', str(ROOT / 'infra/scripts/compose.sh'), mode, 'config', '--quiet'],
                                         cwd=tmp, env=env, text=True, capture_output=True, check=True)
                 call = json.loads(result.stdout)
@@ -109,6 +112,34 @@ class ComposeTests(unittest.TestCase):
         for field in ('name', 'services', 'networks', 'volumes', 'secrets'):
             self.assertEqual(default[field], prod[field], field)
 
+    def test_distribution_builds_pinned_images_and_preserves_runtime_contracts(self):
+        model = config('infra/compose/docker-compose.distribution.yml',
+                       DISTRIBUTION_TAG='0.1.0-fixture', DISTRIBUTION_COMMIT='a' * 40)
+        self.assertEqual(model['name'], 'moh-sso-distribution')
+        services = model['services']
+        for name, dockerfile in [('backend', 'backend/Dockerfile'),
+                                 ('frontend', 'frontend/Dockerfile.npm-modules')]:
+            service = services[name]
+            self.assertEqual(service['image'], f'moh-sso-distribution-{name}:0.1.0-fixture')
+            self.assertEqual(Path(service['build']['context']), ROOT)
+            self.assertEqual(service['build']['dockerfile'], 'infra/docker/' + dockerfile)
+            self.assertEqual(service['build']['args']['COMMIT'], 'a' * 40)
+            self.assertFalse(service.get('ports'))
+        for service in services.values():
+            self.assertNotIn('container_name', service)
+            self.assertIn('healthcheck', service)
+        api, database = services['backend'], services['observatory-db']
+        self.assertEqual(api['environment']['OBSERVATORY_DB_HOST'], 'observatory-db')
+        self.assertEqual(api['environment']['OBSERVATORY_DB_NAME'], database['environment']['POSTGRES_DB'])
+        self.assertEqual(api['environment']['OBSERVATORY_DB_PASSWORD_FILE'], database['environment']['POSTGRES_PASSWORD_FILE'])
+        self.assertEqual(api['depends_on']['observatory-db']['condition'], 'service_healthy')
+        self.assertEqual(len(api['secrets']), 4)
+        self.assertEqual(database['volumes'][0]['source'], 'observatory_data')
+        self.assertEqual(api['stop_grace_period'], '1m0s')
+        self.assertTrue(api['init'])
+        self.assertNotIn('ports', database)
+        self.assertNotIn('keycloak', services)
+
     def test_all_application_envs_reach_backend_and_frontend_is_public_only(self):
         for filename, example in [('infra/compose/docker-compose.yml', 'infra/env/prod.env.example'),
                                   ('infra/compose/docker-compose.dev.yml', 'infra/env/dev.env.example')]:
@@ -127,6 +158,17 @@ class ComposeTests(unittest.TestCase):
         for example in ('infra/env/prod.env.example', 'infra/env/dev.env.example'):
             declared = set(re.findall(r'^([A-Z][A-Z0-9_]+)=', (ROOT / example).read_text(), re.M))
             self.assertFalse(fields - infrastructure - declared, (example, fields - infrastructure - declared))
+
+    def test_disabled_modules_reach_only_backend(self):
+        for filename, example in [('infra/compose/docker-compose.yml', 'infra/env/prod.env.example'),
+                                  ('infra/compose/docker-compose.dev.yml', 'infra/env/dev.env.example')]:
+            with self.subTest(compose=filename), tempfile.TemporaryDirectory() as tmp:
+                env_file = Path(tmp) / 'application.env'
+                env_file.write_text((ROOT / example).read_text().replace(
+                    '\nDISABLED_MODULES=\n', '\nDISABLED_MODULES=metrics\n'))
+                services = config(filename, str(env_file), DEV_ENV_FILE=str(env_file))['services']
+                self.assertEqual(services['backend']['environment']['DISABLED_MODULES'], 'metrics')
+                self.assertNotIn('DISABLED_MODULES', services['frontend']['environment'])
 
     def test_production_database_redis_secrets_and_remote_binding(self):
         services = config('infra/compose/docker-compose.prod.yml', DB_USER='custom_owner', DB_NAME='custom_database',

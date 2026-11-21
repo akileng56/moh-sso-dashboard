@@ -4,34 +4,32 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/moh-sso-dashboard/internal/authz"
-	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	dataqualityfeature "github.com/moh-sso-dashboard/internal/features/data_quality"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	userfeature "github.com/moh-sso-dashboard/internal/features/users"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 )
 
 func RegisterProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	registerEmailRoutes(protected, deps)
-	registerAnnouncementRoutes(protected, deps)
-	registerGeoJSONRoutes(protected, deps)
+
+	if deps.Modules == nil {
+		registerGeoJSONRoutes(protected, deps)
+	}
 	registerClientRoutes(protected, deps)
 	registerUserRoutes(protected, deps)
 	registerStorageLocationRoutes(protected, deps)
 	registerSessionRoutes(protected, deps)
 	registerNotificationRoutes(protected, deps)
 
-	contextScoped := protected.Group("")
-	contextScoped.Use(middleware.RequireSystem(authz.SystemDataStatistics))
-	contextScoped.Use(deps.HealthContexts.RequireAccessibleSelection())
+	contextScoped := ContextScopedGroup(protected, deps.HealthContexts)
 	registerDocumentRoutes(contextScoped, deps)
 	registerDataQualityRoutes(contextScoped, deps)
 	registerVisualiserRoutes(contextScoped, deps)
@@ -39,15 +37,10 @@ func RegisterProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
 
 	registerRBACProtectedRoutes(protected, deps)
 	registerHealthContextProtectedRoutes(protected, deps)
-	reportschedulerfeature.RegisterProtectedRoutes(protected, deps.ReportScheduler)
 }
 
 func registerHealthContextProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	healthcontextfeature.RegisterProtectedRoutes(protected, deps.HealthContexts)
-}
-
-func registerAnnouncementRoutes(protected *gin.RouterGroup, deps Dependencies) {
-	announcementfeature.RegisterProtectedRoutes(protected, deps.Announcements)
 }
 
 func registerEmailRoutes(protected *gin.RouterGroup, deps Dependencies) {
@@ -55,7 +48,9 @@ func registerEmailRoutes(protected *gin.RouterGroup, deps Dependencies) {
 }
 
 func registerGeoJSONRoutes(protected *gin.RouterGroup, deps Dependencies) {
-	geojsonfeature.RegisterProtectedRoutes(protected, deps.GeoJSON)
+	if deps.GeoJSON != nil {
+		modulehttp.Register(protected, deps.GeoJSON)
+	}
 }
 
 func registerClientRoutes(protected *gin.RouterGroup, deps Dependencies) {
@@ -84,4 +79,12 @@ func registerRBACProtectedRoutes(protected *gin.RouterGroup, deps Dependencies) 
 
 func registerNotificationRoutes(protected *gin.RouterGroup, deps Dependencies) {
 	notificationsfeature.RegisterProtectedRoutes(protected, deps.Notifications)
+}
+
+// ContextScopedGroup retains the shared system and selected-context boundary.
+func ContextScopedGroup(protected *gin.RouterGroup, contexts *healthcontextfeature.Handler) *gin.RouterGroup {
+	group := protected.Group("")
+	group.Use(middleware.RequireSystem(authz.SystemDataStatistics))
+	group.Use(contexts.RequireAccessibleSelection())
+	return group
 }

@@ -5,6 +5,15 @@ for key in OBSERVATORY_DB_PASSWORD DB_PASSWORD KEYCLOAK_ADMIN_CLIENT_SECRET KEYC
   PLATFORM_AUTH_CLIENT_SECRET HEALTH_BI_KEYCLOAK_CLIENT_SECRET TOKEN_SYMMETRIC_KEY REDIS_PASSWORD \
   REMOTE_DB_PASSWORD DWH_PASSWORD DQA_DB_PASSWORD SMTP_PASSWORD SMTP_PASSWORD_GM \
   S3_SECRET_ACCESS_KEY MINIO_SECRET_ACCESS_KEY AFRICASTALKING_API_KEY TWILIO_AUTH_TOKEN; do
+  # Core reads only mandatory capability secrets; optional provider mounts are
+  # not prerequisites for this profile.
+  profile="$(printf '%s' "${PLATFORM_PROFILE:-full}" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  if [ "$profile" = core ]; then
+    case "$key" in
+      DB_PASSWORD|KEYCLOAK_ADMIN_CLIENT_SECRET|KEYCLOAK_WEB_CLIENT_SECRET|PLATFORM_AUTH_CLIENT_SECRET|TOKEN_SYMMETRIC_KEY|REDIS_PASSWORD) ;;
+      *) continue ;;
+    esac
+  fi
   path="$(printenv "${key}_FILE" || true)"
   if [ -n "$path" ]; then
     if [ ! -r "$path" ]; then

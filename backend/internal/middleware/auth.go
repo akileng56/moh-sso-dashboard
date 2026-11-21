@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moh-sso-dashboard/core"
 
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
@@ -39,13 +40,8 @@ func ExtractAuthContext(
 			return
 		}
 
-		authContext := authz.NewContextWithResolver(
-			c.Request.Context(),
-			resolver,
-			user.ID,
-			user.RealmRoles,
-			user.ClientRoles,
-		)
+		authContext := authz.NewContextForIdentity(c.Request.Context(), resolver,
+			core.Identity{Subject: user.ID, RealmRoles: user.RealmRoles, ClientRoles: user.ClientRoles})
 
 		c.Set("access_token", accessToken)
 		c.Set(authz.ContextKey, authContext)
@@ -125,12 +121,8 @@ func RequireAnyPermission(permissions ...authz.Permission) gin.HandlerFunc {
 		}
 
 		if !authContext.HasAnyPermission(permissions...) {
-			required := make([]string, 0, len(permissions))
-			for _, permission := range permissions {
-				required = append(required, string(permission))
-			}
 
-			abortWithError(c, http.StatusForbidden, "FORBIDDEN", fmt.Sprintf("one of these permissions is required: %s", strings.Join(required, ", ")))
+			abortWithError(c, http.StatusForbidden, "FORBIDDEN", fmt.Sprintf("one of these permissions is required: %s", strings.Join(permissionNames(permissions), ", ")))
 			return
 		}
 
@@ -146,19 +138,22 @@ func RequireAllPermissions(permissions ...authz.Permission) gin.HandlerFunc {
 			return
 		}
 
-		missing := make([]string, 0)
-		for _, permission := range permissions {
-			if !authContext.HasPermission(permission) {
-				missing = append(missing, string(permission))
-			}
-		}
+		missing := core.MissingPermissions(authContext.Permissions, permissions...)
 		if len(missing) > 0 {
-			abortWithError(c, http.StatusForbidden, "FORBIDDEN", fmt.Sprintf("missing required permissions: %s", strings.Join(missing, ", ")))
+			abortWithError(c, http.StatusForbidden, "FORBIDDEN", fmt.Sprintf("missing required permissions: %s", strings.Join(permissionNames(missing), ", ")))
 			return
 		}
 
 		c.Next()
 	}
+}
+
+func permissionNames(permissions []authz.Permission) []string {
+	names := make([]string, len(permissions))
+	for i, permission := range permissions {
+		names[i] = string(permission)
+	}
+	return names
 }
 
 func RequireSystem(systemClientID string) gin.HandlerFunc {

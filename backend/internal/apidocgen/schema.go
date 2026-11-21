@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	schedulermodule "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 	"golang.org/x/tools/go/packages"
 )
 
@@ -53,7 +54,12 @@ func (s *schemas) of(t types.Type) object {
 			if _, basic := n.Underlying().(*types.Basic); basic {
 				return s.of(n.Underlying())
 			}
-			name := pkg.Name() + "." + n.Obj().Name()
+			prefix := pkg.Name()
+			// Keep the public schema names stable across the package extraction.
+			if pkg.Path() == schedulermodule.ModulePath {
+				prefix = "report_scheduler"
+			}
+			name := prefix + "." + n.Obj().Name()
 			if n.TypeArgs() != nil && n.TypeArgs().Len() > 0 {
 				name = types.TypeString(n, func(p *types.Package) string { return p.Name() })
 			}

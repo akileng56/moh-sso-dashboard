@@ -16,7 +16,7 @@ import urllib.request
 import uuid
 
 sys.dont_write_bytecode = True
-from cd_bundle import validate_manifest
+from cd_bundle import validate_manifest, validate_environment_contract
 
 
 def atomic_json(path, data):
@@ -45,8 +45,12 @@ class Server:
     def __init__(self, config, runner=None):
         self.config = json.loads(Path(config).read_text())
         c = self.config
-        if c.get('schema_version') != 1 or c.get('mode') not in ('prod', 'gateway', 'remote'):
+        if c.get('schema_version') != 1 or c.get('mode') not in ('prod', 'gateway', 'remote', 'distribution'):
             raise ValueError('Unsupported server configuration schema/mode')
+        default_project = 'moh-sso-distribution' if c['mode'] == 'distribution' else 'moh-sso-dashboard'
+        self.project = c.get('project_name', default_project)
+        if not re.fullmatch(r'[a-z0-9][a-z0-9_-]{0,62}', self.project):
+            raise ValueError('Invalid Compose project name')
         for key in ('deploy_root', 'env_file'):
             if not Path(c[key]).is_absolute():
                 raise ValueError(f'{key} must be absolute')
@@ -85,22 +89,90 @@ class Server:
         env.update(APP_ENV_FILE=record['env_file'], BACKEND_TAG=record['manifest']['images']['backend']['tag'],
                    FRONTEND_TAG=record['manifest']['images']['frontend']['tag'])
         env.update(self.config['secret_files'])
+        if record['mode'] == 'distribution':
+            env['DISTRIBUTION_TAG'] = record['manifest']['images']['backend']['tag']
         return env
 
     def compose(self, record, *args):
         file = 'docker-compose-nginx.yml' if record['mode'] == 'gateway' else 'docker-compose.prod.yml'
-        command = ['docker', 'compose', '--project-name', 'moh-sso-dashboard', '--env-file', record['env_file']]
+        if record['mode'] == 'distribution':
+            file = 'docker-compose.distribution.release.yml'
+        default_project = 'moh-sso-distribution' if record['mode'] == 'distribution' else 'moh-sso-dashboard'
+        command = ['docker', 'compose', '--project-name', record.get('project_name', default_project), '--env-file', record['env_file']]
         if record['mode'] == 'remote':
             command += ['--env-file', record['remote_env_file']]
         command += ['-f', str(Path(record['release_dir']) / 'infra/compose' / file),
                     '-f', record['override_file'], *args]
         return self.runner(command, env=self.environment(record))
 
+    def prepare_environment(self, release):
+        release = Path(release).resolve()
+        if not release.is_relative_to((self.root / 'releases').resolve()):
+            raise ValueError('Release must be inside deploy_root/releases')
+        if (self.state / 'pending.json').exists():
+            raise RuntimeError('Resolve pending deployment recovery before updating environment settings')
+        contract_path = release / 'environment-contract.json'
+        if not contract_path.is_file():
+            raise ValueError('Release environment contract is missing; build a new deployment bundle')
+        contract = validate_environment_contract(json.loads(contract_path.read_text()))
+        path = Path(self.config['env_file']).resolve(strict=True)
+        original_bytes = path.read_bytes()
+        original = original_bytes.decode()
+        values = {}
+        for line in original.splitlines():
+            match = re.match(r"^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=(.*)$", line)
+            if match:
+                value = match[2].strip()
+                if value.startswith(('"', "'")):
+                    quote = value[0]
+                    value = value[1:value.rfind(quote)] if value.rfind(quote) else value[1:]
+                else:
+                    value = re.split(r'\s+#', match[2], maxsplit=1)[0].strip()
+                values[match[1]] = value
+        missing = [setting for setting in contract['settings'] if setting['name'] not in values]
+        if missing:
+            # Preserve the original bytes, comments, ownership and every existing value.
+            backup = path.with_name(path.name + '.before-upgrade-' + uuid.uuid4().hex)
+            with os.fdopen(os.open(backup, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'wb') as stream:
+                stream.write(original_bytes)
+            updated = original + ('' if original.endswith('\n') else '\n') + '\n# Settings added by deployment ' + release.name + '\n'
+            updated += ''.join(item['name'] + '=' + item['default'] + '\n' for item in missing)
+            temporary = path.with_name(path.name + '.next-' + uuid.uuid4().hex)
+            try:
+                with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), 'w') as stream:
+                    stream.write(updated)
+                stat = path.stat()
+                if temporary.stat().st_uid != stat.st_uid or temporary.stat().st_gid != stat.st_gid:
+                    os.chown(temporary, stat.st_uid, stat.st_gid)
+                if path.read_bytes() != original_bytes:
+                    raise RuntimeError('Private environment changed during upgrade; retry preflight')
+                os.replace(temporary, path)
+            finally:
+                temporary.unlink(missing_ok=True)
+            print('Added environment setting names: ' + ', '.join(item['name'] for item in missing))
+            values.update({item['name']: item['default'] for item in missing})
+        if self.config['mode'] == 'distribution':
+            # This topology supplies the managed Observatory connection and
+            # mounted password. Validate operator settings for external services.
+            values.update(OBSERVATORY_DB_HOST='observatory-db', OBSERVATORY_DB_PORT='5432',
+                          OBSERVATORY_DB_USER=values.get('OBSERVATORY_DB_USER') or 'surveillance',
+                          OBSERVATORY_DB_NAME=values.get('OBSERVATORY_DB_NAME') or 'observatory',
+                          OBSERVATORY_DB_PASSWORD_FILE='/run/secrets/observatory_db_password')
+        def supplied(key):
+            value = values.get(key, '').strip()
+            return bool(value) and not value.lower().startswith(('replace-', 'change-me', 'changeme', '<'))
+        required = [item['name'] for item in contract['settings'] if item['required'] and
+                    not any(supplied(key) for key in [item['name'], *item.get('alternatives', [])])]
+        if required:
+            raise ValueError('Required production environment settings need values: ' + ', '.join(required))
+
     def candidate(self, release):
         release = Path(release).resolve()
         if not release.is_relative_to((self.root / 'releases').resolve()):
             raise ValueError('Release must be inside deploy_root/releases')
         manifest = validate_manifest(json.loads((release / 'deployment.json').read_text()))
+        if self.config['mode'] == 'distribution' and 'distribution' not in manifest:
+            raise ValueError('Distribution deployment requires pinned dependency metadata')
         if release.name != manifest['release_id']:
             raise ValueError('Release directory/manifest ID mismatch')
         snapshot = self.state / 'snapshots' / (manifest['release_id'] + '-' + uuid.uuid4().hex[:12])
@@ -109,6 +181,7 @@ class Server:
         shutil.copyfile(self.config['env_file'], env_file)
         env_file.chmod(0o600)
         record = {'release_dir': str(release), 'manifest': manifest, 'mode': self.config['mode'],
+                  'project_name': self.project,
                   'env_file': str(env_file), 'override_file': str(snapshot / 'images.json')}
         if record['mode'] == 'remote':
             remote = snapshot / 'remote.env'
@@ -117,7 +190,7 @@ class Server:
             record['remote_env_file'] = str(remote)
         override = {'services': {key: {'image': f"{value['repository']}:{value['version']}@{value['digest']}"}
                                  for key, value in manifest['images'].items()}}
-        if record['mode'] == 'gateway':
+        if record['mode'] in ('gateway', 'distribution'):
             override['services']['nginx'] = {'volumes': [{
                 'type': 'bind', 'source': self.config['gateway_trusted_proxies_file'],
                 'target': '/etc/nginx/trusted-proxies.conf', 'read_only': True}]}
@@ -128,12 +201,15 @@ class Server:
         for command in ('docker',):
             if self.runner == self._run and not shutil.which(command):
                 raise RuntimeError('Docker CLI is not installed')
-        if set(self.config.get('secret_files', {})) != {'DB_PASSWORD_SECRET_FILE', 'KEYCLOAK_ADMIN_SECRET_FILE', 'KEYCLOAK_WEB_SECRET_FILE'}:
-            raise ValueError('All three production secret paths must be configured')
+        secrets = {'DB_PASSWORD_SECRET_FILE', 'KEYCLOAK_ADMIN_SECRET_FILE', 'KEYCLOAK_WEB_SECRET_FILE'}
+        if self.config['mode'] == 'distribution':
+            secrets.add('OBSERVATORY_DB_PASSWORD_SECRET_FILE')
+        if set(self.config.get('secret_files', {})) != secrets:
+            raise ValueError('All production secret paths for the selected topology must be configured')
         required = [self.config['env_file'], *self.config['secret_files'].values()]
         if self.config['mode'] == 'remote':
             required.append(self.config.get('remote_env_file', ''))
-        if self.config['mode'] == 'gateway':
+        if self.config['mode'] in ('gateway', 'distribution'):
             required.append(self.config.get('gateway_trusted_proxies_file', ''))
         for value in required:
             path = Path(value)
@@ -170,9 +246,17 @@ class Server:
         if actual.get('version') != backend['version'] or actual.get('commit') != backend['commit']:
             raise ValueError('Backend runtime version/commit mismatch')
         frontend = manifest['images']['frontend']
-        actual = json.loads(self.compose(record, 'exec', '-T', 'frontend', 'wget', '-T', '10', '-qO-', 'http://127.0.0.1:3000/portal/version-manifest.json'))['service']
+        frontend_manifest = json.loads(self.compose(record, 'exec', '-T', 'frontend', 'wget', '-T', '10', '-qO-', 'http://127.0.0.1:3000/portal/version-manifest.json'))
+        actual = frontend_manifest['service']
         if actual.get('version') != frontend['version'] or actual.get('commit') != frontend['commit']:
             raise ValueError('Frontend runtime version/commit mismatch')
+        distribution = manifest.get('distribution')
+        if distribution:
+            actual_modules = {item['name']: item['version'] for group in ('apps', 'packages')
+                              for item in frontend_manifest.get(group, {}).values()
+                              if item['name'] != '@moh-sso/shell'}
+            if actual_modules != distribution['frontend']['versions']:
+                raise ValueError('Frontend runtime modules differ from the approved distribution pins')
         container = self.compose(record, 'ps', '-q', 'frontend').strip()
         if not container or '\n' in container:
             raise ValueError('Expected exactly one frontend container')
@@ -218,6 +302,9 @@ class Server:
                 raise RuntimeError('An interrupted deployment requires rollback/recovery first')
             saved = read_json(self.state / 'deployment.json', {})
             previous = saved.get('current')
+            if previous and (previous['mode'] != self.config['mode'] or
+                             previous.get('project_name', 'moh-sso-distribution' if previous['mode'] == 'distribution' else 'moh-sso-dashboard') != self.project):
+                raise ValueError('Changing deployment topology/project requires a separate migration plan')
             if automatic and previous:
                 incoming = validate_manifest(json.loads((Path(release) / 'deployment.json').read_text()))
                 current = previous['manifest']
@@ -232,6 +319,7 @@ class Server:
                 if build_order(incoming) <= build_order(current):
                     print('Skipping older automatic release; current deployment retained.')
                     return
+            self.prepare_environment(release)
             record = self.candidate(release)
             self.compose(record, 'config', '--quiet')
             self.pull(record)
@@ -298,7 +386,10 @@ def main():
     elif args.action == 'rollback':
         server.rollback(args.actor)
     elif args.action == 'preflight':
-        server.preflight()
+        with server.lock():
+            server.preflight()
+            if args.release:
+                server.prepare_environment(args.release)
         print('Server prerequisites and private configuration are ready.')
     else:
         saved = read_json(server.state / 'deployment.json', {})

@@ -38,7 +38,15 @@ def main():
             (frontend / 'infra/docker/frontend/40-runtime-config.sh').write_bytes((ROOT / 'infra/docker/frontend/40-runtime-config.sh').read_bytes())
             (frontend / 'infra/docker/frontend/nginx.conf').write_bytes((ROOT / 'infra/docker/frontend/nginx.conf').read_bytes())
             stage = (ROOT / 'infra/docker/frontend/Dockerfile').read_text().split('FROM nginx:', 1)[1]
-            (frontend / 'Dockerfile').write_text('FROM nginx:1.30.6-alpine AS build\nCOPY fixture /app/dist\nFROM nginx:' + stage)
+            (frontend / 'docs-fixture').mkdir()
+            (frontend / 'docs-fixture/index.html').write_text('<!doctype html><title>Documentation fixture</title>')
+            (frontend / 'Dockerfile').write_text(
+                'FROM nginx:1.30.6-alpine AS build\n'
+                'COPY fixture /app/dist\n'
+                'FROM nginx:1.30.6-alpine AS documentation\n'
+                'COPY docs-fixture /repository/documentation/build\n'
+                'FROM nginx:' + stage
+            )
             image = prefix + ':frontend'
             images.append(image)
             docker('build', '-q', '-t', image, str(frontend))
@@ -67,6 +75,8 @@ def main():
                     if time.monotonic() > deadline:
                         raise RuntimeError('Frontend failed startup: ' + docker('logs', container))
                     time.sleep(.25)
+            status, _, body = get('/docs/')
+            assert status == 200 and '<title>Documentation fixture</title>' in body
             for path in ('/config.js', '/portal/config.js'):
                 status, headers, text = get(path)
                 assert status == 200 and headers['Cache-Control'] == 'no-store'
@@ -76,23 +86,18 @@ def main():
                 assert 'never-publish' not in text
 
             backend = tmp / 'backend'
-            for path in ('infra/docker/backend', 'fixture/internal/db/migrations', 'fixture/internal/db/surveillance_migrations', 'fixture/config', 'fixture/assets/geojson'):
+            for path in ('infra/docker/backend', 'fixture/internal/db/migrations', 'fixture/internal/db/surveillance_migrations', 'fixture/config'):
                 (backend / path).mkdir(parents=True)
-            for filename in ('uganda_districts.geojson', 'uganda_subcounties.geojson', 'uga_water.geojson'):
-                (backend / 'fixture/assets/geojson' / filename).write_text('{"type":"FeatureCollection","features":[]}')
             entrypoint = ROOT / 'infra/docker/backend/entrypoint.sh'
             (backend / 'infra/docker/backend/entrypoint.sh').write_bytes(entrypoint.read_bytes())
             executable = backend / 'fixture/sso-server'
             executable.write_text('''#!/bin/sh
 set -eu
-if [ "${1:-}" = --version ]; then printf 'runtime-version-argument-ok'; exit 0; fi
+if [ "${1:-}" = --version ]; then printf 'moh-sso-dashboard-backend 0.0.0-ci (commit runtime-fixture, built fixture, dirty=false)'; exit 0; fi
 test "$DB_PASSWORD" = 'fixture-password'
 test "$OBSERVATORY_DB_PASSWORD" = 'fixture-password'
 test "$(id -u)" != 0
-for filename in uganda_districts.geojson uganda_subcounties.geojson uga_water.geojson; do
-  test -r "/app/assets/geojson/$filename"
-  test -s "/app/assets/geojson/$filename"
-done
+test ! -d /app/assets/geojson
 touch /data/uploads/runtime-permission-check
 printf 'secret-loading-and-nonroot-upload-ok'
 ''')
@@ -102,7 +107,12 @@ printf 'secret-loading-and-nonroot-upload-ok'
             image = prefix + ':backend'
             images.append(image)
             docker('build', '-q', '-t', image, str(backend))
-            assert docker('run', '--rm', image, '--version') == 'runtime-version-argument-ok'
+            verifier = ROOT / 'infra/scripts/verify-backend-image.sh'
+            subprocess.run(['sh', str(verifier), image, '0.0.0-ci', 'runtime-fixture'], check=True)
+            # Version verification must still reject the wrong release metadata.
+            rejected = subprocess.run(['sh', str(verifier), image, '9.9.9', 'runtime-fixture'],
+                                      capture_output=True, text=True)
+            assert rejected.returncode != 0 and 'expected version 9.9.9' in rejected.stderr
             secret = tmp / 'password'
             secret.write_text('fixture-password\n')
             secret.chmod(0o600)

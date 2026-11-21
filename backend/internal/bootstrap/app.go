@@ -2,12 +2,15 @@ package bootstrap
 
 import (
 	"context"
+	"time"
 
+	"github.com/moh-sso-dashboard/core"
 	router "github.com/moh-sso-dashboard/internal/api"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
+	"github.com/moh-sso-dashboard/internal/geography"
 	logger "github.com/moh-sso-dashboard/internal/log"
 	"github.com/moh-sso-dashboard/internal/middleware"
 	"github.com/moh-sso-dashboard/internal/storage"
@@ -43,6 +46,7 @@ func Run() {
 		Bool("dirty", build.Dirty).
 		Str("go_version", build.GoVersion).
 		Str("environment", cfg.Environment).
+		Str("profile", cfg.PlatformProfile).
 		Msg("starting MOH SSO Dashboard")
 
 	appLogger.Info(
@@ -71,13 +75,25 @@ func Run() {
 	if dbs.Primary == nil {
 		appLogger.Fatal("Failed to initialize databases: primary database connection is nil")
 	}
-	defer dbs.Close()
+	// Do not explicitly close pools underneath a worker that failed to join.
+	// Process termination still reclaims them after an unsuccessful shutdown.
+	resourcesJoined := true
+	defer func() {
+		if resourcesJoined {
+			dbs.Close()
+		}
+	}()
 
 	// ==================================================
 	// REDIS
 	// ==================================================
 	cacheRuntime := initCache(ctx, cfg)
 	rdb := cacheRuntime.Redis
+	defer func() {
+		if resourcesJoined {
+			rdb.Close()
+		}
+	}()
 	cacheAdapter := cacheRuntime.Cache
 	rateLimiter := cacheRuntime.RateLimiter
 
@@ -105,12 +121,15 @@ func Run() {
 	// ==================================================
 	// STORAGE
 	// ==================================================
-	fileStorage, err := storage.NewFileStorage(cfg.StorageProvider, cfg)
-	if err != nil {
-		appLogger.Fatal("Storage initialization failed: ", err)
+	var fileStorage storage.Storage
+	var storageFactory *storage.StorageFactory
+	if !cfg.CoreOnly() {
+		fileStorage, err = storage.NewFileStorage(cfg.StorageProvider, cfg)
+		if err != nil {
+			appLogger.Fatal("Storage initialization failed: ", err)
+		}
+		storageFactory = storage.NewStorageFactory(cfg)
 	}
-
-	storageFactory := storage.NewStorageFactory(cfg)
 
 	// ==================================================
 	// STORE
@@ -120,7 +139,10 @@ func Run() {
 	// ==================================================
 	// REPOSITORIES
 	// ==================================================
-	observatoryStore := storepkg.NewStore(dbs.Observatory)
+	var observatoryStore storepkg.Store
+	if dbs.Observatory != nil && dbs.registry != nil {
+		observatoryStore = geography.NewStore(storepkg.NewStore(dbs.Observatory), dbs.Primary, dbs.registry.Sync)
+	}
 	repos := buildRepositories(cfg, store, observatoryStore, adminKC, webKC, appLogger)
 
 	// ==================================================
@@ -153,8 +175,13 @@ func Run() {
 	// ==================================================
 	// HANDLERS
 	// ==================================================
+	workerStatuses := make(map[string]*core.WorkerStatus)
+	for _, name := range enabledDeliveryWorkers(cfg) {
+		workerStatuses[name] = &core.WorkerStatus{}
+	}
 	handlers := buildHandlers(handlerDependencies{
 		Config:         cfg,
+		WorkerStatuses: workerStatuses,
 		Store:          store,
 		Cache:          cacheAdapter,
 		Databases:      dbs,
@@ -168,7 +195,28 @@ func Run() {
 		AuthzResolver:  authzResolver,
 	})
 
-	startBackgroundWorkers(ctx, workerDependencies{
+	modules, err := router.NewModuleRegistry(handlers.Router, cfg.EffectiveDisabledModules(), rateLimiter, schedulerWorker(cfg, services, appLogger))
+	if err != nil {
+		panic("invalid module configuration: " + err.Error())
+	}
+	stopModules, err := modules.Initialize(ctx)
+	if err != nil {
+		panic("module initialization failed: " + err.Error())
+	}
+	services.RBAC.ConfigureManifests(cfg.Environment, modules.Inventory())
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer shutdownCancel()
+		if err := stopModules(shutdownCtx); err != nil {
+			if shutdownCtx.Err() != nil {
+				resourcesJoined = false
+			}
+			appLogger.Error("Module shutdown failed: ", err)
+		}
+	}()
+
+	stopWorkers, err := startBackgroundWorkers(ctx, workerDependencies{
+		Statuses:                       workerStatuses,
 		PrimaryDB:                      dbs.Primary,
 		Config:                         cfg,
 		ProcessRepository:              repos.Processes,
@@ -183,8 +231,21 @@ func Run() {
 		Logger:                         appLogger,
 		DQADB:                          dbs.DQA,
 		DWHDB:                          dbs.DWH,
-		ReportScheduler:                services.ReportScheduler,
 	})
+
+	if err != nil {
+		panic("worker initialization failed: " + err.Error())
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer shutdownCancel()
+		if err := stopWorkers(shutdownCtx); err != nil {
+			if shutdownCtx.Err() != nil {
+				resourcesJoined = false
+			}
+			appLogger.Error("Worker shutdown failed: ", err)
+		}
+	}()
 
 	services.Notifications.NotifySystemStartup(ctx, cfg.Environment)
 
@@ -192,6 +253,7 @@ func Run() {
 	// ROUTER
 	// ==================================================
 	r := router.SetupRouter(router.RouterDependencies{
+		Modules:        modules,
 		Config:         cfg,
 		KeycloakClient: webKC,
 		Limiter:        rateLimiter,

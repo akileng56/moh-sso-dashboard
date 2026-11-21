@@ -10,6 +10,7 @@ import (
 
 	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/config"
+	"github.com/moh-sso-dashboard/internal/geography"
 	kcClientPkg "github.com/moh-sso-dashboard/internal/keycloak"
 	db "github.com/moh-sso-dashboard/internal/migrate"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
@@ -21,9 +22,24 @@ type databases struct {
 	DWH         *sql.DB
 	DQA         *sql.DB
 	Observatory *sql.DB
+	observatory *observatoryMonitor
+	registry    *geography.Replicator
 }
 
 func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
+	if cfg.CoreOnly() {
+		primary, err := db.InitDB(ctx, db.DBConfig{Driver: cfg.DBDriver, DSN: cfg.DbSource(), MaxOpenConns: 25, MaxIdleConns: 10, ConnMaxLifetime: 30 * time.Minute, WaitTimeout: 30 * time.Second})
+		if err != nil {
+			return databases{}, err
+		}
+		dbs := databases{Primary: primary}
+		if err := db.MigrateDB(primary, "file://internal/db/migrations"); err != nil {
+			dbs.Close()
+			return databases{}, err
+		}
+		return dbs, nil
+	}
+
 	observatoryDSN, err := cfg.ObservatoryDBSource()
 	if err != nil {
 		return databases{}, err
@@ -96,18 +112,27 @@ func initDatabases(ctx context.Context, cfg *config.Config) (databases, error) {
 		dbs.Close()
 		return databases{}, err
 	}
-	dbs.Observatory, err = db.InitDB(ctx, dbConfig(observatoryDSN))
-	if err == nil {
-		err = db.MigrateDB(dbs.Observatory, "file://internal/db/surveillance_migrations")
-	}
+	dbs.Observatory, err = db.OpenDB(dbConfig(observatoryDSN))
 	if err != nil {
 		dbs.Close()
 		return databases{}, err
 	}
+	registry := geography.NewReplicator(dbs.Primary, dbs.Observatory)
+	dbs.registry = registry
+	dbs.observatory = startObservatoryMonitor(ctx, 15*time.Second, dbs.Observatory.PingContext,
+		func(ctx context.Context) error {
+			if err := db.MigrateDBContext(ctx, dbs.Observatory, "file://internal/db/surveillance_migrations"); err != nil {
+				return err
+			}
+			return registry.Sync(ctx)
+		}, registry.Refresh)
 	return dbs, nil
 }
 
 func (dbs databases) Close() {
+	if dbs.observatory != nil {
+		dbs.observatory.Close()
+	}
 	if dbs.Observatory != nil {
 		dbs.Observatory.Close()
 	}

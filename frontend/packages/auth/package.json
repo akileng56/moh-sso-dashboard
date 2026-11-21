@@ -3,7 +3,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "version": "1.2.3",
+  "version": "1.5.0",
   "license": "UNLICENSED",
   "module": "./dist/index.js",
   "files": [
@@ -21,17 +21,22 @@
     }
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
-    "@moh-sso/api": "^1.2.3",
-    "@moh-sso/state": "^1.2.3",
-    "@moh-sso/config": "^1.2.3"
+    "@moh-sso/api": "^1.5.0",
+    "@moh-sso/state": "^1.5.0",
+    "@moh-sso/config": "^1.5.0"
   },
   "peerDependencies": {
     "@reduxjs/toolkit": "^2.11.2",
     "react": "^19.2.0",
     "react-redux": "^9.2.0"
   },
-  "private": false
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohuganda/moh-sso-dashboard.git",
+    "directory": "frontend/packages/auth"
+  }
 }

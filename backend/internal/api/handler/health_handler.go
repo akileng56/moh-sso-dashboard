@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
@@ -12,11 +13,12 @@ import (
 )
 
 type HealthHandler struct {
-	DBCheck       func(ctx context.Context) error
-	RemoteDBCheck func(ctx context.Context) error
-	KeycloakCheck func(ctx context.Context) error
-	Redis         *redis.Client
-	startedAt     time.Time
+	ObservatoryReady func() bool
+	DBCheck          func(ctx context.Context) error
+	RemoteDBCheck    func(ctx context.Context) error
+	KeycloakCheck    func(ctx context.Context) error
+	Redis            *redis.Client
+	startedAt        time.Time
 }
 
 func NewHealthHandler(
@@ -60,27 +62,8 @@ func (h *HealthHandler) HandleReady(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	// Check Redis (if enabled)
-	if h.Redis != nil {
-		if err := h.Redis.Ping(ctx).Err(); err != nil {
-			response.Fail(c, http.StatusServiceUnavailable, "UNAVAILABLE", "redis unavailable")
-			return
-		}
-	}
-
-	if err := h.RemoteDBCheck(ctx); err != nil {
-		response.Fail(c, http.StatusServiceUnavailable, "UNAVAILABLE", "database unavailable")
-		return
-	}
-
-	if err := h.DBCheck(ctx); err != nil {
-		response.Fail(c, http.StatusServiceUnavailable, "UNAVAILABLE", "database unavailable")
-		return
-	}
-
-	// Optional strict Keycloak check
-	if err := h.KeycloakCheck(ctx); err != nil {
-		response.Fail(c, http.StatusServiceUnavailable, "UNAVAILABLE", "keycloak unavailable")
+	if err := h.CheckCore(ctx); err != nil {
+		response.Fail(c, http.StatusServiceUnavailable, "UNAVAILABLE", err.Error())
 		return
 	}
 
@@ -91,6 +74,26 @@ func (h *HealthHandler) HandleReady(c *gin.Context) {
 		Version:       build.Version,
 		Build:         &build,
 	})
+}
+
+// CheckCore excludes optional provider/worker health from mandatory readiness.
+func (h *HealthHandler) CheckCore(ctx context.Context) error {
+	if h.DBCheck == nil {
+		return errors.New("database check unavailable")
+	}
+	if err := h.DBCheck(ctx); err != nil {
+		return errors.New("database unavailable")
+	}
+	if h.Redis != nil && h.Redis.Ping(ctx).Err() != nil {
+		return errors.New("redis unavailable")
+	}
+	if h.KeycloakCheck == nil {
+		return errors.New("keycloak check unavailable")
+	}
+	if err := h.KeycloakCheck(ctx); err != nil {
+		return errors.New("keycloak unavailable")
+	}
+	return nil
 }
 
 // --------------------------------------------------
@@ -109,10 +112,13 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 		status = "degraded"
 	}
 
-	remoteDb := "ok"
-	if err := h.RemoteDBCheck(ctx); err != nil {
-		remoteDb = "unavailable"
-		status = "degraded"
+	remoteDb := "disabled"
+	if h.RemoteDBCheck != nil {
+		remoteDb = "ok"
+		if err := h.RemoteDBCheck(ctx); err != nil {
+			remoteDb = "unavailable"
+			status = "degraded"
+		}
 	}
 
 	keycloak := "ok"
@@ -122,9 +128,17 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 	}
 
 	redis := "ok"
-	if err := h.Redis.Ping(ctx); err != nil {
-		db = "unavailable"
+	if h.Redis != nil && h.Redis.Ping(ctx).Err() != nil {
+		redis = "unavailable"
 		status = "degraded"
+	}
+	observatory := ""
+	if h.ObservatoryReady != nil {
+		observatory = "ok"
+		if !h.ObservatoryReady() {
+			observatory = "unavailable"
+			status = "degraded"
+		}
 	}
 
 	httpStatus := http.StatusOK
@@ -137,10 +151,11 @@ func (h *HealthHandler) HandleHealth(c *gin.Context) {
 		Status:        status,
 		UptimeSeconds: int(time.Since(h.startedAt).Seconds()),
 		Components: &HealthComponentStatus{
-			Database: db,
-			RemoteDB: remoteDb,
-			Keycloak: keycloak,
-			Redis:    redis,
+			Observatory: observatory,
+			Database:    db,
+			RemoteDB:    remoteDb,
+			Keycloak:    keycloak,
+			Redis:       redis,
 		},
 		Version: build.Version,
 		Build:   &build,

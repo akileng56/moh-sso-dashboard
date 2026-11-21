@@ -1,5 +1,115 @@
 # @moh-sso/surveillance
 
+## 1.5.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/documents@1.5.0
+  - @moh-sso/api@1.5.0
+  - @moh-sso/auth@1.5.0
+  - @moh-sso/microfrontend@1.5.0
+  - @moh-sso/ui@1.5.0
+
+<!-- scoped-source-changes -->
+### Source changes
+
+Changes since `frontend/v1.4.0`.
+
+- No direct source changes; this release updates version or dependency metadata.
+
+## 1.4.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/documents@1.4.0
+  - @moh-sso/api@1.4.0
+  - @moh-sso/auth@1.4.0
+  - @moh-sso/microfrontend@1.4.0
+  - @moh-sso/ui@1.4.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.2`.
+
+- No direct source changes; this release updates version or dependency metadata.
+
+## 1.3.2
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/documents@1.3.2
+  - @moh-sso/api@1.3.2
+  - @moh-sso/auth@1.3.2
+  - @moh-sso/microfrontend@1.3.2
+  - @moh-sso/ui@1.3.2
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.1`.
+
+- ci(frontend): publish npm modules on release tags (#300) (`851c9bc8`)
+- Release/frontend modules npm (#298) (`fcb6d3a4`)
+
+## 1.3.1
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/documents@1.3.1
+  - @moh-sso/api@1.3.1
+  - @moh-sso/auth@1.3.1
+  - @moh-sso/microfrontend@1.3.1
+  - @moh-sso/ui@1.3.1
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.0`.
+
+- fix: recover Observatory connectivity without blocking portal startup (`7bfb7d93`)
+
+## 1.3.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/documents@1.3.0
+  - @moh-sso/api@1.3.0
+  - @moh-sso/auth@1.3.0
+  - @moh-sso/microfrontend@1.3.0
+  - @moh-sso/ui@1.3.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.2.3`.
+
+- feat: add health-context access control and administration (#289) (`0a35faab`)
+- Isolate surveillance database and import the root CSV datasets (#279) (`e0c7a922`)
+
 ## 1.2.3
 
 ### Patch Changes
@@ -13,6 +123,7 @@
   - @moh-sso/ui@1.2.3
 
 <!-- scoped-source-changes -->
+
 ### Source changes
 
 Changes since `frontend/v1.2.2`.

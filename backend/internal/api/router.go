@@ -13,9 +13,6 @@ import (
 	"github.com/moh-sso-dashboard/internal/api/routes"
 	"github.com/moh-sso-dashboard/internal/authz"
 	"github.com/moh-sso-dashboard/internal/config"
-	adminunitsfeature "github.com/moh-sso-dashboard/internal/features/admin_units"
-	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
-	auditfeature "github.com/moh-sso-dashboard/internal/features/audit"
 	authfeature "github.com/moh-sso-dashboard/internal/features/auth"
 	"github.com/moh-sso-dashboard/internal/features/authsession"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
@@ -23,13 +20,10 @@ import (
 	documenttemplatesfeature "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentsfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
-	geojsonfeature "github.com/moh-sso-dashboard/internal/features/geojson"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
-	metricsfeature "github.com/moh-sso-dashboard/internal/features/metrics"
 	notificationsfeature "github.com/moh-sso-dashboard/internal/features/notifications"
 	platformfeature "github.com/moh-sso-dashboard/internal/features/platform"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	surveillancefeature "github.com/moh-sso-dashboard/internal/features/surveillance"
@@ -37,11 +31,20 @@ import (
 	visualiserfeature "github.com/moh-sso-dashboard/internal/features/visualiser"
 	"github.com/moh-sso-dashboard/internal/keycloak"
 	"github.com/moh-sso-dashboard/internal/middleware"
+	"github.com/moh-sso-dashboard/internal/modulehttp"
 	"github.com/moh-sso-dashboard/internal/ratelimit"
 	service "github.com/moh-sso-dashboard/internal/service"
+	"github.com/moh-sso-dashboard/module"
+	adminunitsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/admin-units"
+	announcementfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/announcements"
+	auditfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/audit"
+	geojsonfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/geojson"
+	metricsfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/metrics"
+	reportschedulerfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 )
 
 type RouterDependencies struct {
+	Modules        *module.Registry
 	Config         *config.Config
 	KeycloakClient *keycloak.Client
 	Limiter        *ratelimit.Limiter
@@ -57,8 +60,8 @@ type HandlerSet struct {
 	Auth                    *authfeature.Handler
 	Clients                 *clientfeature.Handler
 	Users                   *userfeature.Handler
-	Metrics                 *metricsfeature.Handler
-	Audit                   *auditfeature.Handler
+	Metrics                 *metricsfeature.Module
+	Audit                   *auditfeature.Module
 	Notifications           *notificationsfeature.Handler
 	Documents               *documentsfeature.Handler
 	DocumentTemplates       *documenttemplatesfeature.Handler
@@ -67,15 +70,15 @@ type HandlerSet struct {
 	StorageLocations        *storagelocationfeature.Handler
 	Sessions                *sessionfeature.Handler
 	DataQuality             *dataqualityfeature.Handler
-	Announcements           *announcementfeature.Handler
-	AdminUnits              *adminunitsfeature.Handler
+	Announcements           *announcementfeature.Module
+	AdminUnits              *adminunitsfeature.Module
 	Visualiser              *visualiserfeature.Handler
 	Surveillance            *surveillancefeature.Handler
-	GeoJSON                 *geojsonfeature.Handler
+	GeoJSON                 *geojsonfeature.Module
 	Email                   *emailfeature.Handler
 	RBAC                    *rbacfeature.Handler
 	HealthContexts          *healthcontextfeature.Handler
-	ReportScheduler         *reportschedulerfeature.Handler
+	ReportScheduler         *reportschedulerfeature.HTTPModule
 }
 
 type RateLimits struct {
@@ -95,29 +98,29 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 	r.Use(cors.New(corsConfig(deps.Config)))
 
 	routeDeps := routes.Dependencies{
-		Limiter:                       deps.Limiter,
-		Auth:                          deps.Handlers.Auth,
-		Clients:                       deps.Handlers.Clients,
-		Users:                         deps.Handlers.Users,
-		Metrics:                       deps.Handlers.Metrics,
-		Audit:                         deps.Handlers.Audit,
-		Notifications:                 deps.Handlers.Notifications,
-		Documents:                     deps.Handlers.Documents,
-		DocumentTemplates:             deps.Handlers.DocumentTemplates,
-		DocumentTemplateSheets:        deps.Handlers.DocumentTemplateSheets,
-		DocumentTemplateColumns:       deps.Handlers.DocumentTemplateColumns,
-		StorageLocations:              deps.Handlers.StorageLocations,
-		Sessions:                      deps.Handlers.Sessions,
-		DataQuality:                   deps.Handlers.DataQuality,
-		Announcements:                 deps.Handlers.Announcements,
-		AdminUnits:                    deps.Handlers.AdminUnits,
-		Visualiser:                    deps.Handlers.Visualiser,
-		Surveillance:                  deps.Handlers.Surveillance,
-		GeoJSON:                       deps.Handlers.GeoJSON,
-		Email:                         deps.Handlers.Email,
-		RBAC:                          deps.Handlers.RBAC,
-		HealthContexts:                deps.Handlers.HealthContexts,
-		ReportScheduler:               deps.Handlers.ReportScheduler,
+		Modules:                 deps.Modules,
+		Limiter:                 deps.Limiter,
+		Auth:                    deps.Handlers.Auth,
+		Clients:                 deps.Handlers.Clients,
+		Users:                   deps.Handlers.Users,
+		Metrics:                 deps.Handlers.Metrics,
+		Audit:                   deps.Handlers.Audit,
+		Notifications:           deps.Handlers.Notifications,
+		Documents:               deps.Handlers.Documents,
+		DocumentTemplates:       deps.Handlers.DocumentTemplates,
+		DocumentTemplateSheets:  deps.Handlers.DocumentTemplateSheets,
+		DocumentTemplateColumns: deps.Handlers.DocumentTemplateColumns,
+		StorageLocations:        deps.Handlers.StorageLocations,
+		Sessions:                deps.Handlers.Sessions,
+		DataQuality:             deps.Handlers.DataQuality,
+		AdminUnits:              deps.Handlers.AdminUnits,
+		Visualiser:              deps.Handlers.Visualiser,
+		Surveillance:            deps.Handlers.Surveillance,
+		GeoJSON:                 deps.Handlers.GeoJSON,
+		Email:                   deps.Handlers.Email,
+		RBAC:                    deps.Handlers.RBAC,
+		HealthContexts:          deps.Handlers.HealthContexts,
+
 		AuthenticatedRateLimitPerMin:  rateLimits.AuthenticatedPerMinute,
 		AuthLoginRateLimitPerMin:      rateLimits.AuthLoginPerMinute,
 		AuthCallbackRateLimitPerMin:   rateLimits.AuthCallbackPerMinute,
@@ -132,8 +135,6 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 
 	api := r.Group("/api/v1")
 	routes.RegisterAuthRoutes(api, routeDeps)
-	routes.RegisterPublicAnnouncementRoutes(api, routeDeps)
-	routes.RegisterPublicReportSchedulerRoutes(api, routeDeps)
 
 	protected := api.Group("")
 	protected.Use(middleware.ExtractAuthContext(
@@ -149,9 +150,30 @@ func SetupRouter(deps RouterDependencies) *gin.Engine {
 		ratelimit.AuthenticatedDefaultPolicy(routeDeps.AuthenticatedRateLimitPerMin),
 	))
 
+	if deps.Modules == nil && deps.Handlers.Announcements != nil && (deps.Config == nil || !deps.Config.CoreOnly()) {
+		modulehttp.RegisterSurfaces(api, protected, deps.Handlers.Announcements)
+	}
 	platformfeature.RegisterRoutes(api, protected, deps.Handlers.Platform, deps.Limiter)
-	routes.RegisterProtectedRoutes(protected, routeDeps)
-	routes.RegisterAdminRoutes(protected, routeDeps)
+	if deps.Handlers.RBAC != nil {
+		protected.GET("/applications/:clientId/manifest", deps.Handlers.RBAC.GetApplicationManifestRuntime)
+	}
+	if deps.Config != nil && deps.Config.CoreOnly() {
+		sessionfeature.RegisterProtectedRoutes(protected, deps.Handlers.Sessions)
+		rbacfeature.RegisterProtectedRoutes(protected, deps.Handlers.RBAC)
+		rbacfeature.RegisterAdminRoutes(protected.Group("/admin"), deps.Handlers.RBAC, deps.Limiter)
+		healthcontextfeature.RegisterProtectedRoutes(protected, deps.Handlers.HealthContexts)
+		healthcontextfeature.RegisterAdminRoutes(protected.Group("/admin"), deps.Handlers.HealthContexts)
+	} else {
+		routes.RegisterProtectedRoutes(protected, routeDeps)
+		if deps.Modules == nil {
+			RegisterReportScheduler(api, protected, deps.Handlers.ReportScheduler, routeDeps.Limiter)
+		}
+		routes.RegisterAdminRoutes(protected, routeDeps)
+	}
+	if deps.Modules != nil {
+		deps.Modules.RegisterRoutes(module.Routes{Public: api, Protected: protected, Admin: protected.Group("/admin")})
+		registerModuleInventory(protected, deps.Modules)
+	}
 	docs.Register(r)
 
 	return r

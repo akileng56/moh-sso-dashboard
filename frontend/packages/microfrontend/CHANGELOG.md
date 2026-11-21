@@ -1,5 +1,118 @@
 # @moh-sso/microfrontend
 
+## 1.5.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/auth@1.5.0
+  - @moh-sso/state@1.5.0
+  - @moh-sso/ui@1.5.0
+
+<!-- scoped-source-changes -->
+### Source changes
+
+Changes since `frontend/v1.4.0`.
+
+- fix(frontend): release shared React runtime patch 1.4.1 (#308) (`fdd4fe8`)
+
+## 1.4.1
+
+### Patch Changes
+
+- 864c86e: Keep React and React DOM subpaths, including the client renderer and JSX runtimes,
+  external in published shared packages. Microfrontends now use the import map's
+  matching React runtime instead of loading a renderer bundled at build time, which
+  could fail every published application with React version mismatch error 527.
+- Updated dependencies [864c86e]
+  - @moh-sso/auth@1.4.1
+  - @moh-sso/state@1.4.1
+  - @moh-sso/ui@1.4.1
+
+## 1.4.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/auth@1.4.0
+  - @moh-sso/state@1.4.0
+  - @moh-sso/ui@1.4.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.2`.
+
+- No direct source changes; this release updates version or dependency metadata.
+
+## 1.3.2
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/auth@1.3.2
+  - @moh-sso/state@1.3.2
+  - @moh-sso/ui@1.3.2
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.1`.
+
+- ci(frontend): publish npm modules on release tags (#300) (`851c9bc8`)
+- Release/frontend modules npm (#298) (`fcb6d3a4`)
+
+## 1.3.1
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/auth@1.3.1
+  - @moh-sso/state@1.3.1
+  - @moh-sso/ui@1.3.1
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.0`.
+
+- No direct source changes; this release updates version or dependency metadata.
+
+## 1.3.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/auth@1.3.0
+  - @moh-sso/state@1.3.0
+  - @moh-sso/ui@1.3.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.2.3`.
+
+- feat: add health-context access control and administration (#289) (`0a35faab`)
+- Isolate surveillance database and import the root CSV datasets (#279) (`e0c7a922`)
+
 ## 1.2.3
 
 ### Patch Changes
@@ -11,6 +124,7 @@
   - @moh-sso/ui@1.2.3
 
 <!-- scoped-source-changes -->
+
 ### Source changes
 
 Changes since `frontend/v1.2.2`.

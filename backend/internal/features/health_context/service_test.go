@@ -2,6 +2,7 @@ package health_context
 
 import (
 	"context"
+	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -182,9 +183,24 @@ func TestExplainAccessAllowsInheritedGroupDescendant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !explanation.Allowed || explanation.AssignmentType != "GROUP" {
-		t.Fatalf("expected inherited group access, got %#v", explanation)
+	expected := AccessExplanation{
+		Allowed: true, RequestedContext: repository.nodes[facilityID],
+		AssignmentContext: &repository.effective[0].Node, ScopeMode: ScopeNodeAndDescendants,
+		AssignmentType: "GROUP", SourceGroupID: &groupID, SourceGroupPath: &groupPath,
+		Reason: "access granted by health context assignment",
 	}
+	if !reflect.DeepEqual(explanation, expected) {
+		t.Fatalf("lost explanation metadata: %#v", explanation)
+	}
+	throughPolicy, err := NewPolicy(NewService(repository)).Authorize(context.Background(), AuthorizationInput{
+		UserID: "user-1", ContextID: facilityID,
+		Permissions: []authz.Permission{authz.PermissionSurveillanceRead}, RequiredPermission: authz.PermissionSurveillanceRead,
+		Systems: []string{authz.SystemDataStatistics}, RequiredSystem: authz.SystemDataStatistics,
+	})
+	if err != nil || !reflect.DeepEqual(throughPolicy, expected) {
+		t.Fatalf("policy lost explanation: %#v, %v", throughPolicy, err)
+	}
+
 }
 
 func TestPolicyRequiresFunctionalPermissionAndContext(t *testing.T) {

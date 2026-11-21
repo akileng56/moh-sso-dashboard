@@ -7,27 +7,14 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 )
 
-type postgresRepository struct {
-	geographyDB       *sql.DB
-	geographyMu       sync.Mutex
-	geographySyncedAt time.Time
-	db                *sql.DB
-}
+type postgresRepository struct{ db *sql.DB }
 
-func NewRepository(db *sql.DB, geographyDB ...*sql.DB) Repository {
-	r := &postgresRepository{db: db}
-	if len(geographyDB) > 0 {
-		r.geographyDB = geographyDB[0]
-	}
-	return r
-}
+func NewRepository(db *sql.DB) Repository { return &postgresRepository{db: db} }
 
 func (r *postgresRepository) CreateNode(ctx context.Context, input CreateNodeInput) (Node, error) {
 	if r.db == nil {
@@ -153,7 +140,8 @@ func (r *postgresRepository) DeleteNode(ctx context.Context, id uuid.UUID) error
 		SELECT
 			(SELECT COUNT(*) FROM health_context_nodes WHERE parent_id = $1) +
 			(SELECT COUNT(*) FROM user_health_context_assignments WHERE context_node_id = $1) +
-			(SELECT COUNT(*) FROM group_health_context_assignments WHERE context_node_id = $1)
+			(SELECT COUNT(*) FROM group_health_context_assignments WHERE context_node_id = $1) +
+			(SELECT COUNT(*) FROM health_context_aliases WHERE context_node_id = $1 AND namespace LIKE 'geography-%')
 	`, id).Scan(&references); err != nil {
 		return err
 	}
@@ -194,10 +182,6 @@ func (r *postgresRepository) ListNodes(
 	contextType ContextType,
 	includeDisabled bool,
 ) ([]Node, error) {
-	if err := r.ensureGeographySync(ctx); err != nil {
-		return nil, err
-	}
-
 	if r.db == nil {
 		return nil, errors.New("health context database is unavailable")
 	}
@@ -313,10 +297,6 @@ func (r *postgresRepository) GetNodeByAlias(
 	namespace string,
 	externalID string,
 ) (Node, error) {
-	if err := r.ensureGeographySync(ctx); err != nil {
-		return Node{}, err
-	}
-
 	if r.db == nil {
 		return Node{}, errors.New("health context database is unavailable")
 	}
@@ -367,10 +347,6 @@ func (r *postgresRepository) ListAliasesInScope(
 	contextID uuid.UUID,
 	includeDescendants bool,
 ) ([]Alias, error) {
-	if err := r.ensureGeographySync(ctx); err != nil {
-		return nil, err
-	}
-
 	if r.db == nil {
 		return nil, errors.New("health context database is unavailable")
 	}
@@ -680,7 +656,7 @@ func (r *postgresRepository) ListEffectiveContexts(ctx context.Context, userID s
 	}
 
 	rows, err := r.db.QueryContext(ctx, `
-		WITH assignments AS (
+		WITH explicit_assignments AS (
 			SELECT a.id, a.context_node_id, a.scope_mode, 'DIRECT'::text assignment_type,
 			       NULL::uuid group_id, NULL::text group_path, a.is_default
 			FROM user_health_context_assignments a
@@ -694,6 +670,24 @@ func (r *postgresRepository) ListEffectiveContexts(ctx context.Context, userID s
 			JOIN ihp_rbac_groups g ON g.id = gm.group_id AND g.enabled
 			JOIN group_health_context_assignments a ON a.group_id = gm.group_id
 			WHERE gm.user_id = $1
+		), national AS (
+			SELECT id FROM health_context_nodes
+			WHERE code = 'UG' AND context_type = 'NATIONAL' AND enabled
+		), assignments AS (
+			-- National is a baseline for everyone, not a removable role grant.
+			-- Fold explicit National grants into it to avoid duplicate selector entries.
+			SELECT a.* FROM explicit_assignments a
+			WHERE a.context_node_id NOT IN (SELECT id FROM national)
+			UNION ALL
+			SELECT '00000000-0000-0000-0000-000000000000'::uuid, n.id,
+			       'NODE_AND_DESCENDANTS', 'DEFAULT', NULL::uuid, NULL::text,
+			       NOT EXISTS (
+				   SELECT 1 FROM explicit_assignments a
+				   JOIN health_context_nodes assigned ON assigned.id = a.context_node_id AND assigned.enabled
+				   WHERE a.is_default AND a.context_node_id <> n.id
+			       )
+			FROM national n
+			WHERE BTRIM($1) <> ''
 		)
 		SELECT n.id, n.code, n.name, n.context_type, n.parent_id, n.source,
 		       n.metadata, n.enabled, n.version, n.created_at, n.updated_at,
@@ -815,6 +809,15 @@ func (r *postgresRepository) ListAudienceUserIDs(
 		SELECT user_id FROM direct_users
 		UNION
 		SELECT user_id FROM group_users
+		UNION
+		-- The same National baseline used for authorization also applies to audiences.
+		SELECT u.id::text FROM users u
+		WHERE u.enabled AND EXISTS (
+			SELECT 1 FROM health_context_nodes national
+			JOIN health_context_closure c ON c.ancestor_id = national.id
+			JOIN selected_contexts selected ON selected.id = c.descendant_id
+			WHERE national.code = 'UG' AND national.context_type = 'NATIONAL' AND national.enabled
+		)
 		ORDER BY user_id
 	`, pq.Array(contextIDs), includeDescendants)
 	if err != nil {

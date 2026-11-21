@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/moh-sso-dashboard/core"
 	"github.com/moh-sso-dashboard/internal/authz"
 )
 
@@ -71,7 +72,7 @@ func TestApplicationLifecycleRequiresSequentialOnboarding(t *testing.T) {
 			t.Fatalf("%s: %v", status, err)
 		}
 	}
-	for status := range lifecycleTransitions {
+	for _, status := range core.ApplicationLifecycleStatuses() {
 		if err := transition(status); !errors.Is(err, ErrLifecycleConflict) {
 			t.Fatalf("retirement must be terminal: %s: %v", status, err)
 		}

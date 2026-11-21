@@ -3,7 +3,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "version": "1.2.3",
+  "version": "1.5.0",
   "license": "UNLICENSED",
   "module": "./dist/index.js",
   "files": [
@@ -21,13 +21,18 @@
     }
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
-    "@moh-sso/ui": "^1.2.3"
+    "@moh-sso/ui": "^1.5.0"
   },
   "devDependencies": {
     "@types/geojson": "^7946.0.16"
   },
-  "private": false
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohuganda/moh-sso-dashboard.git",
+    "directory": "frontend/packages/types"
+  }
 }

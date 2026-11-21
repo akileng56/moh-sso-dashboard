@@ -11,7 +11,7 @@ import urllib.request
 
 BASE = "https://statistics.ubos.org/nphc/api/get_geospatial_data.php"
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "backend/assets/geojson/uganda_subcounties.geojson"
+OUTPUT = ROOT / "backend/modules/geojson/maps/uganda_subcounties.geojson"
 CACHE = Path("/tmp/moh-ubos-boundaries-2024")
 
 
@@ -113,6 +113,16 @@ def main():
     temporary = OUTPUT.with_suffix(".geojson.tmp")
     temporary.write_text(payload)
     temporary.replace(OUTPUT)
+    hashes = {item.name: hashlib.sha256(item.read_bytes()).hexdigest()
+              for item in sorted(OUTPUT.parent.glob('*.geojson'))}
+    (OUTPUT.parent / 'sha256.json').write_text(json.dumps(hashes, indent=2) + '\n')
+    entries = '\n'.join(' ' + json.dumps(name) + ': ' + json.dumps('"' + digest + '"') + ','
+                         for name, digest in hashes.items())
+    (OUTPUT.parent.parent / 'bundled_tags.go').write_text(
+        'package geojson\n\n// Content identities for the versioned embedded snapshots.\n'
+        'var bundledETags=map[string]string{\n' + entries + '\n}\n')
+    print('Map snapshot changed: verify and publish a new GeoJSON module version before updating the host pin.', flush=True)
+
     print(f"Bundled {len(all_features)} features; sha256 {hashlib.sha256(payload.encode()).hexdigest()}", flush=True)
 
 

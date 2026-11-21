@@ -138,8 +138,16 @@ func (s *Service) ApplyRealmExportSync(ctx context.Context, payload []byte) (Syn
 
 	response := SyncApplyResponse{Preview: preview}
 	for _, system := range discovered.Systems {
+		preserve, err := s.skipManifestStartup(ctx, system.ClientID)
+		if err != nil {
+			return SyncApplyResponse{}, err
+		}
+		if preserve {
+			continue
+		}
 		enabled := system.Enabled
 		if _, err := s.UpsertSystem(ctx, UpsertSystemInput{
+			LifecycleManaged:       system.LifecycleManaged,
 			ClientID:               system.ClientID,
 			DisplayName:            system.DisplayName,
 			Description:            system.Description,
@@ -378,6 +386,7 @@ func parseRealmExport(payload []byte, knownSystems ...map[string]bool) (discover
 			LaunchMode:             client.Attributes["ui.launchMode"],
 		})
 		system := KeycloakDiscoveredSystem{
+			LifecycleManaged:       strings.TrimSpace(client.Attributes["portal.onboarding.profile"]) != "",
 			ClientID:               clientID,
 			DisplayName:            firstNonEmpty(client.Name, client.Description, clientID),
 			Description:            client.Description,

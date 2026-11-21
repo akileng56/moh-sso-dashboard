@@ -50,17 +50,15 @@ case "$output" in
     ;;
 esac
 
-# Exercise the final image as the same unprivileged user used by the entrypoint.
-# --entrypoint avoids needing production configuration or mounted secrets.
+# Check the final runtime as the unprivileged application user. Map snapshots
+# are embedded in the pinned GeoJSON module; authenticated HTTP coverage for all
+# three layers lives in test-distribution-auth.py.
 docker run --rm --user appuser --entrypoint sh "$image" -ec '
   test "$PWD" = /app
-  for filename in uganda_districts.geojson uganda_subcounties.geojson uga_water.geojson; do
-    path="./assets/geojson/$filename"
-    if [ ! -r "$path" ] || [ ! -s "$path" ]; then
-      echo "image verification failed: missing, empty or unreadable runtime asset: $path" >&2
-      exit 1
-    fi
-  done
+  test "$(id -u)" != 0
+  test -r ./sso-server
+  test -x ./sso-server
+  test ! -e ./assets/geojson
 '
 
-echo "Backend image metadata and runtime GeoJSON assets verified."
+echo "Backend image metadata and unprivileged runtime layout verified."

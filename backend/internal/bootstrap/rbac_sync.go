@@ -97,7 +97,7 @@ func runStartupRBACSync(
 		}
 	}
 
-	if cfg.RBACStartupSyncUsers && services.Users != nil {
+	if !cfg.CoreOnly() && cfg.RBACStartupSyncUsers && services.Users != nil {
 		count, err := services.Users.SyncUsersFromKeycloak(ctx)
 		if err != nil {
 			return err

@@ -325,9 +325,9 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 
 | Feature | Backend folder | Notes |
 | --- | --- | --- |
-| Admin units | `features/admin_units` | Visualizer administrative unit lookup endpoints. |
+| Admin units | `modules/admin-units` (published v0.2.0) | Self-contained warehouse queries, context filtering and nine visualizer HTTP endpoints. |
 | Announcements | `features/announcements` | Announcement lifecycle, targeting, email triggers, and persistent attachments. |
-| Audit | `features/audit` | Audit log search, export, and audit metrics. |
+| Audit | `modules/audit` (published v0.2.0) | Self-contained read queries, cached search and export APIs; core event recording stays in `internal/service/audit_recorder.go`. |
 | Auth | `features/auth` | Keycloak login, callback, session refresh, logout, and current user profile. |
 | Clients | `features/clients` | Keycloak clients as portal systems and client roles. |
 | Data quality | `features/data_quality` | Data quality issue and transaction APIs. |
@@ -335,7 +335,7 @@ Not every feature has every file. Smaller HTTP adapters may only have handlers a
 | Documents | `features/documents` | Document metadata, upload, view, download, process history, and reprocess. |
 | Email | `features/email` | Email send, queue, retry, listing, and delete. |
 | GeoJSON | `features/geojson` | GeoJSON assets for maps. |
-| Metrics | `features/metrics` | Admin metrics for users, clients, logins, and security. |
+| Metrics | `modules/metrics` (published v0.2.0) | Self-contained admin HTTP/API contracts and PostgreSQL reads for users, clients, logins and security. |
 | Notifications | `features/notifications` | Notifications, unread counts, read state, delivery history, retry, cleanup, and deletion. |
 | RBAC | `features/rbac` | System-aware RBAC, Keycloak sync, drift, permissions, roles, and user access. |
 | Sessions | `features/sessions` | Current user sessions and logout. |
@@ -1411,6 +1411,23 @@ Email attachment payloads should provide exactly one of `path` or `data_base64`.
 
 ## Documentation Map
 
+The [Docusaurus site](documentation/) brings the platform and frontend guides
+together with a shared sidebar, page navigation, and Mermaid diagrams.
+Run it with Node.js 20.6 or later. If needed, copy
+`infra/env/dev.env.example` to `infra/env/dev.env` first.
+
+```sh
+npm --prefix documentation ci
+DOCS_URL="$(node --env-file=infra/env/dev.env -p 'process.env.DOCS_URL')" \
+  npm --prefix documentation start -- --port 3001
+```
+
+Open http://localhost:3001/docs/. Run
+`npm --prefix documentation run build` to validate internal links and generate
+the static site in `documentation/build/`. The Documentation workflow also
+builds the site and uploads it as an artifact. Set `DOCS_URL` and
+`DOCS_BASE_URL` at build time when serving from a different host or path.
+
 Each frontend app and package has its own README:
 
 ```text
@@ -1460,5 +1477,9 @@ Frontend docs:
 | [`frontend/docs/versioning.md`](frontend/docs/versioning.md) | App/package versioning strategy. |
 | [`frontend/docs/verification.md`](frontend/docs/verification.md) | Frontend verification commands. |
 | [`frontend/docs/troubleshooting.md`](frontend/docs/troubleshooting.md) | Common frontend issues. |
+| [`docs/modular-distribution.md`](docs/modular-distribution.md) | Modular distribution architecture and implementation phases. |
+| [`docs/module-coverage.md`](docs/module-coverage.md) | Tracked backend/frontend module stages, dependencies and next extraction work. |
+| [`docs/module-development.md`](docs/module-development.md) | Developer workflow for registry integration and independent package releases. |
+| [`docs/module-operations.md`](docs/module-operations.md) | Runtime inventory, API disablement and module rollout guidance. |
 
 Use this root README for system-level orientation. Use module READMEs for module-specific UI behavior and ownership, `backend/README.md` for backend implementation rules, and `docs/api-reference.md` for endpoint lookup.

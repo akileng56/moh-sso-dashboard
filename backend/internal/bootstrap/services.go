@@ -7,14 +7,12 @@ import (
 	"github.com/moh-sso-dashboard/internal/cache"
 	"github.com/moh-sso-dashboard/internal/config"
 	storepkg "github.com/moh-sso-dashboard/internal/db/sqlc"
-	announcementfeature "github.com/moh-sso-dashboard/internal/features/announcements"
 	clientfeature "github.com/moh-sso-dashboard/internal/features/clients"
 	documenttemplatefeature "github.com/moh-sso-dashboard/internal/features/document_templates"
 	documentfeature "github.com/moh-sso-dashboard/internal/features/documents"
 	emailfeature "github.com/moh-sso-dashboard/internal/features/email"
 	healthcontextfeature "github.com/moh-sso-dashboard/internal/features/health_context"
 	rbacfeature "github.com/moh-sso-dashboard/internal/features/rbac"
-	reportschedulerfeature "github.com/moh-sso-dashboard/internal/features/report_scheduler"
 	sessionfeature "github.com/moh-sso-dashboard/internal/features/sessions"
 	storagelocationfeature "github.com/moh-sso-dashboard/internal/features/storage_locations"
 	surveillancefeature "github.com/moh-sso-dashboard/internal/features/surveillance"
@@ -25,6 +23,7 @@ import (
 	importsvc "github.com/moh-sso-dashboard/internal/service/import"
 	"github.com/moh-sso-dashboard/internal/storage"
 	"github.com/moh-sso-dashboard/internal/worker"
+	reportschedulerfeature "github.com/mohuganda/moh-sso-dashboard/backend/modules/report-scheduler"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -35,14 +34,12 @@ type services struct {
 	SMS                     service.SMSService
 	Notifications           service.NotificationsService
 	Auth                    service.AuthService
-	Metrics                 *service.MetricsService
 	Audit                   *service.AuditService
 	StorageLocations        storagelocationfeature.Service
 	Sessions                sessionfeature.Service
 	Documents               *documentfeature.Service
 	Clients                 *clientfeature.Service
 	Users                   *userfeature.Service
-	Announcements           *announcementfeature.Service
 	Diseases                *surveillancefeature.DiseaseService
 	EpiWeeks                *surveillancefeature.EpiWeekService
 	Locations               *surveillancefeature.LocationService
@@ -73,6 +70,10 @@ type serviceDependencies struct {
 }
 
 func buildServices(deps serviceDependencies) services {
+	if deps.Config.CoreOnly() {
+		return buildCoreServices(deps)
+	}
+
 	templateManager, err := service.NewTemplateManager(deps.Logger)
 	if err != nil {
 		deps.Logger.Fatal("Failed to initialize email template manager: ", err)
@@ -125,10 +126,10 @@ func buildServices(deps serviceDependencies) services {
 			deps.Config.HealthBIKeycloakClientSecret,
 			deps.Config.HealthBITimeout,
 		),
-		emailFeatureService,
-		deps.Repositories.Users,
+		reportEmailAdapter{emailFeatureService},
+		reportUserAdapter{deps.Repositories.Users},
 		deps.FileStorage,
-		deps.Databases.DWH,
+		reportschedulerfeature.NewPostgresHealthHierarchy(deps.Databases.DWH),
 	)
 
 	publisher := cache.NewNotificationPublisher(deps.CacheClient)
@@ -141,15 +142,14 @@ func buildServices(deps serviceDependencies) services {
 	)
 
 	authService := service.NewAuthService(deps.Repositories.Auth, deps.CacheClient)
-	metricsService := service.NewMetricsService(deps.Repositories.Metrics)
 	auditService := service.NewAuditService(
 		deps.Store,
 		deps.Cache,
 		notificationsService,
 		deps.Config,
 	)
-	reportSchedulerService.SetNotifications(notificationsService)
-	reportSchedulerService.SetAudit(auditService)
+	reportSchedulerService.SetNotifications(reportNotificationAdapter{notificationsService})
+	reportSchedulerService.SetAudit(moduleAudit{recorder: auditService})
 	reportSchedulerService.SetPublicBaseURL(deps.Config.AppBaseURL)
 	reportSchedulerService.SetDeliveryLinkTTL(deps.Config.ReportSchedulerDeliveryLinkTTL)
 	reportSchedulerService.SetEmailAttachmentLimit(deps.Config.Email.MaxAttachmentBytes)
@@ -180,15 +180,6 @@ func buildServices(deps serviceDependencies) services {
 		notificationsService,
 		deps.Config,
 	)
-
-	announcementService := announcementfeature.NewService(
-		deps.Repositories.Announcements,
-		deps.Repositories.Users,
-		notificationsService,
-		deps.FileStorage,
-		deps.Config,
-	)
-	announcementService.SetRBACRepository(deps.Repositories.RBAC)
 
 	diseaseService := surveillancefeature.NewDiseaseService(
 		deps.Logger,
@@ -278,7 +269,6 @@ func buildServices(deps serviceDependencies) services {
 	rbacService.SetKeycloakGroupMembershipManager(deps.AdminKeycloak)
 	rbacService.SetFrontendBaseURL(deps.Config.FrontendBaseURL)
 	healthContextService := healthcontextfeature.NewService(deps.Repositories.HealthContexts)
-	announcementService.SetHealthContextService(healthContextService)
 	emailFeatureService.SetHealthContextService(healthContextService)
 
 	return services{
@@ -288,14 +278,12 @@ func buildServices(deps serviceDependencies) services {
 		SMS:                     smsService,
 		Notifications:           notificationsService,
 		Auth:                    authService,
-		Metrics:                 metricsService,
 		Audit:                   auditService,
 		StorageLocations:        storageLocationService,
 		Sessions:                sessionService,
 		Documents:               documentService,
 		Clients:                 clientService,
 		Users:                   userService,
-		Announcements:           announcementService,
 		Diseases:                diseaseService,
 		EpiWeeks:                epiWeekService,
 		Locations:               locationService,

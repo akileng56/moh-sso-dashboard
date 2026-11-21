@@ -1,5 +1,208 @@
 # @moh-sso/shell
 
+## 1.5.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/announcements@1.5.0
+  - @moh-sso/audit@1.5.0
+  - @moh-sso/clients@1.5.0
+  - @moh-sso/data-validation@1.5.0
+  - @moh-sso/data-visualizer@1.5.0
+  - @moh-sso/documents@1.5.0
+  - @moh-sso/e-services@1.5.0
+  - @moh-sso/email@1.5.0
+  - @moh-sso/issue-tracker@1.5.0
+  - @moh-sso/rbac@1.5.0
+  - @moh-sso/report-browser@1.5.0
+  - @moh-sso/report-scheduler@0.6.0
+  - @moh-sso/surveillance@1.5.0
+  - @moh-sso/users@1.5.0
+  - @moh-sso/utilities@1.5.0
+  - @moh-sso/api@1.5.0
+  - @moh-sso/auth@1.5.0
+  - @moh-sso/config@1.5.0
+  - @moh-sso/microfrontend@1.5.0
+  - @moh-sso/state@1.5.0
+  - @moh-sso/types@1.5.0
+  - @moh-sso/ui@1.5.0
+
+<!-- scoped-source-changes -->
+### Source changes
+
+Changes since `frontend/v1.4.0`.
+
+- fix(frontend): select published React runtime patch for production (#309) (`660c1d4`)
+
+## 1.4.1
+
+### Patch Changes
+
+- Select the corrected shared React runtime packages for frontend deployments and
+  retain exact production package versions with an integrity-checked npm lock.
+
+## 1.4.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/announcements@1.4.0
+  - @moh-sso/audit@1.4.0
+  - @moh-sso/clients@1.4.0
+  - @moh-sso/data-validation@1.4.0
+  - @moh-sso/data-visualizer@1.4.0
+  - @moh-sso/documents@1.4.0
+  - @moh-sso/e-services@1.4.0
+  - @moh-sso/email@1.4.0
+  - @moh-sso/issue-tracker@1.4.0
+  - @moh-sso/rbac@1.4.0
+  - @moh-sso/report-browser@1.4.0
+  - @moh-sso/report-scheduler@0.5.0
+  - @moh-sso/surveillance@1.4.0
+  - @moh-sso/users@1.4.0
+  - @moh-sso/utilities@1.4.0
+  - @moh-sso/api@1.4.0
+  - @moh-sso/auth@1.4.0
+  - @moh-sso/config@1.4.0
+  - @moh-sso/microfrontend@1.4.0
+  - @moh-sso/state@1.4.0
+  - @moh-sso/types@1.4.0
+  - @moh-sso/ui@1.4.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.2`.
+
+- Feat/modular distribution (#302) (`290a0bce`)
+
+## 1.3.2
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/announcements@1.3.2
+  - @moh-sso/audit@1.3.2
+  - @moh-sso/clients@1.3.2
+  - @moh-sso/data-validation@1.3.2
+  - @moh-sso/data-visualizer@1.3.2
+  - @moh-sso/documents@1.3.2
+  - @moh-sso/e-services@1.3.2
+  - @moh-sso/email@1.3.2
+  - @moh-sso/issue-tracker@1.3.2
+  - @moh-sso/rbac@1.3.2
+  - @moh-sso/report-browser@1.3.2
+  - @moh-sso/report-scheduler@0.4.2
+  - @moh-sso/surveillance@1.3.2
+  - @moh-sso/users@1.3.2
+  - @moh-sso/utilities@1.3.2
+  - @moh-sso/api@1.3.2
+  - @moh-sso/auth@1.3.2
+  - @moh-sso/config@1.3.2
+  - @moh-sso/microfrontend@1.3.2
+  - @moh-sso/state@1.3.2
+  - @moh-sso/types@1.3.2
+  - @moh-sso/ui@1.3.2
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.1`.
+
+- feat(frontend): configure npm module versions per environment (#299) (`30f59298`)
+
+## 1.3.1
+
+### Patch Changes
+
+- Automatic patch release of all frontend apps and shared packages.
+- Updated dependencies
+  - @moh-sso/announcements@1.3.1
+  - @moh-sso/audit@1.3.1
+  - @moh-sso/clients@1.3.1
+  - @moh-sso/data-validation@1.3.1
+  - @moh-sso/data-visualizer@1.3.1
+  - @moh-sso/documents@1.3.1
+  - @moh-sso/e-services@1.3.1
+  - @moh-sso/email@1.3.1
+  - @moh-sso/issue-tracker@1.3.1
+  - @moh-sso/rbac@1.3.1
+  - @moh-sso/report-browser@1.3.1
+  - @moh-sso/report-scheduler@0.4.1
+  - @moh-sso/surveillance@1.3.1
+  - @moh-sso/users@1.3.1
+  - @moh-sso/utilities@1.3.1
+  - @moh-sso/api@1.3.1
+  - @moh-sso/auth@1.3.1
+  - @moh-sso/config@1.3.1
+  - @moh-sso/microfrontend@1.3.1
+  - @moh-sso/state@1.3.1
+  - @moh-sso/types@1.3.1
+  - @moh-sso/ui@1.3.1
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.3.0`.
+
+- No direct source changes; this release updates version or dependency metadata.
+
+## 1.3.0
+
+### Minor Changes
+
+- Automatic minor release of all frontend apps and shared packages.
+
+### Patch Changes
+
+- Updated dependencies
+  - @moh-sso/announcements@1.3.0
+  - @moh-sso/audit@1.3.0
+  - @moh-sso/clients@1.3.0
+  - @moh-sso/data-validation@1.3.0
+  - @moh-sso/data-visualizer@1.3.0
+  - @moh-sso/documents@1.3.0
+  - @moh-sso/e-services@1.3.0
+  - @moh-sso/email@1.3.0
+  - @moh-sso/issue-tracker@1.3.0
+  - @moh-sso/rbac@1.3.0
+  - @moh-sso/report-browser@1.3.0
+  - @moh-sso/report-scheduler@0.4.0
+  - @moh-sso/surveillance@1.3.0
+  - @moh-sso/users@1.3.0
+  - @moh-sso/utilities@1.3.0
+  - @moh-sso/api@1.3.0
+  - @moh-sso/auth@1.3.0
+  - @moh-sso/config@1.3.0
+  - @moh-sso/microfrontend@1.3.0
+  - @moh-sso/state@1.3.0
+  - @moh-sso/types@1.3.0
+  - @moh-sso/ui@1.3.0
+
+<!-- scoped-source-changes -->
+
+### Source changes
+
+Changes since `frontend/v1.2.3`.
+
+- feat: add health-context access control and administration (#289) (`0a35faab`)
+- Refine admin workspaces and fix onboarding recovery (#288) (`df845ca2`)
+- Align nested sidebar folder and page indentation (#285) (`89891b52`)
+- Isolate surveillance database and import the root CSV datasets (#279) (`e0c7a922`)
+
 ## 1.2.3
 
 ### Patch Changes
@@ -30,6 +233,7 @@
   - @moh-sso/ui@1.2.3
 
 <!-- scoped-source-changes -->
+
 ### Source changes
 
 Changes since `frontend/v1.2.2`.

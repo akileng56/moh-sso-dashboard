@@ -11,6 +11,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  distribution:
+    name: Distribution installation gate
+    uses: ./.github/workflows/distribution-check.yml
+
   nginx:
     name: Production Nginx contracts
     runs-on: ubuntu-latest
@@ -55,6 +59,8 @@ jobs:
         working-directory: frontend
         run: |
           npm run test:dependency-guards
+          npm run test:npm-release
+          npm run test:module-sources
           node --test scripts/runtime-config-path.test.mjs scripts/api-base-url.test.mjs scripts/client-onboarding.test.mjs
 
       - name: OpenAPI bot update regression tests
@@ -98,6 +104,18 @@ jobs:
     name: Backend Quality Gate
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -113,9 +131,77 @@ jobs:
           sqlc generate
           git diff --exit-code -- internal/db/sqlc
 
+      - name: Warm reviewed Go dependency caches
+        working-directory: backend
+        run: |
+          go mod download
+          go list -mod=readonly -m all > /dev/null
+          for manifest in modules/*/go.mod; do
+            (cd "$(dirname "$manifest")" && GOWORK=off go mod download && GOWORK=off go list -mod=readonly -m all > /dev/null)
+          done
+
+      - name: Verify published backend module pins and checksums
+        run: python3 infra/scripts/backend_module_pins.py
+
+      - name: Module coverage catalogue and guide
+        run: |
+          python3 infra/scripts/check-module-catalog.py
+          python3 infra/scripts/test-module-catalog.py
+
       - name: Backend vet
         working-directory: backend
         run: go vet ./...
+
+      - name: Platform core dependency boundary and lifecycle
+        run: python3 infra/scripts/test-platform-core.py
+
+      - name: Independent Go modules
+        working-directory: backend
+        run: make modules-check
+
+      - name: Standalone Metrics package, HTTP consumer and PostgreSQL reads
+        run: python3 infra/scripts/test-metrics-package.py --postgres
+
+      - name: Published self-contained Metrics release
+        run: python3 infra/scripts/test-metrics-release.py
+
+      - name: Standalone Audit read package
+        run: python3 infra/scripts/test-audit-package.py
+
+      - name: Published self-contained Audit release
+        run: python3 infra/scripts/test-audit-release.py
+
+      - name: Self-contained Audit HTTP and PostgreSQL package
+        run: python3 infra/scripts/test-audit-http-package.py --postgres
+
+      - name: Standalone GeoJSON package
+        run: python3 infra/scripts/test-geojson-package.py
+
+      - name: Published self-contained GeoJSON release
+        run: python3 infra/scripts/test-geojson-release.py
+
+      - name: Standalone Administrative Units package and external consumer
+        run: python3 infra/scripts/test-admin-units-package.py
+      - name: Published self-contained Administrative Units release
+        run: python3 infra/scripts/test-admin-units-release.py
+
+      - name: Verify Administrative Units PostgreSQL package
+        run: python3 infra/scripts/test-admin-units-postgres.py
+
+      - name: Standalone Announcements package and external consumer
+        run: python3 infra/scripts/test-announcements-package.py
+
+      - name: Published self-contained Announcements release
+        run: python3 infra/scripts/test-announcements-release.py
+
+      - name: Verify standalone Announcements PostgreSQL persistence
+        run: python3 infra/scripts/test-announcements-postgres-package.py
+
+      - name: Verify standalone Announcements HTTP and provider composition
+        run: python3 infra/scripts/test-announcements-http-package.py
+
+      - name: Standalone Report Scheduler schema and claims
+        run: python3 infra/scripts/test-report-scheduler-package.py
 
       - name: API contract freshness
         run: make contracts-check
@@ -123,6 +209,12 @@ jobs:
       - name: Backend test
         working-directory: backend
         run: go test ./...
+
+      - name: Application manifest and lifecycle transactions
+        working-directory: backend
+        env:
+          MOH_REGISTRY_TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable
+        run: go test -race ./internal/features/rbac -run 'TestApplicationManifest|TestConcurrentApplicationManifest|TestApplicationRegistryPostgres'
 
       - name: Surveillance import normalization
         run: python3 infra/scripts/test-load-surveillance.py
@@ -192,6 +284,21 @@ jobs:
           npm run audit:import-map
           npm run runtime:verify
           npm run bundle:budget
+      # The production build may consume npm pins without building local modules.
+      # Packed-consumer checks must still verify artifacts from this checkout.
+      - name: Build workspace modules for packed-package checks
+        env:
+          FRONTEND_MODULE_SOURCE: workspace
+        run: npm run build:packages && npm run build:apps
+      - name: Verify packed npm modules in an isolated consumer
+        run: npm run audit:publishability && npm run audit:packed
+      - name: Exercise npm module selection in development and production
+        timeout-minutes: 5
+        run: npm run test:module-consumption
+      - name: Stage workspace frontend for browser regression tests
+        env:
+          FRONTEND_MODULE_SOURCE: workspace
+        run: npm run generate:import-map && npm run build:shell && npm run stage:mf
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
       - name: Browser smoke tests

@@ -416,8 +416,16 @@ func (s *Service) previewDiscoveredSync(ctx context.Context, source string, disc
 func (s *Service) applyDiscoveredSync(ctx context.Context, preview SyncPreviewResponse, discovered discoveredRBAC, source string) (SyncApplyResponse, error) {
 	response := SyncApplyResponse{Preview: preview}
 	for _, system := range discovered.Systems {
+		preserve, err := s.skipManifestStartup(ctx, system.ClientID)
+		if err != nil {
+			return SyncApplyResponse{}, err
+		}
+		if preserve {
+			continue
+		}
 		enabled := system.Enabled
 		if _, err := s.UpsertSystem(ctx, UpsertSystemInput{
+			LifecycleManaged:       system.LifecycleManaged,
 			ClientID:               system.ClientID,
 			DisplayName:            system.DisplayName,
 			Description:            system.Description,
@@ -526,6 +534,7 @@ func discoverLiveKeycloakRBAC(ctx context.Context, source KeycloakSyncSource, kn
 			LaunchMode:             client.Attributes["ui.launchMode"],
 		})
 		system := KeycloakDiscoveredSystem{
+			LifecycleManaged:       strings.TrimSpace(client.Attributes["portal.onboarding.profile"]) != "",
 			ClientID:               clientID,
 			DisplayName:            firstNonEmpty(client.Name, client.Description, clientID),
 			Description:            client.Description,

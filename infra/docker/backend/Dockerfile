@@ -1,25 +1,27 @@
+# syntax=docker/dockerfile:1
 # ======================
 # Stage 1: Build
 # ======================
 FROM --platform=$BUILDPLATFORM golang:1.25.4-alpine AS builder
 
-ARG TARGETOS=linux
-ARG TARGETARCH=amd64
+ARG TARGETOS
+ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=none
 ARG BUILD_TIME=unknown
 ARG DIRTY=false
 
-ENV CGO_ENABLED=0
+ENV CGO_ENABLED=0 GOWORK=off
 
 WORKDIR /app
 
 COPY backend/go.mod backend/go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod go mod download && go mod verify
 
 COPY backend/ .
 
-RUN GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build \
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+  GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build \
   -trimpath \
   -ldflags="-s -w \
     -X 'github.com/moh-sso-dashboard/internal/version.Version=${VERSION}' \
@@ -51,13 +53,11 @@ WORKDIR /app
 COPY --from=builder /app/internal/db/migrations ./internal/db/migrations
 COPY --from=builder /app/internal/db/surveillance_migrations ./internal/db/surveillance_migrations
 COPY --from=builder /app/config ./config
-# The GeoJSON handler resolves ./assets/geojson from the runtime WORKDIR.
-COPY --from=builder --chmod=644 /app/assets/geojson/*.geojson ./assets/geojson/
+# Map snapshots are embedded in the pinned GeoJSON module.
 COPY --from=builder /app/sso-server ./sso-server
 
 COPY --chmod=755 infra/docker/backend/entrypoint.sh /usr/local/bin/sso-entrypoint
-RUN chmod 755 /app/assets /app/assets/geojson \
-  && adduser -D appuser && mkdir -p /data/uploads && chown appuser:appuser /data/uploads
+RUN adduser -D appuser && mkdir -p /data/uploads && chown appuser:appuser /data/uploads
 # The entrypoint reads restricted mounted secrets, then execs the server as appuser.
 ENV SSO_RUNTIME_USER=appuser
 

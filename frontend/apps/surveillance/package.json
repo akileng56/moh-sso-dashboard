@@ -25,7 +25,7 @@
       "import": "./dist/types.js"
     }
   },
-  "version": "1.2.3",
+  "version": "1.5.0",
   "license": "UNLICENSED",
   "module": "./dist/index.js",
   "files": [
@@ -39,14 +39,14 @@
     "preview": "vite preview --config vite.config.ts"
   },
   "publishConfig": {
-    "access": "restricted"
+    "access": "public"
   },
   "dependencies": {
-    "@moh-sso/api": "^1.2.3",
-    "@moh-sso/documents": "~1.2.3",
-    "@moh-sso/microfrontend": "^1.2.3",
-    "@moh-sso/ui": "^1.2.3",
-    "@moh-sso/auth": "^1.2.3"
+    "@moh-sso/api": "^1.5.0",
+    "@moh-sso/documents": "~1.5.0",
+    "@moh-sso/microfrontend": "^1.5.0",
+    "@moh-sso/ui": "^1.5.0",
+    "@moh-sso/auth": "^1.5.0"
   },
   "peerDependencies": {
     "@carbon/charts": "^1.27.3",
@@ -63,5 +63,10 @@
   "devDependencies": {
     "@types/geojson": "^7946.0.16"
   },
-  "private": false
+  "private": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mohuganda/moh-sso-dashboard.git",
+    "directory": "frontend/apps/surveillance"
+  }
 }

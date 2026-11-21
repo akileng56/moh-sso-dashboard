@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/moh-sso-dashboard/core"
 	"github.com/moh-sso-dashboard/internal/authz"
 )
 
@@ -431,33 +432,25 @@ func (s *Service) ExplainAccess(
 	if err != nil {
 		return AccessExplanation{}, err
 	}
-	for _, assignment := range assignments {
-		allowed := assignment.ID == requested.ID
-		if !allowed && assignment.ScopeMode == ScopeNodeAndDescendants {
-			allowed, err = s.repository.IsDescendant(ctx, assignment.ID, requested.ID)
-			if err != nil {
-				return AccessExplanation{}, err
-			}
-		}
-		if allowed {
-			node := assignment.Node
-			return AccessExplanation{
-				Allowed:           true,
-				RequestedContext:  requested,
-				AssignmentContext: &node,
-				ScopeMode:         assignment.ScopeMode,
-				AssignmentType:    assignment.AssignmentType,
-				SourceGroupID:     assignment.SourceGroupID,
-				SourceGroupPath:   assignment.SourceGroupPath,
-				Reason:            "access granted by health context assignment",
-			}, nil
-		}
+	scopes := make([]core.ContextAssignment[uuid.UUID], len(assignments))
+	for i, assignment := range assignments {
+		scopes[i] = core.ContextAssignment[uuid.UUID]{ContextID: assignment.ID, ScopeMode: string(assignment.ScopeMode), AssignmentType: assignment.AssignmentType}
 	}
-
-	return AccessExplanation{
-		RequestedContext: requested,
-		Reason:           "no direct or inherited assignment covers this context",
-	}, nil
+	decision, err := core.ResolveContextScope(ctx, s.repository, requested.ID, requested.Enabled, scopes)
+	if err != nil {
+		return AccessExplanation{}, err
+	}
+	explanation := AccessExplanation{Allowed: decision.Allowed, RequestedContext: requested, Reason: decision.Reason}
+	if decision.Allowed {
+		assignment := assignments[decision.AssignmentIndex]
+		node := assignment.Node
+		explanation.AssignmentContext = &node
+		explanation.ScopeMode = assignment.ScopeMode
+		explanation.AssignmentType = assignment.AssignmentType
+		explanation.SourceGroupID = assignment.SourceGroupID
+		explanation.SourceGroupPath = assignment.SourceGroupPath
+	}
+	return explanation, nil
 }
 
 func (s *Service) validateAssignments(
