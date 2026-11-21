@@ -219,6 +219,10 @@ export default defineConfig(({ mode }) => {
     ...readEnvLocalOverrides(pathFromRoot("./.env")),
     ...readEnvLocalOverrides(pathFromRoot("./.env.local")),
   };
+  const modules = moduleSelection(
+    mode === "production" ? "production" : "development",
+    { ...env, ...process.env },
+  );
   const visualizerProxyTarget =
     env.VITE_VISUALIZER_PROXY_TARGET?.trim() ||
     (env.VITE_VISUALIZER_API_BASE?.trim()

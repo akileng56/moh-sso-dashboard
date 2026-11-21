@@ -1564,10 +1564,22 @@ components:
         org_unit:
           nullable: true
           type: string
+        priority:
+          nullable: true
+          type: string
+        program:
+          nullable: true
+          type: string
         reported_by:
           nullable: true
           type: string
+        severity:
+          nullable: true
+          type: string
         time_Period:
+          nullable: true
+          type: string
+        time_period:
           nullable: true
           type: string
       required:
@@ -1944,6 +1956,9 @@ components:
         priority:
           nullable: true
           type: string
+        program:
+          nullable: true
+          type: string
         reported_by:
           nullable: true
           type: string
@@ -1954,6 +1969,9 @@ components:
           nullable: true
           type: string
         time_Period:
+          nullable: true
+          type: string
+        time_period:
           nullable: true
           type: string
         updated_by:

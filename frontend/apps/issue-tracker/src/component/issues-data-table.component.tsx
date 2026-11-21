@@ -115,8 +115,8 @@ export const IssuesDataTable: React.FC<IssuesDataTableProps> = ({
                     name="select-all-issues"
                     aria-label="Select all issues"
                     checked={isAllSelected}
-                    onSelect={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      onSelectAll(e.target.checked)
+                    onSelect={(e: React.SyntheticEvent<HTMLInputElement>) =>
+                      onSelectAll(e.currentTarget.checked)
                     }
                   />
                 )}
@@ -147,8 +147,8 @@ export const IssuesDataTable: React.FC<IssuesDataTableProps> = ({
                           name={`select-issue-${row.id}`}
                           aria-label={`Select issue ${row.id}`}
                           checked={isSelected}
-                          onSelect={(e: React.ChangeEvent<HTMLInputElement>) =>
-                            onSelectRow(String(row.id), e.target.checked)
+                          onSelect={(e: React.SyntheticEvent<HTMLInputElement>) =>
+                            onSelectRow(String(row.id), e.currentTarget.checked)
                           }
                         />
                       )}

@@ -276,7 +276,6 @@ export const IssueModal = ({
             <div className="issue-org-selector-dropdown">
               <Search
                 labelText="Search organisation units"
-                hideLabel
                 size="md"
                 id="org-search-stable"
                 placeholder="Search for org unit..."

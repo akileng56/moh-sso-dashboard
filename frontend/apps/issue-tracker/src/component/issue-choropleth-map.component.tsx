@@ -287,7 +287,7 @@ export function IssueChoroplethMap({
       topDistricts: filteredDistricts.slice(0, 12),
       maxDistrictTotal: allDistricts[0]?.total ?? 0,
     };
-  }, [districtMetricsMap, isAllSelected, selectedFilter, geoJson]);
+  }, [districtMetricsMap, isAllSelected, selectedFilter]);
 
   const styleFeature = (
     feature?: Feature<Geometry, UgandaDistrictFeatureProperties>,
