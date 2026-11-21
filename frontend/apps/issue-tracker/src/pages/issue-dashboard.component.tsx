@@ -4,12 +4,10 @@ import {
   ComboBox,
   Dropdown,
   InlineLoading,
-  Modal,
   Popover,
   PopoverContent,
-  TextArea,
 } from "@carbon/react";
-import { ChevronDown, Download, Filter, Renew } from "@carbon/react/icons";
+import { ChevronDown, Filter } from "@carbon/react/icons";
 import {
   GroupedBarChart,
   PieChart,
@@ -18,19 +16,16 @@ import {
 import { Alignments, ScaleTypes, ToolbarControlTypes } from "@carbon/charts";
 import "@carbon/charts/styles.css";
 import { useNavigate } from "react-router-dom";
-import { useSelector } from "react-redux";
-import { PermissionGuard, PERMISSIONS, selectUser } from "@moh-sso/auth";
+import { PermissionGuard, PERMISSIONS } from "@moh-sso/auth";
 import { PageShell } from "@moh-sso/ui";
 
 import {
-  useCreateTransactionMutation,
   useGetIssueDataSetsQuery,
   useGetIssueGeoJsonQuery,
   useGetIssueOrgHierarchyQuery,
   useGetIssuesQuery,
   useGetIssuesSummaryByProgramQuery,
 } from "../api";
-import { AssignModal } from "../component/assign-modal.component";
 import {
   IssueChoroplethMap,
   normalizeDistrictKey,
@@ -39,24 +34,16 @@ import {
 import { DashboardKpiGrid } from "../component/dashboard-kpi-grid.component";
 import { DashboardAgingTab } from "../component/dashboard-aging-tab.component";
 import { DashboardRegionalTable } from "../component/dashboard-regional-table.component";
-import type {
-  ActionableAgingIssue,
-  Issue,
-  PeriodOption,
-  SelectEvent,
-} from "../types";
+import type { Issue, PeriodOption, SelectEvent } from "../types";
 import { periodType } from "../lib/constants";
 import { fetchAvailablePeriods } from "../lib/periodUtils";
 import {
   aggregateIssuesByRegion,
   buildOrgHierarchyMaps,
   buildUnresolvedAgingIssues,
-  computeAgingMetrics,
   doesIssueMatchLocationFilter,
   doesIssueMatchReportingPeriod,
-  exportRegionalSummaryToExcel,
   safeLower,
-  safeString,
 } from "../lib/issueAggregation";
 
 import "./issue-dashboard.scss";
@@ -65,15 +52,12 @@ const DEFAULT_CHART_REGION = "All Districts";
 
 const IssueDashboard = () => {
   const navigate = useNavigate();
-  const user = useSelector(selectUser);
   const currentYear = new Date().getFullYear();
 
   /* -------------------------------------------------------------
-   * API Queries & Mutations
+   * API Queries
    * ------------------------------------------------------------- */
   const [selectedProgram, setSelectedProgram] = useState<string | undefined>();
-  const [createTransaction, { isLoading: isResolvingIssue }] =
-    useCreateTransactionMutation();
 
   const {
     data: issuesData,
@@ -128,13 +112,6 @@ const IssueDashboard = () => {
     "distribution" | "aging" | "table"
   >("distribution");
   const [chartViewMode, setChartViewMode] = useState<"total" | "status">("total");
-
-  /* Aging quick-action modals state */
-  const [assigningIssueCodes, setAssigningIssueCodes] = useState<string[]>([]);
-  const [isAssignReassign, setIsAssignReassign] = useState<boolean>(false);
-  const [resolvingAgingIssue, setResolvingAgingIssue] =
-    useState<ActionableAgingIssue | null>(null);
-  const [resolutionComment, setResolutionComment] = useState<string>("");
 
   const years = useMemo(
     () => Array.from({ length: 10 }, (_, index) => currentYear - index),
@@ -324,11 +301,6 @@ const IssueDashboard = () => {
     [filteredIssues, hierarchyMaps],
   );
 
-  const agingMetrics = useMemo(
-    () => computeAgingMetrics(unresolvedAgingIssues),
-    [unresolvedAgingIssues],
-  );
-
   /* -------------------------------------------------------------
    * Charts Data & Options
    * ------------------------------------------------------------- */
@@ -414,10 +386,9 @@ const IssueDashboard = () => {
 
   const levelOfCareChartOptions = useMemo(
     () => ({
-      title:
-        isLocationFilterActive
-          ? `Issues by Level of Care (${activeChartRegion})`
-          : "Issues by Level of Care",
+      title: isLocationFilterActive
+        ? `Issues by Level of Care (${activeChartRegion})`
+        : "Issues by Level of Care",
       resizable: true,
       pie: {
         alignment: Alignments.CENTER,
@@ -497,52 +468,6 @@ const IssueDashboard = () => {
     }
   };
 
-  const handleNavigateToIssueCode = (issueCode: string) => {
-    if (issueCode) {
-      navigate(`/issues?issueCode=${encodeURIComponent(issueCode)}`);
-    } else {
-      navigate("/issues");
-    }
-  };
-
-  const handleOpenAssignSingle = (item: ActionableAgingIssue) => {
-    const code = safeString(item.issue.issue_code) || item.issueCode;
-    if (!code) return;
-    setAssigningIssueCodes([code]);
-    setIsAssignReassign(!item.isUnassigned);
-  };
-
-  const handleOpenBulkAssignUnassigned = (codes: string[]) => {
-    if (codes.length === 0) return;
-    setAssigningIssueCodes(codes);
-    setIsAssignReassign(false);
-  };
-
-  const handleConfirmQuickResolve = async () => {
-    if (!resolvingAgingIssue || !resolutionComment.trim()) return;
-    const code =
-      safeString(resolvingAgingIssue.issue.issue_code) ||
-      resolvingAgingIssue.issueCode;
-    if (!code) return;
-
-    try {
-      await createTransaction({
-        id: code,
-        body: {
-          resolution_action: resolutionComment.trim(),
-          resolved_by: user?.email || user?.username || "",
-          status: "resolved",
-        },
-      }).unwrap();
-
-      setResolvingAgingIssue(null);
-      setResolutionComment("");
-      handleRefreshAll();
-    } catch (err) {
-      console.error("Failed to resolve aging issue:", err);
-    }
-  };
-
   const handleRefreshAll = () => {
     refetchIssues();
     if (selectedProgram) {
@@ -569,36 +494,15 @@ const IssueDashboard = () => {
     <PermissionGuard permission={PERMISSIONS.issueTrackerRead}>
       <PageShell
         title="Issue Summary"
-        subtitle="Aggregated overview of data quality issues categorized status and grouped by regions & districts"
-        actions={
-          <div className="dashboard-actions">
-            <Button
-              size="sm"
-              kind="ghost"
-              renderIcon={Renew}
-              onClick={handleRefreshAll}
-              disabled={isLoadingIssues}
-            >
-              Refresh
-            </Button>
-
-            <Button
-              size="sm"
-              kind="secondary"
-              renderIcon={Download}
-              onClick={() =>
-                exportRegionalSummaryToExcel(regionalSummary, filteredGrandTotals)
-              }
-              disabled={regionalSummary.length === 0 || isDataLoading}
-            >
-              Export Summary (.xlsx)
-            </Button>
-          </div>
-        }
+        subtitle="Aggregated overview of reported data quality issues categorized by resolution status and grouped by region."
       >
         <div className="issue-dashboard-page">
           {/* ================= Unified Global Filter Bar ================= */}
-          <div className="dashboard-filter-container" role="region" aria-label="Dashboard global filters">
+          <div
+            className="dashboard-filter-container"
+            role="region"
+            aria-label="Dashboard global filters"
+          >
             <div ref={periodPopoverRef} className="issue-filter-wrapper">
               <Popover open={isPeriodPopoverOpen} align="bottom-left" dropShadow>
                 <Button
@@ -644,8 +548,9 @@ const IssueDashboard = () => {
                       placeholder="Search or select period..."
                       items={availablePeriods}
                       selectedItem={
-                        availablePeriods.find((item) => item.label === selectedPeriod) ??
-                        null
+                        availablePeriods.find(
+                          (item) => item.label === selectedPeriod,
+                        ) ?? null
                       }
                       itemToString={(item) => item?.label ?? ""}
                       shouldFilterItem={({ item, inputValue }) => {
@@ -747,7 +652,9 @@ const IssueDashboard = () => {
                 placeholder={DEFAULT_CHART_REGION}
                 items={chartRegionOptions}
                 selectedItem={
-                  activeChartRegion === DEFAULT_CHART_REGION ? null : activeChartRegion
+                  activeChartRegion === DEFAULT_CHART_REGION
+                    ? null
+                    : activeChartRegion
                 }
                 shouldFilterItem={({ item, inputValue }) =>
                   !inputValue ||
@@ -772,7 +679,9 @@ const IssueDashboard = () => {
             </Button>
 
             {hasActiveFilters && activeFilterSummary && (
-              <span className="filter-active-indicator">{activeFilterSummary}</span>
+              <span className="filter-active-indicator">
+                {activeFilterSummary}
+              </span>
             )}
           </div>
 
@@ -786,10 +695,12 @@ const IssueDashboard = () => {
           <div className="dashboard-charts-section">
             <div className="dashboard-charts-header">
               <div>
-                <h3 className="dashboard-charts-title">Visual Issue Distribution</h3>
+                <h3 className="dashboard-charts-title">
+                  Visual Issue Distribution
+                </h3>
                 <p className="dashboard-charts-subtitle">
-                  Comparison of reported issues across districts, regions
-                  and health facilities.
+                  Comparison of reported issues across districts, regions, days
+                  open, and health facilities.
                 </p>
               </div>
 
@@ -848,9 +759,9 @@ const IssueDashboard = () => {
                 }`}
                 onClick={() => setActiveVisualTab("aging")}
               >
-                <span>Unresolved Aging Issues</span>
+                <span>Unresolved Issue Aging</span>
                 <span className="dashboard-visual-tab-badge dashboard-visual-tab-badge--alert">
-                  {agingMetrics.totalUnresolved}
+                  {unresolvedAgingIssues.length}
                 </span>
               </button>
 
@@ -883,7 +794,8 @@ const IssueDashboard = () => {
                   <div className="dashboard-empty-state">
                     <h4>Failed to Load Issue Data</h4>
                     <p>
-                      An error occurred while retrieving issue data from the server.
+                      An error occurred while retrieving issue data from the
+                      server.
                     </p>
                     <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
                       Retry
@@ -900,7 +812,9 @@ const IssueDashboard = () => {
                         selectedFilter={activeChartRegion}
                         chartViewMode={chartViewMode}
                         onSelectFilter={(district) =>
-                          setSelectedChartRegion(district || DEFAULT_CHART_REGION)
+                          setSelectedChartRegion(
+                            district || DEFAULT_CHART_REGION,
+                          )
                         }
                         onNavigateToDistrict={handleNavigateToDistrict}
                       />
@@ -946,7 +860,8 @@ const IssueDashboard = () => {
                   <div className="dashboard-empty-state">
                     <h4>Failed to Load Issue Data</h4>
                     <p>
-                      An error occurred while retrieving issue data from the server.
+                      An error occurred while retrieving issue data from the
+                      server.
                     </p>
                     <Button size="sm" kind="tertiary" onClick={handleRefreshAll}>
                       Retry
@@ -955,18 +870,15 @@ const IssueDashboard = () => {
                 ) : (
                   <DashboardAgingTab
                     unresolvedAgingIssues={unresolvedAgingIssues}
-                    agingMetrics={agingMetrics}
                     chartViewMode={chartViewMode}
                     activeLocationFilter={activeChartRegion}
                     defaultLocationLabel={DEFAULT_CHART_REGION}
                     chartToolbarConfig={chartToolbarConfig}
-                    onAssignSingle={handleOpenAssignSingle}
-                    onBulkAssignUnassigned={handleOpenBulkAssignUnassigned}
-                    onQuickResolve={(item) => {
-                      setResolvingAgingIssue(item);
-                      setResolutionComment("");
-                    }}
-                    onNavigateToIssueCode={handleNavigateToIssueCode}
+                    hasActiveFilters={hasActiveFilters}
+                    onResetFilters={handleResetFilters}
+                    onNavigateToRegion={handleNavigateToRegion}
+                    onNavigateToDistrict={handleNavigateToDistrict}
+                    onNavigateToFacility={handleNavigateToFacility}
                   />
                 )}
               </div>
@@ -991,69 +903,6 @@ const IssueDashboard = () => {
               </div>
             )}
           </div>
-
-          {assigningIssueCodes.length > 0 && (
-            <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-              <AssignModal
-                issueCodes={assigningIssueCodes}
-                isReassign={isAssignReassign}
-                onClose={() => setAssigningIssueCodes([])}
-                onSuccess={() => {
-                  setAssigningIssueCodes([]);
-                  handleRefreshAll();
-                }}
-              />
-            </PermissionGuard>
-          )}
-
-          {resolvingAgingIssue && (
-            <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
-              <Modal
-                open
-                modalHeading={`Resolve Issue [${resolvingAgingIssue.issueCode}]`}
-                primaryButtonText={
-                  isResolvingIssue ? "Resolving..." : "Confirm Resolution"
-                }
-                secondaryButtonText="Cancel"
-                primaryButtonDisabled={!resolutionComment.trim() || isResolvingIssue}
-                onRequestClose={() => {
-                  if (!isResolvingIssue) {
-                    setResolvingAgingIssue(null);
-                    setResolutionComment("");
-                  }
-                }}
-                onRequestSubmit={handleConfirmQuickResolve}
-              >
-                <div className="aging-resolve-modal-body">
-                  <div className="aging-resolve-modal-summary">
-                    <div>
-                      <strong>Facility:</strong> {resolvingAgingIssue.facilityName} (
-                      {resolvingAgingIssue.districtName})
-                    </div>
-                    <div>
-                      <strong>Age:</strong> {resolvingAgingIssue.ageDays} days unresolved
-                      (Reported: {resolvingAgingIssue.reportedDateLabel})
-                    </div>
-                    <div>
-                      <strong>Issue:</strong>{" "}
-                      {safeString(resolvingAgingIssue.issue.issue) || "N/A"}
-                    </div>
-                  </div>
-
-                  <TextArea
-                    data-modal-primary-focus
-                    id="dashboard-aging-resolve-comment"
-                    labelText="Resolution Action / Notes"
-                    placeholder="Describe the corrective action taken to resolve this aging issue..."
-                    value={resolutionComment}
-                    onChange={(e) => setResolutionComment(e.target.value)}
-                    rows={4}
-                    disabled={isResolvingIssue}
-                  />
-                </div>
-              </Modal>
-            </PermissionGuard>
-          )}
         </div>
       </PageShell>
     </PermissionGuard>

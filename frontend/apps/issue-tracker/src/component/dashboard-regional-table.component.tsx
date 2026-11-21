@@ -14,13 +14,21 @@ import {
   TableHeader,
   TableRow,
 } from "@carbon/react";
-import { ArrowRight, ChevronDown, ChevronRight } from "@carbon/react/icons";
+import {
+  ArrowRight,
+  ChevronDown,
+  ChevronRight,
+  Download,
+} from "@carbon/react/icons";
 import type {
   DashboardGrandTotals,
   DistrictSummary,
   RegionSummaryRow,
 } from "../types";
-import { safeLower } from "../lib/issueAggregation";
+import {
+  exportRegionalSummaryToExcel,
+  safeLower,
+} from "../lib/issueAggregation";
 
 type SortHeader =
   | "region"
@@ -193,6 +201,18 @@ export const DashboardRegionalTable = ({
             closeButtonLabelText="Clear search"
           />
         </div>
+
+        <Button
+          size="sm"
+          kind="secondary"
+          renderIcon={Download}
+          disabled={displayedRows.length === 0 || isLoading}
+          onClick={() =>
+            exportRegionalSummaryToExcel(displayedRows, tableGrandTotals)
+          }
+        >
+          Export Summary (.xlsx)
+        </Button>
       </div>
 
       {isLoading ? (

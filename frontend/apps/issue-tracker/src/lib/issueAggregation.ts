@@ -1,8 +1,13 @@
 import * as XLSX from "xlsx";
 import type {
   ActionableAgingIssue,
+  AgingBracketCounts,
   AgingBucketDefinition,
   AgingBucketId,
+  AgingDistrictSummary,
+  AgingFacilitySummary,
+  AgingGrandTotals,
+  AgingRegionSummaryRow,
   DashboardGrandTotals,
   DistrictSummary,
   FacilitySummary,
@@ -746,6 +751,227 @@ export function computeAgingMetrics(
   };
 }
 
+function createEmptyAgingBuckets(): AgingBracketCounts {
+  return {
+    "0-7": 0,
+    "8-14": 0,
+    "15-30": 0,
+    "31-60": 0,
+    "61-90": 0,
+    "90+": 0,
+  };
+}
+
+type MutableAgingAccumulator = {
+  buckets: AgingBracketCounts;
+  overdue: number;
+  critical: number;
+  unassigned: number;
+  total: number;
+  totalAgeDays: number;
+  maxAgeDays: number;
+};
+
+function createAgingAccumulator(): MutableAgingAccumulator {
+  return {
+    buckets: createEmptyAgingBuckets(),
+    overdue: 0,
+    critical: 0,
+    unassigned: 0,
+    total: 0,
+    totalAgeDays: 0,
+    maxAgeDays: 0,
+  };
+}
+
+function addIssueToAgingAccumulator(
+  acc: MutableAgingAccumulator,
+  item: ActionableAgingIssue,
+) {
+  acc.buckets[item.bucket.id] += 1;
+  acc.total += 1;
+  acc.totalAgeDays += item.ageDays;
+  if (item.ageDays > acc.maxAgeDays) {
+    acc.maxAgeDays = item.ageDays;
+  }
+  if (item.ageDays > 30) {
+    acc.overdue += 1;
+  }
+  if (item.isCritical) {
+    acc.critical += 1;
+  }
+  if (item.isUnassigned) {
+    acc.unassigned += 1;
+  }
+}
+
+export function aggregateAgingIssuesByRegion(
+  agingIssues: ActionableAgingIssue[],
+): {
+  regionalAgingSummary: AgingRegionSummaryRow[];
+  grandTotals: AgingGrandTotals;
+} {
+  const regionGroups = new Map<
+    string,
+    MutableAgingAccumulator & {
+      districtGroups: Map<
+        string,
+        MutableAgingAccumulator & {
+          facilityGroups: Map<
+            string,
+            MutableAgingAccumulator & { levelOfCare: string }
+          >;
+        }
+      >;
+    }
+  >();
+
+  const grandAcc = createAgingAccumulator();
+
+  for (const item of agingIssues) {
+    const { regionName, districtName, facilityName } = item;
+
+    addIssueToAgingAccumulator(grandAcc, item);
+
+    if (!regionGroups.has(regionName)) {
+      regionGroups.set(regionName, {
+        ...createAgingAccumulator(),
+        districtGroups: new Map(),
+      });
+    }
+    const rGroup = regionGroups.get(regionName)!;
+    addIssueToAgingAccumulator(rGroup, item);
+
+    if (!rGroup.districtGroups.has(districtName)) {
+      rGroup.districtGroups.set(districtName, {
+        ...createAgingAccumulator(),
+        facilityGroups: new Map(),
+      });
+    }
+    const dGroup = rGroup.districtGroups.get(districtName)!;
+    addIssueToAgingAccumulator(dGroup, item);
+
+    const levelOfCare = resolveLevelOfCare(
+      item.issue.level_of_care,
+      facilityName,
+    );
+    if (!dGroup.facilityGroups.has(facilityName)) {
+      dGroup.facilityGroups.set(facilityName, {
+        ...createAgingAccumulator(),
+        levelOfCare,
+      });
+    }
+    const fGroup = dGroup.facilityGroups.get(facilityName)!;
+    if (
+      fGroup.levelOfCare === "Other / Unspecified" &&
+      levelOfCare !== "Other / Unspecified"
+    ) {
+      fGroup.levelOfCare = levelOfCare;
+    }
+    addIssueToAgingAccumulator(fGroup, item);
+  }
+
+  const rows: AgingRegionSummaryRow[] = [];
+
+  regionGroups.forEach((rVal, region) => {
+    const districtsList: AgingDistrictSummary[] = [];
+
+    rVal.districtGroups.forEach((dVal, district) => {
+      const facilitiesList: AgingFacilitySummary[] = [];
+
+      dVal.facilityGroups.forEach((fVal, facility) => {
+        facilitiesList.push({
+          facility,
+          levelOfCare: fVal.levelOfCare,
+          buckets: { ...fVal.buckets },
+          overdue: fVal.overdue,
+          critical: fVal.critical,
+          unassigned: fVal.unassigned,
+          total: fVal.total,
+          avgAgeDays:
+            fVal.total > 0 ? Math.round(fVal.totalAgeDays / fVal.total) : 0,
+          maxAgeDays: fVal.maxAgeDays,
+        });
+      });
+
+      facilitiesList.sort(
+        (a, b) =>
+          b.total - a.total ||
+          b.overdue - a.overdue ||
+          b.avgAgeDays - a.avgAgeDays,
+      );
+
+      districtsList.push({
+        district,
+        buckets: { ...dVal.buckets },
+        overdue: dVal.overdue,
+        critical: dVal.critical,
+        unassigned: dVal.unassigned,
+        total: dVal.total,
+        avgAgeDays:
+          dVal.total > 0 ? Math.round(dVal.totalAgeDays / dVal.total) : 0,
+        maxAgeDays: dVal.maxAgeDays,
+        facilities: facilitiesList,
+      });
+    });
+
+    districtsList.sort(
+      (a, b) =>
+        b.total - a.total ||
+        b.overdue - a.overdue ||
+        b.avgAgeDays - a.avgAgeDays,
+    );
+
+    rows.push({
+      id: `aging-region-${region}`,
+      region,
+      "0-7": rVal.buckets["0-7"],
+      "8-14": rVal.buckets["8-14"],
+      "15-30": rVal.buckets["15-30"],
+      "31-60": rVal.buckets["31-60"],
+      "61-90": rVal.buckets["61-90"],
+      "90+": rVal.buckets["90+"],
+      overdue: rVal.overdue,
+      critical: rVal.critical,
+      unassigned: rVal.unassigned,
+      total: rVal.total,
+      avgAgeDays:
+        rVal.total > 0 ? Math.round(rVal.totalAgeDays / rVal.total) : 0,
+      maxAgeDays: rVal.maxAgeDays,
+      districts: districtsList,
+    });
+  });
+
+  rows.sort(
+    (a, b) =>
+      b.total - a.total ||
+      b.overdue - a.overdue ||
+      b.avgAgeDays - a.avgAgeDays,
+  );
+
+  return {
+    regionalAgingSummary: rows,
+    grandTotals: {
+      "0-7": grandAcc.buckets["0-7"],
+      "8-14": grandAcc.buckets["8-14"],
+      "15-30": grandAcc.buckets["15-30"],
+      "31-60": grandAcc.buckets["31-60"],
+      "61-90": grandAcc.buckets["61-90"],
+      "90+": grandAcc.buckets["90+"],
+      overdue: grandAcc.overdue,
+      critical: grandAcc.critical,
+      unassigned: grandAcc.unassigned,
+      total: grandAcc.total,
+      avgAgeDays:
+        grandAcc.total > 0
+          ? Math.round(grandAcc.totalAgeDays / grandAcc.total)
+          : 0,
+      maxAgeDays: grandAcc.maxAgeDays,
+      activeRegionsCount: regionGroups.size,
+    },
+  };
+}
+
 export function exportRegionalSummaryToExcel(
   displayedRows: RegionSummaryRow[],
   tableGrandTotals: DashboardGrandTotals,
@@ -846,4 +1072,137 @@ export function exportRegionalSummaryToExcel(
 
   const dateStr = new Date().toISOString().slice(0, 10);
   XLSX.writeFile(workbook, `issue-regional-summary-${dateStr}.xlsx`);
+}
+
+export function exportAgingSummaryToExcel(
+  displayedRows: AgingRegionSummaryRow[],
+  tableGrandTotals: AgingGrandTotals,
+) {
+  const exportHeaders = [
+    "Region",
+    "0–7 Days",
+    "8–14 Days",
+    "15–30 Days",
+    "31–60 Days",
+    "61–90 Days",
+    "> 90 Days",
+    "Avg Days",
+    "Total Unresolved",
+  ];
+
+  const dataRows = displayedRows.map((row) => [
+    row.region,
+    row["0-7"],
+    row["8-14"],
+    row["15-30"],
+    row["31-60"],
+    row["61-90"],
+    row["90+"],
+    row.avgAgeDays,
+    row.total,
+  ]);
+
+  const totalRow = [
+    "TOTAL",
+    tableGrandTotals["0-7"],
+    tableGrandTotals["8-14"],
+    tableGrandTotals["15-30"],
+    tableGrandTotals["31-60"],
+    tableGrandTotals["61-90"],
+    tableGrandTotals["90+"],
+    tableGrandTotals.avgAgeDays,
+    tableGrandTotals.total,
+  ];
+
+  const sheetData = [exportHeaders, ...dataRows, [], totalRow];
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+  worksheet["!cols"] = exportHeaders.map(() => ({ wch: 18 }));
+
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Regional Aging Summary");
+
+  const districtHeaders = [
+    "Region",
+    "District",
+    "Facilities Affected",
+    "0–7 Days",
+    "8–14 Days",
+    "15–30 Days",
+    "31–60 Days",
+    "61–90 Days",
+    "> 90 Days",
+    "Avg Days",
+    "Total Unresolved",
+  ];
+
+  const districtDataRows: (string | number)[][] = [];
+  for (const r of displayedRows) {
+    for (const d of r.districts) {
+      districtDataRows.push([
+        r.region,
+        d.district,
+        d.facilities.length,
+        d.buckets["0-7"],
+        d.buckets["8-14"],
+        d.buckets["15-30"],
+        d.buckets["31-60"],
+        d.buckets["61-90"],
+        d.buckets["90+"],
+        d.avgAgeDays,
+        d.total,
+      ]);
+    }
+  }
+
+  const districtWorksheet = XLSX.utils.aoa_to_sheet([
+    districtHeaders,
+    ...districtDataRows,
+  ]);
+  districtWorksheet["!cols"] = districtHeaders.map(() => ({ wch: 20 }));
+  XLSX.utils.book_append_sheet(workbook, districtWorksheet, "District Aging Breakdown");
+
+  const facilityHeaders = [
+    "Region",
+    "District",
+    "Health Facility / Org Unit",
+    "0–7 Days",
+    "8–14 Days",
+    "15–30 Days",
+    "31–60 Days",
+    "61–90 Days",
+    "> 90 Days",
+    "Avg Days",
+    "Total Unresolved",
+  ];
+
+  const facilityDataRows: (string | number)[][] = [];
+  for (const r of displayedRows) {
+    for (const d of r.districts) {
+      for (const f of d.facilities) {
+        facilityDataRows.push([
+          r.region,
+          d.district,
+          f.facility,
+          f.buckets["0-7"],
+          f.buckets["8-14"],
+          f.buckets["15-30"],
+          f.buckets["31-60"],
+          f.buckets["61-90"],
+          f.buckets["90+"],
+          f.avgAgeDays,
+          f.total,
+        ]);
+      }
+    }
+  }
+
+  const facilityWorksheet = XLSX.utils.aoa_to_sheet([
+    facilityHeaders,
+    ...facilityDataRows,
+  ]);
+  facilityWorksheet["!cols"] = facilityHeaders.map(() => ({ wch: 22 }));
+  XLSX.utils.book_append_sheet(workbook, facilityWorksheet, "Facility Aging Breakdown");
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(workbook, `issue-unresolved-aging-${dateStr}.xlsx`);
 }

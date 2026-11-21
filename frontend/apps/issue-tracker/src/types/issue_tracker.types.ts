@@ -205,3 +205,65 @@ export type ActionableAgingIssue = {
   isUnassigned: boolean;
   reportedDateLabel: string;
 };
+
+export type AgingBracketCounts = Record<AgingBucketId, number>;
+
+export type AgingFacilitySummary = {
+  facility: string;
+  levelOfCare: string;
+  buckets: AgingBracketCounts;
+  overdue: number;
+  critical: number;
+  unassigned: number;
+  total: number;
+  avgAgeDays: number;
+  maxAgeDays: number;
+};
+
+export type AgingDistrictSummary = {
+  district: string;
+  buckets: AgingBracketCounts;
+  overdue: number;
+  critical: number;
+  unassigned: number;
+  total: number;
+  avgAgeDays: number;
+  maxAgeDays: number;
+  facilities: AgingFacilitySummary[];
+};
+
+export type AgingRegionSummaryRow = {
+  id: string;
+  region: string;
+  "0-7": number;
+  "8-14": number;
+  "15-30": number;
+  "31-60": number;
+  "61-90": number;
+  "90+": number;
+  overdue: number;
+  critical: number;
+  unassigned: number;
+  total: number;
+  avgAgeDays: number;
+  maxAgeDays: number;
+  districts: AgingDistrictSummary[];
+  [key: string]: unknown;
+};
+
+export type AgingGrandTotals = {
+  "0-7": number;
+  "8-14": number;
+  "15-30": number;
+  "31-60": number;
+  "61-90": number;
+  "90+": number;
+  overdue: number;
+  critical: number;
+  unassigned: number;
+  total: number;
+  avgAgeDays: number;
+  maxAgeDays: number;
+  activeRegionsCount: number;
+};
+

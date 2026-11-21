@@ -1,82 +1,145 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import {
   Button,
   DataTable,
+  Search,
   Table,
   TableBody,
   TableCell,
+  TableExpandHeader,
+  TableExpandedRow,
+  TableExpandRow,
   TableHead,
   TableHeader,
   TableRow,
-  Tag,
 } from "@carbon/react";
 import {
   ArrowRight,
-  CheckmarkOutline,
-  UserFollow,
-  WarningAlt,
+  ChevronDown,
+  ChevronRight,
+  Download,
 } from "@carbon/react/icons";
 import { AreaChart, LineChart } from "@carbon/charts-react";
 import { ScaleTypes } from "@carbon/charts";
-import { DataTablePagination } from "@moh-sso/ui";
-import { PermissionGuard, PERMISSIONS } from "@moh-sso/auth";
 
-import type { ActionableAgingIssue, AgingBucketId } from "../types";
+import type {
+  ActionableAgingIssue,
+  AgingBucketId,
+  AgingDistrictSummary,
+} from "../types";
 import {
   AGING_BUCKETS,
-  type AgingMetricsSummary,
-  safeString,
+  aggregateAgingIssuesByRegion,
+  computeAgingMetrics,
+  exportAgingSummaryToExcel,
+  safeLower,
 } from "../lib/issueAggregation";
 
 export interface DashboardAgingTabProps {
   unresolvedAgingIssues: ActionableAgingIssue[];
-  agingMetrics: AgingMetricsSummary;
   chartViewMode: "total" | "status";
   activeLocationFilter: string;
   defaultLocationLabel: string;
   chartToolbarConfig: Record<string, unknown>;
-  onAssignSingle: (item: ActionableAgingIssue) => void;
-  onBulkAssignUnassigned: (codes: string[]) => void;
-  onQuickResolve: (item: ActionableAgingIssue) => void;
-  onNavigateToIssueCode: (issueCode: string) => void;
+  hasActiveFilters: boolean;
+  onResetFilters: () => void;
+  onNavigateToRegion: (regionName: string) => void;
+  onNavigateToDistrict: (districtName: string) => void;
+  onNavigateToFacility: (facilityName: string) => void;
 }
 
-const AGING_TABLE_HEADERS = [
-  { key: "issueCode", header: "Issue Code" },
-  { key: "element", header: "Data Element / Dataset" },
-  { key: "facilityName", header: "Facility" },
-  { key: "location", header: "District (Region)" },
-  { key: "ageDays", header: "Age" },
-  { key: "reportedDateLabel", header: "Reported" },
-  { key: "assignee", header: "Assigned To" },
-  { key: "actions", header: "Actions" },
+type AgingSliceFilter = "all" | "unassigned";
+
+type SortHeader =
+  | "region"
+  | "0-7"
+  | "8-14"
+  | "15-30"
+  | "31-60"
+  | "61-90"
+  | "90+"
+  | "avgAgeDays"
+  | "total"
+  | string;
+
+const AGING_SUMMARY_HEADERS = [
+  { key: "region", header: "Region" },
+  { key: "0-7", header: "0–7 Days" },
+  { key: "8-14", header: "8–14 Days" },
+  { key: "15-30", header: "15–30 Days" },
+  { key: "31-60", header: "31–60 Days" },
+  { key: "61-90", header: "61–90 Days" },
+  { key: "90+", header: "> 90 Days" },
+  { key: "avgAgeDays", header: "Avg Days" },
+  { key: "total", header: "Total Unresolved" },
 ];
+
+const BUCKET_IDS: AgingBucketId[] = [
+  "0-7",
+  "8-14",
+  "15-30",
+  "31-60",
+  "61-90",
+  "90+",
+];
+
+function renderDaysCount(bucketId: AgingBucketId, count: number) {
+  if (count <= 0) {
+    return <span className="severity-pill severity-pill--zero">-</span>;
+  }
+  const bucketDef = AGING_BUCKETS.find((b) => b.id === bucketId);
+  return (
+    <span className={`aging-pill ${bucketDef?.badgeClass ?? ""}`}>{count}</span>
+  );
+}
 
 export const DashboardAgingTab = ({
   unresolvedAgingIssues,
-  agingMetrics,
   chartViewMode,
   activeLocationFilter,
   defaultLocationLabel,
   chartToolbarConfig,
-  onAssignSingle,
-  onBulkAssignUnassigned,
-  onQuickResolve,
-  onNavigateToIssueCode,
+  hasActiveFilters,
+  onResetFilters,
+  onNavigateToRegion,
+  onNavigateToDistrict,
+  onNavigateToFacility,
 }: DashboardAgingTabProps) => {
-  const [selectedAgingBucket, setSelectedAgingBucket] = useState<"all" | AgingBucketId>(
-    "all",
+  const [agingSliceFilter, setAgingSliceFilter] =
+    useState<AgingSliceFilter>("all");
+  const [regionSearchTerm, setRegionSearchTerm] = useState<string>("");
+  const [sortHeader, setSortHeader] = useState<SortHeader>("total");
+  const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("DESC");
+  const [expandedDistricts, setExpandedDistricts] = useState<
+    Record<string, boolean>
+  >({});
+
+  const overallMetrics = useMemo(
+    () => computeAgingMetrics(unresolvedAgingIssues),
+    [unresolvedAgingIssues],
   );
-  const [agingTriageFilter, setAgingTriageFilter] = useState<
-    "all" | "overdue" | "critical" | "unassigned"
-  >("all");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+
+  const slicedAgingIssues = useMemo(() => {
+    if (agingSliceFilter === "unassigned") {
+      return unresolvedAgingIssues.filter((item) => item.isUnassigned);
+    }
+    return unresolvedAgingIssues;
+  }, [unresolvedAgingIssues, agingSliceFilter]);
+
+  const slicedAgingMetrics = useMemo(
+    () => computeAgingMetrics(slicedAgingIssues),
+    [slicedAgingIssues],
+  );
+
+  const { regionalAgingSummary, grandTotals: agingGrandTotals } = useMemo(
+    () => aggregateAgingIssuesByRegion(slicedAgingIssues),
+    [slicedAgingIssues],
+  );
 
   const agingChartData = useMemo(() => {
     if (chartViewMode === "status") {
       return AGING_BUCKETS.flatMap((bucket) => {
-        const stats = agingMetrics.bucketMap.get(bucket.id) ?? {
+        const stats = slicedAgingMetrics.bucketMap.get(bucket.id) ?? {
           total: 0,
           critical: 0,
           unassigned: 0,
@@ -84,14 +147,18 @@ export const DashboardAgingTab = ({
         };
         return [
           { group: "Critical Open", key: bucket.label, value: stats.critical },
-          { group: "Unassigned Open", key: bucket.label, value: stats.unassigned },
+          {
+            group: "Unassigned Open",
+            key: bucket.label,
+            value: stats.unassigned,
+          },
           { group: "Assigned Open", key: bucket.label, value: stats.assigned },
         ];
       });
     }
 
     return AGING_BUCKETS.flatMap((bucket) => {
-      const stats = agingMetrics.bucketMap.get(bucket.id);
+      const stats = slicedAgingMetrics.bucketMap.get(bucket.id);
       return [
         {
           group: "Total Unresolved",
@@ -105,14 +172,17 @@ export const DashboardAgingTab = ({
         },
       ];
     });
-  }, [agingMetrics, chartViewMode]);
+  }, [slicedAgingMetrics, chartViewMode]);
+
+  const sliceTitleSuffix =
+    agingSliceFilter === "unassigned" ? " — Unassigned Only" : "";
 
   const agingChartOptions = useMemo(
     () => ({
       title:
         activeLocationFilter && activeLocationFilter !== defaultLocationLabel
-          ? `Unresolved Issue Aging Series (${activeLocationFilter})`
-          : "Unresolved Issue Aging Series",
+          ? `Unresolved Issue Aging Series (${activeLocationFilter})${sliceTitleSuffix}`
+          : `Unresolved Issue Aging Series${sliceTitleSuffix}`,
       axes: {
         left: {
           mapsTo: "value",
@@ -121,7 +191,7 @@ export const DashboardAgingTab = ({
         },
         bottom: {
           mapsTo: "key",
-          title: "Age Bracket",
+          title: "Days",
           scaleType: ScaleTypes.LABELS,
         },
       },
@@ -144,69 +214,172 @@ export const DashboardAgingTab = ({
                 "Critical Open": "#a2191f",
               },
       },
-      height: "340px",
+      height: "360px",
       toolbar: chartToolbarConfig,
       legend: {
         enabled: true,
       },
     }),
-    [activeLocationFilter, defaultLocationLabel, chartViewMode, chartToolbarConfig],
+    [
+      activeLocationFilter,
+      defaultLocationLabel,
+      sliceTitleSuffix,
+      chartViewMode,
+      chartToolbarConfig,
+    ],
   );
 
-  const actionableAgingIssues = useMemo(() => {
-    return unresolvedAgingIssues.filter((item) => {
-      if (selectedAgingBucket !== "all" && item.bucket.id !== selectedAgingBucket) {
-        return false;
+  const handleSort = (headerKey: string) => {
+    if (sortHeader === headerKey) {
+      setSortDirection((prev) => (prev === "ASC" ? "DESC" : "ASC"));
+    } else {
+      setSortHeader(headerKey);
+      setSortDirection("DESC");
+    }
+  };
+
+  const isDistrictExpanded = (region: string, d: AgingDistrictSummary) => {
+    const districtKey = `${region}-${d.district}`;
+    if (expandedDistricts[districtKey] !== undefined) {
+      return expandedDistricts[districtKey];
+    }
+    if (regionSearchTerm.trim()) {
+      const term = safeLower(regionSearchTerm);
+      return (
+        safeLower(d.district).includes(term) ||
+        d.facilities.some((f) => safeLower(f.facility).includes(term))
+      );
+    }
+    return false;
+  };
+
+  const toggleDistrict = (region: string, d: AgingDistrictSummary) => {
+    const districtKey = `${region}-${d.district}`;
+    const currentlyExpanded = isDistrictExpanded(region, d);
+    setExpandedDistricts((prev) => ({
+      ...prev,
+      [districtKey]: !currentlyExpanded,
+    }));
+  };
+
+  const isEveryDistrictExpanded = (
+    region: string,
+    districts: AgingDistrictSummary[],
+  ) => {
+    if (districts.length === 0) return false;
+    return districts.every((d) => isDistrictExpanded(region, d));
+  };
+
+  const toggleAllDistrictsInRegion = (
+    region: string,
+    districts: AgingDistrictSummary[],
+  ) => {
+    const allExpanded = isEveryDistrictExpanded(region, districts);
+    setExpandedDistricts((prev) => {
+      const next = { ...prev };
+      for (const d of districts) {
+        next[`${region}-${d.district}`] = !allExpanded;
       }
-      if (agingTriageFilter === "overdue" && item.ageDays <= 30) {
-        return false;
-      }
-      if (agingTriageFilter === "critical" && !item.isCritical) {
-        return false;
-      }
-      if (agingTriageFilter === "unassigned" && !item.isUnassigned) {
-        return false;
-      }
-      return true;
+      return next;
     });
-  }, [unresolvedAgingIssues, selectedAgingBucket, agingTriageFilter]);
+  };
 
-  const actionableUnassignedCodes = useMemo(
-    () =>
-      actionableAgingIssues
-        .filter((item) => item.isUnassigned && Boolean(item.issue.issue_code))
-        .map((item) => item.issue.issue_code),
-    [actionableAgingIssues],
-  );
+  const displayedRows = useMemo(() => {
+    let result = [...regionalAgingSummary];
 
-  const paginatedItems = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return actionableAgingIssues.slice(start, start + pageSize);
-  }, [actionableAgingIssues, page, pageSize]);
+    if (regionSearchTerm.trim()) {
+      const term = safeLower(regionSearchTerm);
+      result = result.filter(
+        (r) =>
+          safeLower(r.region).includes(term) ||
+          r.districts.some(
+            (d) =>
+              safeLower(d.district).includes(term) ||
+              d.facilities.some((f) => safeLower(f.facility).includes(term)),
+          ),
+      );
+    }
 
-  const tableRows = useMemo(
-    () =>
-      paginatedItems.map((item, idx) => ({
-        id: `${item.issue.issue_id || idx}-${item.issueCode}`,
-        issueCode: item.issueCode,
-        element:
-          safeString(item.issue.data_element) ||
-          safeString(item.issue.dataset) ||
-          safeString(item.issue.issue_type) ||
-          "Data Quality Issue",
-        facilityName: item.facilityName,
-        location: `${item.districtName} (${item.regionName})`,
-        ageDays: item.ageDays,
-        reportedDateLabel: item.reportedDateLabel,
-        assignee: item.isUnassigned ? "" : safeString(item.issue.assigned_to),
-        actions: item.issueCode,
-      })),
-    [paginatedItems],
-  );
+    result.sort((a, b) => {
+      const aVal = a[sortHeader];
+      const bVal = b[sortHeader];
+
+      if (typeof aVal === "string") {
+        const aStr = aVal.toLowerCase();
+        const bStr = String(bVal ?? "").toLowerCase();
+        return sortDirection === "ASC"
+          ? aStr.localeCompare(bStr)
+          : bStr.localeCompare(aStr);
+      }
+
+      const aNum = Number(aVal ?? 0);
+      const bNum = Number(bVal ?? 0);
+      return sortDirection === "ASC" ? aNum - bNum : bNum - aNum;
+    });
+
+    return result;
+  }, [regionalAgingSummary, regionSearchTerm, sortHeader, sortDirection]);
+
+  const tableGrandTotals = useMemo(() => {
+    if (!regionSearchTerm.trim()) {
+      return agingGrandTotals;
+    }
+
+    let weightedAgeSum = 0;
+    let maxAge = 0;
+
+    const acc = displayedRows.reduce(
+      (sum, row) => {
+        weightedAgeSum += row.avgAgeDays * row.total;
+        if (row.maxAgeDays > maxAge) maxAge = row.maxAgeDays;
+        return {
+          "0-7": sum["0-7"] + row["0-7"],
+          "8-14": sum["8-14"] + row["8-14"],
+          "15-30": sum["15-30"] + row["15-30"],
+          "31-60": sum["31-60"] + row["31-60"],
+          "61-90": sum["61-90"] + row["61-90"],
+          "90+": sum["90+"] + row["90+"],
+          overdue: sum.overdue + row.overdue,
+          critical: sum.critical + row.critical,
+          unassigned: sum.unassigned + row.unassigned,
+          total: sum.total + row.total,
+        };
+      },
+      {
+        "0-7": 0,
+        "8-14": 0,
+        "15-30": 0,
+        "31-60": 0,
+        "61-90": 0,
+        "90+": 0,
+        overdue: 0,
+        critical: 0,
+        unassigned: 0,
+        total: 0,
+      },
+    );
+
+    return {
+      ...acc,
+      avgAgeDays: acc.total > 0 ? Math.round(weightedAgeSum / acc.total) : 0,
+      maxAgeDays: maxAge,
+      activeRegionsCount: displayedRows.length,
+    };
+  }, [regionSearchTerm, agingGrandTotals, displayedRows]);
+
+  const overduePct =
+    slicedAgingMetrics.totalUnresolved > 0
+      ? Math.round(
+          (slicedAgingMetrics.overdueCount /
+            slicedAgingMetrics.totalUnresolved) *
+            100,
+        )
+      : 0;
 
   return (
-    <div className="dashboard-chart-card aging-visual-card aging-visual-card--tab">
-      <div className="aging-visual-chart-wrapper">
+    <>
+      {/* ================= Full-Width Aging Series Chart ================= */}
+      <div className="dashboard-chart-card dashboard-chart-card--full">
         {chartViewMode === "status" ? (
           <LineChart data={agingChartData} options={agingChartOptions} />
         ) : (
@@ -214,276 +387,505 @@ export const DashboardAgingTab = ({
         )}
       </div>
 
-      <div className="aging-controls-bar">
+      {/* ================= Clean Toolbar & Quick Slice Toggles ================= */}
+      <div className="aging-analytics-toolbar">
         <div
-          className="aging-bucket-pills"
+          className="aging-triage-filters"
           role="group"
-          aria-label="Filter by aging bracket"
+          aria-label="Filter aging analytics by backlog slice"
         >
           <button
             type="button"
-            className={`aging-bucket-chip ${selectedAgingBucket === "all" ? "active" : ""}`}
-            onClick={() => {
-              setSelectedAgingBucket("all");
-              setPage(1);
-            }}
+            className={`aging-triage-btn ${
+              agingSliceFilter === "all" ? "active" : ""
+            }`}
+            onClick={() => setAgingSliceFilter("all")}
           >
-            All Brackets ({agingMetrics.totalUnresolved})
+            All Unresolved ({overallMetrics.totalUnresolved})
           </button>
-          {AGING_BUCKETS.map((bucket) => {
-            const count = agingMetrics.bucketMap.get(bucket.id)?.total ?? 0;
-            const isActive = selectedAgingBucket === bucket.id;
-            return (
-              <button
-                key={bucket.id}
-                type="button"
-                className={`aging-bucket-chip aging-bucket-chip--${bucket.id.replace("+", "plus")} ${
-                  isActive ? "active" : ""
-                }`}
-                onClick={() => {
-                  setSelectedAgingBucket((prev) =>
-                    prev === bucket.id ? "all" : bucket.id,
-                  );
-                  setPage(1);
-                }}
-              >
-                <span
-                  className={`aging-bucket-dot aging-bucket-dot--${bucket.id.replace("+", "plus")}`}
-                />
-                {bucket.label} ({count})
-              </button>
-            );
-          })}
+          <button
+            type="button"
+            className={`aging-triage-btn ${
+              agingSliceFilter === "unassigned" ? "active" : ""
+            }`}
+            onClick={() =>
+              setAgingSliceFilter((prev) =>
+                prev === "unassigned" ? "all" : "unassigned",
+              )
+            }
+          >
+            Unassigned Only ({overallMetrics.unassignedCount})
+          </button>
         </div>
 
-        <div className="aging-triage-row">
-          <div
-            className="aging-triage-filters"
-            role="group"
-            aria-label="Quick triage filters"
-          >
-            <button
-              type="button"
-              className={`aging-triage-btn ${agingTriageFilter === "all" ? "active" : ""}`}
-              onClick={() => {
-                setAgingTriageFilter("all");
-                setPage(1);
-              }}
-            >
-              All Backlog ({agingMetrics.totalUnresolved})
-            </button>
-            <button
-              type="button"
-              className={`aging-triage-btn ${agingTriageFilter === "overdue" ? "active" : ""}`}
-              onClick={() => {
-                setAgingTriageFilter((prev) => (prev === "overdue" ? "all" : "overdue"));
-                setPage(1);
-              }}
-            >
-              Overdue &gt;30d ({agingMetrics.overdueCount})
-            </button>
-            <button
-              type="button"
-              className={`aging-triage-btn ${agingTriageFilter === "critical" ? "active" : ""}`}
-              onClick={() => {
-                setAgingTriageFilter((prev) =>
-                  prev === "critical" ? "all" : "critical",
-                );
-                setPage(1);
-              }}
-            >
-              Critical ({agingMetrics.criticalCount})
-            </button>
-            <button
-              type="button"
-              className={`aging-triage-btn ${agingTriageFilter === "unassigned" ? "active" : ""}`}
-              onClick={() => {
-                setAgingTriageFilter((prev) =>
-                  prev === "unassigned" ? "all" : "unassigned",
-                );
-                setPage(1);
-              }}
-            >
-              Unassigned ({agingMetrics.unassignedCount})
-            </button>
-          </div>
-
-          <div className="aging-triage-meta">
-            <span className="aging-avg-text">
-              Avg / Oldest Age:{" "}
-              <strong>
-                {agingMetrics.avgAgeDays}d / {agingMetrics.maxAgeDays}d
-              </strong>
-            </span>
-
-            {actionableUnassignedCodes.length > 0 && (
-              <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-                <Button
-                  size="sm"
-                  kind="secondary"
-                  renderIcon={UserFollow}
-                  onClick={() => onBulkAssignUnassigned(actionableUnassignedCodes)}
-                  className="aging-bulk-assign-btn"
-                >
-                  Assign {actionableUnassignedCodes.length} Unassigned
-                </Button>
-              </PermissionGuard>
-            )}
-          </div>
+        <div className="aging-triage-meta">
+          <span className="aging-summary-indicator aging-summary-indicator--overdue">
+            Overdue (&gt;30 Days):{" "}
+            <strong>
+              {slicedAgingMetrics.overdueCount} ({overduePct}%)
+            </strong>
+          </span>
+          <span className="aging-summary-indicator">
+            Avg / Oldest Days:{" "}
+            <strong>
+              {slicedAgingMetrics.avgAgeDays}d / {slicedAgingMetrics.maxAgeDays}
+              d
+            </strong>
+          </span>
         </div>
       </div>
 
-      <div className="aging-actionable-queue">
-        {actionableAgingIssues.length === 0 ? (
-          <div className="aging-empty-queue">
-            <p>
-              No unresolved issues match the selected aging bracket or triage filter.
-            </p>
-            {(selectedAgingBucket !== "all" || agingTriageFilter !== "all") && (
-              <Button
-                size="sm"
-                kind="ghost"
-                onClick={() => {
-                  setSelectedAgingBucket("all");
-                  setAgingTriageFilter("all");
-                  setPage(1);
-                }}
+      {/* ================= Search & Export Bar ================= */}
+      <div className="dashboard-toolbar-row">
+        <div className="dashboard-search">
+          <Search
+            labelText="Search regions, districts, or facilities in aging breakdown"
+            placeholder="Search by region, district, or facility name..."
+            value={regionSearchTerm}
+            onChange={(e) => setRegionSearchTerm(e.target.value)}
+            size="sm"
+            closeButtonLabelText="Clear search"
+          />
+        </div>
+
+        <Button
+          size="sm"
+          kind="secondary"
+          renderIcon={Download}
+          disabled={displayedRows.length === 0}
+          onClick={() =>
+            exportAgingSummaryToExcel(displayedRows, tableGrandTotals)
+          }
+        >
+          Download (.xlsx)
+        </Button>
+      </div>
+
+      {/* ================= 3-Level Regional Aging Breakdown Table ================= */}
+      {displayedRows.length === 0 ? (
+        <div className="dashboard-empty-state">
+          <h4>No Unresolved Aging Issues Found</h4>
+          <p>
+            {hasActiveFilters ||
+            regionSearchTerm ||
+            agingSliceFilter !== "all"
+              ? "No unresolved issues match the selected filters, slice, or search criteria."
+              : "There are currently no unresolved issues in the backlog."}
+          </p>
+          {(hasActiveFilters ||
+            regionSearchTerm ||
+            agingSliceFilter !== "all") && (
+            <Button
+              size="sm"
+              kind="tertiary"
+              onClick={() => {
+                setAgingSliceFilter("all");
+                setRegionSearchTerm("");
+                if (hasActiveFilters) {
+                  onResetFilters();
+                }
+              }}
+            >
+              Reset Aging Filters
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="summary-table-container">
+          <DataTable rows={displayedRows} headers={AGING_SUMMARY_HEADERS}>
+            {({
+              rows,
+              headers,
+              getTableProps,
+              getHeaderProps,
+              getRowProps,
+              getExpandHeaderProps,
+            }) => (
+              <Table
+                {...getTableProps()}
+                aria-label="Regional unresolved issue aging breakdown table"
               >
-                Clear Aging Filters
-              </Button>
-            )}
-          </div>
-        ) : (
-          <div className="summary-table-container">
-            <DataTable rows={tableRows} headers={AGING_TABLE_HEADERS}>
-              {({ rows, headers, getTableProps, getHeaderProps, getRowProps }) => (
-                <Table
-                  {...getTableProps()}
-                  size="md"
-                  aria-label="Unresolved aging issues queue"
-                >
-                  <TableHead>
-                    <TableRow>
-                      {headers.map((header) => {
-                        const { key: headerKey, ...headerProps } = getHeaderProps({
-                          header,
-                        });
-                        return (
-                          <TableHeader key={headerKey} {...headerProps}>
-                            {header.header}
-                          </TableHeader>
-                        );
-                      })}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {rows.map((row, rowIdx) => {
-                      const item = paginatedItems[rowIdx];
-                      const { key: rowKey, ...rowProps } = getRowProps({ row });
-                      if (!item) return null;
-
+                <TableHead>
+                  <TableRow>
+                    <TableExpandHeader {...getExpandHeaderProps()} />
+                    {headers.map((header) => {
+                      const isSorted = sortHeader === header.key;
+                      const { key: headerKey, ...headerProps } = getHeaderProps({
+                        header,
+                        isSortable: true,
+                        onClick: () => handleSort(header.key),
+                      });
                       return (
-                        <TableRow key={rowKey} {...rowProps}>
-                          <TableCell>
-                            <div className="aging-code-cell">
-                              <button
-                                type="button"
-                                className="aging-issue-code-link"
-                                onClick={() => onNavigateToIssueCode(item.issueCode)}
-                                title={`Open issue ${item.issueCode} in Registered Issues`}
-                              >
-                                {item.issueCode}
-                              </button>
-                              {item.isCritical && (
-                                <Tag type="red" size="sm" renderIcon={WarningAlt}>
-                                  Critical
-                                </Tag>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{tableRows[rowIdx]?.element}</TableCell>
-                          <TableCell>{item.facilityName}</TableCell>
-                          <TableCell>
-                            {item.districtName} ({item.regionName})
-                          </TableCell>
-                          <TableCell>
-                            <span className={`aging-pill ${item.bucket.badgeClass}`}>
-                              {item.ageDays}d open
-                            </span>
-                          </TableCell>
-                          <TableCell>{item.reportedDateLabel}</TableCell>
-                          <TableCell>
-                            {item.isUnassigned ? (
-                              <span className="aging-assignee-unassigned">
-                                Unassigned
-                              </span>
-                            ) : (
-                              <span className="aging-assignee-assigned">
-                                {safeString(item.issue.assigned_to)}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="aging-row-actions">
-                              <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
-                                <button
-                                  type="button"
-                                  className="aging-action-btn aging-action-btn--assign"
-                                  onClick={() => onAssignSingle(item)}
-                                  title={
-                                    item.isUnassigned
-                                      ? `Assign ${item.issueCode}`
-                                      : `Re-assign ${item.issueCode}`
-                                  }
-                                >
-                                  <UserFollow size={16} />
-                                  <span>{item.isUnassigned ? "Assign" : "Re-assign"}</span>
-                                </button>
-                              </PermissionGuard>
-
-                              <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
-                                <button
-                                  type="button"
-                                  className="aging-action-btn aging-action-btn--resolve"
-                                  onClick={() => onQuickResolve(item)}
-                                  title={`Resolve ${item.issueCode}`}
-                                >
-                                  <CheckmarkOutline size={16} />
-                                  <span>Resolve</span>
-                                </button>
-                              </PermissionGuard>
-
-                              <button
-                                type="button"
-                                className="aging-action-btn aging-action-btn--view"
-                                onClick={() => onNavigateToIssueCode(item.issueCode)}
-                                title={`View full details for ${item.issueCode}`}
-                              >
-                                <span>Details</span>
-                                <ArrowRight size={16} />
-                              </button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                        <TableHeader
+                          key={headerKey}
+                          {...headerProps}
+                          isSortable
+                          isSortHeader={isSorted}
+                          sortDirection={isSorted ? sortDirection : "NONE"}
+                        >
+                          {header.header}
+                        </TableHeader>
                       );
                     })}
-                  </TableBody>
-                </Table>
-              )}
-            </DataTable>
+                  </TableRow>
+                </TableHead>
 
-            <DataTablePagination
-              page={page}
-              pageSize={pageSize}
-              totalItems={actionableAgingIssues.length}
-              onChange={({ page: newPage, pageSize: newPageSize }) => {
-                setPage(newPage);
-                setPageSize(newPageSize);
-              }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
+                <TableBody>
+                  {rows.map((row) => {
+                    const summaryItem = displayedRows.find(
+                      (item) => item.id === row.id,
+                    );
+                    const { key: rowKey, ...rowProps } = getRowProps({ row });
+
+                    return (
+                      <Fragment key={row.id}>
+                        <TableExpandRow key={rowKey} {...rowProps}>
+                          {row.cells.map((cell) => {
+                            const headerKey = cell.info.header;
+
+                            if (headerKey === "region") {
+                              return (
+                                <TableCell key={cell.id}>
+                                  <div className="region-cell">
+                                    <span>{cell.value}</span>
+                                  </div>
+                                </TableCell>
+                              );
+                            }
+
+                            if (
+                              BUCKET_IDS.includes(headerKey as AgingBucketId)
+                            ) {
+                              const count = Number(cell.value || 0);
+                              return (
+                                <TableCell key={cell.id}>
+                                  {renderDaysCount(
+                                    headerKey as AgingBucketId,
+                                    count,
+                                  )}
+                                </TableCell>
+                              );
+                            }
+
+                            if (headerKey === "avgAgeDays") {
+                              const avg = Number(cell.value || 0);
+                              return (
+                                <TableCell key={cell.id}>
+                                  <span className="stat-cell">{avg}d</span>
+                                </TableCell>
+                              );
+                            }
+
+                            if (headerKey === "total") {
+                              const count = Number(cell.value || 0);
+                              return (
+                                <TableCell key={cell.id}>
+                                  <span className="total-pill">{count}</span>
+                                </TableCell>
+                              );
+                            }
+
+                            return (
+                              <TableCell key={cell.id}>
+                                {cell.value ?? "-"}
+                              </TableCell>
+                            );
+                          })}
+                        </TableExpandRow>
+
+                        <TableExpandedRow
+                          key={`expanded-${row.id}`}
+                          colSpan={headers.length + 1}
+                        >
+                          {row.isExpanded && summaryItem && (
+                            <div className="expanded-panel">
+                              <div className="expanded-panel-header">
+                                <div>
+                                  <h4 className="expanded-panel-title">
+                                    District &amp; Facility Aging Breakdown for{" "}
+                                    {summaryItem.region} Region
+                                  </h4>
+                                  <p className="expanded-panel-subtitle">
+                                    {summaryItem.districts.length} district(s) |{" "}
+                                    {summaryItem.districts.reduce(
+                                      (acc, d) => acc + d.facilities.length,
+                                      0,
+                                    )}{" "}
+                                    facility(ies) affected |{" "}
+                                    <strong>{summaryItem.total}</strong>{" "}
+                                    unresolved issues
+                                  </p>
+                                </div>
+
+                                <div className="expanded-panel-actions">
+                                  <Button
+                                    size="sm"
+                                    kind="ghost"
+                                    onClick={() =>
+                                      toggleAllDistrictsInRegion(
+                                        summaryItem.region,
+                                        summaryItem.districts,
+                                      )
+                                    }
+                                  >
+                                    {isEveryDistrictExpanded(
+                                      summaryItem.region,
+                                      summaryItem.districts,
+                                    )
+                                      ? "Collapse All Facilities"
+                                      : "Expand All Facilities"}
+                                  </Button>
+
+                                  <Button
+                                    size="sm"
+                                    kind="tertiary"
+                                    renderIcon={ArrowRight}
+                                    onClick={() =>
+                                      onNavigateToRegion(summaryItem.region)
+                                    }
+                                  >
+                                    View Issues in {summaryItem.region}
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="district-table-wrapper">
+                                <table>
+                                  <thead>
+                                    <tr>
+                                      <th>District</th>
+                                      <th>0–7 Days</th>
+                                      <th>8–14 Days</th>
+                                      <th>15–30 Days</th>
+                                      <th>31–60 Days</th>
+                                      <th>61–90 Days</th>
+                                      <th>&gt; 90 Days</th>
+                                      <th>Avg Days</th>
+                                      <th>Total Unresolved</th>
+                                      <th className="table-action-header">
+                                        Actions
+                                      </th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {summaryItem.districts.map((d) => {
+                                      const expanded = isDistrictExpanded(
+                                        summaryItem.region,
+                                        d,
+                                      );
+
+                                      return (
+                                        <Fragment key={d.district}>
+                                          <tr
+                                            className={`district-row ${
+                                              expanded
+                                                ? "district-row--expanded"
+                                                : ""
+                                            }`}
+                                          >
+                                            <td>
+                                              <button
+                                                type="button"
+                                                aria-expanded={expanded}
+                                                className="district-expand-btn"
+                                                onClick={() =>
+                                                  toggleDistrict(
+                                                    summaryItem.region,
+                                                    d,
+                                                  )
+                                                }
+                                                title={
+                                                  expanded
+                                                    ? "Collapse facility aging breakdown"
+                                                    : "Expand facility aging breakdown"
+                                                }
+                                              >
+                                                {expanded ? (
+                                                  <ChevronDown
+                                                    size={16}
+                                                    className="district-expand-icon"
+                                                  />
+                                                ) : (
+                                                  <ChevronRight
+                                                    size={16}
+                                                    className="district-expand-icon"
+                                                  />
+                                                )}
+                                                <span className="district-name-text">
+                                                  {d.district}
+                                                </span>
+                                                <span className="district-facility-badge">
+                                                  {d.facilities.length}{" "}
+                                                  {d.facilities.length === 1
+                                                    ? "facility"
+                                                    : "facilities"}
+                                                </span>
+                                              </button>
+                                            </td>
+                                            {BUCKET_IDS.map((bId) => (
+                                              <td key={bId}>
+                                                {renderDaysCount(
+                                                  bId,
+                                                  d.buckets[bId],
+                                                )}
+                                              </td>
+                                            ))}
+                                            <td>{d.avgAgeDays}d</td>
+                                            <td>
+                                              <strong>{d.total}</strong>
+                                            </td>
+                                            <td className="table-action-cell">
+                                              <Button
+                                                size="sm"
+                                                kind="ghost"
+                                                hasIconOnly
+                                                renderIcon={ArrowRight}
+                                                iconDescription={`View issues in ${d.district}`}
+                                                tooltipPosition="left"
+                                                onClick={() =>
+                                                  onNavigateToDistrict(
+                                                    d.district,
+                                                  )
+                                                }
+                                              />
+                                            </td>
+                                          </tr>
+
+                                          {expanded && (
+                                            <tr className="facility-breakdown-row">
+                                              <td colSpan={10}>
+                                                <div className="facility-breakdown-panel">
+                                                  <div className="facility-breakdown-header">
+                                                    <span className="facility-breakdown-title">
+                                                      Facilities in {d.district}{" "}
+                                                      ({d.facilities.length})
+                                                    </span>
+                                                  </div>
+                                                  {d.facilities.length === 0 ? (
+                                                    <p className="facility-empty-note">
+                                                      No health facilities
+                                                      recorded for this
+                                                      district.
+                                                    </p>
+                                                  ) : (
+                                                    <table className="facility-table">
+                                                      <thead>
+                                                        <tr>
+                                                          <th>
+                                                            Health Facility /
+                                                            Org Unit
+                                                          </th>
+                                                          <th>0–7 Days</th>
+                                                          <th>8–14 Days</th>
+                                                          <th>15–30 Days</th>
+                                                          <th>31–60 Days</th>
+                                                          <th>61–90 Days</th>
+                                                          <th>&gt; 90 Days</th>
+                                                          <th>Avg Days</th>
+                                                          <th>
+                                                            Total Unresolved
+                                                          </th>
+                                                          <th className="table-action-header">
+                                                            Actions
+                                                          </th>
+                                                        </tr>
+                                                      </thead>
+                                                      <tbody>
+                                                        {d.facilities.map(
+                                                          (f) => (
+                                                            <tr
+                                                              key={f.facility}
+                                                            >
+                                                              <td>
+                                                                <span className="facility-name-cell">
+                                                                  {f.facility}
+                                                                </span>
+                                                              </td>
+                                                              {BUCKET_IDS.map(
+                                                                (bId) => (
+                                                                  <td key={bId}>
+                                                                    {renderDaysCount(
+                                                                      bId,
+                                                                      f.buckets[
+                                                                        bId
+                                                                      ],
+                                                                    )}
+                                                                  </td>
+                                                                ),
+                                                              )}
+                                                              <td>
+                                                                {f.avgAgeDays}d
+                                                              </td>
+                                                              <td>
+                                                                <strong>
+                                                                  {f.total}
+                                                                </strong>
+                                                              </td>
+                                                              <td className="table-action-cell">
+                                                                <Button
+                                                                  size="sm"
+                                                                  kind="ghost"
+                                                                  hasIconOnly
+                                                                  renderIcon={
+                                                                    ArrowRight
+                                                                  }
+                                                                  iconDescription={`View issues in ${f.facility}`}
+                                                                  tooltipPosition="left"
+                                                                  onClick={() =>
+                                                                    onNavigateToFacility(
+                                                                      f.facility,
+                                                                    )
+                                                                  }
+                                                                />
+                                                              </td>
+                                                            </tr>
+                                                          ),
+                                                        )}
+                                                      </tbody>
+                                                    </table>
+                                                  )}
+                                                </div>
+                                              </td>
+                                            </tr>
+                                          )}
+                                        </Fragment>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </TableExpandedRow>
+                      </Fragment>
+                    );
+                  })}
+
+                  <TableRow className="grand-total-row">
+                    <TableCell />
+                    <TableCell>
+                      <strong>TOTAL (All Regions)</strong>
+                    </TableCell>
+                    {BUCKET_IDS.map((bId) => (
+                      <TableCell key={bId}>
+                        {renderDaysCount(bId, tableGrandTotals[bId])}
+                      </TableCell>
+                    ))}
+                    <TableCell>
+                      <strong>{tableGrandTotals.avgAgeDays}d</strong>
+                    </TableCell>
+                    <TableCell>
+                      <span className="total-pill">
+                        {tableGrandTotals.total}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            )}
+          </DataTable>
+        </div>
+      )}
+    </>
   );
 };
