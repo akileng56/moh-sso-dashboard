@@ -162,10 +162,24 @@ func buildIssuesWhereClause(filter listIssuesFilter) (string, []interface{}) {
 		idx++
 	}
 
-	if filter.AssignedTo != "" {
+	if filter.Unassigned || strings.EqualFold(filter.AssignedTo, "unassigned") {
+		conditions = append(conditions, "BTRIM(COALESCE(hiv.issue.assigned_to, '')) = ''")
+	} else if strings.EqualFold(filter.AssignedTo, "assigned") {
+		conditions = append(conditions, "BTRIM(COALESCE(hiv.issue.assigned_to, '')) <> ''")
+	} else if filter.AssignedTo != "" {
 		conditions = append(conditions, fmt.Sprintf("LOWER(BTRIM(COALESCE(hiv.issue.assigned_to, ''))) = LOWER(BTRIM($%d))", idx))
 		args = append(args, filter.AssignedTo)
 		idx++
+	}
+
+	if filter.Status != "" {
+		if strings.EqualFold(filter.Status, "unresolved") {
+			conditions = append(conditions, "LOWER(BTRIM(COALESCE(hiv.issue.status, ''))) NOT IN ('resolved', 'closed', 'done')")
+		} else {
+			conditions = append(conditions, fmt.Sprintf("LOWER(BTRIM(COALESCE(hiv.issue.status, ''))) = LOWER(BTRIM($%d))", idx))
+			args = append(args, filter.Status)
+			idx++
+		}
 	}
 
 	if filter.Search != "" {

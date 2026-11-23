@@ -31840,7 +31840,17 @@ paths:
           schema:
             type: string
         - in: query
+          name: status
+          required: false
+          schema:
+            type: string
+        - in: query
           name: time_period
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: unassigned
           required: false
           schema:
             type: string

@@ -41,12 +41,15 @@ import {
   useGetIssuesQuery,
   useGetIssuesSummaryByProgramQuery,
   useLazyGetIssueDataSetElementsQuery,
-  useLazyGetIssuesQuery,
 } from "../api";
 import { IssuesDataTable } from "../component/issues-data-table.component";
 import { IssueModal } from "../component/issue-modal.component";
 import { ImportIssuesModal } from "../component/import-issues-modal.component";
 import { AssignModal } from "../component/assign-modal.component";
+import {
+  normalizeDistrictKey,
+  normalizeRegionKey,
+} from "../component/issue-choropleth-map.component";
 import { OrgUnitNode, type OrgUnitNodeData } from "../component/tree-node.component";
 import {
   headers,
@@ -55,8 +58,17 @@ import {
   periodType,
 } from "../lib/constants";
 import {
+  buildOrgHierarchyMaps,
+  doesIssueMatchReportingPeriod,
+  isIssueResolved,
+  resolveIssueGeography,
+  safeLower,
+  safeString,
+  type OrgHierarchyMaps,
+} from "../lib/issueAggregation";
+import {
+  fetchAvailablePeriods,
   formatReportingPeriod,
-  getAvailablePeriods,
 } from "../lib/periodUtils";
 import IssueDetail from "./issue-detail/issue-detail.component";
 import type {
@@ -83,15 +95,113 @@ function extractIssueCodeFromPath(pathname: string): string {
   return "";
 }
 
-function normalizeIssueRows(rows: Issue[] | undefined): Issue[] {
+type FilterOption = {
+  id: string;
+  label: string;
+  value: string;
+};
+
+const STATUS_FILTER_OPTIONS: FilterOption[] = [
+  { id: "all", label: "All Statuses", value: "" },
+  { id: "unresolved", label: "Unresolved", value: "unresolved" },
+  { id: "open", label: "Open", value: "open" },
+  { id: "in_progress", label: "In Progress", value: "in_progress" },
+  { id: "resolved", label: "Resolved", value: "resolved" },
+  { id: "closed", label: "Closed", value: "closed" },
+];
+
+const ASSIGNMENT_FILTER_OPTIONS: FilterOption[] = [
+  { id: "all", label: "All Assignments", value: "" },
+  { id: "unassigned", label: "Unassigned Only", value: "unassigned" },
+  { id: "assigned", label: "Assigned Only", value: "assigned" },
+];
+
+function parseStatusFromSearchParams(params: URLSearchParams): string {
+  const raw = (params.get("status") ?? "").trim().toLowerCase();
+  if (raw) {
+    if (raw === "in progress") return "in_progress";
+    return raw;
+  }
+  const unresolvedParam = (params.get("unresolved") ?? "").trim().toLowerCase();
+  if (unresolvedParam === "true" || unresolvedParam === "1") {
+    return "unresolved";
+  }
+  return "";
+}
+
+function parseAssignmentFromSearchParams(params: URLSearchParams): string {
+  const unassignedParam = (params.get("unassigned") ?? "").trim().toLowerCase();
+  if (unassignedParam === "true" || unassignedParam === "1") {
+    return "unassigned";
+  }
+  const assignedParam = (params.get("assigned") ?? "").trim().toLowerCase();
+  if (assignedParam === "true" || assignedParam === "1") {
+    return "assigned";
+  }
+  const assignmentParam = (
+    params.get("assignment") ??
+    params.get("assignedTo") ??
+    params.get("assigned_to") ??
+    ""
+  )
+    .trim()
+    .toLowerCase();
+  if (assignmentParam === "unassigned") return "unassigned";
+  if (assignmentParam === "assigned") return "assigned";
+  return "";
+}
+
+function hasUrlFilterParams(params: URLSearchParams): boolean {
+  return Boolean(
+    params.get("region") ||
+      params.get("district") ||
+      params.get("orgUnit") ||
+      params.get("program") ||
+      params.get("dataset") ||
+      params.get("dataElement") ||
+      params.get("period") ||
+      params.get("year") ||
+      params.get("status") ||
+      params.get("unresolved") ||
+      params.get("unassigned") ||
+      params.get("assigned") ||
+      params.get("assignment") ||
+      params.get("assignedTo") ||
+      params.get("assigned_to") ||
+      params.get("search") ||
+      params.get("view") === "issues" ||
+      params.get("view") === "registered-issues" ||
+      params.get("tab") === "issues",
+  );
+}
+
+function getFilterQuerySignature(params: URLSearchParams): string {
+  const clone = new URLSearchParams(params);
+  clone.delete("issueCode");
+  clone.delete("issue");
+  clone.delete("code");
+  return clone.toString();
+}
+
+function normalizeIssueRows(
+  rows: Issue[] | undefined,
+  hierarchyMaps?: OrgHierarchyMaps,
+): Issue[] {
   return (
     rows?.map((item) => {
       const formattedPeriod = formatReportingPeriod(
         item.time_Period ?? item.time_period,
       );
+      const geo = hierarchyMaps ? resolveIssueGeography(item, hierarchyMaps) : null;
       return {
         ...item,
         id: String(item.issue_id),
+        region:
+          safeString(item.region) ||
+          (geo && geo.regionName !== "Unspecified" ? geo.regionName : item.region),
+        district:
+          safeString(item.district) ||
+          (geo && geo.districtName !== "Unspecified" ? geo.districtName : item.district),
         time_Period: formattedPeriod,
         time_period: formattedPeriod,
       };
@@ -122,16 +232,7 @@ const IssueTracker = () => {
   const [selectedRowIds, setSelectedRowIds] = useState<string[]>([]);
 
   const [activeTab, setActiveTab] = useState<"assigned_to_me" | "all_issues">(() => {
-    const hasUrlFilter = Boolean(
-      searchParams.get("region") ||
-        searchParams.get("district") ||
-        searchParams.get("orgUnit") ||
-        searchParams.get("program") ||
-        searchParams.get("view") === "issues" ||
-        searchParams.get("view") === "registered-issues" ||
-        searchParams.get("tab") === "issues",
-    );
-    return hasUrlFilter ? "all_issues" : "assigned_to_me";
+    return hasUrlFilterParams(searchParams) ? "all_issues" : "assigned_to_me";
   });
 
   const [selectedIssue, setSelectedIssue] = useState<Issue>();
@@ -149,23 +250,42 @@ const IssueTracker = () => {
   /*
    * Filter State
    */
-  const [tableSearchTerm, setTableSearchTerm] = useState("");
+  const [tableSearchTerm, setTableSearchTerm] = useState(
+    () => searchParams.get("search")?.trim() || "",
+  );
   const [selectedProgram, setSelectedProgram] = useState<string | undefined>(() => {
     const prog = searchParams.get("program");
     return prog ? prog.trim() : undefined;
   });
 
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedPeriodType, setSelectedPeriodType] = useState("Monthly");
-  const [selectedPeriod, setSelectedPeriod] = useState("");
-  const [availablePeriods, setAvailablePeriods] = useState<PeriodOption[]>(() =>
-    getAvailablePeriods("Monthly", currentYear.toString()),
+  const [selectedYear, setSelectedYear] = useState<number>(() => {
+    const rawYear = Number(searchParams.get("year"));
+    return Number.isInteger(rawYear) && rawYear > 1900 ? rawYear : currentYear;
+  });
+  const [isYearFilterApplied, setIsYearFilterApplied] = useState<boolean>(() =>
+    Boolean(searchParams.get("year")?.trim()),
   );
+  const [selectedPeriodType, setSelectedPeriodType] = useState<string>(
+    () => searchParams.get("periodType")?.trim() || "Monthly",
+  );
+  const [selectedPeriod, setSelectedPeriod] = useState<string>(
+    () => searchParams.get("period")?.trim() || "",
+  );
+  const [availablePeriods, setAvailablePeriods] = useState<PeriodOption[]>(() => {
+    const pType = searchParams.get("periodType")?.trim() || "Monthly";
+    const rawYear = Number(searchParams.get("year"));
+    const yr = Number.isInteger(rawYear) && rawYear > 1900 ? rawYear : currentYear;
+    return fetchAvailablePeriods(pType, yr.toString());
+  });
   const [isPeriodPopoverOpen, setIsPeriodPopoverOpen] = useState(false);
   const periodPopoverRef = useRef<HTMLDivElement>(null);
 
-  const [selectedDataset, setSelectedDataset] = useState("");
-  const [selectedDataElement, setSelectedDataElement] = useState("");
+  const [selectedDataset, setSelectedDataset] = useState(
+    () => searchParams.get("dataset")?.trim() || "",
+  );
+  const [selectedDataElement, setSelectedDataElement] = useState(
+    () => searchParams.get("dataElement")?.trim() || "",
+  );
   const [dataElements, setDataElements] = useState<ThemeElement[]>([]);
   const [isDataPopoverOpen, setIsDataPopoverOpen] = useState(false);
   const dataPopoverRef = useRef<HTMLDivElement>(null);
@@ -184,8 +304,18 @@ const IssueTracker = () => {
   const [isOrgPopoverOpen, setIsOrgPopoverOpen] = useState(false);
   const orgPopoverRef = useRef<HTMLDivElement>(null);
 
+  const [selectedStatus, setSelectedStatus] = useState<string>(() =>
+    parseStatusFromSearchParams(searchParams),
+  );
+  const [selectedAssignment, setSelectedAssignment] = useState<string>(() =>
+    parseAssignmentFromSearchParams(searchParams),
+  );
+
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const lastFilterSignatureRef = useRef<string>(
+    getFilterQuerySignature(searchParams),
+  );
 
   /* Sync URL Search Params on Navigation (e.g. from Issue Summary Dashboard) */
   useEffect(() => {
@@ -199,29 +329,57 @@ const IssueTracker = () => {
       setUrlIssueCode(codeParam.trim());
     }
 
+    const currentSignature = getFilterQuerySignature(searchParams);
+    if (currentSignature === lastFilterSignatureRef.current) {
+      return;
+    }
+    lastFilterSignatureRef.current = currentSignature;
+
     const regionParam = searchParams.get("region")?.trim() ?? "";
     const districtParam = searchParams.get("district")?.trim() ?? "";
     const orgUnitParam = searchParams.get("orgUnit")?.trim() ?? "";
     const programParam = searchParams.get("program")?.trim();
+    const datasetParam = searchParams.get("dataset")?.trim() ?? "";
+    const dataElementParam = searchParams.get("dataElement")?.trim() ?? "";
+    const periodParam = searchParams.get("period")?.trim() ?? "";
+    const periodTypeParam = searchParams.get("periodType")?.trim() || "Monthly";
+    const yearParamRaw = searchParams.get("year")?.trim();
+    const parsedYear = yearParamRaw ? Number(yearParamRaw) : NaN;
+    const effectiveYear =
+      Number.isInteger(parsedYear) && parsedYear > 1900
+        ? parsedYear
+        : currentYear;
+    const statusParam = parseStatusFromSearchParams(searchParams);
+    const assignmentParam = parseAssignmentFromSearchParams(searchParams);
+    const searchParam = searchParams.get("search")?.trim() ?? "";
     const viewParam = searchParams.get("view") || searchParams.get("tab");
 
-    if (regionParam) setSelectedRegion(regionParam);
-    if (districtParam) setSelectedDistrict(districtParam);
-    if (orgUnitParam) setSelectedOrgUnit(orgUnitParam);
-    if (programParam) setSelectedProgram(programParam);
+    setSelectedRegion(regionParam);
+    setSelectedDistrict(districtParam);
+    setSelectedOrgUnit(orgUnitParam);
+    setSelectedProgram(programParam || undefined);
+    setSelectedDataset(datasetParam);
+    setSelectedDataElement(dataElementParam);
+    setSelectedPeriodType(periodTypeParam);
+    setSelectedYear(effectiveYear);
+    setIsYearFilterApplied(Boolean(yearParamRaw));
+    setAvailablePeriods(
+      fetchAvailablePeriods(periodTypeParam, effectiveYear.toString()),
+    );
+    setSelectedPeriod(periodParam);
+    setSelectedStatus(statusParam);
+    setSelectedAssignment(assignmentParam);
+    setTableSearchTerm(searchParam);
 
     if (
-      regionParam ||
-      districtParam ||
-      orgUnitParam ||
-      programParam ||
+      hasUrlFilterParams(searchParams) ||
       viewParam === "issues" ||
       viewParam === "registered-issues" ||
       viewParam === "dashboard"
     ) {
       setActiveTab("all_issues");
     }
-  }, [searchParams, location.pathname]);
+  }, [searchParams, location.pathname, currentYear]);
 
   /*
    * API Hooks
@@ -236,11 +394,15 @@ const IssueTracker = () => {
     }
   }, [directIssueData, urlIssueCode]);
 
-  const [triggerGetIssues] = useLazyGetIssuesQuery();
   const { data: summaryData = [] } = useGetIssuesSummaryByProgramQuery();
   const { data: datasets = [] } = useGetIssueDataSetsQuery();
   const [triggerGetDataSetElements] = useLazyGetIssueDataSetElementsQuery();
   const { data: hierarchyData = [] } = useGetIssueOrgHierarchyQuery();
+
+  const hierarchyMaps = useMemo(
+    () => buildOrgHierarchyMaps(hierarchyData),
+    [hierarchyData],
+  );
 
   const programOptions = useMemo(() => {
     const names = summaryData
@@ -269,6 +431,7 @@ const IssueTracker = () => {
 
   const hasActiveFilters =
     selectedYear !== currentYear ||
+    isYearFilterApplied ||
     selectedPeriodType !== "Monthly" ||
     Boolean(selectedPeriod) ||
     Boolean(selectedDataset) ||
@@ -276,79 +439,80 @@ const IssueTracker = () => {
     Boolean(selectedRegion) ||
     Boolean(selectedDistrict) ||
     Boolean(selectedOrgUnit) ||
-    Boolean(selectedProgram);
+    Boolean(selectedProgram) ||
+    Boolean(selectedStatus) ||
+    Boolean(selectedAssignment);
 
   useEffect(() => {
     setPage(1);
   }, [
     selectedProgram,
     selectedYear,
+    isYearFilterApplied,
     selectedPeriod,
     selectedDataset,
     selectedDataElement,
     selectedRegion,
     selectedDistrict,
     selectedOrgUnit,
+    selectedStatus,
+    selectedAssignment,
     tableSearchTerm,
     activeTab,
   ]);
 
   const userIdentifier = user?.email || user?.username || user?.id || "";
 
-  const effectivePeriod = useMemo(() => {
-    if (selectedPeriod) return selectedPeriod;
-    if (selectedYear !== currentYear) return String(selectedYear);
-    return undefined;
-  }, [selectedPeriod, selectedYear, currentYear]);
+  const {
+    data: allIssuesData,
+    isLoading: isLoadingAllIssues,
+    error: allIssuesError,
+  } = useGetIssuesQuery({
+    limit: 10000,
+    offset: 0,
+  });
 
-  const queryParams = useMemo(() => {
-    return {
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-      program: selectedProgram,
-      region: selectedRegion || undefined,
-      district: selectedDistrict || undefined,
-      orgUnit: selectedOrgUnit || undefined,
-      dataset: selectedDataset || undefined,
-      dataElement: selectedDataElement || undefined,
-      period: effectivePeriod,
-      assignedTo: activeTab === "assigned_to_me" ? userIdentifier : undefined,
-      search: tableSearchTerm.trim() || undefined,
-    };
-  }, [
-    pageSize,
-    page,
-    selectedProgram,
-    selectedRegion,
-    selectedDistrict,
-    selectedOrgUnit,
-    selectedDataset,
-    selectedDataElement,
-    effectivePeriod,
-    activeTab,
-    userIdentifier,
-    tableSearchTerm,
-  ]);
-
-  const { data, isLoading, error } = useGetIssuesQuery(queryParams);
-
-  const { data: assignedData } = useGetIssuesQuery(
+  const {
+    data: programIssuesData,
+    isFetching: isFetchingProgramIssues,
+    error: programIssuesError,
+  } = useGetIssuesQuery(
     {
-      limit: 1,
+      limit: 10000,
       offset: 0,
-      assignedTo: userIdentifier,
+      program: selectedProgram,
     },
-    { skip: !userIdentifier },
+    { skip: !selectedProgram },
   );
 
-  const assignedToMeCount = assignedData?.totalCount ?? 0;
+  const isLoading =
+    isLoadingAllIssues || (Boolean(selectedProgram) && isFetchingProgramIssues);
+  const error = allIssuesError || programIssuesError;
+
+  const baseIssues = useMemo(() => {
+    if (selectedProgram) {
+      return programIssuesData?.items ?? [];
+    }
+    return allIssuesData?.items ?? [];
+  }, [selectedProgram, programIssuesData?.items, allIssuesData?.items]);
+
+  const assignedToMeCount = useMemo(() => {
+    if (!userIdentifier) return 0;
+    const allItems = allIssuesData?.items ?? [];
+    return allItems.filter(
+      (item) => safeLower(item.assigned_to) === safeLower(userIdentifier),
+    ).length;
+  }, [allIssuesData?.items, userIdentifier]);
 
   const allIssuesCount = useMemo(() => {
+    if (allIssuesData?.items && allIssuesData.items.length > 0) {
+      return allIssuesData.totalCount || allIssuesData.items.length;
+    }
     if (summaryData.length > 0) {
       return summaryData.reduce((sum, item) => sum + (item.issue_count || 0), 0);
     }
-    return data?.totalCount ?? 0;
-  }, [summaryData, data?.totalCount]);
+    return 0;
+  }, [allIssuesData, summaryData]);
 
   const closeAllPopovers = useCallback(() => {
     setIsPeriodPopoverOpen(false);
@@ -383,7 +547,174 @@ const IssueTracker = () => {
     }
   }, [error]);
 
-  const issues = useMemo(() => normalizeIssueRows(data?.items), [data?.items]);
+  const filteredIssues = useMemo(() => {
+    const isYearActive = isYearFilterApplied || selectedYear !== currentYear;
+    const searchTerm = safeLower(tableSearchTerm);
+
+    const matching = baseIssues.filter((issue) => {
+      if (activeTab === "assigned_to_me") {
+        if (
+          !userIdentifier ||
+          safeLower(issue.assigned_to) !== safeLower(userIdentifier)
+        ) {
+          return false;
+        }
+      }
+
+      if (selectedProgram !== undefined && safeString(issue.program)) {
+        const itemProg = safeString(issue.program);
+        const targetProg = safeString(selectedProgram) || "Unspecified";
+        if (safeLower(itemProg) !== safeLower(targetProg)) {
+          return false;
+        }
+      }
+
+      if (
+        selectedDataset &&
+        safeLower(issue.dataset) !== safeLower(selectedDataset)
+      ) {
+        return false;
+      }
+
+      if (
+        selectedDataElement &&
+        safeLower(issue.data_element) !== safeLower(selectedDataElement)
+      ) {
+        return false;
+      }
+
+      if (
+        !doesIssueMatchReportingPeriod(
+          issue,
+          selectedPeriod,
+          selectedYear,
+          isYearActive,
+        )
+      ) {
+        return false;
+      }
+
+      const geo = resolveIssueGeography(issue, hierarchyMaps);
+
+      if (selectedRegion) {
+        if (safeLower(selectedRegion) === "unspecified") {
+          if (safeLower(geo.regionName) !== "unspecified") return false;
+        } else {
+          const regMatches =
+            safeLower(geo.regionName) === safeLower(selectedRegion) ||
+            normalizeRegionKey(geo.regionName) ===
+              normalizeRegionKey(selectedRegion) ||
+            safeLower(issue.region) === safeLower(selectedRegion);
+          if (!regMatches) return false;
+        }
+      }
+
+      if (selectedDistrict) {
+        if (safeLower(selectedDistrict) === "unspecified") {
+          if (safeLower(geo.districtName) !== "unspecified") return false;
+        } else {
+          const distMatches =
+            safeLower(geo.districtName) === safeLower(selectedDistrict) ||
+            normalizeDistrictKey(geo.districtName) ===
+              normalizeDistrictKey(selectedDistrict) ||
+            safeLower(issue.district) === safeLower(selectedDistrict);
+          if (!distMatches) return false;
+        }
+      }
+
+      if (selectedOrgUnit) {
+        if (safeLower(selectedOrgUnit) === "unspecified facility") {
+          if (safeLower(geo.facilityName) !== "unspecified facility") {
+            return false;
+          }
+        } else if (selectedDistrict || selectedRegion) {
+          const facMatches =
+            safeLower(geo.facilityName) === safeLower(selectedOrgUnit) ||
+            safeLower(issue.org_unit) === safeLower(selectedOrgUnit);
+          if (!facMatches) return false;
+        } else {
+          const orgMatches =
+            safeLower(geo.facilityName) === safeLower(selectedOrgUnit) ||
+            safeLower(issue.org_unit) === safeLower(selectedOrgUnit) ||
+            safeLower(geo.districtName) === safeLower(selectedOrgUnit) ||
+            normalizeDistrictKey(geo.districtName) ===
+              normalizeDistrictKey(selectedOrgUnit) ||
+            safeLower(geo.regionName) === safeLower(selectedOrgUnit) ||
+            normalizeRegionKey(geo.regionName) ===
+              normalizeRegionKey(selectedOrgUnit);
+          if (!orgMatches) return false;
+        }
+      }
+
+      if (selectedStatus) {
+        if (selectedStatus === "unresolved") {
+          if (isIssueResolved(issue.status)) return false;
+        } else if (selectedStatus === "in_progress") {
+          const st = safeLower(issue.status);
+          if (st !== "in_progress" && st !== "in progress") return false;
+        } else if (safeLower(issue.status) !== safeLower(selectedStatus)) {
+          return false;
+        }
+      }
+
+      if (selectedAssignment) {
+        const isUnassigned = !safeString(issue.assigned_to);
+        if (selectedAssignment === "unassigned" && !isUnassigned) {
+          return false;
+        }
+        if (selectedAssignment === "assigned" && isUnassigned) {
+          return false;
+        }
+      }
+
+      if (searchTerm) {
+        const formattedPeriod = formatReportingPeriod(
+          issue.time_Period ?? issue.time_period,
+        );
+        const matchesSearch =
+          safeLower(issue.issue_code).includes(searchTerm) ||
+          safeLower(issue.dataset).includes(searchTerm) ||
+          safeLower(issue.data_element).includes(searchTerm) ||
+          safeLower(issue.issue).includes(searchTerm) ||
+          safeLower(issue.org_unit).includes(searchTerm) ||
+          safeLower(geo.facilityName).includes(searchTerm) ||
+          safeLower(geo.districtName).includes(searchTerm) ||
+          safeLower(geo.regionName).includes(searchTerm) ||
+          safeLower(issue.status).includes(searchTerm) ||
+          safeLower(issue.assigned_to).includes(searchTerm) ||
+          safeLower(issue.program).includes(searchTerm) ||
+          safeLower(formattedPeriod).includes(searchTerm);
+        if (!matchesSearch) return false;
+      }
+
+      return true;
+    });
+
+    return normalizeIssueRows(matching, hierarchyMaps);
+  }, [
+    baseIssues,
+    activeTab,
+    userIdentifier,
+    selectedProgram,
+    selectedDataset,
+    selectedDataElement,
+    selectedPeriod,
+    selectedYear,
+    currentYear,
+    isYearFilterApplied,
+    selectedRegion,
+    selectedDistrict,
+    selectedOrgUnit,
+    selectedStatus,
+    selectedAssignment,
+    tableSearchTerm,
+    hierarchyMaps,
+  ]);
+
+  const issues = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredIssues.slice(start, start + pageSize);
+  }, [filteredIssues, page, pageSize]);
 
   /* -----------------------------
    * Excel template & export
@@ -399,23 +730,9 @@ const IssueTracker = () => {
     XLSX.writeFile(workbook, "issue-import-template.xlsx");
   };
 
-  const downloadIssues = async () => {
+  const downloadIssues = () => {
     try {
-      const allIssuesResponse = await triggerGetIssues({
-        limit: 10000,
-        offset: 0,
-        program: selectedProgram,
-        region: selectedRegion || undefined,
-        district: selectedDistrict || undefined,
-        orgUnit: selectedOrgUnit || undefined,
-        dataset: selectedDataset || undefined,
-        dataElement: selectedDataElement || undefined,
-        period: effectivePeriod,
-        assignedTo: activeTab === "assigned_to_me" ? userIdentifier : undefined,
-        search: tableSearchTerm.trim() || undefined,
-      }).unwrap();
-
-      const issuesToDownload = normalizeIssueRows(allIssuesResponse.items);
+      const issuesToDownload = filteredIssues;
       const headerRow = EXPORT_COLUMNS.map((col) => col.header);
 
       const dataRows = issuesToDownload.map((issue) =>
@@ -476,10 +793,10 @@ const IssueTracker = () => {
 
   const selectedIssueObjects = useMemo(
     () =>
-      issues.filter((item) =>
+      filteredIssues.filter((item) =>
         selectedRowIds.includes(String(item.id ?? item.issue_id)),
       ),
-    [issues, selectedRowIds],
+    [filteredIssues, selectedRowIds],
   );
 
   const selectedIssueCodes = useMemo(
@@ -495,7 +812,7 @@ const IssueTracker = () => {
   );
 
   const handleIssueClick = (row: { id?: string }) => {
-    const selectedItem = issues.find(
+    const selectedItem = filteredIssues.find(
       (item) => String(item.issue_id) === String(row.id ?? ""),
     );
     if (!selectedItem) return;
@@ -527,8 +844,9 @@ const IssueTracker = () => {
   const handleYearChange = ({ selectedItem }: SelectEvent<number>) => {
     if (selectedItem == null) return;
     setSelectedYear(selectedItem);
+    setIsYearFilterApplied(true);
     setAvailablePeriods(
-      getAvailablePeriods(selectedPeriodType, selectedItem.toString()),
+      fetchAvailablePeriods(selectedPeriodType, selectedItem.toString()),
     );
     setSelectedPeriod("");
   };
@@ -539,7 +857,7 @@ const IssueTracker = () => {
     if (!selectedItem) return;
     setSelectedPeriodType(selectedItem.value);
     setAvailablePeriods(
-      getAvailablePeriods(selectedItem.value, selectedYear.toString()),
+      fetchAvailablePeriods(selectedItem.value, selectedYear.toString()),
     );
     setSelectedPeriod("");
   };
@@ -655,9 +973,10 @@ const IssueTracker = () => {
 
   const handleReset = () => {
     setSelectedYear(currentYear);
+    setIsYearFilterApplied(false);
     setSelectedPeriodType("Monthly");
     setSelectedPeriod("");
-    setAvailablePeriods(getAvailablePeriods("Monthly", currentYear.toString()));
+    setAvailablePeriods(fetchAvailablePeriods("Monthly", currentYear.toString()));
 
     setSelectedDataset("");
     setSelectedDataElement("");
@@ -669,6 +988,8 @@ const IssueTracker = () => {
     setOrgSearchTerm("");
     setTableSearchTerm("");
     setSelectedProgram(undefined);
+    setSelectedStatus("");
+    setSelectedAssignment("");
     setPage(1);
 
     const next = new URLSearchParams(searchParams);
@@ -676,6 +997,20 @@ const IssueTracker = () => {
     next.delete("district");
     next.delete("orgUnit");
     next.delete("program");
+    next.delete("dataset");
+    next.delete("dataElement");
+    next.delete("period");
+    next.delete("periodType");
+    next.delete("year");
+    next.delete("status");
+    next.delete("unresolved");
+    next.delete("unassigned");
+    next.delete("assigned");
+    next.delete("assignment");
+    next.delete("assignedTo");
+    next.delete("assigned_to");
+    next.delete("search");
+    lastFilterSignatureRef.current = getFilterQuerySignature(next);
     setSearchParams(next, { replace: true });
 
     closeAllPopovers();
@@ -705,16 +1040,27 @@ const IssueTracker = () => {
   const activeLocationLabel =
     selectedOrgUnit || selectedDistrict || selectedRegion || "";
 
+  const selectedStatusLabel =
+    STATUS_FILTER_OPTIONS.find((opt) => opt.value === selectedStatus)?.label ||
+    selectedStatus;
+  const selectedAssignmentLabel =
+    ASSIGNMENT_FILTER_OPTIONS.find((opt) => opt.value === selectedAssignment)
+      ?.label || selectedAssignment;
+
   const activeFilterSummary = [
     selectedProgram !== undefined &&
       `Program: ${selectedProgram || "Unspecified"}`,
     selectedPeriod && `Period: ${selectedPeriod}`,
-    selectedYear !== currentYear && !selectedPeriod && `Year: ${selectedYear}`,
+    (isYearFilterApplied || selectedYear !== currentYear) &&
+      !selectedPeriod &&
+      `Year: ${selectedYear}`,
     selectedDataset && `Dataset: ${selectedDataset}`,
     selectedDataElement && `Element: ${selectedDataElement}`,
     selectedRegion && `Region: ${selectedRegion}`,
     selectedDistrict && `District: ${selectedDistrict}`,
     selectedOrgUnit && `Org Unit: ${selectedOrgUnit}`,
+    selectedStatus && `Status: ${selectedStatusLabel}`,
+    selectedAssignment && `Assignment: ${selectedAssignmentLabel}`,
   ]
     .filter(Boolean)
     .join(" • ");
@@ -844,7 +1190,11 @@ const IssueTracker = () => {
                     setIsOrgPopoverOpen(false);
                   }}
                 >
-                  {selectedPeriod ? `Period: ${selectedPeriod}` : "Period"}
+                  {selectedPeriod
+                    ? `Period: ${selectedPeriod}`
+                    : isYearFilterApplied || selectedYear !== currentYear
+                      ? `Year: ${selectedYear}`
+                      : "Period"}
                 </Button>
 
                 <PopoverContent className="filter-popover-content">
@@ -893,13 +1243,23 @@ const IssueTracker = () => {
                         kind="ghost"
                         onClick={() => {
                           setSelectedPeriod("");
-                          handleFilter({ period: "" });
+                          setIsYearFilterApplied(false);
+                          setSelectedYear(currentYear);
+                          handleFilter({ period: "", year: currentYear });
                         }}
                       >
                         Clear
                       </Button>
 
-                      <Button size="sm" onClick={() => handleFilter()}>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (!selectedPeriod) {
+                            setIsYearFilterApplied(true);
+                          }
+                          handleFilter();
+                        }}
+                      >
                         Update
                       </Button>
                     </div>
@@ -1026,6 +1386,48 @@ const IssueTracker = () => {
               </Popover>
             </div>
 
+            <div className="issue-filter-dropdown">
+              <Dropdown
+                id="issue-filter-status"
+                size="md"
+                titleText=""
+                label="Filter by Status"
+                aria-label="Filter by Status"
+                items={STATUS_FILTER_OPTIONS}
+                selectedItem={
+                  STATUS_FILTER_OPTIONS.find(
+                    (opt) => opt.value === selectedStatus,
+                  ) ?? STATUS_FILTER_OPTIONS[0]
+                }
+                itemToString={(item) => item?.label ?? ""}
+                onChange={({ selectedItem }: SelectEvent<FilterOption>) =>
+                  setSelectedStatus(selectedItem?.value ?? "")
+                }
+              />
+            </div>
+
+            {activeTab === "all_issues" && (
+              <div className="issue-filter-dropdown">
+                <Dropdown
+                  id="issue-filter-assignment"
+                  size="md"
+                  titleText=""
+                  label="Filter by Assignment"
+                  aria-label="Filter by Assignment"
+                  items={ASSIGNMENT_FILTER_OPTIONS}
+                  selectedItem={
+                    ASSIGNMENT_FILTER_OPTIONS.find(
+                      (opt) => opt.value === selectedAssignment,
+                    ) ?? ASSIGNMENT_FILTER_OPTIONS[0]
+                  }
+                  itemToString={(item) => item?.label ?? ""}
+                  onChange={({ selectedItem }: SelectEvent<FilterOption>) =>
+                    setSelectedAssignment(selectedItem?.value ?? "")
+                  }
+                />
+              </div>
+            )}
+
             <Button
               size="md"
               kind="ghost"
@@ -1084,7 +1486,7 @@ const IssueTracker = () => {
             <IssuesDataTable
               columns={headers}
               data={issues}
-              totalItems={data?.totalCount ?? 0}
+              totalItems={filteredIssues.length}
               currentPage={page}
               currentPageSize={pageSize}
               onPageChange={(newPage, newPageSize) => {

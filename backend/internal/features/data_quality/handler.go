@@ -152,6 +152,9 @@ func (h *Handler) ListIssues(c *gin.Context) {
 	limit := parseListLimit(c, 20, 10000)
 	offset := parseListOffset(c)
 
+	unassignedRaw := strings.ToLower(strings.TrimSpace(c.Query("unassigned")))
+	unassigned := unassignedRaw == "true" || unassignedRaw == "1"
+
 	filter := listIssuesFilter{
 		Scope:       healthContextScopeFromRequest(c),
 		Limit:       limit,
@@ -164,6 +167,8 @@ func (h *Handler) ListIssues(c *gin.Context) {
 		Region:      strings.TrimSpace(c.Query("region")),
 		District:    strings.TrimSpace(c.Query("district")),
 		AssignedTo:  strings.TrimSpace(c.Query("assigned_to")),
+		Status:      strings.TrimSpace(c.Query("status")),
+		Unassigned:  unassigned,
 		Search:      strings.TrimSpace(c.Query("search")),
 	}
 	if filter.TimePeriod == "" {

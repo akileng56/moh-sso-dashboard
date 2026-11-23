@@ -767,6 +767,7 @@ type MutableAgingAccumulator = {
   overdue: number;
   critical: number;
   unassigned: number;
+  unassignedIssueCodes: Set<string>;
   total: number;
   totalAgeDays: number;
   maxAgeDays: number;
@@ -778,6 +779,7 @@ function createAgingAccumulator(): MutableAgingAccumulator {
     overdue: 0,
     critical: 0,
     unassigned: 0,
+    unassignedIssueCodes: new Set<string>(),
     total: 0,
     totalAgeDays: 0,
     maxAgeDays: 0,
@@ -802,6 +804,10 @@ function addIssueToAgingAccumulator(
   }
   if (item.isUnassigned) {
     acc.unassigned += 1;
+    const code = safeString(item.issue.issue_code || item.issueCode);
+    if (code) {
+      acc.unassignedIssueCodes.add(code);
+    }
   }
 }
 
@@ -887,6 +893,7 @@ export function aggregateAgingIssuesByRegion(
           overdue: fVal.overdue,
           critical: fVal.critical,
           unassigned: fVal.unassigned,
+          unassignedIssueCodes: Array.from(fVal.unassignedIssueCodes),
           total: fVal.total,
           avgAgeDays:
             fVal.total > 0 ? Math.round(fVal.totalAgeDays / fVal.total) : 0,
@@ -907,6 +914,7 @@ export function aggregateAgingIssuesByRegion(
         overdue: dVal.overdue,
         critical: dVal.critical,
         unassigned: dVal.unassigned,
+        unassignedIssueCodes: Array.from(dVal.unassignedIssueCodes),
         total: dVal.total,
         avgAgeDays:
           dVal.total > 0 ? Math.round(dVal.totalAgeDays / dVal.total) : 0,
@@ -934,6 +942,7 @@ export function aggregateAgingIssuesByRegion(
       overdue: rVal.overdue,
       critical: rVal.critical,
       unassigned: rVal.unassigned,
+      unassignedIssueCodes: Array.from(rVal.unassignedIssueCodes),
       total: rVal.total,
       avgAgeDays:
         rVal.total > 0 ? Math.round(rVal.totalAgeDays / rVal.total) : 0,

@@ -18,14 +18,17 @@ import {
   ChevronDown,
   ChevronRight,
   Download,
+  UserFollow,
 } from "@carbon/react/icons";
 import { AreaChart, LineChart } from "@carbon/charts-react";
 import { ScaleTypes } from "@carbon/charts";
+import { PERMISSIONS, PermissionGuard } from "@moh-sso/auth";
 
 import type {
   ActionableAgingIssue,
   AgingBucketId,
   AgingDistrictSummary,
+  AgingNavigationFilterOptions,
 } from "../types";
 import {
   AGING_BUCKETS,
@@ -34,6 +37,7 @@ import {
   exportAgingSummaryToExcel,
   safeLower,
 } from "../lib/issueAggregation";
+import { AssignModal } from "./assign-modal.component";
 
 export interface DashboardAgingTabProps {
   unresolvedAgingIssues: ActionableAgingIssue[];
@@ -43,9 +47,19 @@ export interface DashboardAgingTabProps {
   chartToolbarConfig: Record<string, unknown>;
   hasActiveFilters: boolean;
   onResetFilters: () => void;
-  onNavigateToRegion: (regionName: string) => void;
-  onNavigateToDistrict: (districtName: string) => void;
-  onNavigateToFacility: (facilityName: string) => void;
+  onNavigateToRegion: (
+    regionName: string,
+    options?: AgingNavigationFilterOptions,
+  ) => void;
+  onNavigateToDistrict: (
+    districtName: string,
+    options?: AgingNavigationFilterOptions,
+  ) => void;
+  onNavigateToFacility: (
+    facilityName: string,
+    options?: AgingNavigationFilterOptions,
+  ) => void;
+  onAssignSuccess?: () => void;
 }
 
 type AgingSliceFilter = "all" | "unassigned";
@@ -104,6 +118,7 @@ export const DashboardAgingTab = ({
   onNavigateToRegion,
   onNavigateToDistrict,
   onNavigateToFacility,
+  onAssignSuccess,
 }: DashboardAgingTabProps) => {
   const [agingSliceFilter, setAgingSliceFilter] =
     useState<AgingSliceFilter>("all");
@@ -113,6 +128,10 @@ export const DashboardAgingTab = ({
   const [expandedDistricts, setExpandedDistricts] = useState<
     Record<string, boolean>
   >({});
+  const [assignTarget, setAssignTarget] = useState<{
+    issueCodes: string[];
+    label: string;
+  } | null>(null);
 
   const overallMetrics = useMemo(
     () => computeAgingMetrics(unresolvedAgingIssues),
@@ -641,7 +660,12 @@ export const DashboardAgingTab = ({
                                     kind="tertiary"
                                     renderIcon={ArrowRight}
                                     onClick={() =>
-                                      onNavigateToRegion(summaryItem.region)
+                                      onNavigateToRegion(summaryItem.region, {
+                                        status: "unresolved",
+                                        unassignedOnly:
+                                          agingSliceFilter === "unassigned",
+                                        search: regionSearchTerm.trim() || undefined,
+                                      })
                                     }
                                   >
                                     View Issues in {summaryItem.region}
@@ -735,19 +759,60 @@ export const DashboardAgingTab = ({
                                               <strong>{d.total}</strong>
                                             </td>
                                             <td className="table-action-cell">
-                                              <Button
-                                                size="sm"
-                                                kind="ghost"
-                                                hasIconOnly
-                                                renderIcon={ArrowRight}
-                                                iconDescription={`View issues in ${d.district}`}
-                                                tooltipPosition="left"
-                                                onClick={() =>
-                                                  onNavigateToDistrict(
-                                                    d.district,
-                                                  )
-                                                }
-                                              />
+                                              <div className="table-action-buttons">
+                                                <PermissionGuard
+                                                  permission={
+                                                    PERMISSIONS.issueTrackerAssign
+                                                  }
+                                                >
+                                                  <Button
+                                                    size="sm"
+                                                    kind="ghost"
+                                                    hasIconOnly
+                                                    renderIcon={UserFollow}
+                                                    disabled={
+                                                      d.unassignedIssueCodes
+                                                        .length === 0
+                                                    }
+                                                    iconDescription={
+                                                      d.unassignedIssueCodes
+                                                        .length > 0
+                                                        ? `Assign ${d.unassignedIssueCodes.length} unassigned issue(s) in ${d.district}`
+                                                        : `No unassigned issues in ${d.district}`
+                                                    }
+                                                    tooltipPosition="left"
+                                                    onClick={() =>
+                                                      setAssignTarget({
+                                                        issueCodes:
+                                                          d.unassignedIssueCodes,
+                                                        label: `${d.district} District`,
+                                                      })
+                                                    }
+                                                  />
+                                                </PermissionGuard>
+
+                                                <Button
+                                                  size="sm"
+                                                  kind="ghost"
+                                                  hasIconOnly
+                                                  renderIcon={ArrowRight}
+                                                  iconDescription={`View issues in ${d.district}`}
+                                                  tooltipPosition="left"
+                                                  onClick={() =>
+                                                    onNavigateToDistrict(
+                                                      d.district,
+                                                      {
+                                                        region:
+                                                          summaryItem.region,
+                                                        status: "unresolved",
+                                                        unassignedOnly:
+                                                          agingSliceFilter ===
+                                                          "unassigned",
+                                                      },
+                                                    )
+                                                  }
+                                                />
+                                              </div>
                                             </td>
                                           </tr>
 
@@ -822,21 +887,74 @@ export const DashboardAgingTab = ({
                                                                 </strong>
                                                               </td>
                                                               <td className="table-action-cell">
-                                                                <Button
-                                                                  size="sm"
-                                                                  kind="ghost"
-                                                                  hasIconOnly
-                                                                  renderIcon={
-                                                                    ArrowRight
-                                                                  }
-                                                                  iconDescription={`View issues in ${f.facility}`}
-                                                                  tooltipPosition="left"
-                                                                  onClick={() =>
-                                                                    onNavigateToFacility(
-                                                                      f.facility,
-                                                                    )
-                                                                  }
-                                                                />
+                                                                <div className="table-action-buttons">
+                                                                  <PermissionGuard
+                                                                    permission={
+                                                                      PERMISSIONS.issueTrackerAssign
+                                                                    }
+                                                                  >
+                                                                    <Button
+                                                                      size="sm"
+                                                                      kind="ghost"
+                                                                      hasIconOnly
+                                                                      renderIcon={
+                                                                        UserFollow
+                                                                      }
+                                                                      disabled={
+                                                                        f
+                                                                          .unassignedIssueCodes
+                                                                          .length ===
+                                                                        0
+                                                                      }
+                                                                      iconDescription={
+                                                                        f
+                                                                          .unassignedIssueCodes
+                                                                          .length >
+                                                                        0
+                                                                          ? `Assign ${f.unassignedIssueCodes.length} unassigned issue(s) in ${f.facility}`
+                                                                          : `No unassigned issues in ${f.facility}`
+                                                                      }
+                                                                      tooltipPosition="left"
+                                                                      onClick={() =>
+                                                                        setAssignTarget(
+                                                                          {
+                                                                            issueCodes:
+                                                                              f.unassignedIssueCodes,
+                                                                            label:
+                                                                              f.facility,
+                                                                          },
+                                                                        )
+                                                                      }
+                                                                    />
+                                                                  </PermissionGuard>
+
+                                                                  <Button
+                                                                    size="sm"
+                                                                    kind="ghost"
+                                                                    hasIconOnly
+                                                                    renderIcon={
+                                                                      ArrowRight
+                                                                    }
+                                                                    iconDescription={`View issues in ${f.facility}`}
+                                                                    tooltipPosition="left"
+                                                                    onClick={() =>
+                                                                      onNavigateToFacility(
+                                                                        f.facility,
+                                                                        {
+                                                                          region:
+                                                                            summaryItem.region,
+                                                                          district:
+                                                                            d.district,
+                                                                          status:
+                                                                            "unresolved",
+                                                                          unassignedOnly:
+                                                                            agingSliceFilter ===
+                                                                            "unassigned",
+                                                                        },
+                                                                      )
+                                                                    }
+                                                                  />
+                                                                </div>
                                                               </td>
                                                             </tr>
                                                           ),
@@ -885,6 +1003,21 @@ export const DashboardAgingTab = ({
             )}
           </DataTable>
         </div>
+      )}
+
+      {assignTarget && assignTarget.issueCodes.length > 0 && (
+        <PermissionGuard permission={PERMISSIONS.issueTrackerAssign}>
+          <AssignModal
+            issueCodes={assignTarget.issueCodes}
+            targetLabel={assignTarget.label}
+            isReassign={false}
+            onClose={() => setAssignTarget(null)}
+            onSuccess={() => {
+              setAssignTarget(null);
+              onAssignSuccess?.();
+            }}
+          />
+        </PermissionGuard>
       )}
     </>
   );

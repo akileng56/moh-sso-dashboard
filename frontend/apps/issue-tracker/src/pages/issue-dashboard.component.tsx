@@ -34,7 +34,12 @@ import {
 import { DashboardKpiGrid } from "../component/dashboard-kpi-grid.component";
 import { DashboardAgingTab } from "../component/dashboard-aging-tab.component";
 import { DashboardRegionalTable } from "../component/dashboard-regional-table.component";
-import type { Issue, PeriodOption, SelectEvent } from "../types";
+import type {
+  AgingNavigationFilterOptions,
+  Issue,
+  PeriodOption,
+  SelectEvent,
+} from "../types";
 import { periodType } from "../lib/constants";
 import { fetchAvailablePeriods } from "../lib/periodUtils";
 import {
@@ -444,28 +449,110 @@ const IssueDashboard = () => {
     setIsPeriodPopoverOpen(false);
   };
 
-  const handleNavigateToRegion = (regionName?: string) => {
-    if (regionName && !regionName.toLowerCase().startsWith("unspecified")) {
-      navigate(`/issues?region=${encodeURIComponent(regionName)}`);
-    } else {
-      navigate("/issues");
+  const buildIssuesNavigationUrl = (params: {
+    region?: string;
+    district?: string;
+    orgUnit?: string;
+    status?: string;
+    unassignedOnly?: boolean;
+    search?: string;
+  }) => {
+    const query = new URLSearchParams();
+
+    if (params.region) {
+      query.set("region", params.region);
     }
+    if (params.district) {
+      query.set("district", params.district);
+    }
+    if (params.orgUnit) {
+      query.set("orgUnit", params.orgUnit);
+    }
+
+    if (selectedProgram) {
+      query.set("program", selectedProgram);
+    }
+    if (selectedDataset) {
+      query.set("dataset", selectedDataset);
+    }
+
+    if (selectedPeriod) {
+      query.set("period", selectedPeriod);
+      if (selectedPeriodType) {
+        query.set("periodType", selectedPeriodType);
+      }
+      query.set("year", String(selectedYear));
+    } else if (isYearFilterApplied || selectedYear !== currentYear) {
+      query.set("year", String(selectedYear));
+      if (selectedPeriodType) {
+        query.set("periodType", selectedPeriodType);
+      }
+    }
+
+    if (params.status) {
+      query.set("status", params.status);
+    }
+    if (params.unassignedOnly) {
+      query.set("unassigned", "true");
+    }
+    if (params.search) {
+      query.set("search", params.search);
+    }
+
+    const qs = query.toString();
+    return qs ? `/issues?${qs}` : "/issues";
   };
 
-  const handleNavigateToDistrict = (districtName?: string) => {
-    if (districtName && !districtName.toLowerCase().startsWith("unspecified")) {
-      navigate(`/issues?district=${encodeURIComponent(districtName)}`);
-    } else {
-      navigate("/issues");
-    }
+  const handleNavigateToRegion = (
+    regionName?: string,
+    options?: AgingNavigationFilterOptions,
+  ) => {
+    const activeDistrictFilter =
+      isLocationFilterActive &&
+      districtMetricsMap.has(normalizeDistrictKey(activeChartRegion))
+        ? activeChartRegion
+        : undefined;
+
+    navigate(
+      buildIssuesNavigationUrl({
+        region: regionName,
+        district: options?.district || activeDistrictFilter,
+        status: options?.status,
+        unassignedOnly: options?.unassignedOnly,
+        search: options?.search,
+      }),
+    );
   };
 
-  const handleNavigateToFacility = (facilityName?: string) => {
-    if (facilityName && !facilityName.toLowerCase().startsWith("unspecified")) {
-      navigate(`/issues?orgUnit=${encodeURIComponent(facilityName)}`);
-    } else {
-      navigate("/issues");
-    }
+  const handleNavigateToDistrict = (
+    districtName?: string,
+    options?: AgingNavigationFilterOptions,
+  ) => {
+    navigate(
+      buildIssuesNavigationUrl({
+        region: options?.region,
+        district: districtName,
+        status: options?.status,
+        unassignedOnly: options?.unassignedOnly,
+        search: options?.search,
+      }),
+    );
+  };
+
+  const handleNavigateToFacility = (
+    facilityName?: string,
+    options?: AgingNavigationFilterOptions,
+  ) => {
+    navigate(
+      buildIssuesNavigationUrl({
+        region: options?.region,
+        district: options?.district,
+        orgUnit: facilityName,
+        status: options?.status,
+        unassignedOnly: options?.unassignedOnly,
+        search: options?.search,
+      }),
+    );
   };
 
   const handleRefreshAll = () => {
@@ -879,6 +966,7 @@ const IssueDashboard = () => {
                     onNavigateToRegion={handleNavigateToRegion}
                     onNavigateToDistrict={handleNavigateToDistrict}
                     onNavigateToFacility={handleNavigateToFacility}
+                    onAssignSuccess={handleRefreshAll}
                   />
                 )}
               </div>

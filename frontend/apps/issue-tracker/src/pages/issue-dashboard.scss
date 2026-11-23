@@ -437,7 +437,7 @@
 }
 
 .table-action-header {
-  width: 4rem;
+  width: 5.5rem;
   text-align: center;
 }
 
@@ -633,9 +633,18 @@
 }
 
 .table-action-cell {
-  width: 4rem;
+  width: 5.5rem;
   text-align: center;
+  white-space: nowrap;
   padding: 0.25rem 0.5rem !important;
+
+  .table-action-buttons {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+  }
 
   .cds--btn--ghost.cds--btn--sm.cds--btn--icon-only {
     min-height: 1.75rem;
@@ -648,7 +657,7 @@
     margin: 0 auto;
     border-radius: 4px;
 
-    &:hover {
+    &:hover:not(:disabled) {
       background-color: #0f62fe;
       color: #ffffff;
     }

@@ -110,6 +110,16 @@ export type GetIssuesParams = {
   district?: string;
   orgUnit?: string;
   assignedTo?: string;
+  status?: string;
+  unassigned?: boolean;
+  search?: string;
+};
+
+export type AgingNavigationFilterOptions = {
+  status?: string;
+  unassignedOnly?: boolean;
+  region?: string;
+  district?: string;
   search?: string;
 };
 
@@ -215,6 +225,7 @@ export type AgingFacilitySummary = {
   overdue: number;
   critical: number;
   unassigned: number;
+  unassignedIssueCodes: string[];
   total: number;
   avgAgeDays: number;
   maxAgeDays: number;
@@ -226,6 +237,7 @@ export type AgingDistrictSummary = {
   overdue: number;
   critical: number;
   unassigned: number;
+  unassignedIssueCodes: string[];
   total: number;
   avgAgeDays: number;
   maxAgeDays: number;
@@ -244,6 +256,7 @@ export type AgingRegionSummaryRow = {
   overdue: number;
   critical: number;
   unassigned: number;
+  unassignedIssueCodes: string[];
   total: number;
   avgAgeDays: number;
   maxAgeDays: number;

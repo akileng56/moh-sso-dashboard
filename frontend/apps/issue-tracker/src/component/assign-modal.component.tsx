@@ -10,6 +10,7 @@ import type { KeycloakGroup, KeycloakGroupMember } from "../types";
 type AssignModalProps = {
   issueCodes: string[];
   isReassign?: boolean;
+  targetLabel?: string;
   onClose: () => void;
   onSuccess?: () => void;
 };
@@ -17,6 +18,7 @@ type AssignModalProps = {
 export const AssignModal = ({
   issueCodes,
   isReassign = false,
+  targetLabel,
   onClose,
   onSuccess,
 }: AssignModalProps) => {
@@ -101,9 +103,11 @@ export const AssignModal = ({
   const isMultiple = issueCodes.length > 1;
   const actionWord = isReassign ? "Re-assign" : "Assign";
   const actionWordIng = isReassign ? "Re-assigning..." : "Assigning...";
-  const heading = isMultiple
-    ? `${actionWord} ${issueCodes.length} Issues`
-    : `${actionWord} Issue [${issueCodes[0] ?? ""}]`;
+  const heading = targetLabel
+    ? `${actionWord} ${issueCodes.length} Unassigned Issue${issueCodes.length === 1 ? "" : "s"} (${targetLabel})`
+    : isMultiple
+      ? `${actionWord} ${issueCodes.length} Issues`
+      : `${actionWord} Issue [${issueCodes[0] ?? ""}]`;
 
   return (
     <Modal

@@ -145,6 +145,8 @@ type listIssuesFilter struct {
 	District    string
 	TimePeriod  string
 	AssignedTo  string
+	Status      string
+	Unassigned  bool
 	Search      string
 }
 

@@ -42,6 +42,8 @@ export const issuesApi = baseApi.injectEndpoints({
           if (params.district) queryParams.append("district", params.district);
           if (params.orgUnit) queryParams.append("org_unit", params.orgUnit);
           if (params.assignedTo) queryParams.append("assigned_to", params.assignedTo);
+          if (params.status) queryParams.append("status", params.status);
+          if (params.unassigned) queryParams.append("unassigned", "true");
           if (params.search) queryParams.append("search", params.search);
         }
         const queryString = queryParams.toString();
