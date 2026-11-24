@@ -144,9 +144,11 @@ export const issuesApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiEnvelope<KeycloakGroup[]>) => res.data ?? [],
     }),
 
+    // Returns every member of the group (no paging); the assign modal
+    // filters the list client-side as the user types.
     getKeycloakGroupMembers: builder.query<KeycloakGroupMember[], string>({
       query: (groupId) => ({
-        url: `${API.issue.list()}/keycloak-groups/${groupId}/members`,
+        url: `${API.issue.list()}/keycloak-groups/${encodeURIComponent(groupId)}/members`,
         method: "GET",
         credentials: "include",
       }),

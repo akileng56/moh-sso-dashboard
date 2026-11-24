@@ -439,7 +439,7 @@ const IssueDetail = ({
                 {!isFinalStatus && (
                   <PermissionGuard permission={PERMISSIONS.issueTrackerManage}>
                     <Button
-                      className="btn-issue"
+                      className="btn-issue btn-issue--resolve"
                       size="md"
                       kind="primary"
                       onClick={() => openActionModal("resolve")}

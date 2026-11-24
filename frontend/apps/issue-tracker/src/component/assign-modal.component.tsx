@@ -6,6 +6,7 @@ import {
   useAssignIssuesMutation,
 } from "../api";
 import type { KeycloakGroup, KeycloakGroupMember } from "../types";
+import { formatMemberLabel, memberMatchesSearch } from "../lib/memberSearch";
 
 type AssignModalProps = {
   issueCodes: string[];
@@ -144,6 +145,21 @@ export const AssignModal = ({
           itemToString={(item: KeycloakGroup | null) =>
             item ? `${item.name} (${item.path})` : ""
           }
+          shouldFilterItem={({
+            item,
+            inputValue,
+          }: {
+            item: KeycloakGroup;
+            inputValue: string | null;
+          }) => {
+            const q = (inputValue ?? "").trim().toLowerCase();
+            if (!q) return true;
+            return (
+              item.name.toLowerCase().includes(q) ||
+              item.path.toLowerCase().includes(q) ||
+              `${item.name} (${item.path})`.toLowerCase().includes(q)
+            );
+          }}
           onChange={handleGroupChange}
           disabled={isLoadingGroups || isAssigning}
           warn={Boolean(groupsError)}
@@ -158,16 +174,31 @@ export const AssignModal = ({
               ? "First select a user group"
               : isLoadingMembers
                 ? "Loading group members..."
-                : "Select User"
+                : "Search or select user"
+          }
+          helperText={
+            selectedGroupId && !isLoadingMembers
+              ? `${members.length} user${members.length === 1 ? "" : "s"} in this group. Type a name, username, or email to filter.`
+              : undefined
           }
           items={members}
           selectedItem={selectedMember}
-          itemToString={(item: KeycloakGroupMember | null) => {
-            if (!item) return "";
-            const name = [item.firstName, item.lastName].filter(Boolean).join(" ");
-            return name
-              ? `${name} (${item.email || item.username})`
-              : item.email || item.username;
+          itemToString={(item: KeycloakGroupMember | null) =>
+            formatMemberLabel(item)
+          }
+          shouldFilterItem={({
+            item,
+            inputValue,
+          }: {
+            item: KeycloakGroupMember;
+            inputValue: string | null;
+          }) => {
+            const q = (inputValue ?? "").trim();
+            // Input still shows the selected member's label: show the full list.
+            if (selectedMember && q === formatMemberLabel(selectedMember).trim()) {
+              return true;
+            }
+            return memberMatchesSearch(item, q);
           }}
           onChange={handleMemberChange}
           disabled={!selectedGroupId || isLoadingMembers || isAssigning}

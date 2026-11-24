@@ -228,6 +228,25 @@
   max-width: none;
 }
 
+.cds--btn.btn-issue--resolve {
+  background-color: #24a148;
+  border-color: transparent;
+  color: #ffffff;
+
+  &:hover {
+    background-color: #198038;
+  }
+
+  &:active {
+    background-color: #0e6027;
+  }
+
+  &:focus {
+    border-color: #0f62fe;
+    box-shadow: inset 0 0 0 1px #0f62fe, inset 0 0 0 2px #ffffff;
+  }
+}
+
 .issue-detail-modal-description {
   margin: 0 0 1rem;
   color: #525252;

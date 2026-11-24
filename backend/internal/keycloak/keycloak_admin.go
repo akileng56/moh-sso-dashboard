@@ -1064,13 +1064,14 @@ func (c *KeyAdminClient) EnsureGroupPath(
 	return current, nil
 }
 
-func (c *KeyAdminClient) ListGroupMembers(ctx context.Context, groupID string) ([]KeycloakUser, error) {
-	groupID = strings.TrimSpace(groupID)
-	if groupID == "" {
-		return nil, fmt.Errorf("groupID is required")
-	}
-
-	res, err := c.GetWithContext(ctx, "groups/"+url.PathEscape(groupID)+"/members")
+func (c *KeyAdminClient) listGroupMembersPage(ctx context.Context, groupID string, first int, max int) ([]KeycloakUser, error) {
+	endpoint := fmt.Sprintf(
+		"groups/%s/members?first=%d&max=%d",
+		url.PathEscape(groupID),
+		first,
+		max,
+	)
+	res, err := c.GetWithContext(ctx, endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -1084,6 +1085,95 @@ func (c *KeyAdminClient) ListGroupMembers(ctx context.Context, groupID string) (
 	var users []KeycloakUser
 	if err := json.NewDecoder(res.Body).Decode(&users); err != nil {
 		return nil, err
+	}
+	return users, nil
+}
+
+// matchesKeycloakUserSearch reports whether every whitespace-separated token
+// in query appears somewhere in the user's first name, last name, username or
+// email. Token matching lets "akileng isaac", "isaac  akileng" or "isaac gmail"
+// all find the same user, regardless of word order or spacing.
+func matchesKeycloakUserSearch(user KeycloakUser, query string) bool {
+	tokens := strings.Fields(strings.ToLower(query))
+	if len(tokens) == 0 {
+		return true
+	}
+	haystack := strings.ToLower(strings.Join([]string{
+		user.FirstName,
+		user.LastName,
+		user.Username,
+		user.Email,
+	}, " "))
+	for _, token := range tokens {
+		if !strings.Contains(haystack, token) {
+			return false
+		}
+	}
+	return true
+}
+
+// ListGroupMembersFiltered returns every direct member of the group whose
+// name, username or email matches search (all members when search is empty).
+func (c *KeyAdminClient) ListGroupMembersFiltered(
+	ctx context.Context,
+	groupID string,
+	search string,
+) ([]KeycloakUser, error) {
+	members, err := c.ListGroupMembers(ctx, groupID)
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(search) == "" {
+		return members, nil
+	}
+	results := make([]KeycloakUser, 0, len(members))
+	for _, user := range members {
+		if matchesKeycloakUserSearch(user, search) {
+			results = append(results, user)
+		}
+	}
+	return results, nil
+}
+
+// ListGroupMembers returns every direct member of the group. Keycloak caps a
+// members request without "max" at 100 users, so this asks for max=-1 (no
+// limit). If the server or a proxy still caps the response, the loop keeps
+// requesting from the next offset until an empty page comes back.
+func (c *KeyAdminClient) ListGroupMembers(ctx context.Context, groupID string) ([]KeycloakUser, error) {
+	groupID = strings.TrimSpace(groupID)
+	if groupID == "" {
+		return nil, fmt.Errorf("groupID is required")
+	}
+
+	const (
+		pageSize = -1    // Keycloak: negative max = return all members
+		maxPages = 10000 // safety stop against a server that ignores "first"
+	)
+	var users []KeycloakUser
+	seen := make(map[string]struct{})
+	first := 0
+	for pageNum := 0; pageNum < maxPages; pageNum++ {
+		page, err := c.listGroupMembersPage(ctx, groupID, first, pageSize)
+		if err != nil {
+			return nil, err
+		}
+		if len(page) == 0 {
+			break
+		}
+		added := 0
+		for _, user := range page {
+			if _, dup := seen[user.ID]; dup {
+				continue
+			}
+			seen[user.ID] = struct{}{}
+			users = append(users, user)
+			added++
+		}
+		if added == 0 {
+			// Server ignored "first" and returned the same page again.
+			break
+		}
+		first += len(page)
 	}
 	return users, nil
 }

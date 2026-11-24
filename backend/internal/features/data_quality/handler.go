@@ -511,7 +511,9 @@ func (h *Handler) ListKeycloakGroupMembers(c *gin.Context) {
 		return
 	}
 
-	members, err := h.keyAdminClient.ListGroupMembers(c.Request.Context(), groupID)
+	search := strings.TrimSpace(c.Query("search"))
+
+	members, err := h.keyAdminClient.ListGroupMembersFiltered(c.Request.Context(), groupID, search)
 	if err != nil {
 		response.Fail(c, http.StatusInternalServerError, "KEYCLOAK_MEMBERS_FAILED", "failed to fetch Keycloak group members")
 		return

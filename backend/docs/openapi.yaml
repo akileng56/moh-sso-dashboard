@@ -32553,6 +32553,11 @@ paths:
           required: true
           schema:
             type: string
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           content:
